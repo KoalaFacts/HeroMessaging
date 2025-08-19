@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <PackageId>HeroMessaging.Serialization.MessagePack</PackageId>
+    <PackageVersion>1.0.0</PackageVersion>
+    <Authors>HeroMessaging</Authors>
+    <Description>MessagePack serialization support for HeroMessaging</Description>
+    <PackageTags>messaging;serialization;messagepack</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HeroMessaging.Abstractions\HeroMessaging.Abstractions.csproj" />
+    <ProjectReference Include="..\HeroMessaging.Core\HeroMessaging.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MessagePack" Version="3.0.300" />
+  </ItemGroup>
+
+</Project>

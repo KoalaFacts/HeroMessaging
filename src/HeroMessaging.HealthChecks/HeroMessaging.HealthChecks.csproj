@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Health check implementations for HeroMessaging components</Description>
+    <PackageTags>messaging;healthcheck;monitoring;diagnostics</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HeroMessaging.Abstractions\HeroMessaging.Abstractions.csproj" />
+    <ProjectReference Include="..\HeroMessaging.Core\HeroMessaging.Core.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -4,7 +4,7 @@ namespace HeroMessaging.Abstractions.Storage;
 
 public interface IOutboxStorage
 {
-    Task<OutboxEntry> Add(IMessage message, OutboxOptions options, CancellationToken cancellationToken = default);
+    Task<OutboxEntry> Add(IMessage message, Abstractions.OutboxOptions options, CancellationToken cancellationToken = default);
     
     Task<IEnumerable<OutboxEntry>> GetPending(int limit = 100, CancellationToken cancellationToken = default);
     
@@ -23,7 +23,7 @@ public class OutboxEntry
 {
     public string Id { get; set; } = Guid.NewGuid().ToString();
     public IMessage Message { get; set; } = null!;
-    public OutboxOptions Options { get; set; } = new();
+    public Abstractions.OutboxOptions Options { get; set; } = new();
     public OutboxStatus Status { get; set; } = OutboxStatus.Pending;
     public int RetryCount { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

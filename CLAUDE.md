@@ -29,7 +29,7 @@ dotnet build -f net8.0
 
 ## Architecture Overview
 
-HeroMessaging is a modular, plugin-based messaging library that unifies multiple messaging patterns (MediatR, Event Bus, Queuing, Outbox/Inbox) into one lightweight framework built on `System.Threading.Tasks.Dataflow`.
+HeroMessaging is a modular, plugin-based messaging library that unifies multiple messaging patterns (MediatR, Event Bus, Queuing, Outbox/Inbox) into one lightweight framework built on `System.Threading.Tasks.Dataflow`. The library includes comprehensive error handling with dead letter queue support and retry mechanisms.
 
 ### Core Design Principles
 
@@ -105,10 +105,12 @@ All storage implementations follow the same pattern:
 
 ### Error Handling Strategy
 
-- Processors catch and log exceptions without crashing
-- Failed messages in queues/outbox are retried with exponential backoff
-- Circuit breaker pattern available through configuration
-- All exceptions include contextual information (message IDs, queue names, etc.)
+- **Dead Letter Queue**: Failed messages are automatically sent to DLQ after max retries
+- **Retry Logic**: Exponential backoff with jitter for transient errors
+- **Error Classification**: Automatic detection of transient vs permanent failures
+- **Error Handler Interface**: Pluggable error handling with `IErrorHandler` and `IDeadLetterQueue`
+- **Parallel Event Processing**: Events maintain parallel processing even with error handling
+- **Contextual Information**: All errors include message IDs, component names, retry counts
 
 ## Key Implementation Details
 

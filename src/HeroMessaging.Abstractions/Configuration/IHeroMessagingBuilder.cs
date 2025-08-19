@@ -17,6 +17,8 @@ public interface IHeroMessagingBuilder
     
     IHeroMessagingBuilder WithInbox();
     
+    IHeroMessagingBuilder WithErrorHandling();
+    
     IHeroMessagingBuilder UseInMemoryStorage();
     
     IHeroMessagingBuilder UseStorage<TStorage>() where TStorage : class, IMessageStorage;

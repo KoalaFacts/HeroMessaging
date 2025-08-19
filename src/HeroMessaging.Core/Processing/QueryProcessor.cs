@@ -1,16 +1,25 @@
 using System.Threading.Tasks.Dataflow;
+using System.Diagnostics;
 using HeroMessaging.Abstractions.Handlers;
 using HeroMessaging.Abstractions.Queries;
+using HeroMessaging.Abstractions.Processing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace HeroMessaging.Core.Processing;
 
-public class QueryProcessor : IQueryProcessor
+public class QueryProcessor : IQueryProcessor, IProcessor
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<QueryProcessor> _logger;
     private readonly ActionBlock<Func<Task>> _processingBlock;
+    private long _processedCount;
+    private long _failedCount;
+    private long _cacheHits;
+    private readonly List<long> _durations = new();
+    private readonly object _metricsLock = new();
+    
+    public bool IsRunning { get; private set; } = true;
 
     public QueryProcessor(IServiceProvider serviceProvider, ILogger<QueryProcessor> logger)
     {
@@ -43,11 +52,26 @@ public class QueryProcessor : IQueryProcessor
             try
             {
                 var handleMethod = handlerType.GetMethod("Handle");
-                var result = await (Task<TResponse>)handleMethod!.Invoke(handler, new object[] { query, cancellationToken })!;
+                var sw = Stopwatch.StartNew();
+                var result = await (Task<TResponse>)handleMethod!.Invoke(handler, [query, cancellationToken])!;
+                sw.Stop();
+                
+                lock (_metricsLock)
+                {
+                    _processedCount++;
+                    _durations.Add(sw.ElapsedMilliseconds);
+                    if (_durations.Count > 100) _durations.RemoveAt(0);
+                }
+                
                 tcs.SetResult(result);
             }
             catch (Exception ex)
             {
+                lock (_metricsLock)
+                {
+                    _failedCount++;
+                }
+                
                 _logger.LogError(ex, "Error processing query {QueryType}", query.GetType().Name);
                 tcs.SetException(ex);
             }
@@ -55,6 +79,32 @@ public class QueryProcessor : IQueryProcessor
 
         return await tcs.Task;
     }
+    
+    public IQueryProcessorMetrics GetMetrics()
+    {
+        lock (_metricsLock)
+        {
+            return new QueryProcessorMetrics
+            {
+                ProcessedCount = _processedCount,
+                FailedCount = _failedCount,
+                AverageDuration = _durations.Count > 0 
+                    ? TimeSpan.FromMilliseconds(_durations.Average())
+                    : TimeSpan.Zero,
+                CacheHitRate = _processedCount > 0 
+                    ? (double)_cacheHits / _processedCount 
+                    : 0
+            };
+        }
+    }
+}
+
+public class QueryProcessorMetrics : IQueryProcessorMetrics
+{
+    public long ProcessedCount { get; init; }
+    public long FailedCount { get; init; }
+    public TimeSpan AverageDuration { get; init; }
+    public double CacheHitRate { get; init; }
 }
 
 public interface IQueryProcessor

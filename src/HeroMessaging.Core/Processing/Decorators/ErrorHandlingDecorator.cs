@@ -1,0 +1,118 @@
+using HeroMessaging.Abstractions.ErrorHandling;
+using HeroMessaging.Abstractions.Messages;
+using HeroMessaging.Abstractions.Processing;
+using Microsoft.Extensions.Logging;
+
+namespace HeroMessaging.Core.Processing.Decorators;
+
+/// <summary>
+/// Decorator that adds error handling and retry logic to message processing
+/// </summary>
+public class ErrorHandlingDecorator : MessageProcessorDecorator
+{
+    private readonly IErrorHandler _errorHandler;
+    private readonly ILogger<ErrorHandlingDecorator> _logger;
+    private readonly int _maxRetries;
+
+    public ErrorHandlingDecorator(
+        IMessageProcessor inner,
+        IErrorHandler errorHandler,
+        ILogger<ErrorHandlingDecorator> logger,
+        int maxRetries = 3) : base(inner)
+    {
+        _errorHandler = errorHandler;
+        _logger = logger;
+        _maxRetries = maxRetries;
+    }
+
+    public override async ValueTask<ProcessingResult> ProcessAsync(IMessage message, ProcessingContext context, CancellationToken cancellationToken = default)
+    {
+        var retryCount = 0;
+        Exception? lastException = null;
+
+        while (retryCount <= _maxRetries)
+        {
+            try
+            {
+                var result = await _inner.ProcessAsync(message, context, cancellationToken);
+                
+                if (result.Success)
+                {
+                    if (retryCount > 0)
+                    {
+                        _logger.LogInformation("Message {MessageId} succeeded after {RetryCount} retries", 
+                            message.MessageId, retryCount);
+                    }
+                    return result;
+                }
+
+                // If processing failed but no exception, treat as permanent failure
+                if (result.Exception == null)
+                {
+                    return result;
+                }
+
+                lastException = result.Exception;
+            }
+            catch (Exception ex)
+            {
+                lastException = ex;
+            }
+
+            if (lastException != null)
+            {
+                _logger.LogError(lastException, 
+                    "Error processing message {MessageId} of type {MessageType}. Attempt {RetryCount}/{MaxRetries}",
+                    message.MessageId, message.GetType().Name, retryCount + 1, _maxRetries + 1);
+
+                var errorContext = new ErrorContext
+                {
+                    RetryCount = retryCount,
+                    MaxRetries = _maxRetries,
+                    Component = context.Component,
+                    FirstFailureTime = context.FirstFailureTime ?? DateTime.UtcNow,
+                    LastFailureTime = DateTime.UtcNow,
+                    Metadata = context.Metadata.ToDictionary(kvp => kvp.Key, kvp => kvp.Value)
+                };
+
+                var errorResult = await _errorHandler.HandleError(message, lastException, errorContext, cancellationToken);
+
+                switch (errorResult.Action)
+                {
+                    case ErrorAction.Retry:
+                        retryCount++;
+                        context = context.WithRetry(retryCount, context.FirstFailureTime);
+                        
+                        if (errorResult.RetryDelay.HasValue)
+                        {
+                            _logger.LogDebug("Waiting {Delay}ms before retry", errorResult.RetryDelay.Value.TotalMilliseconds);
+                            await Task.Delay(errorResult.RetryDelay.Value, cancellationToken);
+                        }
+                        continue;
+
+                    case ErrorAction.SendToDeadLetter:
+                        _logger.LogWarning("Message {MessageId} sent to dead letter queue: {Reason}",
+                            message.MessageId, errorResult.Reason);
+                        return ProcessingResult.Failed(lastException, $"Sent to DLQ: {errorResult.Reason}");
+
+                    case ErrorAction.Discard:
+                        _logger.LogWarning("Message {MessageId} discarded: {Reason}",
+                            message.MessageId, errorResult.Reason);
+                        return ProcessingResult.Failed(lastException, $"Discarded: {errorResult.Reason}");
+
+                    case ErrorAction.Escalate:
+                        _logger.LogCritical(lastException, "Critical error processing message {MessageId}. Escalating.",
+                            message.MessageId);
+                        throw lastException;
+                }
+            }
+
+            retryCount++;
+        }
+
+        // Max retries exceeded
+        _logger.LogError("Message {MessageId} failed after {MaxRetries} retries", message.MessageId, _maxRetries);
+        return ProcessingResult.Failed(lastException ?? new Exception("Processing failed"), 
+            $"Failed after {_maxRetries} retries");
+    }
+}

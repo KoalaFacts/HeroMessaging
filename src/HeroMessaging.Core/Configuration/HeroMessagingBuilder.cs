@@ -2,11 +2,13 @@ using System.Reflection;
 using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Commands;
 using HeroMessaging.Abstractions.Configuration;
+using HeroMessaging.Abstractions.ErrorHandling;
 using HeroMessaging.Abstractions.Events;
 using HeroMessaging.Abstractions.Handlers;
 using HeroMessaging.Abstractions.Plugins;
 using HeroMessaging.Abstractions.Queries;
 using HeroMessaging.Abstractions.Storage;
+using HeroMessaging.Core.ErrorHandling;
 using HeroMessaging.Core.Processing;
 using HeroMessaging.Core.Storage;
 using Microsoft.Extensions.DependencyInjection;
@@ -67,6 +69,13 @@ public class HeroMessagingBuilder : IHeroMessagingBuilder
         _services.AddSingleton<IOutboxStorage, InMemoryOutboxStorage>();
         _services.AddSingleton<IInboxStorage, InMemoryInboxStorage>();
         _services.AddSingleton<IQueueStorage, InMemoryQueueStorage>();
+        return this;
+    }
+    
+    public IHeroMessagingBuilder WithErrorHandling()
+    {
+        _services.AddSingleton<IDeadLetterQueue, InMemoryDeadLetterQueue>();
+        _services.AddSingleton<IErrorHandler, DefaultErrorHandler>();
         return this;
     }
 
@@ -156,7 +165,11 @@ public class HeroMessagingBuilder : IHeroMessagingBuilder
         
         if (_withEventBus)
         {
-            _services.AddSingleton<IEventBus, EventBus>();
+            // Register the new pipeline-based EventBus
+            _services.AddSingleton<IEventBus, EventBusV2>();
+            
+            // Register pipeline services
+            _services.AddMessageProcessingPipeline();
         }
         
         if (_withQueues)
