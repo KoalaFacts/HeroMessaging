@@ -36,6 +36,8 @@ public class CommandProcessor : ICommandProcessor, IProcessor
 
     public async Task Send(ICommand command, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(command);
+        
         var handlerType = typeof(ICommandHandler<>).MakeGenericType(command.GetType());
         var handler = _serviceProvider.GetService(handlerType);
         
@@ -46,10 +48,11 @@ public class CommandProcessor : ICommandProcessor, IProcessor
 
         var tcs = new TaskCompletionSource<bool>();
         
-        await _processingBlock.SendAsync(async () =>
+        var posted = await _processingBlock.SendAsync(async () =>
         {
             try
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var handleMethod = handlerType.GetMethod("Handle");
                 var sw = Stopwatch.StartNew();
                 await (Task)handleMethod!.Invoke(handler, [command, cancellationToken])!;
@@ -64,6 +67,10 @@ public class CommandProcessor : ICommandProcessor, IProcessor
                 
                 tcs.SetResult(true);
             }
+            catch (OperationCanceledException)
+            {
+                tcs.SetCanceled(cancellationToken);
+            }
             catch (Exception ex)
             {
                 lock (_metricsLock)
@@ -75,12 +82,19 @@ public class CommandProcessor : ICommandProcessor, IProcessor
                 tcs.SetException(ex);
             }
         }, cancellationToken);
+        
+        if (!posted)
+        {
+            tcs.SetCanceled(cancellationToken);
+        }
 
         await tcs.Task;
     }
 
     public async Task<TResponse> Send<TResponse>(ICommand<TResponse> command, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(command);
+        
         var handlerType = typeof(ICommandHandler<,>).MakeGenericType(command.GetType(), typeof(TResponse));
         var handler = _serviceProvider.GetService(handlerType);
         
@@ -91,10 +105,11 @@ public class CommandProcessor : ICommandProcessor, IProcessor
 
         var tcs = new TaskCompletionSource<TResponse>();
         
-        await _processingBlock.SendAsync(async () =>
+        var posted = await _processingBlock.SendAsync(async () =>
         {
             try
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var handleMethod = handlerType.GetMethod("Handle");
                 var sw = Stopwatch.StartNew();
                 var result = await (Task<TResponse>)handleMethod!.Invoke(handler, [command, cancellationToken])!;
@@ -109,6 +124,10 @@ public class CommandProcessor : ICommandProcessor, IProcessor
                 
                 tcs.SetResult(result);
             }
+            catch (OperationCanceledException)
+            {
+                tcs.SetCanceled(cancellationToken);
+            }
             catch (Exception ex)
             {
                 lock (_metricsLock)
@@ -120,6 +139,11 @@ public class CommandProcessor : ICommandProcessor, IProcessor
                 tcs.SetException(ex);
             }
         }, cancellationToken);
+        
+        if (!posted)
+        {
+            tcs.SetCanceled(cancellationToken);
+        }
 
         return await tcs.Task;
     }

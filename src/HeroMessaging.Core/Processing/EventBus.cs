@@ -38,6 +38,8 @@ public class EventBus : IEventBus, IProcessor
 
     public async Task Publish(IEvent @event, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(@event);
+        
         var eventType = @event.GetType();
         var handlerType = typeof(IEventHandler<>).MakeGenericType(eventType);
         var handlers = _serviceProvider.GetServices(handlerType).ToList();
@@ -61,7 +63,7 @@ public class EventBus : IEventBus, IProcessor
             var envelope = new EventEnvelope
             {
                 Event = @event,
-                Handler = handler,
+                Handler = handler!,
                 HandlerType = handlerType,
                 CancellationToken = cancellationToken
             };

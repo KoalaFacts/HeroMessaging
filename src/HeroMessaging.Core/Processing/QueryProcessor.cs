@@ -15,7 +15,6 @@ public class QueryProcessor : IQueryProcessor, IProcessor
     private readonly ActionBlock<Func<Task>> _processingBlock;
     private long _processedCount;
     private long _failedCount;
-    private long _cacheHits;
     private readonly List<long> _durations = new();
     private readonly object _metricsLock = new();
     
@@ -37,6 +36,8 @@ public class QueryProcessor : IQueryProcessor, IProcessor
 
     public async Task<TResponse> Send<TResponse>(IQuery<TResponse> query, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(query);
+        
         var handlerType = typeof(IQueryHandler<,>).MakeGenericType(query.GetType(), typeof(TResponse));
         var handler = _serviceProvider.GetService(handlerType);
         
@@ -47,10 +48,11 @@ public class QueryProcessor : IQueryProcessor, IProcessor
 
         var tcs = new TaskCompletionSource<TResponse>();
         
-        await _processingBlock.SendAsync(async () =>
+        var posted = await _processingBlock.SendAsync(async () =>
         {
             try
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var handleMethod = handlerType.GetMethod("Handle");
                 var sw = Stopwatch.StartNew();
                 var result = await (Task<TResponse>)handleMethod!.Invoke(handler, [query, cancellationToken])!;
@@ -65,6 +67,10 @@ public class QueryProcessor : IQueryProcessor, IProcessor
                 
                 tcs.SetResult(result);
             }
+            catch (OperationCanceledException)
+            {
+                tcs.SetCanceled(cancellationToken);
+            }
             catch (Exception ex)
             {
                 lock (_metricsLock)
@@ -76,6 +82,11 @@ public class QueryProcessor : IQueryProcessor, IProcessor
                 tcs.SetException(ex);
             }
         }, cancellationToken);
+        
+        if (!posted)
+        {
+            tcs.SetCanceled(cancellationToken);
+        }
 
         return await tcs.Task;
     }
@@ -91,9 +102,7 @@ public class QueryProcessor : IQueryProcessor, IProcessor
                 AverageDuration = _durations.Count > 0 
                     ? TimeSpan.FromMilliseconds(_durations.Average())
                     : TimeSpan.Zero,
-                CacheHitRate = _processedCount > 0 
-                    ? (double)_cacheHits / _processedCount 
-                    : 0
+                CacheHitRate = 0
             };
         }
     }

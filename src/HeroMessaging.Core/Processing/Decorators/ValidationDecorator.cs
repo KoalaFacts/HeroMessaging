@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Processing;
+using HeroMessaging.Abstractions.Validation;
 using Microsoft.Extensions.Logging;
 
 namespace HeroMessaging.Core.Processing.Decorators;
@@ -37,30 +38,6 @@ public class ValidationDecorator : MessageProcessorDecorator
         }
         
         return await _inner.ProcessAsync(message, context, cancellationToken);
-    }
-}
-
-public interface IMessageValidator
-{
-    ValueTask<ValidationResult> ValidateAsync(IMessage message, CancellationToken cancellationToken = default);
-}
-
-public readonly record struct ValidationResult
-{
-    public bool IsValid { get; init; }
-    public ImmutableArray<string> Errors { get; init; }
-    
-    public static ValidationResult Success() => new() { IsValid = true, Errors = ImmutableArray<string>.Empty };
-    public static ValidationResult Failure(params string[] errors) => new() { IsValid = false, Errors = errors.ToImmutableArray() };
-}
-
-public class ValidationException : Exception
-{
-    public IReadOnlyList<string> Errors { get; }
-    
-    public ValidationException(IReadOnlyList<string> errors) : base($"Validation failed: {string.Join(", ", errors)}")
-    {
-        Errors = errors;
     }
 }
 

@@ -1,3 +1,4 @@
+using HeroMessaging.Abstractions.Metrics;
 using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Core.Processing.Decorators;
 using Microsoft.Extensions.DependencyInjection;

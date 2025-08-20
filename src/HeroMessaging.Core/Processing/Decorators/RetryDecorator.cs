@@ -1,4 +1,5 @@
 using HeroMessaging.Abstractions.Messages;
+using HeroMessaging.Abstractions.Policies;
 using HeroMessaging.Abstractions.Processing;
 using Microsoft.Extensions.Logging;
 
@@ -69,16 +70,6 @@ public class RetryDecorator : MessageProcessorDecorator
             lastException ?? new Exception("Processing failed after retries"),
             $"Failed after {maxRetries} retries");
     }
-}
-
-/// <summary>
-/// Defines retry policy behavior
-/// </summary>
-public interface IRetryPolicy
-{
-    int MaxRetries { get; }
-    bool ShouldRetry(Exception? exception, int attemptNumber);
-    TimeSpan GetRetryDelay(int attemptNumber);
 }
 
 /// <summary>

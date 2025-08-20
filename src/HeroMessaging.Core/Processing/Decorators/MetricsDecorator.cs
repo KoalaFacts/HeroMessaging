@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using HeroMessaging.Abstractions.Messages;
+using HeroMessaging.Abstractions.Metrics;
 using HeroMessaging.Abstractions.Processing;
 
 namespace HeroMessaging.Core.Processing.Decorators;
@@ -54,13 +55,6 @@ public class MetricsDecorator : MessageProcessorDecorator
             throw;
         }
     }
-}
-
-public interface IMetricsCollector
-{
-    void IncrementCounter(string name, int value = 1);
-    void RecordDuration(string name, TimeSpan duration);
-    void RecordValue(string name, double value);
 }
 
 public class InMemoryMetricsCollector : IMetricsCollector

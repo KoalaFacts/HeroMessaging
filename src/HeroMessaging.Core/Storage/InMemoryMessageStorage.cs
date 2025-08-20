@@ -35,7 +35,14 @@ public class InMemoryMessageStorage : IMessageStorage
                 return Task.FromResult<T?>(default);
             }
             
-            return Task.FromResult((T?)stored.Message);
+            // Check if the stored message is of the requested type
+            if (stored.Message is T typedMessage)
+            {
+                return Task.FromResult<T?>(typedMessage);
+            }
+            
+            // Return null if the types don't match
+            return Task.FromResult<T?>(default);
         }
         
         return Task.FromResult<T?>(default);

@@ -198,7 +198,7 @@ public static class HeroMessagingInstrumentation
         if (activity != null)
         {
             activity.SetStatus(ActivityStatusCode.Error, exception.Message);
-            activity.RecordException(exception);
+            activity.AddException(exception);
         }
     }
 }

@@ -63,7 +63,7 @@ public class EventBusV2 : IEventBus
             var envelope = new EventEnvelope
             {
                 Event = @event,
-                Handler = handler,
+                Handler = handler!,
                 HandlerType = handlerType,
                 CancellationToken = cancellationToken
             };

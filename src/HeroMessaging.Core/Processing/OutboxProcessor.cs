@@ -173,12 +173,7 @@ public class OutboxProcessor : IOutboxProcessor
         await Task.Delay(100);
         
         // Simulate occasional failures for testing
-#if NETSTANDARD2_0
-        var random = new Random();
-        if (random.Next(10) == 0)
-#else
         if (Random.Shared.Next(10) == 0)
-#endif
         {
             throw new InvalidOperationException($"Failed to send to {entry.Options.Destination}");
         }
