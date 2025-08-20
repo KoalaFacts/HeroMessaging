@@ -15,10 +15,52 @@ public class SqlServerOutboxStorage : IOutboxStorage
     private readonly SqlServerStorageOptions _options;
     private readonly JsonSerializerOptions _jsonOptions;
     private readonly string _tableName;
+    private readonly SqlConnection? _sharedConnection;
+    private readonly SqlTransaction? _sharedTransaction;
 
     public SqlServerOutboxStorage(SqlServerStorageOptions options)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
+        _tableName = _options.GetFullTableName(_options.OutboxTableName);
+        _jsonOptions = new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true,
+            WriteIndented = false
+        };
+        
+        if (_options.AutoCreateTables)
+        {
+            InitializeDatabase().GetAwaiter().GetResult();
+        }
+    }
+
+    /// <summary>
+    /// Constructor for transaction-aware operations with shared connection and transaction
+    /// </summary>
+    public SqlServerOutboxStorage(SqlConnection connection, SqlTransaction? transaction)
+    {
+        _sharedConnection = connection ?? throw new ArgumentNullException(nameof(connection));
+        _sharedTransaction = transaction;
+        
+        // Use default options when using shared connection
+        _options = new SqlServerStorageOptions { ConnectionString = connection.ConnectionString };
+        _tableName = _options.GetFullTableName(_options.OutboxTableName);
+        _jsonOptions = new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true,
+            WriteIndented = false
+        };
+    }
+
+    /// <summary>
+    /// Constructor with connection string for transaction-aware operations
+    /// </summary>
+    public SqlServerOutboxStorage(string connectionString)
+    {
+        if (string.IsNullOrEmpty(connectionString))
+            throw new ArgumentException("Connection string cannot be null or empty", nameof(connectionString));
+            
+        _options = new SqlServerStorageOptions { ConnectionString = connectionString };
         _tableName = _options.GetFullTableName(_options.OutboxTableName);
         _jsonOptions = new JsonSerializerOptions
         {
@@ -91,26 +133,41 @@ public class SqlServerOutboxStorage : IOutboxStorage
             NextRetryAt = null
         };
         
-        using var connection = new SqlConnection(_options.ConnectionString);
-        await connection.OpenAsync(cancellationToken);
+        var connection = _sharedConnection ?? new SqlConnection(_options.ConnectionString);
+        var shouldDisposeConnection = _sharedConnection == null;
         
-        var sql = $"""
-            INSERT INTO {_tableName} (Id, MessagePayload, MessageType, Status, RetryCount, CreatedAt, NextRetryAt)
-            VALUES (@Id, @MessagePayload, @MessageType, @Status, @RetryCount, @CreatedAt, @NextRetryAt)
-            """;
+        try
+        {
+            if (connection.State != ConnectionState.Open)
+            {
+                await connection.OpenAsync(cancellationToken);
+            }
         
-        using var command = new SqlCommand(sql, connection);
-        command.CommandTimeout = _options.CommandTimeout;
-        command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = entry.Id;
-        command.Parameters.Add("@MessagePayload", SqlDbType.NVarChar, -1).Value = JsonSerializer.Serialize(message, _jsonOptions);
-        command.Parameters.Add("@MessageType", SqlDbType.NVarChar, 500).Value = message.GetType().FullName ?? "Unknown";
-        command.Parameters.Add("@Status", SqlDbType.Int).Value = (int)entry.Status;
-        command.Parameters.Add("@RetryCount", SqlDbType.Int).Value = entry.RetryCount;
-        command.Parameters.Add("@CreatedAt", SqlDbType.DateTime2).Value = entry.CreatedAt;
-        command.Parameters.Add("@NextRetryAt", SqlDbType.DateTime2).Value = (object?)entry.NextRetryAt ?? DBNull.Value;
-        
-        await command.ExecuteNonQueryAsync(cancellationToken);
-        return entry;
+            var sql = $"""
+                INSERT INTO {_tableName} (Id, MessagePayload, MessageType, Status, RetryCount, CreatedAt, NextRetryAt)
+                VALUES (@Id, @MessagePayload, @MessageType, @Status, @RetryCount, @CreatedAt, @NextRetryAt)
+                """;
+            
+            using var command = new SqlCommand(sql, connection, _sharedTransaction);
+            command.CommandTimeout = _options.CommandTimeout;
+            command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = entry.Id;
+            command.Parameters.Add("@MessagePayload", SqlDbType.NVarChar, -1).Value = JsonSerializer.Serialize(message, _jsonOptions);
+            command.Parameters.Add("@MessageType", SqlDbType.NVarChar, 500).Value = message.GetType().FullName ?? "Unknown";
+            command.Parameters.Add("@Status", SqlDbType.Int).Value = (int)entry.Status;
+            command.Parameters.Add("@RetryCount", SqlDbType.Int).Value = entry.RetryCount;
+            command.Parameters.Add("@CreatedAt", SqlDbType.DateTime2).Value = entry.CreatedAt;
+            command.Parameters.Add("@NextRetryAt", SqlDbType.DateTime2).Value = (object?)entry.NextRetryAt ?? DBNull.Value;
+            
+            await command.ExecuteNonQueryAsync(cancellationToken);
+            return entry;
+        }
+        finally
+        {
+            if (shouldDisposeConnection)
+            {
+                connection?.Dispose();
+            }
+        }
     }
 
     public async Task<IEnumerable<OutboxEntry>> GetPending(int limit = 100, CancellationToken cancellationToken = default)

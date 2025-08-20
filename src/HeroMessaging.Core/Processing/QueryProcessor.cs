@@ -3,6 +3,7 @@ using System.Diagnostics;
 using HeroMessaging.Abstractions.Handlers;
 using HeroMessaging.Abstractions.Queries;
 using HeroMessaging.Abstractions.Processing;
+using HeroMessaging.Core.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -36,7 +37,7 @@ public class QueryProcessor : IQueryProcessor, IProcessor
 
     public async Task<TResponse> Send<TResponse>(IQuery<TResponse> query, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(query);
+        CompatibilityHelpers.ThrowIfNull(query, nameof(query));
         
         var handlerType = typeof(IQueryHandler<,>).MakeGenericType(query.GetType(), typeof(TResponse));
         var handler = _serviceProvider.GetService(handlerType);

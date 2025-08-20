@@ -1,6 +1,7 @@
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Policies;
 using HeroMessaging.Abstractions.Processing;
+using HeroMessaging.Core.Utilities;
 using Microsoft.Extensions.Logging;
 
 namespace HeroMessaging.Core.Processing.Decorators;
@@ -114,7 +115,7 @@ public class ExponentialBackoffRetryPolicy : IRetryPolicy
     public TimeSpan GetRetryDelay(int attemptNumber)
     {
         var exponentialDelay = _baseDelay.TotalMilliseconds * Math.Pow(2, attemptNumber);
-        var jitter = Random.Shared.NextDouble() * _jitterFactor;
+        var jitter = RandomHelper.Instance.NextDouble() * _jitterFactor;
         var delayWithJitter = exponentialDelay * (1 + jitter);
         var finalDelay = TimeSpan.FromMilliseconds(Math.Min(delayWithJitter, _maxDelay.TotalMilliseconds));
         

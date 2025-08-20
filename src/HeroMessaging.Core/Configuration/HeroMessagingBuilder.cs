@@ -18,6 +18,8 @@ namespace HeroMessaging.Core.Configuration;
 public class HeroMessagingBuilder : IHeroMessagingBuilder
 {
     private readonly IServiceCollection _services;
+    
+    public IServiceCollection Services => _services;
     private readonly List<Assembly> _assemblies = new();
     private readonly List<IMessagingPlugin> _plugins = new();
     private ProcessingOptions _processingOptions = new();
@@ -230,13 +232,5 @@ public class HeroMessagingBuilder : IHeroMessagingBuilder
                 }
             }
         }
-    }
-}
-
-public static class ServiceCollectionExtensions
-{
-    public static IHeroMessagingBuilder AddHeroMessaging(this IServiceCollection services)
-    {
-        return new HeroMessagingBuilder(services);
     }
 }

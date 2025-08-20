@@ -1,5 +1,6 @@
 using HeroMessaging.Abstractions.ErrorHandling;
 using HeroMessaging.Abstractions.Messages;
+using HeroMessaging.Core.Utilities;
 using Microsoft.Extensions.Logging;
 
 namespace HeroMessaging.Core.ErrorHandling;
@@ -74,8 +75,8 @@ public class DefaultErrorHandler : IErrorHandler
         return error is TimeoutException ||
                error is TaskCanceledException ||
                (error.InnerException != null && IsTransientError(error.InnerException)) ||
-               error.Message.Contains("timeout", StringComparison.OrdinalIgnoreCase) ||
-               error.Message.Contains("transient", StringComparison.OrdinalIgnoreCase);
+               CompatibilityHelpers.Contains(error.Message, "timeout", StringComparison.OrdinalIgnoreCase) ||
+               CompatibilityHelpers.Contains(error.Message, "transient", StringComparison.OrdinalIgnoreCase);
     }
 
     private bool IsCriticalError(Exception error)
@@ -89,7 +90,7 @@ public class DefaultErrorHandler : IErrorHandler
     {
         // Exponential backoff with jitter
         var baseDelay = Math.Pow(2, retryCount);
-        var jitter = Random.Shared.NextDouble() * 0.3; // 30% jitter
+        var jitter = RandomHelper.Instance.NextDouble() * 0.3; // 30% jitter
         var delaySeconds = baseDelay * (1 + jitter);
         
         // Cap at 30 seconds

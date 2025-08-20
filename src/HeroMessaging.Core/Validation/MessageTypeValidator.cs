@@ -3,6 +3,7 @@ using HeroMessaging.Abstractions.Events;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Queries;
 using HeroMessaging.Abstractions.Validation;
+using HeroMessaging.Core.Utilities;
 
 namespace HeroMessaging.Core.Validation;
 
@@ -47,10 +48,10 @@ public class MessageTypeValidator : IMessageValidator
         if (!isValid)
         {
             var allowedTypeNames = string.Join(", ", _allowedTypes.Select(t => t.Name));
-            return ValueTask.FromResult(ValidationResult.Failure(
+            return CompatibilityHelpers.FromResult(ValidationResult.Failure(
                 $"Message type '{messageType.Name}' does not implement any of the allowed interfaces: {allowedTypeNames}"));
         }
         
-        return ValueTask.FromResult(ValidationResult.Success());
+        return CompatibilityHelpers.FromResult(ValidationResult.Success());
     }
 }

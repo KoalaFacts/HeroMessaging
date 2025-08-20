@@ -1,6 +1,7 @@
 using System.Reflection;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Validation;
+using HeroMessaging.Core.Utilities;
 
 namespace HeroMessaging.Core.Validation;
 
@@ -41,7 +42,7 @@ public class RequiredFieldsValidator : IMessageValidator
             }
         }
         
-        return ValueTask.FromResult(errors.Count > 0 
+        return CompatibilityHelpers.FromResult(errors.Count > 0 
             ? ValidationResult.Failure(errors.ToArray())
             : ValidationResult.Success());
     }

@@ -1,6 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <!-- MessagePack v3.x doesn't support netstandard2.0 -->
+    <TargetFrameworks>net6.0;net7.0;net8.0;net9.0</TargetFrameworks>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <PackageId>HeroMessaging.Serialization.MessagePack</PackageId>
     <PackageVersion>1.0.0</PackageVersion>

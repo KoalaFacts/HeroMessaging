@@ -115,7 +115,16 @@ public class QueueProcessor : IQueueProcessor
             _processingBlock.Complete();
             
             if (_pollingTask != null)
-                await _pollingTask;
+            {
+                try
+                {
+                    await _pollingTask;
+                }
+                catch (OperationCanceledException)
+                {
+                    // Expected when cancellation is requested
+                }
+            }
             
             await _processingBlock.Completion;
             
@@ -145,7 +154,14 @@ public class QueueProcessor : IQueueProcessor
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error polling queue {QueueName}", _queueName);
-                    await Task.Delay(1000, cancellationToken);
+                    try
+                    {
+                        await Task.Delay(1000, cancellationToken);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        break;
+                    }
                 }
             }
         }

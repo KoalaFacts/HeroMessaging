@@ -1,6 +1,7 @@
 using System.Text.Json;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Validation;
+using HeroMessaging.Core.Utilities;
 
 namespace HeroMessaging.Core.Validation;
 
@@ -25,15 +26,15 @@ public class MessageSizeValidator : IMessageValidator
             
             if (sizeInBytes > _maxSizeInBytes)
             {
-                return ValueTask.FromResult(ValidationResult.Failure(
+                return CompatibilityHelpers.FromResult(ValidationResult.Failure(
                     $"Message size {sizeInBytes} bytes exceeds maximum allowed size of {_maxSizeInBytes} bytes"));
             }
             
-            return ValueTask.FromResult(ValidationResult.Success());
+            return CompatibilityHelpers.FromResult(ValidationResult.Success());
         }
         catch (Exception ex)
         {
-            return ValueTask.FromResult(ValidationResult.Failure($"Failed to validate message size: {ex.Message}"));
+            return CompatibilityHelpers.FromResult(ValidationResult.Failure($"Failed to validate message size: {ex.Message}"));
         }
     }
 }

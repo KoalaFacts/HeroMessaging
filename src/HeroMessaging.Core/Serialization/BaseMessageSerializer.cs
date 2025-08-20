@@ -82,7 +82,7 @@ public abstract class BaseMessageSerializer : IMessageSerializer
             Abstractions.Serialization.CompressionLevel.None => System.IO.Compression.CompressionLevel.NoCompression,
             Abstractions.Serialization.CompressionLevel.Fastest => System.IO.Compression.CompressionLevel.Fastest,
             Abstractions.Serialization.CompressionLevel.Optimal => System.IO.Compression.CompressionLevel.Optimal,
-            Abstractions.Serialization.CompressionLevel.Maximum => System.IO.Compression.CompressionLevel.SmallestSize,
+            Abstractions.Serialization.CompressionLevel.Maximum => System.IO.Compression.CompressionLevel.Optimal,
             _ => System.IO.Compression.CompressionLevel.Optimal
         };
         
@@ -100,7 +100,11 @@ public abstract class BaseMessageSerializer : IMessageSerializer
         using var output = new MemoryStream();
         using var gzip = new GZipStream(input, CompressionMode.Decompress);
         
+#if NETSTANDARD2_0
+        await gzip.CopyToAsync(output);
+#else
         await gzip.CopyToAsync(output, cancellationToken);
+#endif
         return output.ToArray();
     }
 }

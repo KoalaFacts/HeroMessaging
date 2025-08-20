@@ -15,6 +15,8 @@ public class SqlServerMessageStorage : IMessageStorage
     private readonly string _connectionString;
     private readonly JsonSerializerOptions _jsonOptions;
     private readonly string _tableName;
+    private readonly SqlConnection? _sharedConnection;
+    private readonly SqlTransaction? _sharedTransaction;
 
     public SqlServerMessageStorage(SqlServerStorageOptions options)
     {
@@ -29,6 +31,26 @@ public class SqlServerMessageStorage : IMessageStorage
         };
         
         InitializeDatabase().GetAwaiter().GetResult();
+    }
+
+    /// <summary>
+    /// Constructor for transaction-aware operations with shared connection and transaction
+    /// </summary>
+    public SqlServerMessageStorage(SqlConnection connection, SqlTransaction? transaction)
+    {
+        _sharedConnection = connection ?? throw new ArgumentNullException(nameof(connection));
+        _sharedTransaction = transaction;
+        
+        // Use default options when using shared connection
+        _options = new SqlServerStorageOptions { ConnectionString = connection.ConnectionString };
+        _connectionString = connection.ConnectionString;
+        _tableName = _options.GetFullTableName(_options.MessagesTableName);
+        
+        _jsonOptions = new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true,
+            WriteIndented = false
+        };
     }
 
     private async Task InitializeDatabase()

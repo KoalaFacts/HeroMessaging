@@ -4,6 +4,7 @@ using HeroMessaging.Abstractions.Commands;
 using HeroMessaging.Abstractions.Events;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Storage;
+using HeroMessaging.Core.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -173,7 +174,7 @@ public class OutboxProcessor : IOutboxProcessor
         await Task.Delay(100);
         
         // Simulate occasional failures for testing
-        if (Random.Shared.Next(10) == 0)
+        if (RandomHelper.Instance.Next(10) == 0)
         {
             throw new InvalidOperationException($"Failed to send to {entry.Options.Destination}");
         }

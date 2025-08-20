@@ -3,6 +3,7 @@ using System.Diagnostics;
 using HeroMessaging.Abstractions.Commands;
 using HeroMessaging.Abstractions.Handlers;
 using HeroMessaging.Abstractions.Processing;
+using HeroMessaging.Core.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -36,7 +37,7 @@ public class CommandProcessor : ICommandProcessor, IProcessor
 
     public async Task Send(ICommand command, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(command);
+        CompatibilityHelpers.ThrowIfNull(command, nameof(command));
         
         var handlerType = typeof(ICommandHandler<>).MakeGenericType(command.GetType());
         var handler = _serviceProvider.GetService(handlerType);
@@ -93,7 +94,7 @@ public class CommandProcessor : ICommandProcessor, IProcessor
 
     public async Task<TResponse> Send<TResponse>(ICommand<TResponse> command, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(command);
+        CompatibilityHelpers.ThrowIfNull(command, nameof(command));
         
         var handlerType = typeof(ICommandHandler<,>).MakeGenericType(command.GetType(), typeof(TResponse));
         var handler = _serviceProvider.GetService(handlerType);

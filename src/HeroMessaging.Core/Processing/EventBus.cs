@@ -3,6 +3,7 @@ using HeroMessaging.Abstractions.ErrorHandling;
 using HeroMessaging.Abstractions.Events;
 using HeroMessaging.Abstractions.Handlers;
 using HeroMessaging.Abstractions.Processing;
+using HeroMessaging.Core.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -38,7 +39,7 @@ public class EventBus : IEventBus, IProcessor
 
     public async Task Publish(IEvent @event, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(@event);
+        CompatibilityHelpers.ThrowIfNull(@event, nameof(@event));
         
         var eventType = @event.GetType();
         var handlerType = typeof(IEventHandler<>).MakeGenericType(eventType);
