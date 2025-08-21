@@ -12,6 +12,7 @@ using HeroMessaging.ErrorHandling;
 using HeroMessaging.Processing;
 using HeroMessaging.Storage;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace HeroMessaging.Configuration;
 
@@ -111,6 +112,14 @@ public class HeroMessagingBuilder(IServiceCollection services) : IHeroMessagingB
         _services.AddSingleton<IMessagingPlugin, TPlugin>();
         return this;
     }
+    
+    public IHeroMessagingBuilder AddPlugin<TPlugin>(Action<TPlugin> configure) where TPlugin : class, IMessagingPlugin
+    {
+        var plugin = Activator.CreateInstance<TPlugin>();
+        configure(plugin);
+        _services.AddSingleton<IMessagingPlugin>(plugin);
+        return this;
+    }
 
     public IHeroMessagingBuilder AddPlugin(IMessagingPlugin plugin)
     {
@@ -147,6 +156,26 @@ public class HeroMessagingBuilder(IServiceCollection services) : IHeroMessagingB
             options.SequentialProcessing = false;
             options.MaxConcurrency = Environment.ProcessorCount * 2;
         });
+        return this;
+    }
+    
+    public IHeroMessagingBuilder DiscoverPlugins()
+    {
+        // Discover plugins from the current app domain
+        return DiscoverPlugins(AppDomain.CurrentDomain.BaseDirectory);
+    }
+    
+    public IHeroMessagingBuilder DiscoverPlugins(string directory)
+    {
+        // This would be implemented with the plugin discovery system
+        // For now, it's a placeholder
+        return this;
+    }
+    
+    public IHeroMessagingBuilder DiscoverPlugins(Assembly assembly)
+    {
+        // This would scan the assembly for plugins
+        // For now, it's a placeholder
         return this;
     }
 
@@ -192,6 +221,10 @@ public class HeroMessagingBuilder(IServiceCollection services) : IHeroMessagingB
         {
             plugin.Configure(_services);
         }
+        
+        // Register configuration validator
+        _services.AddSingleton<IConfigurationValidator>(sp => 
+            new ConfigurationValidator(_services, sp.GetService<ILogger<ConfigurationValidator>>()));
         
         return _services;
     }

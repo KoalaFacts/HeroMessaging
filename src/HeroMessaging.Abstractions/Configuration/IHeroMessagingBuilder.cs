@@ -35,6 +35,14 @@ public interface IHeroMessagingBuilder
     
     IHeroMessagingBuilder AddPlugin(IMessagingPlugin plugin);
     
+    IHeroMessagingBuilder AddPlugin<TPlugin>(Action<TPlugin> configure) where TPlugin : class, IMessagingPlugin;
+    
+    IHeroMessagingBuilder DiscoverPlugins();
+    
+    IHeroMessagingBuilder DiscoverPlugins(string directory);
+    
+    IHeroMessagingBuilder DiscoverPlugins(Assembly assembly);
+    
     IHeroMessagingBuilder Development();
     
     IHeroMessagingBuilder Production(string connectionString);
