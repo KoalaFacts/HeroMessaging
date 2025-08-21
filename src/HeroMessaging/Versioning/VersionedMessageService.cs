@@ -7,21 +7,15 @@ namespace HeroMessaging.Versioning;
 /// <summary>
 /// Service for handling versioned message operations
 /// </summary>
-public class VersionedMessageService : IVersionedMessageService
+public class VersionedMessageService(
+    IMessageVersionResolver versionResolver,
+    IMessageConverterRegistry converterRegistry,
+    ILogger<VersionedMessageService> logger) : IVersionedMessageService
 {
-    private readonly IMessageVersionResolver _versionResolver;
-    private readonly IMessageConverterRegistry _converterRegistry;
-    private readonly ILogger<VersionedMessageService> _logger;
+    private readonly IMessageVersionResolver _versionResolver = versionResolver ?? throw new ArgumentNullException(nameof(versionResolver));
+    private readonly IMessageConverterRegistry _converterRegistry = converterRegistry ?? throw new ArgumentNullException(nameof(converterRegistry));
+    private readonly ILogger<VersionedMessageService> _logger = logger;
 
-    public VersionedMessageService(
-        IMessageVersionResolver versionResolver,
-        IMessageConverterRegistry converterRegistry,
-        ILogger<VersionedMessageService> logger)
-    {
-        _versionResolver = versionResolver ?? throw new ArgumentNullException(nameof(versionResolver));
-        _converterRegistry = converterRegistry ?? throw new ArgumentNullException(nameof(converterRegistry));
-        _logger = logger;
-    }
 
     /// <summary>
     /// Converts a message to a specific version

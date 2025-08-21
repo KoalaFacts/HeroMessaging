@@ -163,14 +163,9 @@ public class SqlServerUnitOfWork : IUnitOfWork
 /// <summary>
 /// Factory for creating SQL Server unit of work instances
 /// </summary>
-public class SqlServerUnitOfWorkFactory : IUnitOfWorkFactory
+public class SqlServerUnitOfWorkFactory(string connectionString) : IUnitOfWorkFactory
 {
-    private readonly string _connectionString;
-
-    public SqlServerUnitOfWorkFactory(string connectionString)
-    {
-        _connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
-    }
+    private readonly string _connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
 
     public async Task<IUnitOfWork> CreateAsync(CancellationToken cancellationToken = default)
     {

@@ -10,22 +10,15 @@ using Microsoft.Extensions.Logging;
 
 namespace HeroMessaging.Processing;
 
-public class QueueProcessor : IQueueProcessor
+public class QueueProcessor(
+    IServiceProvider serviceProvider,
+    IQueueStorage queueStorage,
+    ILogger<QueueProcessor> logger) : IQueueProcessor
 {
-    private readonly IServiceProvider _serviceProvider;
-    private readonly IQueueStorage _queueStorage;
-    private readonly ILogger<QueueProcessor> _logger;
+    private readonly IServiceProvider _serviceProvider = serviceProvider;
+    private readonly IQueueStorage _queueStorage = queueStorage;
+    private readonly ILogger<QueueProcessor> _logger = logger;
     private readonly ConcurrentDictionary<string, QueueWorker> _workers = new();
-
-    public QueueProcessor(
-        IServiceProvider serviceProvider,
-        IQueueStorage queueStorage,
-        ILogger<QueueProcessor> logger)
-    {
-        _serviceProvider = serviceProvider;
-        _queueStorage = queueStorage;
-        _logger = logger;
-    }
 
     public async Task Enqueue(IMessage message, string queueName, EnqueueOptions? options = null, CancellationToken cancellationToken = default)
     {

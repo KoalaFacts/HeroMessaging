@@ -8,22 +8,15 @@ namespace HeroMessaging.Processing.Decorators;
 /// <summary>
 /// Decorator that adds error handling and retry logic to message processing
 /// </summary>
-public class ErrorHandlingDecorator : MessageProcessorDecorator
+public class ErrorHandlingDecorator(
+    IMessageProcessor inner,
+    IErrorHandler errorHandler,
+    ILogger<ErrorHandlingDecorator> logger,
+    int maxRetries = 3) : MessageProcessorDecorator(inner)
 {
-    private readonly IErrorHandler _errorHandler;
-    private readonly ILogger<ErrorHandlingDecorator> _logger;
-    private readonly int _maxRetries;
-
-    public ErrorHandlingDecorator(
-        IMessageProcessor inner,
-        IErrorHandler errorHandler,
-        ILogger<ErrorHandlingDecorator> logger,
-        int maxRetries = 3) : base(inner)
-    {
-        _errorHandler = errorHandler;
-        _logger = logger;
-        _maxRetries = maxRetries;
-    }
+    private readonly IErrorHandler _errorHandler = errorHandler;
+    private readonly ILogger<ErrorHandlingDecorator> _logger = logger;
+    private readonly int _maxRetries = maxRetries;
 
     public override async ValueTask<ProcessingResult> ProcessAsync(IMessage message, ProcessingContext context, CancellationToken cancellationToken = default)
     {

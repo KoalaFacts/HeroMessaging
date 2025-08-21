@@ -7,21 +7,14 @@ namespace HeroMessaging.Resilience;
 /// <summary>
 /// Resilient decorator for IUnitOfWorkFactory that adds connection resilience patterns
 /// </summary>
-public class ResilientUnitOfWorkFactory : IUnitOfWorkFactory
+public class ResilientUnitOfWorkFactory(
+    IUnitOfWorkFactory inner,
+    IConnectionResiliencePolicy resiliencePolicy,
+    ILogger<ResilientUnitOfWorkFactory> logger) : IUnitOfWorkFactory
 {
-    private readonly IUnitOfWorkFactory _inner;
-    private readonly IConnectionResiliencePolicy _resiliencePolicy;
-    private readonly ILogger<ResilientUnitOfWorkFactory> _logger;
-
-    public ResilientUnitOfWorkFactory(
-        IUnitOfWorkFactory inner,
-        IConnectionResiliencePolicy resiliencePolicy,
-        ILogger<ResilientUnitOfWorkFactory> logger)
-    {
-        _inner = inner ?? throw new ArgumentNullException(nameof(inner));
-        _resiliencePolicy = resiliencePolicy ?? throw new ArgumentNullException(nameof(resiliencePolicy));
-        _logger = logger;
-    }
+    private readonly IUnitOfWorkFactory _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+    private readonly IConnectionResiliencePolicy _resiliencePolicy = resiliencePolicy ?? throw new ArgumentNullException(nameof(resiliencePolicy));
+    private readonly ILogger<ResilientUnitOfWorkFactory> _logger = logger;
 
     public async Task<IUnitOfWork> CreateAsync(CancellationToken cancellationToken = default)
     {
@@ -53,21 +46,14 @@ public class ResilientUnitOfWorkFactory : IUnitOfWorkFactory
 /// <summary>
 /// Resilient decorator for IUnitOfWork that adds connection resilience patterns
 /// </summary>
-public class ResilientUnitOfWork : IUnitOfWork
+public class ResilientUnitOfWork(
+    IUnitOfWork inner,
+    IConnectionResiliencePolicy resiliencePolicy,
+    ILogger logger) : IUnitOfWork
 {
-    private readonly IUnitOfWork _inner;
-    private readonly IConnectionResiliencePolicy _resiliencePolicy;
-    private readonly ILogger _logger;
-
-    public ResilientUnitOfWork(
-        IUnitOfWork inner,
-        IConnectionResiliencePolicy resiliencePolicy,
-        ILogger logger)
-    {
-        _inner = inner ?? throw new ArgumentNullException(nameof(inner));
-        _resiliencePolicy = resiliencePolicy ?? throw new ArgumentNullException(nameof(resiliencePolicy));
-        _logger = logger;
-    }
+    private readonly IUnitOfWork _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+    private readonly IConnectionResiliencePolicy _resiliencePolicy = resiliencePolicy ?? throw new ArgumentNullException(nameof(resiliencePolicy));
+    private readonly ILogger _logger = logger;
 
     public IsolationLevel IsolationLevel => _inner.IsolationLevel;
     public bool IsTransactionActive => _inner.IsTransactionActive;

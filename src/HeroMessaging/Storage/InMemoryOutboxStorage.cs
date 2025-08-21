@@ -24,6 +24,47 @@ public class InMemoryOutboxStorage : IOutboxStorage
         return Task.FromResult(entry);
     }
 
+    public Task<IEnumerable<OutboxEntry>> GetPending(OutboxQuery query, CancellationToken cancellationToken = default)
+    {
+        var pending = _entries.Values.AsEnumerable();
+        
+        if (query.Status.HasValue)
+        {
+            var status = query.Status.Value switch
+            {
+                OutboxEntryStatus.Pending => OutboxStatus.Pending,
+                OutboxEntryStatus.Processing => OutboxStatus.Processing,
+                OutboxEntryStatus.Processed => OutboxStatus.Processed,
+                OutboxEntryStatus.Failed => OutboxStatus.Failed,
+                _ => OutboxStatus.Pending
+            };
+            pending = pending.Where(e => e.Status == status);
+        }
+        else
+        {
+            pending = pending.Where(e => e.Status == OutboxStatus.Pending);
+        }
+        
+        pending = pending.Where(e => e.NextRetryAt == null || e.NextRetryAt <= DateTime.UtcNow);
+        
+        if (query.OlderThan.HasValue)
+        {
+            pending = pending.Where(e => e.CreatedAt < query.OlderThan.Value);
+        }
+        
+        if (query.NewerThan.HasValue)
+        {
+            pending = pending.Where(e => e.CreatedAt > query.NewerThan.Value);
+        }
+        
+        pending = pending
+            .OrderBy(e => e.Options.Priority)
+            .ThenBy(e => e.CreatedAt)
+            .Take(query.Limit);
+        
+        return Task.FromResult(pending);
+    }
+    
     public Task<IEnumerable<OutboxEntry>> GetPending(int limit = 100, CancellationToken cancellationToken = default)
     {
         var pending = _entries.Values

@@ -1,45 +1,111 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.IO.Compression;
 using HeroMessaging.Abstractions.Serialization;
-using HeroMessaging.Serialization;
 
 namespace HeroMessaging.Serialization.Json;
 
 /// <summary>
 /// JSON message serializer using System.Text.Json
 /// </summary>
-public class JsonMessageSerializer : BaseMessageSerializer
+public class JsonMessageSerializer(SerializationOptions? options = null, JsonSerializerOptions? jsonOptions = null) : IMessageSerializer
 {
-    private readonly JsonSerializerOptions _jsonOptions;
+    private readonly SerializationOptions _options = options ?? new SerializationOptions();
+    private readonly JsonSerializerOptions _jsonOptions = jsonOptions ?? CreateDefaultOptions();
+
+    public string ContentType => "application/json";
     
-    public JsonMessageSerializer(SerializationOptions? options = null, JsonSerializerOptions? jsonOptions = null) 
-        : base(options)
+    public async ValueTask<byte[]> SerializeAsync<T>(T message, CancellationToken cancellationToken = default)
     {
-        _jsonOptions = jsonOptions ?? CreateDefaultOptions();
-    }
-    
-    public override string ContentType => "application/json";
-    
-    protected override ValueTask<byte[]> SerializeCore<T>(T message, CancellationToken cancellationToken)
-    {
+        if (message == null)
+        {
+            return Array.Empty<byte>();
+        }
+        
         var json = JsonSerializer.Serialize(message, _jsonOptions);
-        var bytes = Encoding.UTF8.GetBytes(json);
-        return new ValueTask<byte[]>(bytes);
+        var data = Encoding.UTF8.GetBytes(json);
+        
+        if (_options.MaxMessageSize > 0 && data.Length > _options.MaxMessageSize)
+        {
+            throw new InvalidOperationException($"Serialized message size ({data.Length} bytes) exceeds maximum allowed size ({_options.MaxMessageSize} bytes)");
+        }
+        
+        if (_options.EnableCompression)
+        {
+            data = await CompressAsync(data, cancellationToken);
+        }
+        
+        return data;
     }
     
-    protected override ValueTask<T> DeserializeCore<T>(byte[] data, CancellationToken cancellationToken) where T : class
+    public async ValueTask<T> DeserializeAsync<T>(byte[] data, CancellationToken cancellationToken = default) where T : class
     {
+        if (data == null || data.Length == 0)
+        {
+            return default(T)!;
+        }
+        
+        if (_options.EnableCompression)
+        {
+            data = await DecompressAsync(data, cancellationToken);
+        }
+        
         var json = Encoding.UTF8.GetString(data);
         var result = JsonSerializer.Deserialize<T>(json, _jsonOptions);
-        return new ValueTask<T>(result!);
+        return result!;
     }
     
-    protected override ValueTask<object?> DeserializeCore(byte[] data, Type messageType, CancellationToken cancellationToken)
+    public async ValueTask<object?> DeserializeAsync(byte[] data, Type messageType, CancellationToken cancellationToken = default)
     {
+        if (data == null || data.Length == 0)
+        {
+            return null;
+        }
+        
+        if (_options.EnableCompression)
+        {
+            data = await DecompressAsync(data, cancellationToken);
+        }
+        
         var json = Encoding.UTF8.GetString(data);
         var result = JsonSerializer.Deserialize(json, messageType, _jsonOptions);
-        return new ValueTask<object?>(result);
+        return result;
+    }
+    
+    private async ValueTask<byte[]> CompressAsync(byte[] data, CancellationToken cancellationToken)
+    {
+        using var output = new MemoryStream();
+        
+        var compressionLevel = _options.CompressionLevel switch
+        {
+            Abstractions.Serialization.CompressionLevel.None => System.IO.Compression.CompressionLevel.NoCompression,
+            Abstractions.Serialization.CompressionLevel.Fastest => System.IO.Compression.CompressionLevel.Fastest,
+            Abstractions.Serialization.CompressionLevel.Optimal => System.IO.Compression.CompressionLevel.Optimal,
+            Abstractions.Serialization.CompressionLevel.Maximum => System.IO.Compression.CompressionLevel.Optimal,
+            _ => System.IO.Compression.CompressionLevel.Optimal
+        };
+        
+        using (var gzip = new GZipStream(output, compressionLevel))
+        {
+            await gzip.WriteAsync(data, 0, data.Length, cancellationToken);
+        }
+        
+        return output.ToArray();
+    }
+    
+    private async ValueTask<byte[]> DecompressAsync(byte[] data, CancellationToken cancellationToken)
+    {
+        using var input = new MemoryStream(data);
+        using var output = new MemoryStream();
+        using var gzip = new GZipStream(input, CompressionMode.Decompress);
+        
+#if NETSTANDARD2_0
+        await gzip.CopyToAsync(output);
+#else
+        await gzip.CopyToAsync(output, cancellationToken);
+#endif
+        return output.ToArray();
     }
     
     private static JsonSerializerOptions CreateDefaultOptions()

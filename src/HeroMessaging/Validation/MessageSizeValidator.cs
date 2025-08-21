@@ -8,15 +8,11 @@ namespace HeroMessaging.Validation;
 /// <summary>
 /// Validates that message size doesn't exceed a maximum limit
 /// </summary>
-public class MessageSizeValidator : IMessageValidator
+public class MessageSizeValidator(int maxSizeInBytes = 1024 * 1024) : IMessageValidator
 {
-    private readonly int _maxSizeInBytes;
-    
-    public MessageSizeValidator(int maxSizeInBytes = 1024 * 1024) // Default 1MB
-    {
-        _maxSizeInBytes = maxSizeInBytes;
-    }
-    
+    private readonly int _maxSizeInBytes = maxSizeInBytes;
+
+
     public ValueTask<ValidationResult> ValidateAsync(IMessage message, CancellationToken cancellationToken = default)
     {
         try

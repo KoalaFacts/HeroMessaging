@@ -6,6 +6,8 @@ public interface IOutboxStorage
 {
     Task<OutboxEntry> Add(IMessage message, Abstractions.OutboxOptions options, CancellationToken cancellationToken = default);
     
+    Task<IEnumerable<OutboxEntry>> GetPending(OutboxQuery query, CancellationToken cancellationToken = default);
+    
     Task<IEnumerable<OutboxEntry>> GetPending(int limit = 100, CancellationToken cancellationToken = default);
     
     Task<bool> MarkProcessed(string entryId, CancellationToken cancellationToken = default);
@@ -38,4 +40,20 @@ public enum OutboxStatus
     Processing,
     Processed,
     Failed
+}
+
+public enum OutboxEntryStatus
+{
+    Pending,
+    Processing,
+    Processed,
+    Failed
+}
+
+public class OutboxQuery
+{
+    public OutboxEntryStatus? Status { get; set; }
+    public int Limit { get; set; } = 100;
+    public DateTime? OlderThan { get; set; }
+    public DateTime? NewerThan { get; set; }
 }

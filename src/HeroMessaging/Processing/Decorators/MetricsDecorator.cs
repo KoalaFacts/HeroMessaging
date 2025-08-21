@@ -10,14 +10,9 @@ namespace HeroMessaging.Processing.Decorators;
 /// <summary>
 /// Decorator that collects metrics about message processing
 /// </summary>
-public class MetricsDecorator : MessageProcessorDecorator
+public class MetricsDecorator(IMessageProcessor inner, IMetricsCollector metricsCollector) : MessageProcessorDecorator(inner)
 {
-    private readonly IMetricsCollector _metricsCollector;
-
-    public MetricsDecorator(IMessageProcessor inner, IMetricsCollector metricsCollector) : base(inner)
-    {
-        _metricsCollector = metricsCollector;
-    }
+    private readonly IMetricsCollector _metricsCollector = metricsCollector;
 
     public override async ValueTask<ProcessingResult> ProcessAsync(IMessage message, ProcessingContext context, CancellationToken cancellationToken = default)
     {

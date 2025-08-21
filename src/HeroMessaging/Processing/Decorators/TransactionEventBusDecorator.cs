@@ -10,24 +10,16 @@ namespace HeroMessaging.Processing.Decorators;
 /// Decorator that wraps event processing in database transactions
 /// Each event handler execution gets its own transaction to maintain independence
 /// </summary>
-public class TransactionEventBusDecorator : IEventBus
+public class TransactionEventBusDecorator(
+    IEventBus inner,
+    IUnitOfWorkFactory unitOfWorkFactory,
+    ILogger<TransactionEventBusDecorator> logger,
+    IsolationLevel defaultIsolationLevel = IsolationLevel.ReadCommitted) : IEventBus
 {
-    private readonly IEventBus _inner;
-    private readonly IUnitOfWorkFactory _unitOfWorkFactory;
-    private readonly ILogger<TransactionEventBusDecorator> _logger;
-    private readonly IsolationLevel _defaultIsolationLevel;
-
-    public TransactionEventBusDecorator(
-        IEventBus inner,
-        IUnitOfWorkFactory unitOfWorkFactory,
-        ILogger<TransactionEventBusDecorator> logger,
-        IsolationLevel defaultIsolationLevel = IsolationLevel.ReadCommitted)
-    {
-        _inner = inner ?? throw new ArgumentNullException(nameof(inner));
-        _unitOfWorkFactory = unitOfWorkFactory ?? throw new ArgumentNullException(nameof(unitOfWorkFactory));
-        _logger = logger;
-        _defaultIsolationLevel = defaultIsolationLevel;
-    }
+    private readonly IEventBus _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+    private readonly IUnitOfWorkFactory _unitOfWorkFactory = unitOfWorkFactory ?? throw new ArgumentNullException(nameof(unitOfWorkFactory));
+    private readonly ILogger<TransactionEventBusDecorator> _logger = logger;
+    private readonly IsolationLevel _defaultIsolationLevel = defaultIsolationLevel;
 
     public async Task Publish(IEvent @event, CancellationToken cancellationToken = default)
     {
@@ -48,24 +40,16 @@ public class TransactionEventBusDecorator : IEventBus
 /// <summary>
 /// Transaction-aware event handler wrapper that provides individual transaction context per handler
 /// </summary>
-public class TransactionEventHandlerWrapper<TEvent> where TEvent : IEvent
+public class TransactionEventHandlerWrapper<TEvent>(
+    Func<TEvent, CancellationToken, Task> handler,
+    IUnitOfWorkFactory unitOfWorkFactory,
+    ILogger<TransactionEventHandlerWrapper<TEvent>> logger,
+    IsolationLevel isolationLevel = IsolationLevel.ReadCommitted) where TEvent : IEvent
 {
-    private readonly Func<TEvent, CancellationToken, Task> _handler;
-    private readonly IUnitOfWorkFactory _unitOfWorkFactory;
-    private readonly ILogger<TransactionEventHandlerWrapper<TEvent>> _logger;
-    private readonly IsolationLevel _isolationLevel;
-
-    public TransactionEventHandlerWrapper(
-        Func<TEvent, CancellationToken, Task> handler,
-        IUnitOfWorkFactory unitOfWorkFactory,
-        ILogger<TransactionEventHandlerWrapper<TEvent>> logger,
-        IsolationLevel isolationLevel = IsolationLevel.ReadCommitted)
-    {
-        _handler = handler ?? throw new ArgumentNullException(nameof(handler));
-        _unitOfWorkFactory = unitOfWorkFactory ?? throw new ArgumentNullException(nameof(unitOfWorkFactory));
-        _logger = logger;
-        _isolationLevel = isolationLevel;
-    }
+    private readonly Func<TEvent, CancellationToken, Task> _handler = handler ?? throw new ArgumentNullException(nameof(handler));
+    private readonly IUnitOfWorkFactory _unitOfWorkFactory = unitOfWorkFactory ?? throw new ArgumentNullException(nameof(unitOfWorkFactory));
+    private readonly ILogger<TransactionEventHandlerWrapper<TEvent>> _logger = logger;
+    private readonly IsolationLevel _isolationLevel = isolationLevel;
 
     public async Task HandleAsync(TEvent @event, CancellationToken cancellationToken = default)
     {

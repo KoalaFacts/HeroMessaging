@@ -15,9 +15,9 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace HeroMessaging.Configuration;
 
-public class HeroMessagingBuilder : IHeroMessagingBuilder
+public class HeroMessagingBuilder(IServiceCollection services) : IHeroMessagingBuilder
 {
-    private readonly IServiceCollection _services;
+    private readonly IServiceCollection _services = services;
     
     public IServiceCollection Services => _services;
     private readonly List<Assembly> _assemblies = new();
@@ -29,11 +29,6 @@ public class HeroMessagingBuilder : IHeroMessagingBuilder
     private bool _withQueues;
     private bool _withOutbox;
     private bool _withInbox;
-
-    public HeroMessagingBuilder(IServiceCollection services)
-    {
-        _services = services;
-    }
 
     public IHeroMessagingBuilder WithMediator()
     {

@@ -28,6 +28,11 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
         throw new NotImplementedException("PostgreSQL outbox storage implementation pending");
     }
 
+    public Task<IEnumerable<OutboxEntry>> GetPending(OutboxQuery query, CancellationToken cancellationToken = default)
+    {
+        throw new NotImplementedException("PostgreSQL outbox storage implementation pending");
+    }
+    
     public Task<IEnumerable<OutboxEntry>> GetPending(int limit = 100, CancellationToken cancellationToken = default)
     {
         throw new NotImplementedException("PostgreSQL outbox storage implementation pending");

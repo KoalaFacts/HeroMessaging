@@ -10,21 +10,14 @@ namespace HeroMessaging.Resilience;
 /// Decorator that adds connection resilience to UnitOfWork operations
 /// Handles transient database connection failures with retry and circuit breaker patterns
 /// </summary>
-public class ConnectionResilienceDecorator : IUnitOfWork
+public class ConnectionResilienceDecorator(
+    IUnitOfWork inner,
+    IConnectionResiliencePolicy resiliencePolicy,
+    ILogger<ConnectionResilienceDecorator> logger) : IUnitOfWork
 {
-    private readonly IUnitOfWork _inner;
-    private readonly IConnectionResiliencePolicy _resiliencePolicy;
-    private readonly ILogger<ConnectionResilienceDecorator> _logger;
-
-    public ConnectionResilienceDecorator(
-        IUnitOfWork inner,
-        IConnectionResiliencePolicy resiliencePolicy,
-        ILogger<ConnectionResilienceDecorator> logger)
-    {
-        _inner = inner ?? throw new ArgumentNullException(nameof(inner));
-        _resiliencePolicy = resiliencePolicy ?? throw new ArgumentNullException(nameof(resiliencePolicy));
-        _logger = logger;
-    }
+    private readonly IUnitOfWork _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+    private readonly IConnectionResiliencePolicy _resiliencePolicy = resiliencePolicy ?? throw new ArgumentNullException(nameof(resiliencePolicy));
+    private readonly ILogger<ConnectionResilienceDecorator> _logger = logger;
 
     public IsolationLevel IsolationLevel => _inner.IsolationLevel;
     public bool IsTransactionActive => _inner.IsTransactionActive;
@@ -101,23 +94,15 @@ public interface IConnectionResiliencePolicy
 /// Default implementation of connection resilience policy
 /// Combines retry logic with circuit breaker pattern
 /// </summary>
-public class DefaultConnectionResiliencePolicy : IConnectionResiliencePolicy
+public class DefaultConnectionResiliencePolicy(
+    ConnectionResilienceOptions options,
+    ILogger<DefaultConnectionResiliencePolicy> logger,
+    ConnectionHealthMonitor? healthMonitor = null) : IConnectionResiliencePolicy
 {
-    private readonly ConnectionResilienceOptions _options;
-    private readonly ILogger<DefaultConnectionResiliencePolicy> _logger;
-    private readonly ConnectionCircuitBreaker _circuitBreaker;
-    private readonly ConnectionHealthMonitor? _healthMonitor;
-
-    public DefaultConnectionResiliencePolicy(
-        ConnectionResilienceOptions options,
-        ILogger<DefaultConnectionResiliencePolicy> logger,
-        ConnectionHealthMonitor? healthMonitor = null)
-    {
-        _options = options ?? throw new ArgumentNullException(nameof(options));
-        _logger = logger;
-        _circuitBreaker = new ConnectionCircuitBreaker(options.CircuitBreakerOptions, logger);
-        _healthMonitor = healthMonitor;
-    }
+    private readonly ConnectionResilienceOptions _options = options ?? throw new ArgumentNullException(nameof(options));
+    private readonly ILogger<DefaultConnectionResiliencePolicy> _logger = logger;
+    private readonly ConnectionCircuitBreaker _circuitBreaker = new ConnectionCircuitBreaker(options.CircuitBreakerOptions, logger);
+    private readonly ConnectionHealthMonitor? _healthMonitor = healthMonitor;
 
     public async Task ExecuteAsync(Func<Task> operation, string operationName, CancellationToken cancellationToken = default)
     {
@@ -256,20 +241,14 @@ public class DefaultConnectionResiliencePolicy : IConnectionResiliencePolicy
 /// <summary>
 /// Connection-specific circuit breaker
 /// </summary>
-internal class ConnectionCircuitBreaker
+internal class ConnectionCircuitBreaker(CircuitBreakerOptions options, ILogger logger)
 {
-    private readonly CircuitBreakerOptions _options;
-    private readonly ILogger _logger;
+    private readonly CircuitBreakerOptions _options = options;
+    private readonly ILogger _logger = logger;
     private ConnectionCircuitState _state = ConnectionCircuitState.Closed;
     private DateTime _lastFailureTime;
     private int _failureCount;
     private readonly object _lock = new();
-
-    public ConnectionCircuitBreaker(CircuitBreakerOptions options, ILogger logger)
-    {
-        _options = options;
-        _logger = logger;
-    }
 
     public async Task<bool> CanExecuteAsync()
     {

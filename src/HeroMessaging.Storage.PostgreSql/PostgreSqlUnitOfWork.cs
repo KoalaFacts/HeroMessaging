@@ -166,14 +166,9 @@ public class PostgreSqlUnitOfWork : IUnitOfWork
 /// <summary>
 /// Factory for creating PostgreSQL unit of work instances
 /// </summary>
-public class PostgreSqlUnitOfWorkFactory : IUnitOfWorkFactory
+public class PostgreSqlUnitOfWorkFactory(string connectionString) : IUnitOfWorkFactory
 {
-    private readonly string _connectionString;
-
-    public PostgreSqlUnitOfWorkFactory(string connectionString)
-    {
-        _connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
-    }
+    private readonly string _connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
 
     public async Task<IUnitOfWork> CreateAsync(CancellationToken cancellationToken = default)
     {

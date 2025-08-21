@@ -150,21 +150,13 @@ public interface IMessageConverterRegistry
 /// <summary>
 /// Represents a path for converting between message versions
 /// </summary>
-public class MessageConversionPath
+public class MessageConversionPath(Type messageType, MessageVersion fromVersion, MessageVersion toVersion, IEnumerable<MessageConversionStep> steps)
 {
-    public Type MessageType { get; }
-    public MessageVersion FromVersion { get; }
-    public MessageVersion ToVersion { get; }
-    public IReadOnlyList<MessageConversionStep> Steps { get; }
-    
-    public MessageConversionPath(Type messageType, MessageVersion fromVersion, MessageVersion toVersion, IEnumerable<MessageConversionStep> steps)
-    {
-        MessageType = messageType;
-        FromVersion = fromVersion;
-        ToVersion = toVersion;
-        Steps = steps.ToList().AsReadOnly();
-    }
-    
+    public Type MessageType { get; } = messageType;
+    public MessageVersion FromVersion { get; } = fromVersion;
+    public MessageVersion ToVersion { get; } = toVersion;
+    public IReadOnlyList<MessageConversionStep> Steps { get; } = steps.ToList().AsReadOnly();
+
     public bool IsDirect => Steps.Count == 1;
     public bool RequiresMultipleSteps => Steps.Count > 1;
 }
@@ -172,16 +164,9 @@ public class MessageConversionPath
 /// <summary>
 /// Represents a single conversion step in a conversion path
 /// </summary>
-public class MessageConversionStep
+public class MessageConversionStep(MessageVersion fromVersion, MessageVersion toVersion, IMessageConverter converter)
 {
-    public MessageVersion FromVersion { get; }
-    public MessageVersion ToVersion { get; }
-    public IMessageConverter Converter { get; }
-    
-    public MessageConversionStep(MessageVersion fromVersion, MessageVersion toVersion, IMessageConverter converter)
-    {
-        FromVersion = fromVersion;
-        ToVersion = toVersion;
-        Converter = converter;
-    }
+    public MessageVersion FromVersion { get; } = fromVersion;
+    public MessageVersion ToVersion { get; } = toVersion;
+    public IMessageConverter Converter { get; } = converter;
 }

@@ -9,19 +9,13 @@ namespace HeroMessaging.Processing.Decorators;
 /// <summary>
 /// Decorator that adds retry logic to message processing
 /// </summary>
-public class RetryDecorator : MessageProcessorDecorator
+public class RetryDecorator(
+    IMessageProcessor inner,
+    ILogger<RetryDecorator> logger,
+    IRetryPolicy? retryPolicy = null) : MessageProcessorDecorator(inner)
 {
-    private readonly ILogger<RetryDecorator> _logger;
-    private readonly IRetryPolicy _retryPolicy;
-
-    public RetryDecorator(
-        IMessageProcessor inner,
-        ILogger<RetryDecorator> logger,
-        IRetryPolicy? retryPolicy = null) : base(inner)
-    {
-        _logger = logger;
-        _retryPolicy = retryPolicy ?? new ExponentialBackoffRetryPolicy();
-    }
+    private readonly ILogger<RetryDecorator> _logger = logger;
+    private readonly IRetryPolicy _retryPolicy = retryPolicy ?? new ExponentialBackoffRetryPolicy();
 
     public override async ValueTask<ProcessingResult> ProcessAsync(IMessage message, ProcessingContext context, CancellationToken cancellationToken = default)
     {
@@ -76,24 +70,16 @@ public class RetryDecorator : MessageProcessorDecorator
 /// <summary>
 /// Exponential backoff retry policy with jitter
 /// </summary>
-public class ExponentialBackoffRetryPolicy : IRetryPolicy
+public class ExponentialBackoffRetryPolicy(
+    int maxRetries = 3,
+    TimeSpan? baseDelay = null,
+    TimeSpan? maxDelay = null,
+    double jitterFactor = 0.3) : IRetryPolicy
 {
-    public int MaxRetries { get; }
-    private readonly TimeSpan _baseDelay;
-    private readonly TimeSpan _maxDelay;
-    private readonly double _jitterFactor;
-
-    public ExponentialBackoffRetryPolicy(
-        int maxRetries = 3,
-        TimeSpan? baseDelay = null,
-        TimeSpan? maxDelay = null,
-        double jitterFactor = 0.3)
-    {
-        MaxRetries = maxRetries;
-        _baseDelay = baseDelay ?? TimeSpan.FromSeconds(1);
-        _maxDelay = maxDelay ?? TimeSpan.FromSeconds(30);
-        _jitterFactor = jitterFactor;
-    }
+    public int MaxRetries { get; } = maxRetries;
+    private readonly TimeSpan _baseDelay = baseDelay ?? TimeSpan.FromSeconds(1);
+    private readonly TimeSpan _maxDelay = maxDelay ?? TimeSpan.FromSeconds(30);
+    private readonly double _jitterFactor = jitterFactor;
 
     public bool ShouldRetry(Exception? exception, int attemptNumber)
     {

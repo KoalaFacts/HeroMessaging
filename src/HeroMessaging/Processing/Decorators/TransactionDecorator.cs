@@ -11,24 +11,16 @@ namespace HeroMessaging.Processing.Decorators;
 /// <summary>
 /// Decorator that wraps command and query processing in database transactions
 /// </summary>
-public class TransactionCommandProcessorDecorator : ICommandProcessor
+public class TransactionCommandProcessorDecorator(
+    ICommandProcessor inner,
+    IUnitOfWorkFactory unitOfWorkFactory,
+    ILogger<TransactionCommandProcessorDecorator> logger,
+    IsolationLevel defaultIsolationLevel = IsolationLevel.ReadCommitted) : ICommandProcessor
 {
-    private readonly ICommandProcessor _inner;
-    private readonly IUnitOfWorkFactory _unitOfWorkFactory;
-    private readonly ILogger<TransactionCommandProcessorDecorator> _logger;
-    private readonly IsolationLevel _defaultIsolationLevel;
-
-    public TransactionCommandProcessorDecorator(
-        ICommandProcessor inner,
-        IUnitOfWorkFactory unitOfWorkFactory,
-        ILogger<TransactionCommandProcessorDecorator> logger,
-        IsolationLevel defaultIsolationLevel = IsolationLevel.ReadCommitted)
-    {
-        _inner = inner ?? throw new ArgumentNullException(nameof(inner));
-        _unitOfWorkFactory = unitOfWorkFactory ?? throw new ArgumentNullException(nameof(unitOfWorkFactory));
-        _logger = logger;
-        _defaultIsolationLevel = defaultIsolationLevel;
-    }
+    private readonly ICommandProcessor _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+    private readonly IUnitOfWorkFactory _unitOfWorkFactory = unitOfWorkFactory ?? throw new ArgumentNullException(nameof(unitOfWorkFactory));
+    private readonly ILogger<TransactionCommandProcessorDecorator> _logger = logger;
+    private readonly IsolationLevel _defaultIsolationLevel = defaultIsolationLevel;
 
     public async Task Send(ICommand command, CancellationToken cancellationToken = default)
     {
@@ -88,21 +80,14 @@ public class TransactionCommandProcessorDecorator : ICommandProcessor
 /// <summary>
 /// Decorator that wraps query processing in read-only database transactions
 /// </summary>
-public class TransactionQueryProcessorDecorator : IQueryProcessor
+public class TransactionQueryProcessorDecorator(
+    IQueryProcessor inner,
+    IUnitOfWorkFactory unitOfWorkFactory,
+    ILogger<TransactionQueryProcessorDecorator> logger) : IQueryProcessor
 {
-    private readonly IQueryProcessor _inner;
-    private readonly IUnitOfWorkFactory _unitOfWorkFactory;
-    private readonly ILogger<TransactionQueryProcessorDecorator> _logger;
-
-    public TransactionQueryProcessorDecorator(
-        IQueryProcessor inner,
-        IUnitOfWorkFactory unitOfWorkFactory,
-        ILogger<TransactionQueryProcessorDecorator> logger)
-    {
-        _inner = inner ?? throw new ArgumentNullException(nameof(inner));
-        _unitOfWorkFactory = unitOfWorkFactory ?? throw new ArgumentNullException(nameof(unitOfWorkFactory));
-        _logger = logger;
-    }
+    private readonly IQueryProcessor _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+    private readonly IUnitOfWorkFactory _unitOfWorkFactory = unitOfWorkFactory ?? throw new ArgumentNullException(nameof(unitOfWorkFactory));
+    private readonly ILogger<TransactionQueryProcessorDecorator> _logger = logger;
 
     public async Task<TResponse> Send<TResponse>(IQuery<TResponse> query, CancellationToken cancellationToken = default)
     {

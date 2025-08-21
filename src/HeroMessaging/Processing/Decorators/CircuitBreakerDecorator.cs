@@ -123,22 +123,14 @@ public class CircuitBreakerOptions
 /// <summary>
 /// Manages circuit breaker state transitions
 /// </summary>
-internal class CircuitBreakerState
+internal class CircuitBreakerState(CircuitBreakerOptions options)
 {
-    private readonly CircuitBreakerOptions _options;
-    private readonly ConcurrentQueue<(DateTime Timestamp, bool Success)> _results;
-    private CircuitState _currentState;
-    private DateTime _lastStateChange;
+    private readonly CircuitBreakerOptions _options = options;
+    private readonly ConcurrentQueue<(DateTime Timestamp, bool Success)> _results = new ConcurrentQueue<(DateTime, bool)>();
+    private CircuitState _currentState = CircuitState.Closed;
+    private DateTime _lastStateChange = DateTime.UtcNow;
     private int _halfOpenSuccesses;
     private readonly object _stateLock = new();
-
-    public CircuitBreakerState(CircuitBreakerOptions options)
-    {
-        _options = options;
-        _results = new ConcurrentQueue<(DateTime, bool)>();
-        _currentState = CircuitState.Closed;
-        _lastStateChange = DateTime.UtcNow;
-    }
 
     public CircuitState CurrentState => _currentState;
     public bool StateChanged { get; private set; }
@@ -300,7 +292,6 @@ public enum CircuitState
 /// <summary>
 /// Exception thrown when circuit breaker is open
 /// </summary>
-public class CircuitBreakerOpenException : Exception
+public class CircuitBreakerOpenException(string message) : Exception(message)
 {
-    public CircuitBreakerOpenException(string message) : base(message) { }
 }

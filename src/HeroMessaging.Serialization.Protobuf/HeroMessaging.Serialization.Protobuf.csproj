@@ -13,7 +13,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\HeroMessaging.Abstractions\HeroMessaging.Abstractions.csproj" />
-    <ProjectReference Include="..\HeroMessaging.Core\HeroMessaging.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>

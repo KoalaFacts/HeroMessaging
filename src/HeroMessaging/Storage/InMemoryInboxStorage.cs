@@ -52,7 +52,7 @@ public class InMemoryInboxStorage : IInboxStorage
     public Task<InboxEntry?> Get(string messageId, CancellationToken cancellationToken = default)
     {
         _entries.TryGetValue(messageId, out var entry);
-        return Task.FromResult(entry);
+        return Task.FromResult<InboxEntry?>(entry);
     }
 
     public Task<bool> MarkProcessed(string messageId, CancellationToken cancellationToken = default)
@@ -79,6 +79,45 @@ public class InMemoryInboxStorage : IInboxStorage
         return Task.FromResult(false);
     }
 
+    public Task<IEnumerable<InboxEntry>> GetPending(InboxQuery query, CancellationToken cancellationToken = default)
+    {
+        var pending = _entries.Values.AsEnumerable();
+        
+        if (query.Status.HasValue)
+        {
+            var status = query.Status.Value switch
+            {
+                InboxEntryStatus.Pending => InboxStatus.Pending,
+                InboxEntryStatus.Processing => InboxStatus.Processing,
+                InboxEntryStatus.Processed => InboxStatus.Processed,
+                InboxEntryStatus.Failed => InboxStatus.Failed,
+                InboxEntryStatus.Duplicate => InboxStatus.Duplicate,
+                _ => InboxStatus.Pending
+            };
+            pending = pending.Where(e => e.Status == status);
+        }
+        else
+        {
+            pending = pending.Where(e => e.Status == InboxStatus.Pending);
+        }
+        
+        if (query.OlderThan.HasValue)
+        {
+            pending = pending.Where(e => e.ReceivedAt < query.OlderThan.Value);
+        }
+        
+        if (query.NewerThan.HasValue)
+        {
+            pending = pending.Where(e => e.ReceivedAt > query.NewerThan.Value);
+        }
+        
+        pending = pending
+            .OrderBy(e => e.ReceivedAt)
+            .Take(query.Limit);
+        
+        return Task.FromResult(pending);
+    }
+    
     public Task<IEnumerable<InboxEntry>> GetUnprocessed(int limit = 100, CancellationToken cancellationToken = default)
     {
         var unprocessed = _entries.Values

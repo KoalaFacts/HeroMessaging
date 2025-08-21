@@ -48,6 +48,11 @@ public class SqlServerInboxStorage : IInboxStorage
         throw new NotImplementedException("Inbox storage implementation pending");
     }
 
+    public Task<IEnumerable<InboxEntry>> GetPending(InboxQuery query, CancellationToken cancellationToken = default)
+    {
+        throw new NotImplementedException("Inbox storage implementation pending");
+    }
+    
     public Task<IEnumerable<InboxEntry>> GetUnprocessed(int limit = 100, CancellationToken cancellationToken = default)
     {
         throw new NotImplementedException("Inbox storage implementation pending");

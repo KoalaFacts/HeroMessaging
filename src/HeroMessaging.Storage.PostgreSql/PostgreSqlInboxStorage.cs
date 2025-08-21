@@ -48,6 +48,11 @@ public class PostgreSqlInboxStorage : IInboxStorage
         throw new NotImplementedException("PostgreSQL inbox storage implementation pending");
     }
 
+    public Task<IEnumerable<InboxEntry>> GetPending(InboxQuery query, CancellationToken cancellationToken = default)
+    {
+        throw new NotImplementedException("PostgreSQL inbox storage implementation pending");
+    }
+    
     public Task<IEnumerable<InboxEntry>> GetUnprocessed(int limit = 100, CancellationToken cancellationToken = default)
     {
         throw new NotImplementedException("PostgreSQL inbox storage implementation pending");

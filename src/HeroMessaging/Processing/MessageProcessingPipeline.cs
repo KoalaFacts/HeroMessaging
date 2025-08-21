@@ -13,16 +13,12 @@ namespace HeroMessaging.Processing;
 /// <summary>
 /// Builder for creating message processing pipelines with decorators
 /// </summary>
-public class MessageProcessingPipelineBuilder
+public class MessageProcessingPipelineBuilder(IServiceProvider serviceProvider)
 {
-    private readonly IServiceProvider _serviceProvider;
+    private readonly IServiceProvider _serviceProvider = serviceProvider;
     private readonly List<Func<IMessageProcessor, IMessageProcessor>> _decorators = new();
-    
-    public MessageProcessingPipelineBuilder(IServiceProvider serviceProvider)
-    {
-        _serviceProvider = serviceProvider;
-    }
-    
+
+
     /// <summary>
     /// Add logging to the pipeline
     /// </summary>
@@ -145,15 +141,11 @@ public class MessageProcessingPipelineBuilder
 /// <summary>
 /// Core message processor that does the actual work
 /// </summary>
-public class CoreMessageProcessor : IMessageProcessor
+public class CoreMessageProcessor(Func<IMessage, ProcessingContext, CancellationToken, ValueTask> processFunc) : IMessageProcessor
 {
-    private readonly Func<IMessage, ProcessingContext, CancellationToken, ValueTask> _processFunc;
-    
-    public CoreMessageProcessor(Func<IMessage, ProcessingContext, CancellationToken, ValueTask> processFunc)
-    {
-        _processFunc = processFunc;
-    }
-    
+    private readonly Func<IMessage, ProcessingContext, CancellationToken, ValueTask> _processFunc = processFunc;
+
+
     public async ValueTask<ProcessingResult> ProcessAsync(IMessage message, ProcessingContext context, CancellationToken cancellationToken = default)
     {
         try

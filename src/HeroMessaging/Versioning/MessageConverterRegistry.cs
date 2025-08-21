@@ -8,16 +8,12 @@ namespace HeroMessaging.Versioning;
 /// <summary>
 /// Registry for managing message converters and finding conversion paths
 /// </summary>
-public class MessageConverterRegistry : IMessageConverterRegistry
+public class MessageConverterRegistry(ILogger<MessageConverterRegistry> logger) : IMessageConverterRegistry
 {
-    private readonly ILogger<MessageConverterRegistry> _logger;
+    private readonly ILogger<MessageConverterRegistry> _logger = logger;
     private readonly ConcurrentDictionary<Type, List<IMessageConverter>> _converters = new();
     private readonly ConcurrentDictionary<ConversionKey, MessageConversionPath?> _pathCache = new();
 
-    public MessageConverterRegistry(ILogger<MessageConverterRegistry> logger)
-    {
-        _logger = logger;
-    }
 
     /// <summary>
     /// Registers a message converter
@@ -289,22 +285,14 @@ public class MessageConverterRegistry : IMessageConverterRegistry
 /// <summary>
 /// Statistics about the converter registry
 /// </summary>
-public class MessageConverterRegistryStatistics
+public class MessageConverterRegistryStatistics(
+    int totalConverters,
+    int messageTypes,
+    int cachedPaths,
+    IReadOnlyDictionary<string, int> convertersByType)
 {
-    public int TotalConverters { get; }
-    public int MessageTypes { get; }
-    public int CachedPaths { get; }
-    public IReadOnlyDictionary<string, int> ConvertersByType { get; }
-    
-    public MessageConverterRegistryStatistics(
-        int totalConverters,
-        int messageTypes,
-        int cachedPaths,
-        IReadOnlyDictionary<string, int> convertersByType)
-    {
-        TotalConverters = totalConverters;
-        MessageTypes = messageTypes;
-        CachedPaths = cachedPaths;
-        ConvertersByType = convertersByType;
-    }
+    public int TotalConverters { get; } = totalConverters;
+    public int MessageTypes { get; } = messageTypes;
+    public int CachedPaths { get; } = cachedPaths;
+    public IReadOnlyDictionary<string, int> ConvertersByType { get; } = convertersByType;
 }

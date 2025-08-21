@@ -5,15 +5,10 @@ using Microsoft.Extensions.Logging;
 
 namespace HeroMessaging.ErrorHandling;
 
-public class InMemoryDeadLetterQueue : IDeadLetterQueue
+public class InMemoryDeadLetterQueue(ILogger<InMemoryDeadLetterQueue> logger) : IDeadLetterQueue
 {
     private readonly ConcurrentDictionary<string, object> _deadLetters = new();
-    private readonly ILogger<InMemoryDeadLetterQueue> _logger;
-
-    public InMemoryDeadLetterQueue(ILogger<InMemoryDeadLetterQueue> logger)
-    {
-        _logger = logger;
-    }
+    private readonly ILogger<InMemoryDeadLetterQueue> _logger = logger;
 
     public Task<string> SendToDeadLetter<T>(T message, DeadLetterContext context, CancellationToken cancellationToken = default) where T : IMessage
     {

@@ -7,18 +7,12 @@ namespace HeroMessaging.Resilience;
 /// <summary>
 /// Resilient decorator for message storage operations
 /// </summary>
-public class ResilientMessageStorageDecorator : IMessageStorage
+public class ResilientMessageStorageDecorator(
+    IMessageStorage inner,
+    IConnectionResiliencePolicy resiliencePolicy) : IMessageStorage
 {
-    private readonly IMessageStorage _inner;
-    private readonly IConnectionResiliencePolicy _resiliencePolicy;
-
-    public ResilientMessageStorageDecorator(
-        IMessageStorage inner,
-        IConnectionResiliencePolicy resiliencePolicy)
-    {
-        _inner = inner ?? throw new ArgumentNullException(nameof(inner));
-        _resiliencePolicy = resiliencePolicy ?? throw new ArgumentNullException(nameof(resiliencePolicy));
-    }
+    private readonly IMessageStorage _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+    private readonly IConnectionResiliencePolicy _resiliencePolicy = resiliencePolicy ?? throw new ArgumentNullException(nameof(resiliencePolicy));
 
     public async Task<string> Store(IMessage message, MessageStorageOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -72,18 +66,12 @@ public class ResilientMessageStorageDecorator : IMessageStorage
 /// <summary>
 /// Resilient decorator for outbox storage operations
 /// </summary>
-public class ResilientOutboxStorageDecorator : IOutboxStorage
+public class ResilientOutboxStorageDecorator(
+    IOutboxStorage inner,
+    IConnectionResiliencePolicy resiliencePolicy) : IOutboxStorage
 {
-    private readonly IOutboxStorage _inner;
-    private readonly IConnectionResiliencePolicy _resiliencePolicy;
-
-    public ResilientOutboxStorageDecorator(
-        IOutboxStorage inner,
-        IConnectionResiliencePolicy resiliencePolicy)
-    {
-        _inner = inner ?? throw new ArgumentNullException(nameof(inner));
-        _resiliencePolicy = resiliencePolicy ?? throw new ArgumentNullException(nameof(resiliencePolicy));
-    }
+    private readonly IOutboxStorage _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+    private readonly IConnectionResiliencePolicy _resiliencePolicy = resiliencePolicy ?? throw new ArgumentNullException(nameof(resiliencePolicy));
 
     public async Task<OutboxEntry> Add(IMessage message, Abstractions.OutboxOptions options, CancellationToken cancellationToken = default)
     {
@@ -91,6 +79,12 @@ public class ResilientOutboxStorageDecorator : IOutboxStorage
             await _inner.Add(message, options, cancellationToken), "AddOutboxMessage", cancellationToken);
     }
 
+    public async Task<IEnumerable<OutboxEntry>> GetPending(OutboxQuery query, CancellationToken cancellationToken = default)
+    {
+        return await _resiliencePolicy.ExecuteAsync(async () =>
+            await _inner.GetPending(query, cancellationToken), "GetPendingOutboxMessages", cancellationToken);
+    }
+    
     public async Task<IEnumerable<OutboxEntry>> GetPending(int limit = 100, CancellationToken cancellationToken = default)
     {
         return await _resiliencePolicy.ExecuteAsync(async () =>
@@ -131,18 +125,12 @@ public class ResilientOutboxStorageDecorator : IOutboxStorage
 /// <summary>
 /// Resilient decorator for inbox storage operations
 /// </summary>
-public class ResilientInboxStorageDecorator : IInboxStorage
+public class ResilientInboxStorageDecorator(
+    IInboxStorage inner,
+    IConnectionResiliencePolicy resiliencePolicy) : IInboxStorage
 {
-    private readonly IInboxStorage _inner;
-    private readonly IConnectionResiliencePolicy _resiliencePolicy;
-
-    public ResilientInboxStorageDecorator(
-        IInboxStorage inner,
-        IConnectionResiliencePolicy resiliencePolicy)
-    {
-        _inner = inner ?? throw new ArgumentNullException(nameof(inner));
-        _resiliencePolicy = resiliencePolicy ?? throw new ArgumentNullException(nameof(resiliencePolicy));
-    }
+    private readonly IInboxStorage _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+    private readonly IConnectionResiliencePolicy _resiliencePolicy = resiliencePolicy ?? throw new ArgumentNullException(nameof(resiliencePolicy));
 
     public async Task<InboxEntry?> Add(IMessage message, Abstractions.InboxOptions options, CancellationToken cancellationToken = default)
     {
@@ -174,6 +162,12 @@ public class ResilientInboxStorageDecorator : IInboxStorage
             await _inner.MarkFailed(messageId, error, cancellationToken), "MarkInboxFailed", cancellationToken);
     }
 
+    public async Task<IEnumerable<InboxEntry>> GetPending(InboxQuery query, CancellationToken cancellationToken = default)
+    {
+        return await _resiliencePolicy.ExecuteAsync(async () =>
+            await _inner.GetPending(query, cancellationToken), "GetPendingInboxMessages", cancellationToken);
+    }
+    
     public async Task<IEnumerable<InboxEntry>> GetUnprocessed(int limit = 100, CancellationToken cancellationToken = default)
     {
         return await _resiliencePolicy.ExecuteAsync(async () =>
@@ -196,18 +190,12 @@ public class ResilientInboxStorageDecorator : IInboxStorage
 /// <summary>
 /// Resilient decorator for queue storage operations
 /// </summary>
-public class ResilientQueueStorageDecorator : IQueueStorage
+public class ResilientQueueStorageDecorator(
+    IQueueStorage inner,
+    IConnectionResiliencePolicy resiliencePolicy) : IQueueStorage
 {
-    private readonly IQueueStorage _inner;
-    private readonly IConnectionResiliencePolicy _resiliencePolicy;
-
-    public ResilientQueueStorageDecorator(
-        IQueueStorage inner,
-        IConnectionResiliencePolicy resiliencePolicy)
-    {
-        _inner = inner ?? throw new ArgumentNullException(nameof(inner));
-        _resiliencePolicy = resiliencePolicy ?? throw new ArgumentNullException(nameof(resiliencePolicy));
-    }
+    private readonly IQueueStorage _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+    private readonly IConnectionResiliencePolicy _resiliencePolicy = resiliencePolicy ?? throw new ArgumentNullException(nameof(resiliencePolicy));
 
     public async Task<QueueEntry> Enqueue(string queueName, IMessage message, Abstractions.EnqueueOptions? options = null, CancellationToken cancellationToken = default)
     {

@@ -9,19 +9,13 @@ namespace HeroMessaging.Processing.Decorators;
 /// <summary>
 /// Decorator that validates messages before processing
 /// </summary>
-public class ValidationDecorator : MessageProcessorDecorator
+public class ValidationDecorator(
+    IMessageProcessor inner,
+    IMessageValidator validator,
+    ILogger<ValidationDecorator> logger) : MessageProcessorDecorator(inner)
 {
-    private readonly IMessageValidator _validator;
-    private readonly ILogger<ValidationDecorator> _logger;
-
-    public ValidationDecorator(
-        IMessageProcessor inner,
-        IMessageValidator validator,
-        ILogger<ValidationDecorator> logger) : base(inner)
-    {
-        _validator = validator;
-        _logger = logger;
-    }
+    private readonly IMessageValidator _validator = validator;
+    private readonly ILogger<ValidationDecorator> _logger = logger;
 
     public override async ValueTask<ProcessingResult> ProcessAsync(IMessage message, ProcessingContext context, CancellationToken cancellationToken = default)
     {

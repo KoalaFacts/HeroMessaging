@@ -7,19 +7,14 @@ namespace HeroMessaging.Resilience;
 /// <summary>
 /// Monitors connection health and provides metrics for resilience policies
 /// </summary>
-public class ConnectionHealthMonitor : BackgroundService
+public class ConnectionHealthMonitor(
+    ILogger<ConnectionHealthMonitor> logger,
+    ConnectionHealthOptions? options = null) : BackgroundService
 {
-    private readonly ILogger<ConnectionHealthMonitor> _logger;
-    private readonly ConnectionHealthOptions _options;
+    private readonly ILogger<ConnectionHealthMonitor> _logger = logger;
+    private readonly ConnectionHealthOptions _options = options ?? new ConnectionHealthOptions();
     private readonly ConcurrentDictionary<string, ConnectionHealthMetrics> _metrics = new();
 
-    public ConnectionHealthMonitor(
-        ILogger<ConnectionHealthMonitor> logger,
-        ConnectionHealthOptions? options = null)
-    {
-        _logger = logger;
-        _options = options ?? new ConnectionHealthOptions();
-    }
 
     /// <summary>
     /// Gets health metrics for a specific operation

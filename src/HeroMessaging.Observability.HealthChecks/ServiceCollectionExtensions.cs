@@ -1,10 +1,9 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using HeroMessaging.Abstractions.Storage;
-using HeroMessaging.Processing;
 
 namespace HeroMessaging.Observability.HealthChecks;
 
@@ -17,280 +16,115 @@ public static class ServiceCollectionExtensions
         var options = new HeroMessagingHealthCheckOptions();
         configure?.Invoke(options);
 
-        if (options.CheckMessageStorage)
+        if (options.CheckStorage)
         {
-            builder.Services.AddTransient<MessageStorageHealthCheck>();
-            builder.Add(new HealthCheckRegistration(
-                "hero_messaging_message_storage",
-                sp => sp.GetRequiredService<MessageStorageHealthCheck>(),
-                options.MessageStorageFailureStatus,
-                options.Tags));
-        }
-
-        if (options.CheckOutboxStorage)
-        {
-            builder.Services.AddTransient<OutboxStorageHealthCheck>();
-            builder.Add(new HealthCheckRegistration(
-                "hero_messaging_outbox_storage",
-                sp => sp.GetRequiredService<OutboxStorageHealthCheck>(),
-                options.OutboxStorageFailureStatus,
-                options.Tags));
-        }
-
-        if (options.CheckInboxStorage)
-        {
-            builder.Services.AddTransient<InboxStorageHealthCheck>();
-            builder.Add(new HealthCheckRegistration(
-                "hero_messaging_inbox_storage",
-                sp => sp.GetRequiredService<InboxStorageHealthCheck>(),
-                options.InboxStorageFailureStatus,
-                options.Tags));
-        }
-
-        if (options.CheckQueueStorage)
-        {
-            builder.Services.AddTransient<QueueStorageHealthCheck>();
-            builder.Add(new HealthCheckRegistration(
-                "hero_messaging_queue_storage",
-                sp => sp.GetRequiredService<QueueStorageHealthCheck>(),
-                options.QueueStorageFailureStatus,
-                options.Tags));
-        }
-
-        if (options.CheckCommandProcessor)
-        {
-            builder.Services.AddTransient<CommandProcessorHealthCheck>();
-            builder.Add(new HealthCheckRegistration(
-                "hero_messaging_command_processor",
-                sp => sp.GetRequiredService<CommandProcessorHealthCheck>(),
-                options.ProcessorFailureStatus,
-                options.Tags));
-        }
-
-        if (options.CheckEventBus)
-        {
-            builder.Services.AddTransient<EventBusHealthCheck>();
-            builder.Add(new HealthCheckRegistration(
-                "hero_messaging_event_bus",
-                sp => sp.GetRequiredService<EventBusHealthCheck>(),
-                options.ProcessorFailureStatus,
-                options.Tags));
-        }
-
-        if (options.CheckQueryProcessor)
-        {
-            builder.Services.AddTransient<QueryProcessorHealthCheck>();
-            builder.Add(new HealthCheckRegistration(
-                "hero_messaging_query_processor",
-                sp => sp.GetRequiredService<QueryProcessorHealthCheck>(),
-                options.ProcessorFailureStatus,
-                options.Tags));
-        }
-
-        if (options.CheckQueueProcessor)
-        {
-            builder.Services.AddTransient<QueueProcessorHealthCheck>();
-            builder.Add(new HealthCheckRegistration(
-                "hero_messaging_queue_processor",
-                sp => sp.GetRequiredService<QueueProcessorHealthCheck>(),
-                options.ProcessorFailureStatus,
-                options.Tags));
-        }
-
-        if (options.CheckOutboxProcessor)
-        {
-            builder.Services.AddTransient<OutboxProcessorHealthCheck>();
-            builder.Add(new HealthCheckRegistration(
-                "hero_messaging_outbox_processor",
-                sp => sp.GetRequiredService<OutboxProcessorHealthCheck>(),
-                options.ProcessorFailureStatus,
-                options.Tags));
-        }
-
-        if (options.CheckInboxProcessor)
-        {
-            builder.Services.AddTransient<InboxProcessorHealthCheck>();
-            builder.Add(new HealthCheckRegistration(
-                "hero_messaging_inbox_processor",
-                sp => sp.GetRequiredService<InboxProcessorHealthCheck>(),
-                options.ProcessorFailureStatus,
-                options.Tags));
-        }
-
-        if (options.AddCompositeCheck)
-        {
-            builder.Services.AddTransient<HeroMessagingHealthCheck>();
-            builder.Add(new HealthCheckRegistration(
-                "hero_messaging",
-                sp => sp.GetRequiredService<HeroMessagingHealthCheck>(),
-                HealthStatus.Unhealthy,
-                options.Tags));
-        }
-
-        if (options.AddReadinessCheck)
-        {
-            builder.Services.AddTransient<ReadinessCheck>();
-            builder.Add(new HealthCheckRegistration(
-                "ready",
-                sp => sp.GetRequiredService<ReadinessCheck>(),
-                HealthStatus.Unhealthy,
-                new[] { "ready" }));
-        }
-
-        if (options.AddLivenessCheck)
-        {
-            builder.Services.AddTransient<LivenessCheck>();
-            builder.Add(new HealthCheckRegistration(
-                "live",
-                sp => sp.GetRequiredService<LivenessCheck>(),
-                HealthStatus.Unhealthy,
-                new[] { "live" }));
+            builder.AddStorageHealthChecks(options);
         }
 
         return builder;
     }
 
-    public static IHealthChecksBuilder AddMessageStorageHealthCheck(
+    private static IHealthChecksBuilder AddStorageHealthChecks(
         this IHealthChecksBuilder builder,
-        string name = "message_storage",
-        HealthStatus? failureStatus = null,
-        IEnumerable<string>? tags = null)
+        HeroMessagingHealthCheckOptions options)
     {
-        builder.Services.AddTransient<MessageStorageHealthCheck>();
-        
-        return builder.Add(new HealthCheckRegistration(
-            name,
-            sp => new MessageStorageHealthCheck(
-                sp.GetRequiredService<IMessageStorage>(),
-                name),
-            failureStatus,
-            tags));
+        if (options.CheckMessageStorage)
+        {
+            builder.Add(new HealthCheckRegistration(
+                "hero_messaging_message_storage",
+                sp =>
+                {
+                    var storage = sp.GetService<IMessageStorage>();
+                    return storage != null
+                        ? new MessageStorageHealthCheck(storage)
+                        : new AlwaysHealthyCheck("Message storage not registered");
+                },
+                options.FailureStatus,
+                options.Tags));
+        }
+
+        if (options.CheckOutboxStorage)
+        {
+            builder.Add(new HealthCheckRegistration(
+                "hero_messaging_outbox_storage",
+                sp =>
+                {
+                    var storage = sp.GetService<IOutboxStorage>();
+                    return storage != null
+                        ? new OutboxStorageHealthCheck(storage)
+                        : new AlwaysHealthyCheck("Outbox storage not registered");
+                },
+                options.FailureStatus,
+                options.Tags));
+        }
+
+        if (options.CheckInboxStorage)
+        {
+            builder.Add(new HealthCheckRegistration(
+                "hero_messaging_inbox_storage",
+                sp =>
+                {
+                    var storage = sp.GetService<IInboxStorage>();
+                    return storage != null
+                        ? new InboxStorageHealthCheck(storage)
+                        : new AlwaysHealthyCheck("Inbox storage not registered");
+                },
+                options.FailureStatus,
+                options.Tags));
+        }
+
+        if (options.CheckQueueStorage)
+        {
+            builder.Add(new HealthCheckRegistration(
+                "hero_messaging_queue_storage",
+                sp =>
+                {
+                    var storage = sp.GetService<IQueueStorage>();
+                    return storage != null
+                        ? new QueueStorageHealthCheck(storage)
+                        : new AlwaysHealthyCheck("Queue storage not registered");
+                },
+                options.FailureStatus,
+                options.Tags));
+        }
+
+        return builder;
     }
 
-    public static IHealthChecksBuilder AddOutboxStorageHealthCheck(
+    public static IHealthChecksBuilder AddCompositeHealthCheck(
         this IHealthChecksBuilder builder,
-        string name = "outbox_storage",
-        HealthStatus? failureStatus = null,
-        IEnumerable<string>? tags = null)
+        string name,
+        params string[] checkNames)
     {
-        builder.Services.AddTransient<OutboxStorageHealthCheck>();
-        
-        return builder.Add(new HealthCheckRegistration(
+        builder.Add(new HealthCheckRegistration(
             name,
-            sp => new OutboxStorageHealthCheck(
-                sp.GetRequiredService<IOutboxStorage>(),
-                name),
-            failureStatus,
-            tags));
+            sp => new CompositeHealthCheck(checkNames),
+            null,
+            null));
+
+        return builder;
     }
 
-    public static IHealthChecksBuilder AddInboxStorageHealthCheck(
-        this IHealthChecksBuilder builder,
-        string name = "inbox_storage",
-        HealthStatus? failureStatus = null,
-        IEnumerable<string>? tags = null)
+    private class AlwaysHealthyCheck(string description) : IHealthCheck
     {
-        builder.Services.AddTransient<InboxStorageHealthCheck>();
-        
-        return builder.Add(new HealthCheckRegistration(
-            name,
-            sp => new InboxStorageHealthCheck(
-                sp.GetRequiredService<IInboxStorage>(),
-                name),
-            failureStatus,
-            tags));
-    }
+        private readonly string _description = description;
 
-    public static IHealthChecksBuilder AddQueueStorageHealthCheck(
-        this IHealthChecksBuilder builder,
-        string name = "queue_storage",
-        HealthStatus? failureStatus = null,
-        IEnumerable<string>? tags = null)
-    {
-        builder.Services.AddTransient<QueueStorageHealthCheck>();
-        
-        return builder.Add(new HealthCheckRegistration(
-            name,
-            sp => new QueueStorageHealthCheck(
-                sp.GetRequiredService<IQueueStorage>(),
-                name),
-            failureStatus,
-            tags));
-    }
-
-    public static IHealthChecksBuilder AddCommandProcessorHealthCheck(
-        this IHealthChecksBuilder builder,
-        string name = "command_processor",
-        HealthStatus? failureStatus = null,
-        IEnumerable<string>? tags = null)
-    {
-        builder.Services.AddTransient<CommandProcessorHealthCheck>();
-        
-        return builder.Add(new HealthCheckRegistration(
-            name,
-            sp => new CommandProcessorHealthCheck(
-                sp.GetRequiredService<CommandProcessor>(),
-                name),
-            failureStatus,
-            tags));
-    }
-
-    public static IHealthChecksBuilder AddEventBusHealthCheck(
-        this IHealthChecksBuilder builder,
-        string name = "event_bus",
-        HealthStatus? failureStatus = null,
-        IEnumerable<string>? tags = null)
-    {
-        builder.Services.AddTransient<EventBusHealthCheck>();
-        
-        return builder.Add(new HealthCheckRegistration(
-            name,
-            sp => new EventBusHealthCheck(
-                sp.GetRequiredService<EventBus>(),
-                name),
-            failureStatus,
-            tags));
-    }
-
-    public static IHealthChecksBuilder AddQueryProcessorHealthCheck(
-        this IHealthChecksBuilder builder,
-        string name = "query_processor",
-        HealthStatus? failureStatus = null,
-        IEnumerable<string>? tags = null)
-    {
-        builder.Services.AddTransient<QueryProcessorHealthCheck>();
-        
-        return builder.Add(new HealthCheckRegistration(
-            name,
-            sp => new QueryProcessorHealthCheck(
-                sp.GetRequiredService<QueryProcessor>(),
-                name),
-            failureStatus,
-            tags));
+        public Task<HealthCheckResult> CheckHealthAsync(
+            HealthCheckContext context,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(HealthCheckResult.Healthy(_description));
+        }
     }
 }
 
 public class HeroMessagingHealthCheckOptions
 {
+    public bool CheckStorage { get; set; } = true;
     public bool CheckMessageStorage { get; set; } = true;
     public bool CheckOutboxStorage { get; set; } = true;
     public bool CheckInboxStorage { get; set; } = true;
     public bool CheckQueueStorage { get; set; } = true;
-    public bool CheckCommandProcessor { get; set; } = true;
-    public bool CheckEventBus { get; set; } = true;
-    public bool CheckQueryProcessor { get; set; } = true;
-    public bool CheckQueueProcessor { get; set; } = true;
-    public bool CheckOutboxProcessor { get; set; } = true;
-    public bool CheckInboxProcessor { get; set; } = true;
-    public bool AddCompositeCheck { get; set; } = true;
-    public bool AddReadinessCheck { get; set; } = true;
-    public bool AddLivenessCheck { get; set; } = true;
-    
-    public HealthStatus? MessageStorageFailureStatus { get; set; } = HealthStatus.Unhealthy;
-    public HealthStatus? OutboxStorageFailureStatus { get; set; } = HealthStatus.Unhealthy;
-    public HealthStatus? InboxStorageFailureStatus { get; set; } = HealthStatus.Unhealthy;
-    public HealthStatus? QueueStorageFailureStatus { get; set; } = HealthStatus.Unhealthy;
-    public HealthStatus? ProcessorFailureStatus { get; set; } = HealthStatus.Degraded;
-    
-    public IEnumerable<string> Tags { get; set; } = new[] { "messaging", "hero" };
+    public HealthStatus? FailureStatus { get; set; } = HealthStatus.Unhealthy;
+    public string[]? Tags { get; set; }
 }

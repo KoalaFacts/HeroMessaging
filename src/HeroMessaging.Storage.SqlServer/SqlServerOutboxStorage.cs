@@ -170,6 +170,69 @@ public class SqlServerOutboxStorage : IOutboxStorage
         }
     }
 
+    public async Task<IEnumerable<OutboxEntry>> GetPending(OutboxQuery query, CancellationToken cancellationToken = default)
+    {
+        using var connection = new SqlConnection(_options.ConnectionString);
+        await connection.OpenAsync(cancellationToken);
+        
+        using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(cancellationToken);
+        
+        var sql = $"SELECT TOP(@Limit) * FROM {_tableName} WHERE 1=1";
+        
+        if (query.Status.HasValue)
+        {
+            sql += " AND Status = @Status";
+        }
+        else
+        {
+            sql += " AND Status = 0"; // Pending
+        }
+        
+        sql += " AND (NextRetryAt IS NULL OR NextRetryAt <= @Now)";
+        
+        if (query.OlderThan.HasValue)
+        {
+            sql += " AND CreatedAt < @OlderThan";
+        }
+        
+        if (query.NewerThan.HasValue)
+        {
+            sql += " AND CreatedAt > @NewerThan";
+        }
+        
+        sql += " ORDER BY Priority DESC, CreatedAt ASC";
+        
+        using var command = new SqlCommand(sql, connection, transaction);
+        command.Parameters.AddWithValue("@Limit", query.Limit);
+        command.Parameters.AddWithValue("@Now", DateTime.UtcNow);
+        
+        if (query.Status.HasValue)
+        {
+            command.Parameters.AddWithValue("@Status", (int)query.Status.Value);
+        }
+        
+        if (query.OlderThan.HasValue)
+        {
+            command.Parameters.AddWithValue("@OlderThan", query.OlderThan.Value);
+        }
+        
+        if (query.NewerThan.HasValue)
+        {
+            command.Parameters.AddWithValue("@NewerThan", query.NewerThan.Value);
+        }
+        
+        var entries = new List<OutboxEntry>();
+        
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            entries.Add(MapToEntry(reader));
+        }
+        
+        await transaction.CommitAsync(cancellationToken);
+        return entries;
+    }
+    
     public async Task<IEnumerable<OutboxEntry>> GetPending(int limit = 100, CancellationToken cancellationToken = default)
     {
         using var connection = new SqlConnection(_options.ConnectionString);
@@ -381,5 +444,31 @@ public class SqlServerOutboxStorage : IOutboxStorage
         }
         
         return entries;
+    }
+    
+    private OutboxEntry MapToEntry(SqlDataReader reader)
+    {
+        var messagePayload = reader.GetString(reader.GetOrdinal("MessagePayload"));
+        var messageType = reader.GetString(reader.GetOrdinal("MessageType"));
+        
+        var type = Type.GetType(messageType);
+        IMessage? message = null;
+        if (type != null)
+        {
+            message = JsonSerializer.Deserialize(messagePayload, type, _jsonOptions) as IMessage;
+        }
+        
+        return new OutboxEntry
+        {
+            Id = reader.GetString(reader.GetOrdinal("Id")),
+            Message = message!,
+            Options = new OutboxOptions(),
+            Status = (OutboxStatus)reader.GetInt32(reader.GetOrdinal("Status")),
+            RetryCount = reader.GetInt32(reader.GetOrdinal("RetryCount")),
+            CreatedAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt")),
+            ProcessedAt = reader.IsDBNull(reader.GetOrdinal("ProcessedAt")) ? null : reader.GetDateTime(reader.GetOrdinal("ProcessedAt")),
+            NextRetryAt = reader.IsDBNull(reader.GetOrdinal("NextRetryAt")) ? null : reader.GetDateTime(reader.GetOrdinal("NextRetryAt")),
+            LastError = reader.IsDBNull(reader.GetOrdinal("LastError")) ? null : reader.GetString(reader.GetOrdinal("LastError"))
+        };
     }
 }

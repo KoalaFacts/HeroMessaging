@@ -12,24 +12,16 @@ namespace HeroMessaging.Processing.Decorators;
 /// Decorator that wraps outbox processing in database transactions
 /// Ensures that outbox message processing and status updates are atomic
 /// </summary>
-public class TransactionOutboxProcessorDecorator : IOutboxProcessor
+public class TransactionOutboxProcessorDecorator(
+    IOutboxProcessor inner,
+    IUnitOfWorkFactory unitOfWorkFactory,
+    ILogger<TransactionOutboxProcessorDecorator> logger,
+    IsolationLevel defaultIsolationLevel = IsolationLevel.ReadCommitted) : IOutboxProcessor
 {
-    private readonly IOutboxProcessor _inner;
-    private readonly IUnitOfWorkFactory _unitOfWorkFactory;
-    private readonly ILogger<TransactionOutboxProcessorDecorator> _logger;
-    private readonly IsolationLevel _defaultIsolationLevel;
-
-    public TransactionOutboxProcessorDecorator(
-        IOutboxProcessor inner,
-        IUnitOfWorkFactory unitOfWorkFactory,
-        ILogger<TransactionOutboxProcessorDecorator> logger,
-        IsolationLevel defaultIsolationLevel = IsolationLevel.ReadCommitted)
-    {
-        _inner = inner ?? throw new ArgumentNullException(nameof(inner));
-        _unitOfWorkFactory = unitOfWorkFactory ?? throw new ArgumentNullException(nameof(unitOfWorkFactory));
-        _logger = logger;
-        _defaultIsolationLevel = defaultIsolationLevel;
-    }
+    private readonly IOutboxProcessor _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+    private readonly IUnitOfWorkFactory _unitOfWorkFactory = unitOfWorkFactory ?? throw new ArgumentNullException(nameof(unitOfWorkFactory));
+    private readonly ILogger<TransactionOutboxProcessorDecorator> _logger = logger;
+    private readonly IsolationLevel _defaultIsolationLevel = defaultIsolationLevel;
 
     public async Task PublishToOutbox(IMessage message, OutboxOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -68,24 +60,16 @@ public class TransactionOutboxProcessorDecorator : IOutboxProcessor
 /// Decorator that wraps inbox processing in database transactions
 /// Ensures that message deduplication and processing are atomic
 /// </summary>
-public class TransactionInboxProcessorDecorator : IInboxProcessor
+public class TransactionInboxProcessorDecorator(
+    IInboxProcessor inner,
+    IUnitOfWorkFactory unitOfWorkFactory,
+    ILogger<TransactionInboxProcessorDecorator> logger,
+    IsolationLevel defaultIsolationLevel = IsolationLevel.ReadCommitted) : IInboxProcessor
 {
-    private readonly IInboxProcessor _inner;
-    private readonly IUnitOfWorkFactory _unitOfWorkFactory;
-    private readonly ILogger<TransactionInboxProcessorDecorator> _logger;
-    private readonly IsolationLevel _defaultIsolationLevel;
-
-    public TransactionInboxProcessorDecorator(
-        IInboxProcessor inner,
-        IUnitOfWorkFactory unitOfWorkFactory,
-        ILogger<TransactionInboxProcessorDecorator> logger,
-        IsolationLevel defaultIsolationLevel = IsolationLevel.ReadCommitted)
-    {
-        _inner = inner ?? throw new ArgumentNullException(nameof(inner));
-        _unitOfWorkFactory = unitOfWorkFactory ?? throw new ArgumentNullException(nameof(unitOfWorkFactory));
-        _logger = logger;
-        _defaultIsolationLevel = defaultIsolationLevel;
-    }
+    private readonly IInboxProcessor _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+    private readonly IUnitOfWorkFactory _unitOfWorkFactory = unitOfWorkFactory ?? throw new ArgumentNullException(nameof(unitOfWorkFactory));
+    private readonly ILogger<TransactionInboxProcessorDecorator> _logger = logger;
+    private readonly IsolationLevel _defaultIsolationLevel = defaultIsolationLevel;
 
     public async Task<bool> ProcessIncoming(IMessage message, InboxOptions? options = null, CancellationToken cancellationToken = default)
     {

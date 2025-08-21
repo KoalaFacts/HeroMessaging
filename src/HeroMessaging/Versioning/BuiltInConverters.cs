@@ -8,20 +8,14 @@ namespace HeroMessaging.Versioning;
 /// <summary>
 /// Converter that handles property additions with default values
 /// </summary>
-public class PropertyAdditionConverter<TMessage> : MessageConverter<TMessage>
+public class PropertyAdditionConverter<TMessage>(
+    MessageVersion fromVersion,
+    MessageVersion toVersion,
+    ILogger<PropertyAdditionConverter<TMessage>> logger) : MessageConverter<TMessage>
     where TMessage : class, IMessage
 {
-    private readonly ILogger<PropertyAdditionConverter<TMessage>> _logger;
-    private readonly MessageVersionRange _versionRange;
-
-    public PropertyAdditionConverter(
-        MessageVersion fromVersion,
-        MessageVersion toVersion,
-        ILogger<PropertyAdditionConverter<TMessage>> logger)
-    {
-        _versionRange = new MessageVersionRange(fromVersion, toVersion);
-        _logger = logger;
-    }
+    private readonly ILogger<PropertyAdditionConverter<TMessage>> _logger = logger;
+    private readonly MessageVersionRange _versionRange = new MessageVersionRange(fromVersion, toVersion);
 
     public override MessageVersionRange SupportedVersionRange => _versionRange;
 
@@ -46,23 +40,16 @@ public class PropertyAdditionConverter<TMessage> : MessageConverter<TMessage>
 /// <summary>
 /// Converter that handles property removals and deprecations
 /// </summary>
-public class PropertyRemovalConverter<TMessage> : MessageConverter<TMessage>
+public class PropertyRemovalConverter<TMessage>(
+    MessageVersion fromVersion,
+    MessageVersion toVersion,
+    IEnumerable<string> removedProperties,
+    ILogger<PropertyRemovalConverter<TMessage>> logger) : MessageConverter<TMessage>
     where TMessage : class, IMessage
 {
-    private readonly ILogger<PropertyRemovalConverter<TMessage>> _logger;
-    private readonly MessageVersionRange _versionRange;
-    private readonly HashSet<string> _removedProperties;
-
-    public PropertyRemovalConverter(
-        MessageVersion fromVersion,
-        MessageVersion toVersion,
-        IEnumerable<string> removedProperties,
-        ILogger<PropertyRemovalConverter<TMessage>> logger)
-    {
-        _versionRange = new MessageVersionRange(fromVersion, toVersion);
-        _removedProperties = new HashSet<string>(removedProperties);
-        _logger = logger;
-    }
+    private readonly ILogger<PropertyRemovalConverter<TMessage>> _logger = logger;
+    private readonly MessageVersionRange _versionRange = new MessageVersionRange(fromVersion, toVersion);
+    private readonly HashSet<string> _removedProperties = new HashSet<string>(removedProperties);
 
     public override MessageVersionRange SupportedVersionRange => _versionRange;
 
@@ -93,23 +80,16 @@ public class PropertyRemovalConverter<TMessage> : MessageConverter<TMessage>
 /// <summary>
 /// Converter that maps properties between different names
 /// </summary>
-public class PropertyMappingConverter<TMessage> : MessageConverter<TMessage>
+public class PropertyMappingConverter<TMessage>(
+    MessageVersion fromVersion,
+    MessageVersion toVersion,
+    IReadOnlyDictionary<string, string> propertyMappings,
+    ILogger<PropertyMappingConverter<TMessage>> logger) : MessageConverter<TMessage>
     where TMessage : class, IMessage
 {
-    private readonly ILogger<PropertyMappingConverter<TMessage>> _logger;
-    private readonly MessageVersionRange _versionRange;
-    private readonly IReadOnlyDictionary<string, string> _propertyMappings;
-
-    public PropertyMappingConverter(
-        MessageVersion fromVersion,
-        MessageVersion toVersion,
-        IReadOnlyDictionary<string, string> propertyMappings,
-        ILogger<PropertyMappingConverter<TMessage>> logger)
-    {
-        _versionRange = new MessageVersionRange(fromVersion, toVersion);
-        _propertyMappings = propertyMappings;
-        _logger = logger;
-    }
+    private readonly ILogger<PropertyMappingConverter<TMessage>> _logger = logger;
+    private readonly MessageVersionRange _versionRange = new MessageVersionRange(fromVersion, toVersion);
+    private readonly IReadOnlyDictionary<string, string> _propertyMappings = propertyMappings;
 
     public override MessageVersionRange SupportedVersionRange => _versionRange;
 
@@ -142,23 +122,16 @@ public class PropertyMappingConverter<TMessage> : MessageConverter<TMessage>
 /// <summary>
 /// Converter that applies transformation functions to properties
 /// </summary>
-public class TransformationConverter<TMessage> : MessageConverter<TMessage>
+public class TransformationConverter<TMessage>(
+    MessageVersion fromVersion,
+    MessageVersion toVersion,
+    IReadOnlyDictionary<string, Func<object?, object?>> transformations,
+    ILogger<TransformationConverter<TMessage>> logger) : MessageConverter<TMessage>
     where TMessage : class, IMessage
 {
-    private readonly ILogger<TransformationConverter<TMessage>> _logger;
-    private readonly MessageVersionRange _versionRange;
-    private readonly IReadOnlyDictionary<string, Func<object?, object?>> _transformations;
-
-    public TransformationConverter(
-        MessageVersion fromVersion,
-        MessageVersion toVersion,
-        IReadOnlyDictionary<string, Func<object?, object?>> transformations,
-        ILogger<TransformationConverter<TMessage>> logger)
-    {
-        _versionRange = new MessageVersionRange(fromVersion, toVersion);
-        _transformations = transformations;
-        _logger = logger;
-    }
+    private readonly ILogger<TransformationConverter<TMessage>> _logger = logger;
+    private readonly MessageVersionRange _versionRange = new MessageVersionRange(fromVersion, toVersion);
+    private readonly IReadOnlyDictionary<string, Func<object?, object?>> _transformations = transformations;
 
     public override MessageVersionRange SupportedVersionRange => _versionRange;
 
@@ -277,20 +250,14 @@ public static class MessageConverterBuilder
 /// <summary>
 /// Simple pass-through converter for compatible versions
 /// </summary>
-public class SimplePassThroughConverter<TMessage> : MessageConverter<TMessage>
+public class SimplePassThroughConverter<TMessage>(
+    MessageVersion fromVersion,
+    MessageVersion toVersion,
+    ILogger<SimplePassThroughConverter<TMessage>> logger) : MessageConverter<TMessage>
     where TMessage : class, IMessage
 {
-    private readonly ILogger<SimplePassThroughConverter<TMessage>> _logger;
-    private readonly MessageVersionRange _versionRange;
-
-    public SimplePassThroughConverter(
-        MessageVersion fromVersion,
-        MessageVersion toVersion,
-        ILogger<SimplePassThroughConverter<TMessage>> logger)
-    {
-        _versionRange = new MessageVersionRange(fromVersion, toVersion);
-        _logger = logger;
-    }
+    private readonly ILogger<SimplePassThroughConverter<TMessage>> _logger = logger;
+    private readonly MessageVersionRange _versionRange = new MessageVersionRange(fromVersion, toVersion);
 
     public override MessageVersionRange SupportedVersionRange => _versionRange;
 

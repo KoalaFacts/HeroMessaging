@@ -14,6 +14,8 @@ public interface IInboxStorage
     
     Task<bool> MarkFailed(string messageId, string error, CancellationToken cancellationToken = default);
     
+    Task<IEnumerable<InboxEntry>> GetPending(InboxQuery query, CancellationToken cancellationToken = default);
+    
     Task<IEnumerable<InboxEntry>> GetUnprocessed(int limit = 100, CancellationToken cancellationToken = default);
     
     Task<long> GetUnprocessedCount(CancellationToken cancellationToken = default);
@@ -39,4 +41,21 @@ public enum InboxStatus
     Processed,
     Failed,
     Duplicate
+}
+
+public enum InboxEntryStatus
+{
+    Pending,
+    Processing,
+    Processed,
+    Failed,
+    Duplicate
+}
+
+public class InboxQuery
+{
+    public InboxEntryStatus? Status { get; set; }
+    public int Limit { get; set; } = 100;
+    public DateTime? OlderThan { get; set; }
+    public DateTime? NewerThan { get; set; }
 }

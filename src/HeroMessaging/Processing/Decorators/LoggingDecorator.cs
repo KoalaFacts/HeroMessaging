@@ -8,22 +8,15 @@ namespace HeroMessaging.Processing.Decorators;
 /// <summary>
 /// Decorator that adds logging to message processing
 /// </summary>
-public class LoggingDecorator : MessageProcessorDecorator
+public class LoggingDecorator(
+    IMessageProcessor inner,
+    ILogger<LoggingDecorator> logger,
+    LogLevel successLogLevel = LogLevel.Debug,
+    bool logPayload = false) : MessageProcessorDecorator(inner)
 {
-    private readonly ILogger<LoggingDecorator> _logger;
-    private readonly LogLevel _successLogLevel;
-    private readonly bool _logPayload;
-
-    public LoggingDecorator(
-        IMessageProcessor inner,
-        ILogger<LoggingDecorator> logger,
-        LogLevel successLogLevel = LogLevel.Debug,
-        bool logPayload = false) : base(inner)
-    {
-        _logger = logger;
-        _successLogLevel = successLogLevel;
-        _logPayload = logPayload;
-    }
+    private readonly ILogger<LoggingDecorator> _logger = logger;
+    private readonly LogLevel _successLogLevel = successLogLevel;
+    private readonly bool _logPayload = logPayload;
 
     public override async ValueTask<ProcessingResult> ProcessAsync(IMessage message, ProcessingContext context, CancellationToken cancellationToken = default)
     {

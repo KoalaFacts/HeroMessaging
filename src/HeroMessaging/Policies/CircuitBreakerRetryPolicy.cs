@@ -6,26 +6,19 @@ namespace HeroMessaging.Policies;
 /// <summary>
 /// Circuit breaker retry policy that stops retrying after too many failures
 /// </summary>
-public class CircuitBreakerRetryPolicy : IRetryPolicy
+public class CircuitBreakerRetryPolicy(
+    int maxRetries = 3,
+    int failureThreshold = 5,
+    TimeSpan? openCircuitDuration = null,
+    TimeSpan? baseDelay = null) : IRetryPolicy
 {
-    public int MaxRetries { get; }
-    private readonly int _failureThreshold;
-    private readonly TimeSpan _openCircuitDuration;
-    private readonly TimeSpan _baseDelay;
+    public int MaxRetries { get; } = maxRetries;
+    private readonly int _failureThreshold = failureThreshold;
+    private readonly TimeSpan _openCircuitDuration = openCircuitDuration ?? TimeSpan.FromMinutes(1);
+    private readonly TimeSpan _baseDelay = baseDelay ?? TimeSpan.FromSeconds(1);
     private readonly ConcurrentDictionary<string, CircuitState> _circuits = new();
-    
-    public CircuitBreakerRetryPolicy(
-        int maxRetries = 3,
-        int failureThreshold = 5,
-        TimeSpan? openCircuitDuration = null,
-        TimeSpan? baseDelay = null)
-    {
-        MaxRetries = maxRetries;
-        _failureThreshold = failureThreshold;
-        _openCircuitDuration = openCircuitDuration ?? TimeSpan.FromMinutes(1);
-        _baseDelay = baseDelay ?? TimeSpan.FromSeconds(1);
-    }
-    
+
+
     public bool ShouldRetry(Exception? exception, int attemptNumber)
     {
         if (attemptNumber >= MaxRetries) return false;

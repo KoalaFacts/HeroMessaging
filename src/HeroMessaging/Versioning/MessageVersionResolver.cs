@@ -9,16 +9,12 @@ namespace HeroMessaging.Versioning;
 /// <summary>
 /// Resolves message versions from types and instances
 /// </summary>
-public class MessageVersionResolver : IMessageVersionResolver
+public class MessageVersionResolver(ILogger<MessageVersionResolver> logger) : IMessageVersionResolver
 {
-    private readonly ILogger<MessageVersionResolver> _logger;
+    private readonly ILogger<MessageVersionResolver> _logger = logger;
     private readonly ConcurrentDictionary<Type, MessageVersion> _typeVersionCache = new();
     private readonly ConcurrentDictionary<Type, MessageVersionInfo> _typeInfoCache = new();
 
-    public MessageVersionResolver(ILogger<MessageVersionResolver> logger)
-    {
-        _logger = logger;
-    }
 
     /// <summary>
     /// Gets the version of a message type
@@ -235,54 +231,36 @@ public interface IMessageVersionResolver
 /// <summary>
 /// Comprehensive information about a message type's versioning
 /// </summary>
-public class MessageVersionInfo
+public class MessageVersionInfo(
+    Type messageType,
+    MessageVersion version,
+    string typeName,
+    IReadOnlyList<MessagePropertyInfo> properties)
 {
-    public Type MessageType { get; }
-    public MessageVersion Version { get; }
-    public string TypeName { get; }
-    public IReadOnlyList<MessagePropertyInfo> Properties { get; }
-    
-    public MessageVersionInfo(
-        Type messageType, 
-        MessageVersion version, 
-        string typeName, 
-        IReadOnlyList<MessagePropertyInfo> properties)
-    {
-        MessageType = messageType;
-        Version = version;
-        TypeName = typeName;
-        Properties = properties;
-    }
+    public Type MessageType { get; } = messageType;
+    public MessageVersion Version { get; } = version;
+    public string TypeName { get; } = typeName;
+    public IReadOnlyList<MessagePropertyInfo> Properties { get; } = properties;
 }
 
 /// <summary>
 /// Information about a property in a versioned message
 /// </summary>
-public class MessagePropertyInfo
+public class MessagePropertyInfo(
+    string name,
+    Type propertyType,
+    MessageVersion? addedInVersion = null,
+    MessageVersion? deprecatedInVersion = null,
+    string? deprecationReason = null,
+    string? replacedBy = null)
 {
-    public string Name { get; }
-    public Type PropertyType { get; }
-    public MessageVersion? AddedInVersion { get; }
-    public MessageVersion? DeprecatedInVersion { get; }
-    public string? DeprecationReason { get; }
-    public string? ReplacedBy { get; }
-    
-    public MessagePropertyInfo(
-        string name, 
-        Type propertyType, 
-        MessageVersion? addedInVersion = null,
-        MessageVersion? deprecatedInVersion = null, 
-        string? deprecationReason = null, 
-        string? replacedBy = null)
-    {
-        Name = name;
-        PropertyType = propertyType;
-        AddedInVersion = addedInVersion;
-        DeprecatedInVersion = deprecatedInVersion;
-        DeprecationReason = deprecationReason;
-        ReplacedBy = replacedBy;
-    }
-    
+    public string Name { get; } = name;
+    public Type PropertyType { get; } = propertyType;
+    public MessageVersion? AddedInVersion { get; } = addedInVersion;
+    public MessageVersion? DeprecatedInVersion { get; } = deprecatedInVersion;
+    public string? DeprecationReason { get; } = deprecationReason;
+    public string? ReplacedBy { get; } = replacedBy;
+
     public bool IsDeprecated(MessageVersion version) => 
         DeprecatedInVersion.HasValue && version >= DeprecatedInVersion.Value;
     
@@ -293,19 +271,12 @@ public class MessagePropertyInfo
 /// <summary>
 /// Result of message version validation
 /// </summary>
-public class MessageVersionValidationResult
+public class MessageVersionValidationResult(bool isValid, IReadOnlyList<string> errors, IReadOnlyList<string> warnings)
 {
-    public bool IsValid { get; }
-    public IReadOnlyList<string> Errors { get; }
-    public IReadOnlyList<string> Warnings { get; }
-    
-    public MessageVersionValidationResult(bool isValid, IReadOnlyList<string> errors, IReadOnlyList<string> warnings)
-    {
-        IsValid = isValid;
-        Errors = errors;
-        Warnings = warnings;
-    }
-    
+    public bool IsValid { get; } = isValid;
+    public IReadOnlyList<string> Errors { get; } = errors;
+    public IReadOnlyList<string> Warnings { get; } = warnings;
+
     public bool HasWarnings => Warnings.Count > 0;
     public bool HasErrors => Errors.Count > 0;
 }

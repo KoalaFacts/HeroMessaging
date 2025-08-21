@@ -8,35 +8,24 @@ using Microsoft.Extensions.Logging;
 
 namespace HeroMessaging;
 
-public class HeroMessagingService : IHeroMessaging
+public class HeroMessagingService(
+    ICommandProcessor commandProcessor,
+    IQueryProcessor queryProcessor,
+    IEventBus eventBus,
+    ILogger<HeroMessagingService> logger,
+    IQueueProcessor? queueProcessor = null,
+    IOutboxProcessor? outboxProcessor = null,
+    IInboxProcessor? inboxProcessor = null) : IHeroMessaging
 {
-    private readonly ICommandProcessor _commandProcessor;
-    private readonly IQueryProcessor _queryProcessor;
-    private readonly IEventBus _eventBus;
-    private readonly IQueueProcessor? _queueProcessor;
-    private readonly IOutboxProcessor? _outboxProcessor;
-    private readonly IInboxProcessor? _inboxProcessor;
-    private readonly ILogger<HeroMessagingService> _logger;
+    private readonly ICommandProcessor _commandProcessor = commandProcessor;
+    private readonly IQueryProcessor _queryProcessor = queryProcessor;
+    private readonly IEventBus _eventBus = eventBus;
+    private readonly IQueueProcessor? _queueProcessor = queueProcessor;
+    private readonly IOutboxProcessor? _outboxProcessor = outboxProcessor;
+    private readonly IInboxProcessor? _inboxProcessor = inboxProcessor;
+    private readonly ILogger<HeroMessagingService> _logger = logger;
     
     private readonly MessagingMetrics _metrics = new();
-    
-    public HeroMessagingService(
-        ICommandProcessor commandProcessor,
-        IQueryProcessor queryProcessor,
-        IEventBus eventBus,
-        ILogger<HeroMessagingService> logger,
-        IQueueProcessor? queueProcessor = null,
-        IOutboxProcessor? outboxProcessor = null,
-        IInboxProcessor? inboxProcessor = null)
-    {
-        _commandProcessor = commandProcessor;
-        _queryProcessor = queryProcessor;
-        _eventBus = eventBus;
-        _queueProcessor = queueProcessor;
-        _outboxProcessor = outboxProcessor;
-        _inboxProcessor = inboxProcessor;
-        _logger = logger;
-    }
 
     public async Task Send(ICommand command, CancellationToken cancellationToken = default)
     {
