@@ -1,0 +1,33 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- OpenTelemetry packages don't support netstandard2.0 with latest versions -->
+    <TargetFrameworks>net6.0;net7.0;net8.0;net9.0</TargetFrameworks>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <AssemblyName>HeroMessaging.Observability.OpenTelemetry</AssemblyName>
+    <RootNamespace>HeroMessaging.Observability.OpenTelemetry</RootNamespace>
+    <PackageId>HeroMessaging.Observability.OpenTelemetry</PackageId>
+    <PackageVersion>1.0.0</PackageVersion>
+    <Authors>HeroMessaging</Authors>
+    <Description>OpenTelemetry instrumentation for HeroMessaging</Description>
+    <PackageTags>messaging;opentelemetry;observability;tracing;metrics</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\HeroMessaging.Abstractions\HeroMessaging.Abstractions.csproj" />
+    <ProjectReference Include="..\HeroMessaging\HeroMessaging.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="OpenTelemetry" Version="1.12.0" />
+    <PackageReference Include="OpenTelemetry.Api" Version="1.12.0" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.12.0" />
+    <PackageReference Include="OpenTelemetry.Exporter.Console" Version="1.12.0" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.12.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.12.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.12.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.12.0" />
+    <PackageReference Include="System.Diagnostics.DiagnosticSource" Version="9.0.0" />
+  </ItemGroup>
+
+</Project>
