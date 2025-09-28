@@ -1,6 +1,5 @@
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Storage;
-using Microsoft.Extensions.Logging;
 
 namespace HeroMessaging.Resilience;
 
@@ -114,7 +113,7 @@ public class ResilientOutboxStorageDecorator(
         return await _resiliencePolicy.ExecuteAsync(async () =>
             await _inner.GetPending(query, cancellationToken), "GetPendingOutboxMessages", cancellationToken);
     }
-    
+
     public async Task<IEnumerable<OutboxEntry>> GetPending(int limit = 100, CancellationToken cancellationToken = default)
     {
         return await _resiliencePolicy.ExecuteAsync(async () =>
@@ -197,7 +196,7 @@ public class ResilientInboxStorageDecorator(
         return await _resiliencePolicy.ExecuteAsync(async () =>
             await _inner.GetPending(query, cancellationToken), "GetPendingInboxMessages", cancellationToken);
     }
-    
+
     public async Task<IEnumerable<InboxEntry>> GetUnprocessed(int limit = 100, CancellationToken cancellationToken = default)
     {
         return await _resiliencePolicy.ExecuteAsync(async () =>

@@ -1,5 +1,3 @@
-using System.Collections.Concurrent;
-using System.Threading.Tasks.Dataflow;
 using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Commands;
 using HeroMessaging.Abstractions.Events;
@@ -7,6 +5,8 @@ using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
+using System.Threading.Tasks.Dataflow;
 
 namespace HeroMessaging.Processing;
 
@@ -97,7 +97,7 @@ public class QueueProcessor(
 
             _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             _pollingTask = PollQueue(_cancellationTokenSource.Token);
-            
+
             _logger.LogInformation("Queue worker started for {QueueName}", _queueName);
             return Task.CompletedTask;
         }
@@ -106,7 +106,7 @@ public class QueueProcessor(
         {
             _cancellationTokenSource?.Cancel();
             _processingBlock.Complete();
-            
+
             if (_pollingTask != null)
             {
                 try
@@ -118,9 +118,9 @@ public class QueueProcessor(
                     // Expected when cancellation is requested
                 }
             }
-            
+
             await _processingBlock.Completion;
-            
+
             _logger.LogInformation("Queue worker stopped for {QueueName}", _queueName);
         }
 
@@ -165,7 +165,7 @@ public class QueueProcessor(
             {
                 using var scope = _serviceProvider.CreateScope();
                 var messaging = scope.ServiceProvider.GetRequiredService<IHeroMessaging>();
-                
+
                 switch (entry.Message)
                 {
                     case ICommand command:
@@ -180,14 +180,14 @@ public class QueueProcessor(
                 }
 
                 await _storage.Acknowledge(_queueName, entry.Id);
-                _logger.LogDebug("Message {MessageId} processed successfully from queue {QueueName}", 
+                _logger.LogDebug("Message {MessageId} processed successfully from queue {QueueName}",
                     entry.Message.MessageId, _queueName);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error processing message {MessageId} from queue {QueueName}", 
+                _logger.LogError(ex, "Error processing message {MessageId} from queue {QueueName}",
                     entry.Message.MessageId, _queueName);
-                
+
                 await _storage.Reject(_queueName, entry.Id, requeue: entry.DequeueCount < 3);
             }
         }

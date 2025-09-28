@@ -1,7 +1,7 @@
+using HeroMessaging.Abstractions.Serialization;
 using ProtoBuf;
 using ProtoBuf.Meta;
 using System.IO.Compression;
-using HeroMessaging.Abstractions.Serialization;
 
 namespace HeroMessaging.Serialization.Protobuf;
 
@@ -15,69 +15,69 @@ public class ProtobufMessageSerializer(SerializationOptions? options = null, Run
 
 
     public string ContentType => "application/x-protobuf";
-    
+
     public async ValueTask<byte[]> SerializeAsync<T>(T message, CancellationToken cancellationToken = default)
     {
         if (message == null)
         {
             return Array.Empty<byte>();
         }
-        
+
         using var stream = new MemoryStream();
         _typeModel.Serialize(stream, message);
         var data = stream.ToArray();
-        
+
         if (_options.MaxMessageSize > 0 && data.Length > _options.MaxMessageSize)
         {
             throw new InvalidOperationException($"Serialized message size ({data.Length} bytes) exceeds maximum allowed size ({_options.MaxMessageSize} bytes)");
         }
-        
+
         if (_options.EnableCompression)
         {
             data = await CompressAsync(data, cancellationToken);
         }
-        
+
         return data;
     }
-    
+
     public async ValueTask<T> DeserializeAsync<T>(byte[] data, CancellationToken cancellationToken = default) where T : class
     {
         if (data == null || data.Length == 0)
         {
             return default(T)!;
         }
-        
+
         if (_options.EnableCompression)
         {
             data = await DecompressAsync(data, cancellationToken);
         }
-        
+
         using var stream = new MemoryStream(data);
         var result = _typeModel.Deserialize<T>(stream);
         return result!;
     }
-    
+
     public async ValueTask<object?> DeserializeAsync(byte[] data, Type messageType, CancellationToken cancellationToken = default)
     {
         if (data == null || data.Length == 0)
         {
             return null;
         }
-        
+
         if (_options.EnableCompression)
         {
             data = await DecompressAsync(data, cancellationToken);
         }
-        
+
         using var stream = new MemoryStream(data);
         var result = _typeModel.Deserialize(stream, null, messageType);
         return result;
     }
-    
+
     private async ValueTask<byte[]> CompressAsync(byte[] data, CancellationToken cancellationToken)
     {
         using var output = new MemoryStream();
-        
+
         var compressionLevel = _options.CompressionLevel switch
         {
             Abstractions.Serialization.CompressionLevel.None => System.IO.Compression.CompressionLevel.NoCompression,
@@ -86,21 +86,21 @@ public class ProtobufMessageSerializer(SerializationOptions? options = null, Run
             Abstractions.Serialization.CompressionLevel.Maximum => System.IO.Compression.CompressionLevel.Optimal,
             _ => System.IO.Compression.CompressionLevel.Optimal
         };
-        
+
         using (var gzip = new GZipStream(output, compressionLevel))
         {
             await gzip.WriteAsync(data, 0, data.Length, cancellationToken);
         }
-        
+
         return output.ToArray();
     }
-    
+
     private async ValueTask<byte[]> DecompressAsync(byte[] data, CancellationToken cancellationToken)
     {
         using var input = new MemoryStream(data);
         using var output = new MemoryStream();
         using var gzip = new GZipStream(input, CompressionMode.Decompress);
-        
+
         await gzip.CopyToAsync(output, cancellationToken);
         return output.ToArray();
     }
@@ -116,79 +116,79 @@ public class TypedProtobufMessageSerializer(SerializationOptions? options = null
 
 
     public string ContentType => "application/x-protobuf-typed";
-    
+
     public async ValueTask<byte[]> SerializeAsync<T>(T message, CancellationToken cancellationToken = default)
     {
         if (message == null)
         {
             return Array.Empty<byte>();
         }
-        
+
         using var stream = new MemoryStream();
-        
+
         if (_options.IncludeTypeInformation && message != null)
         {
             // Write type information
             var typeName = message.GetType().AssemblyQualifiedName ?? "";
             Serializer.SerializeWithLengthPrefix(stream, typeName, PrefixStyle.Base128);
         }
-        
+
         // Write the actual message
         _typeModel.SerializeWithLengthPrefix(stream, message, typeof(T), PrefixStyle.Base128, 0);
-        
+
         var data = stream.ToArray();
-        
+
         if (_options.MaxMessageSize > 0 && data.Length > _options.MaxMessageSize)
         {
             throw new InvalidOperationException($"Serialized message size ({data.Length} bytes) exceeds maximum allowed size ({_options.MaxMessageSize} bytes)");
         }
-        
+
         if (_options.EnableCompression)
         {
             data = await CompressAsync(data, cancellationToken);
         }
-        
+
         return data;
     }
-    
+
     public async ValueTask<T> DeserializeAsync<T>(byte[] data, CancellationToken cancellationToken = default) where T : class
     {
         if (data == null || data.Length == 0)
         {
             return default(T)!;
         }
-        
+
         if (_options.EnableCompression)
         {
             data = await DecompressAsync(data, cancellationToken);
         }
-        
+
         using var stream = new MemoryStream(data);
-        
+
         if (_options.IncludeTypeInformation)
         {
             // Skip type information if present
             Serializer.DeserializeWithLengthPrefix<string>(stream, PrefixStyle.Base128);
         }
-        
+
         var result = (T?)_typeModel.DeserializeWithLengthPrefix(stream, null, typeof(T), PrefixStyle.Base128, 0);
         return result!;
     }
-    
+
     public async ValueTask<object?> DeserializeAsync(byte[] data, Type messageType, CancellationToken cancellationToken = default)
     {
         if (data == null || data.Length == 0)
         {
             return null;
         }
-        
+
         if (_options.EnableCompression)
         {
             data = await DecompressAsync(data, cancellationToken);
         }
-        
+
         using var stream = new MemoryStream(data);
-        
+
         if (_options.IncludeTypeInformation)
         {
             // Read type information
@@ -202,15 +202,15 @@ public class TypedProtobufMessageSerializer(SerializationOptions? options = null
                 }
             }
         }
-        
+
         var result = _typeModel.DeserializeWithLengthPrefix(stream, null, messageType, PrefixStyle.Base128, 0);
         return result;
     }
-    
+
     private async ValueTask<byte[]> CompressAsync(byte[] data, CancellationToken cancellationToken)
     {
         using var output = new MemoryStream();
-        
+
         var compressionLevel = _options.CompressionLevel switch
         {
             Abstractions.Serialization.CompressionLevel.None => System.IO.Compression.CompressionLevel.NoCompression,
@@ -219,21 +219,21 @@ public class TypedProtobufMessageSerializer(SerializationOptions? options = null
             Abstractions.Serialization.CompressionLevel.Maximum => System.IO.Compression.CompressionLevel.Optimal,
             _ => System.IO.Compression.CompressionLevel.Optimal
         };
-        
+
         using (var gzip = new GZipStream(output, compressionLevel))
         {
             await gzip.WriteAsync(data, 0, data.Length, cancellationToken);
         }
-        
+
         return output.ToArray();
     }
-    
+
     private async ValueTask<byte[]> DecompressAsync(byte[] data, CancellationToken cancellationToken)
     {
         using var input = new MemoryStream(data);
         using var output = new MemoryStream();
         using var gzip = new GZipStream(input, CompressionMode.Decompress);
-        
+
         await gzip.CopyToAsync(output, cancellationToken);
         return output.ToArray();
     }

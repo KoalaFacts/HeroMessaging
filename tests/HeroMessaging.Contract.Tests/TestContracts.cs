@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-
 namespace HeroMessaging.Contract.Tests;
 
 // Shared test contract types used across test files

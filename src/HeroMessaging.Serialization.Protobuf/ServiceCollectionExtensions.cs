@@ -1,7 +1,7 @@
-using ProtoBuf.Meta;
 using HeroMessaging.Abstractions.Serialization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using ProtoBuf.Meta;
 
 namespace HeroMessaging.Serialization.Protobuf;
 
@@ -20,10 +20,10 @@ public static class ServiceCollectionExtensions
     {
         services.TryAddSingleton<IMessageSerializer>(sp =>
             new ProtobufMessageSerializer(options, typeModel));
-        
+
         return services;
     }
-    
+
     /// <summary>
     /// Add Typed Protobuf serialization support to HeroMessaging
     /// </summary>
@@ -34,10 +34,10 @@ public static class ServiceCollectionExtensions
     {
         services.TryAddSingleton<IMessageSerializer>(sp =>
             new TypedProtobufMessageSerializer(options, typeModel));
-        
+
         return services;
     }
-    
+
     /// <summary>
     /// Add Protobuf serialization support with custom configuration
     /// </summary>
@@ -48,14 +48,14 @@ public static class ServiceCollectionExtensions
     {
         var options = new SerializationOptions();
         configureOptions(options);
-        
+
         RuntimeTypeModel? typeModel = null;
         if (configureTypeModel != null)
         {
             typeModel = RuntimeTypeModel.Create();
             configureTypeModel(typeModel);
         }
-        
+
         return services.AddHeroMessagingProtobufSerializer(options, typeModel);
     }
 }

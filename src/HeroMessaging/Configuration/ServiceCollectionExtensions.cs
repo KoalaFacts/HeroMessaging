@@ -1,7 +1,6 @@
-using System.Reflection;
 using HeroMessaging.Abstractions.Configuration;
-using HeroMessaging.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using System.Reflection;
 #if !NETSTANDARD2_0
 using Microsoft.Extensions.Hosting;
 #endif
@@ -22,7 +21,7 @@ public static class HeroMessagingServiceCollectionExtensions
     {
         return new HeroMessagingBuilder(services);
     }
-    
+
     /// <summary>
     /// Adds HeroMessaging services with configuration action
     /// </summary>
@@ -30,7 +29,7 @@ public static class HeroMessagingServiceCollectionExtensions
     /// <param name="configure">Configuration action</param>
     /// <returns>The service collection for chaining</returns>
     public static IServiceCollection AddHeroMessaging(
-        this IServiceCollection services, 
+        this IServiceCollection services,
         Action<IHeroMessagingBuilder> configure)
     {
         var builder = new HeroMessagingBuilder(services);
@@ -38,7 +37,7 @@ public static class HeroMessagingServiceCollectionExtensions
         builder.Build();
         return services;
     }
-    
+
     /// <summary>
     /// Adds HeroMessaging with minimal configuration for development
     /// </summary>
@@ -53,7 +52,7 @@ public static class HeroMessagingServiceCollectionExtensions
             .ScanAssemblies(assemblies)
         );
     }
-    
+
     /// <summary>
     /// Adds HeroMessaging with production configuration
     /// </summary>
@@ -68,7 +67,7 @@ public static class HeroMessagingServiceCollectionExtensions
             .ScanAssemblies(assemblies)
         );
     }
-    
+
     /// <summary>
     /// Adds HeroMessaging with microservice configuration
     /// </summary>
@@ -83,7 +82,7 @@ public static class HeroMessagingServiceCollectionExtensions
             .ScanAssemblies(assemblies)
         );
     }
-    
+
     /// <summary>
     /// Adds HeroMessaging with custom configuration
     /// </summary>
@@ -118,7 +117,7 @@ public static class HeroMessagingHostBuilderExtensions
             services.AddHeroMessaging(configure);
         });
     }
-    
+
     /// <summary>
     /// Configures HeroMessaging for development
     /// </summary>
@@ -131,7 +130,7 @@ public static class HeroMessagingHostBuilderExtensions
             services.AddHeroMessagingDevelopment(assemblies);
         });
     }
-    
+
     /// <summary>
     /// Configures HeroMessaging for production
     /// </summary>

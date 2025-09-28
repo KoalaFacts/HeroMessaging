@@ -13,12 +13,12 @@ on:
       run_performance_tests:
         description: 'Run performance benchmarks'
         required: false
-        default: 'false'
+        default: false
         type: boolean
       run_integration_tests:
         description: 'Run integration tests'
         required: false
-        default: 'true'
+        default: true
         type: boolean
 
 env:

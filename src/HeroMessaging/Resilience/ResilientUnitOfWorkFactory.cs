@@ -1,6 +1,6 @@
-using System.Data;
 using HeroMessaging.Abstractions.Storage;
 using Microsoft.Extensions.Logging;
+using System.Data;
 
 namespace HeroMessaging.Resilience;
 
@@ -21,9 +21,9 @@ public class ResilientUnitOfWorkFactory(
         return await _resiliencePolicy.ExecuteAsync(async () =>
         {
             _logger.LogDebug("Creating unit of work");
-            
+
             var unitOfWork = await _inner.CreateAsync(cancellationToken);
-            
+
             // Wrap the unit of work with resilience if needed
             return new ResilientUnitOfWork(unitOfWork, _resiliencePolicy, _logger);
         }, "CreateUnitOfWork", cancellationToken);
@@ -34,9 +34,9 @@ public class ResilientUnitOfWorkFactory(
         return await _resiliencePolicy.ExecuteAsync(async () =>
         {
             _logger.LogDebug("Creating unit of work with isolation level {IsolationLevel}", isolationLevel);
-            
+
             var unitOfWork = await _inner.CreateAsync(isolationLevel, cancellationToken);
-            
+
             // Wrap the unit of work with resilience if needed
             return new ResilientUnitOfWork(unitOfWork, _resiliencePolicy, _logger);
         }, "CreateUnitOfWork", cancellationToken);

@@ -1,8 +1,8 @@
-using System.Data;
-using System.Data.Common;
 using HeroMessaging.Abstractions.Storage;
 using HeroMessaging.Utilities;
 using Microsoft.Extensions.Logging;
+using System.Data;
+using System.Data.Common;
 
 namespace HeroMessaging.Resilience;
 
@@ -123,14 +123,14 @@ public class DefaultConnectionResiliencePolicy(
         var retryCount = 0;
         var maxRetries = _options.MaxRetries;
         var startTime = DateTime.UtcNow;
-        
+
         while (true)
         {
             // Check circuit breaker
             if (!await _circuitBreaker.CanExecuteAsync())
             {
                 var duration = DateTime.UtcNow - startTime;
-                _healthMonitor?.RecordFailure(operationName, 
+                _healthMonitor?.RecordFailure(operationName,
                     new ConnectionResilienceException("Circuit breaker is open"), duration);
                 throw new ConnectionResilienceException($"Circuit breaker is open for operation: {operationName}");
             }
@@ -140,17 +140,17 @@ public class DefaultConnectionResiliencePolicy(
             {
                 var result = await operation();
                 var operationDuration = DateTime.UtcNow - operationStartTime;
-                
+
                 // Record success in circuit breaker and health monitor
                 _circuitBreaker.RecordSuccess();
                 _healthMonitor?.RecordSuccess(operationName, operationDuration);
-                
+
                 if (retryCount > 0)
                 {
-                    _logger.LogInformation("Operation {OperationName} succeeded after {RetryCount} retries", 
+                    _logger.LogInformation("Operation {OperationName} succeeded after {RetryCount} retries",
                         operationName, retryCount);
                 }
-                
+
                 return result;
             }
             catch (Exception ex) when (IsTransientException(ex) && retryCount < maxRetries)
@@ -158,33 +158,33 @@ public class DefaultConnectionResiliencePolicy(
                 retryCount++;
                 var operationDuration = DateTime.UtcNow - operationStartTime;
                 var delay = CalculateDelay(retryCount);
-                
-                _logger.LogWarning(ex, "Transient error in operation {OperationName}. Retry {RetryCount}/{MaxRetries} after {DelayMs}ms", 
+
+                _logger.LogWarning(ex, "Transient error in operation {OperationName}. Retry {RetryCount}/{MaxRetries} after {DelayMs}ms",
                     operationName, retryCount, maxRetries, delay.TotalMilliseconds);
-                
+
                 // Record failure in circuit breaker
                 _circuitBreaker.RecordFailure();
-                
+
                 await Task.Delay(delay, cancellationToken);
             }
             catch (Exception ex)
             {
                 // Non-transient exception or max retries exceeded
                 var operationDuration = DateTime.UtcNow - operationStartTime;
-                
+
                 _circuitBreaker.RecordFailure();
                 _healthMonitor?.RecordFailure(operationName, ex, operationDuration);
-                
+
                 if (retryCount >= maxRetries)
                 {
-                    _logger.LogError(ex, "Operation {OperationName} failed after {MaxRetries} retries", 
+                    _logger.LogError(ex, "Operation {OperationName} failed after {MaxRetries} retries",
                         operationName, maxRetries);
                 }
                 else
                 {
                     _logger.LogError(ex, "Non-transient error in operation {OperationName}", operationName);
                 }
-                
+
                 throw;
             }
         }
@@ -233,7 +233,7 @@ public class DefaultConnectionResiliencePolicy(
         var exponentialDelay = baseDelay * Math.Pow(2, retryCount - 1);
         var jitter = RandomHelper.Instance.NextDouble() * 0.3; // 30% jitter
         var delayWithJitter = exponentialDelay * (1 + jitter);
-        
+
         return TimeSpan.FromMilliseconds(Math.Min(delayWithJitter, _options.MaxRetryDelay.TotalMilliseconds));
     }
 }
@@ -253,7 +253,7 @@ internal class ConnectionCircuitBreaker(CircuitBreakerOptions options, ILogger l
     public async Task<bool> CanExecuteAsync()
     {
         await Task.CompletedTask; // Make it async for future extensibility
-        
+
         lock (_lock)
         {
             return _state switch
@@ -296,7 +296,7 @@ internal class ConnectionCircuitBreaker(CircuitBreakerOptions options, ILogger l
                     _state = ConnectionCircuitState.Open;
                     _logger.LogWarning("Circuit breaker opened after {FailureCount} failures", _failureCount);
                     break;
-                
+
                 case ConnectionCircuitState.HalfOpen:
                     _state = ConnectionCircuitState.Open;
                     _logger.LogWarning("Circuit breaker reopened after failure in half-open state");

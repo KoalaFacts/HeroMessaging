@@ -5,21 +5,21 @@ namespace HeroMessaging.Abstractions.Storage;
 public interface IInboxStorage
 {
     Task<InboxEntry?> Add(IMessage message, InboxOptions options, CancellationToken cancellationToken = default);
-    
+
     Task<bool> IsDuplicate(string messageId, TimeSpan? window = null, CancellationToken cancellationToken = default);
-    
+
     Task<InboxEntry?> Get(string messageId, CancellationToken cancellationToken = default);
-    
+
     Task<bool> MarkProcessed(string messageId, CancellationToken cancellationToken = default);
-    
+
     Task<bool> MarkFailed(string messageId, string error, CancellationToken cancellationToken = default);
-    
+
     Task<IEnumerable<InboxEntry>> GetPending(InboxQuery query, CancellationToken cancellationToken = default);
-    
+
     Task<IEnumerable<InboxEntry>> GetUnprocessed(int limit = 100, CancellationToken cancellationToken = default);
-    
+
     Task<long> GetUnprocessedCount(CancellationToken cancellationToken = default);
-    
+
     Task CleanupOldEntries(TimeSpan olderThan, CancellationToken cancellationToken = default);
 }
 

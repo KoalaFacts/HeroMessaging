@@ -1,8 +1,7 @@
-using System.Data;
 using HeroMessaging.Abstractions.Events;
-using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Abstractions.Storage;
 using Microsoft.Extensions.Logging;
+using System.Data;
 
 namespace HeroMessaging.Processing.Decorators;
 
@@ -26,13 +25,13 @@ public class TransactionEventBusDecorator(
         // Note: For events, we might want to handle transactions per handler instead of per event
         // This ensures that if one handler fails, others can still succeed
         // We'll let the inner event bus handle individual handler transactions
-        
-        _logger.LogDebug("Publishing event {EventType} with ID {EventId}", 
+
+        _logger.LogDebug("Publishing event {EventType} with ID {EventId}",
             @event.GetType().Name, @event.MessageId);
 
         await _inner.Publish(@event, cancellationToken);
-        
-        _logger.LogDebug("Event {EventType} with ID {EventId} published successfully", 
+
+        _logger.LogDebug("Event {EventType} with ID {EventId} published successfully",
             @event.GetType().Name, @event.MessageId);
     }
 }
@@ -54,24 +53,24 @@ public class TransactionEventHandlerWrapper<TEvent>(
     public async Task HandleAsync(TEvent @event, CancellationToken cancellationToken = default)
     {
         await using var unitOfWork = await _unitOfWorkFactory.CreateAsync(_isolationLevel, cancellationToken);
-        
+
         try
         {
-            _logger.LogDebug("Starting transaction for event handler {EventType} with ID {EventId}", 
+            _logger.LogDebug("Starting transaction for event handler {EventType} with ID {EventId}",
                 typeof(TEvent).Name, @event.MessageId);
 
             await _handler(@event, cancellationToken);
-            
+
             await unitOfWork.CommitAsync(cancellationToken);
-            
-            _logger.LogDebug("Transaction committed successfully for event handler {EventType} with ID {EventId}", 
+
+            _logger.LogDebug("Transaction committed successfully for event handler {EventType} with ID {EventId}",
                 typeof(TEvent).Name, @event.MessageId);
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Transaction rollback for event handler {EventType} with ID {EventId}", 
+            _logger.LogWarning(ex, "Transaction rollback for event handler {EventType} with ID {EventId}",
                 typeof(TEvent).Name, @event.MessageId);
-            
+
             await unitOfWork.RollbackAsync(cancellationToken);
             throw;
         }

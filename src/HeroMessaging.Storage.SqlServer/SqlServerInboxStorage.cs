@@ -1,4 +1,3 @@
-using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Storage;
 using Microsoft.Data.SqlClient;
@@ -52,7 +51,7 @@ public class SqlServerInboxStorage : IInboxStorage
     {
         throw new NotImplementedException("Inbox storage implementation pending");
     }
-    
+
     public Task<IEnumerable<InboxEntry>> GetUnprocessed(int limit = 100, CancellationToken cancellationToken = default)
     {
         throw new NotImplementedException("Inbox storage implementation pending");

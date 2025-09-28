@@ -20,7 +20,7 @@ public interface IValidationReport
     /// Indicates if the configuration is valid
     /// </summary>
     bool IsValid { get; }
-    
+
     /// <summary>
     /// Indicates if there are any warnings
     /// </summary>

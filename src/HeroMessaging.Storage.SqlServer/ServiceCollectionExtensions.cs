@@ -18,22 +18,22 @@ public static class ServiceCollectionExtensions
         var options = new SqlServerStorageOptions { ConnectionString = connectionString };
         return UseSqlServer(builder, options);
     }
-    
+
     /// <summary>
     /// Use SQL Server for all storage needs with custom options
     /// </summary>
     public static IHeroMessagingBuilder UseSqlServer(this IHeroMessagingBuilder builder, SqlServerStorageOptions options)
     {
         var services = builder as IServiceCollection ?? throw new InvalidOperationException("Builder must implement IServiceCollection");
-        
+
         services.AddSingleton(options);
         services.AddSingleton<IMessageStorage>(new SqlServerMessageStorage(options));
         services.AddSingleton<IOutboxStorage>(new SqlServerOutboxStorage(options));
         services.AddSingleton<IDeadLetterQueue>(new SqlServerDeadLetterQueue(options));
-        
+
         return builder;
     }
-    
+
     /// <summary>
     /// Use SQL Server for all storage with configuration action
     /// </summary>
@@ -43,7 +43,7 @@ public static class ServiceCollectionExtensions
         configure(options);
         return UseSqlServer(builder, options);
     }
-    
+
     /// <summary>
     /// Use SQL Server for message storage only
     /// </summary>
@@ -53,7 +53,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IMessageStorage>(new SqlServerMessageStorage(options));
         return builder;
     }
-    
+
     /// <summary>
     /// Use SQL Server for outbox pattern
     /// </summary>
@@ -63,7 +63,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IOutboxStorage>(new SqlServerOutboxStorage(options));
         return builder;
     }
-    
+
     /// <summary>
     /// Use SQL Server for dead letter queue
     /// </summary>

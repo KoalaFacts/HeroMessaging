@@ -1,11 +1,10 @@
-using System.Threading.Tasks.Dataflow;
-using System.Diagnostics;
 using HeroMessaging.Abstractions.Handlers;
-using HeroMessaging.Abstractions.Queries;
 using HeroMessaging.Abstractions.Processing;
+using HeroMessaging.Abstractions.Queries;
 using HeroMessaging.Utilities;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
+using System.Threading.Tasks.Dataflow;
 
 namespace HeroMessaging.Processing;
 
@@ -18,14 +17,14 @@ public class QueryProcessor : IQueryProcessor, IProcessor
     private long _failedCount;
     private readonly List<long> _durations = new();
     private readonly object _metricsLock = new();
-    
+
     public bool IsRunning { get; private set; } = true;
 
     public QueryProcessor(IServiceProvider serviceProvider, ILogger<QueryProcessor> logger)
     {
         _serviceProvider = serviceProvider;
         _logger = logger;
-        
+
         _processingBlock = new ActionBlock<Func<Task>>(
             async action => await action(),
             new ExecutionDataflowBlockOptions
@@ -38,17 +37,17 @@ public class QueryProcessor : IQueryProcessor, IProcessor
     public async Task<TResponse> Send<TResponse>(IQuery<TResponse> query, CancellationToken cancellationToken = default)
     {
         CompatibilityHelpers.ThrowIfNull(query, nameof(query));
-        
+
         var handlerType = typeof(IQueryHandler<,>).MakeGenericType(query.GetType(), typeof(TResponse));
         var handler = _serviceProvider.GetService(handlerType);
-        
+
         if (handler == null)
         {
             throw new InvalidOperationException($"No handler found for query type {query.GetType().Name}");
         }
 
         var tcs = new TaskCompletionSource<TResponse>();
-        
+
         var posted = await _processingBlock.SendAsync(async () =>
         {
             try
@@ -58,14 +57,14 @@ public class QueryProcessor : IQueryProcessor, IProcessor
                 var sw = Stopwatch.StartNew();
                 var result = await (Task<TResponse>)handleMethod!.Invoke(handler, [query, cancellationToken])!;
                 sw.Stop();
-                
+
                 lock (_metricsLock)
                 {
                     _processedCount++;
                     _durations.Add(sw.ElapsedMilliseconds);
                     if (_durations.Count > 100) _durations.RemoveAt(0);
                 }
-                
+
                 tcs.SetResult(result);
             }
             catch (OperationCanceledException)
@@ -78,12 +77,12 @@ public class QueryProcessor : IQueryProcessor, IProcessor
                 {
                     _failedCount++;
                 }
-                
+
                 _logger.LogError(ex, "Error processing query {QueryType}", query.GetType().Name);
                 tcs.SetException(ex);
             }
         }, cancellationToken);
-        
+
         if (!posted)
         {
             tcs.SetCanceled(cancellationToken);
@@ -91,7 +90,7 @@ public class QueryProcessor : IQueryProcessor, IProcessor
 
         return await tcs.Task;
     }
-    
+
     public IQueryProcessorMetrics GetMetrics()
     {
         lock (_metricsLock)
@@ -100,7 +99,7 @@ public class QueryProcessor : IQueryProcessor, IProcessor
             {
                 ProcessedCount = _processedCount,
                 FailedCount = _failedCount,
-                AverageDuration = _durations.Count > 0 
+                AverageDuration = _durations.Count > 0
                     ? TimeSpan.FromMilliseconds(_durations.Average())
                     : TimeSpan.Zero,
                 CacheHitRate = 0

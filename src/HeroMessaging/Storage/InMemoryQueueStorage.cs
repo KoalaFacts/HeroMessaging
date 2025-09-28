@@ -1,7 +1,7 @@
-using System.Collections.Concurrent;
 using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Storage;
+using System.Collections.Concurrent;
 
 namespace HeroMessaging.Storage;
 
@@ -12,18 +12,18 @@ public class InMemoryQueueStorage : IQueueStorage
     public Task<QueueEntry> Enqueue(string queueName, IMessage message, EnqueueOptions? options = null, CancellationToken cancellationToken = default)
     {
         var queue = _queues.GetOrAdd(queueName, _ => new Queue());
-        
+
         var entry = new QueueEntry
         {
             Id = Guid.NewGuid().ToString(),
             Message = message,
             Options = options ?? new EnqueueOptions(),
             EnqueuedAt = DateTime.UtcNow,
-            VisibleAt = options?.Delay.HasValue == true 
-                ? DateTime.UtcNow.Add(options.Delay.Value) 
+            VisibleAt = options?.Delay.HasValue == true
+                ? DateTime.UtcNow.Add(options.Delay.Value)
                 : DateTime.UtcNow
         };
-        
+
         queue.Entries[entry.Id] = entry;
         return Task.FromResult(entry);
     }
@@ -34,20 +34,20 @@ public class InMemoryQueueStorage : IQueueStorage
         {
             return Task.FromResult<QueueEntry?>(null);
         }
-        
+
         var now = DateTime.UtcNow;
         var entry = queue.Entries.Values
             .Where(e => e.VisibleAt <= now && e.DequeueCount < (queue.Options?.MaxDequeueCount ?? 10))
             .OrderByDescending(e => e.Options.Priority)
             .ThenBy(e => e.EnqueuedAt)
             .FirstOrDefault();
-        
+
         if (entry != null)
         {
             entry.DequeueCount++;
             entry.VisibleAt = now.Add(queue.Options?.VisibilityTimeout ?? TimeSpan.FromMinutes(1));
         }
-        
+
         return Task.FromResult(entry);
     }
 
@@ -57,14 +57,14 @@ public class InMemoryQueueStorage : IQueueStorage
         {
             return Task.FromResult(Enumerable.Empty<QueueEntry>());
         }
-        
+
         var now = DateTime.UtcNow;
         var entries = queue.Entries.Values
             .Where(e => e.VisibleAt <= now)
             .OrderByDescending(e => e.Options.Priority)
             .ThenBy(e => e.EnqueuedAt)
             .Take(count);
-        
+
         return Task.FromResult(entries);
     }
 
@@ -74,7 +74,7 @@ public class InMemoryQueueStorage : IQueueStorage
         {
             return Task.FromResult(queue.Entries.TryRemove(entryId, out _));
         }
-        
+
         return Task.FromResult(false);
     }
 
@@ -96,7 +96,7 @@ public class InMemoryQueueStorage : IQueueStorage
                 }
             }
         }
-        
+
         return Task.FromResult(false);
     }
 
@@ -107,7 +107,7 @@ public class InMemoryQueueStorage : IQueueStorage
             var count = queue.Entries.Values.Count(e => e.VisibleAt <= DateTime.UtcNow);
             return Task.FromResult((long)count);
         }
-        
+
         return Task.FromResult(0L);
     }
 
@@ -131,7 +131,7 @@ public class InMemoryQueueStorage : IQueueStorage
     {
         return Task.FromResult(_queues.ContainsKey(queueName));
     }
-    
+
     private class Queue
     {
         public ConcurrentDictionary<string, QueueEntry> Entries { get; } = new();

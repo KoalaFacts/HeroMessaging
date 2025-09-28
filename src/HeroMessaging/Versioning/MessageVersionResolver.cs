@@ -1,8 +1,8 @@
-using System.Collections.Concurrent;
-using System.Reflection;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Versioning;
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
+using System.Reflection;
 
 namespace HeroMessaging.Versioning;
 
@@ -80,7 +80,7 @@ public class MessageVersionResolver(ILogger<MessageVersionResolver> logger) : IM
         {
             var version = GetVersion(type);
             var properties = AnalyzeProperties(type);
-            
+
             return new MessageVersionInfo(
                 type,
                 version,
@@ -134,7 +134,7 @@ public class MessageVersionResolver(ILogger<MessageVersionResolver> logger) : IM
                         warning += $": {propertyInfo.DeprecationReason}";
                     if (!string.IsNullOrEmpty(propertyInfo.ReplacedBy))
                         warning += $" (replaced by {propertyInfo.ReplacedBy})";
-                    
+
                     warnings.Add(warning);
                 }
             }
@@ -160,12 +160,12 @@ public class MessageVersionResolver(ILogger<MessageVersionResolver> logger) : IM
     private IEnumerable<MessagePropertyInfo> AnalyzeProperties(Type messageType)
     {
         var properties = messageType.GetProperties(BindingFlags.Public | BindingFlags.Instance);
-        
+
         foreach (var property in properties)
         {
             var addedInVersion = property.GetCustomAttribute<AddedInVersionAttribute>()?.Version;
             var deprecatedAttribute = property.GetCustomAttribute<DeprecatedInVersionAttribute>();
-            
+
             yield return new MessagePropertyInfo(
                 property.Name,
                 property.PropertyType,
@@ -186,13 +186,13 @@ public class MessageVersionResolver(ILogger<MessageVersionResolver> logger) : IM
     private static bool IsDefaultValue(object value, Type type)
     {
         if (value == null) return !type.IsValueType || Nullable.GetUnderlyingType(type) != null;
-        
+
         if (type.IsValueType)
         {
             var defaultValue = Activator.CreateInstance(type);
             return value.Equals(defaultValue);
         }
-        
+
         return false;
     }
 }
@@ -206,22 +206,22 @@ public interface IMessageVersionResolver
     /// Gets the version of a message type
     /// </summary>
     MessageVersion GetVersion(Type messageType);
-    
+
     /// <summary>
     /// Gets the version of a message instance
     /// </summary>
     MessageVersion GetVersion(IMessage message);
-    
+
     /// <summary>
     /// Gets comprehensive version information for a message type
     /// </summary>
     MessageVersionInfo GetVersionInfo(Type messageType);
-    
+
     /// <summary>
     /// Validates that a message conforms to version constraints
     /// </summary>
     MessageVersionValidationResult ValidateMessage(IMessage message, MessageVersion targetVersion);
-    
+
     /// <summary>
     /// Gets all known versions for a message type
     /// </summary>
@@ -261,9 +261,9 @@ public class MessagePropertyInfo(
     public string? DeprecationReason { get; } = deprecationReason;
     public string? ReplacedBy { get; } = replacedBy;
 
-    public bool IsDeprecated(MessageVersion version) => 
+    public bool IsDeprecated(MessageVersion version) =>
         DeprecatedInVersion.HasValue && version >= DeprecatedInVersion.Value;
-    
+
     public bool IsAvailable(MessageVersion version) =>
         !AddedInVersion.HasValue || version >= AddedInVersion.Value;
 }

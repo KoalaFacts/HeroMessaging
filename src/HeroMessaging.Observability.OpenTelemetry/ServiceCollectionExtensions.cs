@@ -1,5 +1,4 @@
 using HeroMessaging.Abstractions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace HeroMessaging.Observability.OpenTelemetry;
 
@@ -15,7 +14,7 @@ public static class ServiceCollectionExtensions
     {
         // TODO: Register OpenTelemetry decorator when decorator pattern is implemented
         // This will provide OpenTelemetry instrumentation for message processing
-        
+
         return builder;
     }
 }

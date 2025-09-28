@@ -1,4 +1,3 @@
-using System.Threading.Tasks.Dataflow;
 using HeroMessaging.Abstractions.ErrorHandling;
 using HeroMessaging.Abstractions.Events;
 using HeroMessaging.Abstractions.Handlers;
@@ -6,6 +5,7 @@ using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System.Threading.Tasks.Dataflow;
 
 namespace HeroMessaging.Processing;
 
@@ -19,7 +19,7 @@ public class EventBus : IEventBus, IProcessor
     private long _failedCount;
     private int _registeredHandlers;
     private readonly object _metricsLock = new();
-    
+
     public bool IsRunning { get; private set; } = true;
 
     public EventBus(IServiceProvider serviceProvider, ILogger<EventBus> logger, IErrorHandler? errorHandler = null)
@@ -27,7 +27,7 @@ public class EventBus : IEventBus, IProcessor
         _serviceProvider = serviceProvider;
         _logger = logger;
         _errorHandler = errorHandler;
-        
+
         _processingBlock = new ActionBlock<EventEnvelope>(
             ProcessEvent,
             new ExecutionDataflowBlockOptions
@@ -40,17 +40,17 @@ public class EventBus : IEventBus, IProcessor
     public async Task Publish(IEvent @event, CancellationToken cancellationToken = default)
     {
         CompatibilityHelpers.ThrowIfNull(@event, nameof(@event));
-        
+
         var eventType = @event.GetType();
         var handlerType = typeof(IEventHandler<>).MakeGenericType(eventType);
         var handlers = _serviceProvider.GetServices(handlerType).ToList();
-        
+
         if (!handlers.Any())
         {
             _logger.LogDebug("No handlers found for event type {EventType}", eventType.Name);
             return;
         }
-        
+
         lock (_metricsLock)
         {
             _publishedCount++;
@@ -58,7 +58,7 @@ public class EventBus : IEventBus, IProcessor
         }
 
         var tasks = new List<Task>();
-        
+
         foreach (var handler in handlers)
         {
             var envelope = new EventEnvelope
@@ -68,7 +68,7 @@ public class EventBus : IEventBus, IProcessor
                 HandlerType = handlerType,
                 CancellationToken = cancellationToken
             };
-            
+
             await _processingBlock.SendAsync(envelope, cancellationToken);
         }
     }
@@ -77,7 +77,7 @@ public class EventBus : IEventBus, IProcessor
     {
         var retryCount = 0;
         var maxRetries = 3;
-        
+
         while (retryCount <= maxRetries)
         {
             try
@@ -88,12 +88,12 @@ public class EventBus : IEventBus, IProcessor
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error processing event {EventType} with handler {HandlerType}. Attempt {RetryCount}/{MaxRetries}", 
-                    envelope.Event.GetType().Name, 
+                _logger.LogError(ex, "Error processing event {EventType} with handler {HandlerType}. Attempt {RetryCount}/{MaxRetries}",
+                    envelope.Event.GetType().Name,
                     envelope.Handler.GetType().Name,
                     retryCount + 1,
                     maxRetries + 1);
-                
+
                 if (_errorHandler != null)
                 {
                     var context = new ErrorContext
@@ -109,9 +109,9 @@ public class EventBus : IEventBus, IProcessor
                             ["HandlerType"] = envelope.Handler.GetType().Name
                         }
                     };
-                    
+
                     var result = await _errorHandler.HandleError(envelope.Event, ex, context, envelope.CancellationToken);
-                    
+
                     switch (result.Action)
                     {
                         case ErrorAction.Retry:
@@ -120,20 +120,20 @@ public class EventBus : IEventBus, IProcessor
                                 await Task.Delay(result.RetryDelay.Value, envelope.CancellationToken);
                             envelope.FirstFailureTime ??= DateTime.UtcNow;
                             continue;
-                            
+
                         case ErrorAction.SendToDeadLetter:
                         case ErrorAction.Discard:
                             lock (_metricsLock)
                             {
                                 _failedCount++;
                             }
-                            
-                            _logger.LogWarning("Event {EventType} processing failed and was {Action}: {Reason}", 
+
+                            _logger.LogWarning("Event {EventType} processing failed and was {Action}: {Reason}",
                                 envelope.Event.GetType().Name, result.Action, result.Reason);
                             return;
-                            
+
                         case ErrorAction.Escalate:
-                            _logger.LogCritical(ex, "Critical error processing event {EventType}. Escalating.", 
+                            _logger.LogCritical(ex, "Critical error processing event {EventType}. Escalating.",
                                 envelope.Event.GetType().Name);
                             throw;
                     }
@@ -147,8 +147,8 @@ public class EventBus : IEventBus, IProcessor
                         {
                             _failedCount++;
                         }
-                        
-                        _logger.LogError("Event {EventType} processing failed after {MaxRetries} retries", 
+
+                        _logger.LogError("Event {EventType} processing failed after {MaxRetries} retries",
                             envelope.Event.GetType().Name, maxRetries);
                         return;
                     }
@@ -167,7 +167,7 @@ public class EventBus : IEventBus, IProcessor
         public CancellationToken CancellationToken { get; set; }
         public DateTime? FirstFailureTime { get; set; }
     }
-    
+
     public IEventBusMetrics GetMetrics()
     {
         lock (_metricsLock)

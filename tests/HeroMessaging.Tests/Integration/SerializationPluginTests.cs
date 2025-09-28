@@ -1,11 +1,7 @@
-using Xunit;
-using System;
-using System.Threading.Tasks;
-using System.Text;
-using System.Collections.Generic;
 using HeroMessaging.Abstractions.Messages;
-using HeroMessaging.Abstractions.Serialization;
 using HeroMessaging.Tests.TestUtilities;
+using System.Text;
+using Xunit;
 
 namespace HeroMessaging.Tests.Integration;
 

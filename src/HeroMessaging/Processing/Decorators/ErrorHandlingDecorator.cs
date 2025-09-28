@@ -28,12 +28,12 @@ public class ErrorHandlingDecorator(
             try
             {
                 var result = await _inner.ProcessAsync(message, context, cancellationToken);
-                
+
                 if (result.Success)
                 {
                     if (retryCount > 0)
                     {
-                        _logger.LogInformation("Message {MessageId} succeeded after {RetryCount} retries", 
+                        _logger.LogInformation("Message {MessageId} succeeded after {RetryCount} retries",
                             message.MessageId, retryCount);
                     }
                     return result;
@@ -54,7 +54,7 @@ public class ErrorHandlingDecorator(
 
             if (lastException != null)
             {
-                _logger.LogError(lastException, 
+                _logger.LogError(lastException,
                     "Error processing message {MessageId} of type {MessageType}. Attempt {RetryCount}/{MaxRetries}",
                     message.MessageId, message.GetType().Name, retryCount + 1, _maxRetries + 1);
 
@@ -75,7 +75,7 @@ public class ErrorHandlingDecorator(
                     case ErrorAction.Retry:
                         retryCount++;
                         context = context.WithRetry(retryCount, context.FirstFailureTime);
-                        
+
                         if (errorResult.RetryDelay.HasValue)
                         {
                             _logger.LogDebug("Waiting {Delay}ms before retry", errorResult.RetryDelay.Value.TotalMilliseconds);
@@ -105,7 +105,7 @@ public class ErrorHandlingDecorator(
 
         // Max retries exceeded
         _logger.LogError("Message {MessageId} failed after {MaxRetries} retries", message.MessageId, _maxRetries);
-        return ProcessingResult.Failed(lastException ?? new Exception("Processing failed"), 
+        return ProcessingResult.Failed(lastException ?? new Exception("Processing failed"),
             $"Failed after {_maxRetries} retries");
     }
 }

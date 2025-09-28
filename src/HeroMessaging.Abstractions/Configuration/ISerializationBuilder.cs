@@ -12,48 +12,48 @@ public interface ISerializationBuilder
     /// Use JSON serialization
     /// </summary>
     ISerializationBuilder UseJson(Action<JsonSerializationOptions>? configure = null);
-    
+
     /// <summary>
     /// Use Protocol Buffers serialization
     /// </summary>
     ISerializationBuilder UseProtobuf(Action<ProtobufSerializationOptions>? configure = null);
-    
+
     /// <summary>
     /// Use MessagePack serialization
     /// </summary>
     ISerializationBuilder UseMessagePack(Action<MessagePackSerializationOptions>? configure = null);
-    
+
     /// <summary>
     /// Use custom serializer implementation
     /// </summary>
     ISerializationBuilder UseCustom<T>() where T : class, IMessageSerializer;
-    
+
     /// <summary>
     /// Use custom serializer instance
     /// </summary>
     ISerializationBuilder UseCustom(IMessageSerializer serializer);
-    
+
     /// <summary>
     /// Add serializer for specific message type
     /// </summary>
-    ISerializationBuilder AddTypeSerializer<TMessage, TSerializer>() 
+    ISerializationBuilder AddTypeSerializer<TMessage, TSerializer>()
         where TSerializer : class, IMessageSerializer;
-    
+
     /// <summary>
     /// Set default serializer
     /// </summary>
     ISerializationBuilder SetDefault<T>() where T : class, IMessageSerializer;
-    
+
     /// <summary>
     /// Enable compression for all serializers
     /// </summary>
     ISerializationBuilder WithCompression(CompressionLevel level = CompressionLevel.Optimal);
-    
+
     /// <summary>
     /// Set maximum message size
     /// </summary>
     ISerializationBuilder WithMaxMessageSize(int maxSizeInBytes);
-    
+
     /// <summary>
     /// Build and return the service collection
     /// </summary>

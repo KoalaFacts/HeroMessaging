@@ -1,9 +1,9 @@
-using System.Collections.Concurrent;
-using System.Diagnostics;
-using System.Runtime.CompilerServices;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Metrics;
 using HeroMessaging.Abstractions.Processing;
+using System.Collections.Concurrent;
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
 
 namespace HeroMessaging.Processing.Decorators;
 
@@ -18,14 +18,14 @@ public class MetricsDecorator(IMessageProcessor inner, IMetricsCollector metrics
     {
         var messageType = message.GetType().Name;
         var stopwatch = Stopwatch.StartNew();
-        
+
         _metricsCollector.IncrementCounter($"messages.{messageType}.started");
-        
+
         try
         {
             var result = await _inner.ProcessAsync(message, context, cancellationToken);
             stopwatch.Stop();
-            
+
             if (result.Success)
             {
                 _metricsCollector.IncrementCounter($"messages.{messageType}.succeeded");
@@ -39,7 +39,7 @@ public class MetricsDecorator(IMessageProcessor inner, IMetricsCollector metrics
                     _metricsCollector.IncrementCounter($"messages.{messageType}.retried", context.RetryCount);
                 }
             }
-            
+
             return result;
         }
         catch (Exception)
@@ -77,14 +77,14 @@ public class InMemoryMetricsCollector : IMetricsCollector
         var bag = _values.GetOrAdd(name, _ => new ConcurrentBag<double>());
         bag.Add(value);
     }
-    
+
     public Dictionary<string, object> GetSnapshot()
     {
         var snapshot = new Dictionary<string, object>();
-        
+
         foreach (var counter in _counters)
             snapshot[counter.Key] = counter.Value;
-            
+
         foreach (var duration in _durations)
         {
             var values = duration.Value.ToArray();
@@ -96,7 +96,7 @@ public class InMemoryMetricsCollector : IMetricsCollector
                 snapshot[$"{duration.Key}.min_ms"] = values.Min(d => d.TotalMilliseconds);
             }
         }
-        
+
         return snapshot;
     }
 }

@@ -1,8 +1,8 @@
-using System.Collections.Concurrent;
-using System.Runtime.CompilerServices;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Processing;
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 
 namespace HeroMessaging.Processing.Decorators;
 
@@ -26,17 +26,17 @@ public class CircuitBreakerDecorator : MessageProcessorDecorator
     }
 
     public override async ValueTask<ProcessingResult> ProcessAsync(
-        IMessage message, 
-        ProcessingContext context, 
+        IMessage message,
+        ProcessingContext context,
         CancellationToken cancellationToken = default)
     {
         if (!_state.CanProcess())
         {
             _logger.LogWarning(
-                "Circuit breaker is {State}. Rejecting message {MessageId}", 
-                _state.CurrentState, 
+                "Circuit breaker is {State}. Rejecting message {MessageId}",
+                _state.CurrentState,
                 message.MessageId);
-            
+
             return ProcessingResult.Failed(
                 new CircuitBreakerOpenException($"Circuit breaker is {_state.CurrentState}"),
                 $"Circuit breaker is {_state.CurrentState}");
@@ -45,11 +45,11 @@ public class CircuitBreakerDecorator : MessageProcessorDecorator
         try
         {
             var result = await _inner.ProcessAsync(message, context, cancellationToken);
-            
+
             if (result.Success)
             {
                 _state.RecordSuccess();
-                
+
                 if (_state.StateChanged)
                 {
                     _logger.LogInformation(
@@ -60,7 +60,7 @@ public class CircuitBreakerDecorator : MessageProcessorDecorator
             else
             {
                 _state.RecordFailure();
-                
+
                 if (_state.StateChanged)
                 {
                     _logger.LogWarning(
@@ -69,13 +69,13 @@ public class CircuitBreakerDecorator : MessageProcessorDecorator
                         _state.FailureRate);
                 }
             }
-            
+
             return result;
         }
         catch (Exception ex)
         {
             _state.RecordFailure();
-            
+
             if (_state.StateChanged)
             {
                 _logger.LogError(ex,
@@ -83,7 +83,7 @@ public class CircuitBreakerDecorator : MessageProcessorDecorator
                     _state.CurrentState,
                     _state.FailureRate);
             }
-            
+
             throw;
         }
     }
@@ -98,22 +98,22 @@ public class CircuitBreakerOptions
     /// Number of failures before opening the circuit
     /// </summary>
     public int FailureThreshold { get; set; } = 5;
-    
+
     /// <summary>
     /// Time window for counting failures
     /// </summary>
     public TimeSpan SamplingDuration { get; set; } = TimeSpan.FromMinutes(1);
-    
+
     /// <summary>
     /// Minimum throughput required before calculating failure rate
     /// </summary>
     public int MinimumThroughput { get; set; } = 10;
-    
+
     /// <summary>
     /// Duration to wait before attempting to half-open the circuit
     /// </summary>
     public TimeSpan BreakDuration { get; set; } = TimeSpan.FromSeconds(30);
-    
+
     /// <summary>
     /// Failure rate threshold (0.0 to 1.0)
     /// </summary>
@@ -134,19 +134,19 @@ internal class CircuitBreakerState(CircuitBreakerOptions options)
 
     public CircuitState CurrentState => _currentState;
     public bool StateChanged { get; private set; }
-    
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool CanProcess()
     {
         lock (_stateLock)
         {
             StateChanged = false;
-            
+
             switch (_currentState)
             {
                 case CircuitState.Closed:
                     return true;
-                    
+
                 case CircuitState.Open:
                     if (DateTime.UtcNow - _lastStateChange >= _options.BreakDuration)
                     {
@@ -154,26 +154,26 @@ internal class CircuitBreakerState(CircuitBreakerOptions options)
                         return true;
                     }
                     return false;
-                    
+
                 case CircuitState.HalfOpen:
                     return true;
-                    
+
                 default:
                     return false;
             }
         }
     }
-    
+
     public void RecordSuccess()
     {
         var now = DateTime.UtcNow;
         _results.Enqueue((now, true));
         CleanOldResults(now);
-        
+
         lock (_stateLock)
         {
             StateChanged = false;
-            
+
             if (_currentState == CircuitState.HalfOpen)
             {
                 _halfOpenSuccesses++;
@@ -184,17 +184,17 @@ internal class CircuitBreakerState(CircuitBreakerOptions options)
             }
         }
     }
-    
+
     public void RecordFailure()
     {
         var now = DateTime.UtcNow;
         _results.Enqueue((now, false));
         CleanOldResults(now);
-        
+
         lock (_stateLock)
         {
             StateChanged = false;
-            
+
             switch (_currentState)
             {
                 case CircuitState.Closed:
@@ -203,26 +203,26 @@ internal class CircuitBreakerState(CircuitBreakerOptions options)
                         TransitionTo(CircuitState.Open);
                     }
                     break;
-                    
+
                 case CircuitState.HalfOpen:
                     TransitionTo(CircuitState.Open);
                     break;
             }
         }
     }
-    
+
     public double FailureRate
     {
         get
         {
             var validResults = GetValidResults();
             if (!validResults.Any()) return 0;
-            
+
             var failures = validResults.Count(r => !r.Success);
             return (double)failures / validResults.Count;
         }
     }
-    
+
     private void TransitionTo(CircuitState newState)
     {
         if (_currentState != newState)
@@ -230,34 +230,34 @@ internal class CircuitBreakerState(CircuitBreakerOptions options)
             _currentState = newState;
             _lastStateChange = DateTime.UtcNow;
             StateChanged = true;
-            
+
             if (newState == CircuitState.HalfOpen)
             {
                 _halfOpenSuccesses = 0;
             }
         }
     }
-    
+
     private bool ShouldOpen()
     {
         var validResults = GetValidResults();
-        
+
         if (validResults.Count < _options.MinimumThroughput)
             return false;
-        
+
         var failures = validResults.Count(r => !r.Success);
         var failureRate = (double)failures / validResults.Count;
-        
-        return failures >= _options.FailureThreshold || 
+
+        return failures >= _options.FailureThreshold ||
                failureRate >= _options.FailureRateThreshold;
     }
-    
+
     private List<(DateTime Timestamp, bool Success)> GetValidResults()
     {
         var cutoff = DateTime.UtcNow - _options.SamplingDuration;
         return _results.Where(r => r.Timestamp >= cutoff).ToList();
     }
-    
+
     private void CleanOldResults(DateTime now)
     {
         var cutoff = now - _options.SamplingDuration;
@@ -277,12 +277,12 @@ public enum CircuitState
     /// Circuit is closed, requests flow normally
     /// </summary>
     Closed,
-    
+
     /// <summary>
     /// Circuit is open, requests are rejected
     /// </summary>
     Open,
-    
+
     /// <summary>
     /// Circuit is half-open, limited requests allowed to test recovery
     /// </summary>

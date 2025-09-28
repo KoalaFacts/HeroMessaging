@@ -1,6 +1,6 @@
+using HeroMessaging.Abstractions.Messages;
 using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
-using HeroMessaging.Abstractions.Messages;
 
 namespace HeroMessaging.Abstractions.Processing;
 
@@ -29,7 +29,7 @@ public readonly record struct ProcessingContext
         FirstFailureTime = null;
         Metadata = ImmutableDictionary<string, object>.Empty;
     }
-    
+
     public ProcessingContext(string component, ImmutableDictionary<string, object>? metadata = null)
     {
         Component = component;
@@ -39,36 +39,36 @@ public readonly record struct ProcessingContext
         FirstFailureTime = null;
         Metadata = metadata ?? ImmutableDictionary<string, object>.Empty;
     }
-    
+
     public string Component { get; init; }
     public object? Handler { get; init; }
     public Type? HandlerType { get; init; }
     public int RetryCount { get; init; }
     public DateTime? FirstFailureTime { get; init; }
     public ImmutableDictionary<string, object> Metadata { get; init; } = ImmutableDictionary<string, object>.Empty;
-    
+
     public ProcessingContext WithMetadata(string key, object value)
     {
         return this with { Metadata = Metadata.SetItem(key, value) };
     }
-    
+
     public ProcessingContext WithRetry(int retryCount, DateTime? firstFailureTime = null)
     {
-        return this with 
-        { 
-            RetryCount = retryCount, 
-            FirstFailureTime = firstFailureTime ?? FirstFailureTime ?? DateTime.UtcNow 
+        return this with
+        {
+            RetryCount = retryCount,
+            FirstFailureTime = firstFailureTime ?? FirstFailureTime ?? DateTime.UtcNow
         };
     }
-    
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public T? GetMetadata<T>(string key) where T : struct
     {
-        return Metadata.TryGetValue(key, out var value) && value is T typedValue 
-            ? typedValue 
+        return Metadata.TryGetValue(key, out var value) && value is T typedValue
+            ? typedValue
             : default(T?);
     }
-    
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public T? GetMetadataReference<T>(string key) where T : class
     {
@@ -85,12 +85,12 @@ public readonly record struct ProcessingResult
     public Exception? Exception { get; init; }
     public string? Message { get; init; }
     public object? Data { get; init; }
-    
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static ProcessingResult Successful(string? message = null, object? data = null) 
+    public static ProcessingResult Successful(string? message = null, object? data = null)
         => new() { Success = true, Message = message, Data = data };
-    
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static ProcessingResult Failed(Exception exception, string? message = null) 
+    public static ProcessingResult Failed(Exception exception, string? message = null)
         => new() { Success = false, Exception = exception, Message = message };
 }

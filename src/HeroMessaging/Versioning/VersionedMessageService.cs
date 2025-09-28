@@ -26,7 +26,7 @@ public class VersionedMessageService(
         if (message == null) throw new ArgumentNullException(nameof(message));
 
         var currentVersion = _versionResolver.GetVersion(message);
-        
+
         if (currentVersion == targetVersion)
         {
             _logger.LogDebug("Message {MessageType} is already at target version {Version}",
@@ -49,7 +49,7 @@ public class VersionedMessageService(
         if (message == null) throw new ArgumentNullException(nameof(message));
 
         var currentVersion = _versionResolver.GetVersion(message);
-        
+
         // Check if current version is compatible
         if (currentVersion.IsCompatibleWith(requiredVersion))
         {
@@ -89,7 +89,7 @@ public class VersionedMessageService(
     public MessageVersionInfo GetVersionInfo<TMessage>(TMessage message) where TMessage : class, IMessage
     {
         if (message == null) throw new ArgumentNullException(nameof(message));
-        
+
         return _versionResolver.GetVersionInfo(message.GetType());
     }
 
@@ -141,7 +141,7 @@ public class VersionedMessageService(
             {
                 _logger.LogError(ex, "Conversion step failed from {FromVersion} to {ToVersion}",
                     step.FromVersion, step.ToVersion);
-                
+
                 throw new MessageConversionException(
                     $"Conversion failed at step {step.FromVersion} -> {step.ToVersion}: {ex.Message}", ex);
             }

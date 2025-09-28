@@ -1,5 +1,4 @@
 using HeroMessaging.Abstractions.Metrics;
-using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Processing.Decorators;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -20,7 +19,7 @@ public static class PipelineConfigurations
             .UseMetrics()
             .UseRetry(new ExponentialBackoffRetryPolicy(maxRetries: 1)); // Minimal retries
     }
-    
+
     /// <summary>
     /// Pipeline for critical business operations with full safety
     /// </summary>
@@ -40,7 +39,7 @@ public static class PipelineConfigurations
             .UseErrorHandling(maxRetries: 5)
             .UseRetry(new ExponentialBackoffRetryPolicy(maxRetries: 5));
     }
-    
+
     /// <summary>
     /// Pipeline for development with extensive logging
     /// </summary>
@@ -51,7 +50,7 @@ public static class PipelineConfigurations
             .UseValidation()
             .UseRetry(new ExponentialBackoffRetryPolicy(maxRetries: 2));
     }
-    
+
     /// <summary>
     /// Pipeline for integration scenarios with external systems
     /// </summary>
@@ -74,7 +73,7 @@ public static class PipelineConfigurations
                 baseDelay: TimeSpan.FromSeconds(2),
                 maxDelay: TimeSpan.FromMinutes(1)));
     }
-    
+
     /// <summary>
     /// Minimal pipeline with no decorators
     /// </summary>
@@ -93,14 +92,14 @@ public static class PipelineExtensions
     {
         // Register default services for pipelines
         services.AddSingleton<IMetricsCollector, InMemoryMetricsCollector>();
-        
+
         // Register pipeline builder as factory
-        services.AddTransient<MessageProcessingPipelineBuilder>(provider => 
+        services.AddTransient<MessageProcessingPipelineBuilder>(provider =>
             new MessageProcessingPipelineBuilder(provider));
-        
+
         return services;
     }
-    
+
     public static MessageProcessingPipelineBuilder UsePredefinedPipeline(
         this MessageProcessingPipelineBuilder builder,
         PipelineProfile profile,

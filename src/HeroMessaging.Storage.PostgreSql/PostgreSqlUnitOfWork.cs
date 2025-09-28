@@ -22,7 +22,7 @@ public class PostgreSqlUnitOfWork : IUnitOfWork
     public PostgreSqlUnitOfWork(string connectionString)
     {
         _connection = new NpgsqlConnection(connectionString);
-        
+
         // Initialize storage implementations lazily with the shared connection/transaction
         _outboxStorage = new Lazy<IOutboxStorage>(() => new PostgreSqlOutboxStorage(_connection, _transaction));
         _inboxStorage = new Lazy<IInboxStorage>(() => new PostgreSqlInboxStorage(_connection, _transaction));
@@ -125,7 +125,7 @@ public class PostgreSqlUnitOfWork : IUnitOfWork
         }
 
         await _transaction.RollbackAsync(savepointName, cancellationToken);
-        
+
         // Remove this savepoint and all later ones
         var index = _savepoints.IndexOf(savepointName);
         _savepoints.RemoveRange(index, _savepoints.Count - index);

@@ -1,7 +1,7 @@
-using System.Collections.Concurrent;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Versioning;
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
 
 namespace HeroMessaging.Versioning;
 
@@ -24,20 +24,20 @@ public class MessageConverterRegistry(ILogger<MessageConverterRegistry> logger) 
 
         var messageType = typeof(TMessage);
         var converterList = _converters.GetOrAdd(messageType, _ => new List<IMessageConverter>());
-        
+
         lock (converterList)
         {
             // Check for duplicate or overlapping converters
-            var existingConverter = converterList.FirstOrDefault(c => 
+            var existingConverter = converterList.FirstOrDefault(c =>
                 c.SupportedVersionRange.Overlaps(converter.SupportedVersionRange));
-            
+
             if (existingConverter != null)
             {
                 _logger.LogWarning("Overlapping converter registered for {MessageType}. " +
                     "Existing: {ExistingRange}, New: {NewRange}",
                     messageType.Name, existingConverter.SupportedVersionRange, converter.SupportedVersionRange);
             }
-            
+
             converterList.Add(converter);
             _logger.LogInformation("Registered converter for {MessageType} supporting versions {VersionRange}",
                 messageType.Name, converter.SupportedVersionRange);
@@ -50,7 +50,7 @@ public class MessageConverterRegistry(ILogger<MessageConverterRegistry> logger) 
     /// <summary>
     /// Gets a converter for the specified message type and version range
     /// </summary>
-    public IMessageConverter<TMessage>? GetConverter<TMessage>(MessageVersion fromVersion, MessageVersion toVersion) 
+    public IMessageConverter<TMessage>? GetConverter<TMessage>(MessageVersion fromVersion, MessageVersion toVersion)
         where TMessage : class, IMessage
     {
         var converter = GetConverter(typeof(TMessage), fromVersion, toVersion);
@@ -83,7 +83,7 @@ public class MessageConverterRegistry(ILogger<MessageConverterRegistry> logger) 
                 return converterList.ToList(); // Return a copy to avoid concurrency issues
             }
         }
-        
+
         return Enumerable.Empty<IMessageConverter>();
     }
 
@@ -101,7 +101,7 @@ public class MessageConverterRegistry(ILogger<MessageConverterRegistry> logger) 
     public MessageConversionPath? FindConversionPath(Type messageType, MessageVersion fromVersion, MessageVersion toVersion)
     {
         var key = new ConversionKey(messageType, fromVersion, toVersion);
-        
+
         return _pathCache.GetOrAdd(key, _ =>
         {
             return FindConversionPathInternal(messageType, fromVersion, toVersion);
@@ -129,7 +129,7 @@ public class MessageConverterRegistry(ILogger<MessageConverterRegistry> logger) 
         {
             _logger.LogDebug("Found direct conversion path for {MessageType} from {FromVersion} to {ToVersion}",
                 messageType.Name, fromVersion, toVersion);
-            
+
             return new MessageConversionPath(
                 messageType,
                 fromVersion,
@@ -143,9 +143,9 @@ public class MessageConverterRegistry(ILogger<MessageConverterRegistry> logger) 
     }
 
     private MessageConversionPath? FindShortestConversionPath(
-        Type messageType, 
-        MessageVersion fromVersion, 
-        MessageVersion toVersion, 
+        Type messageType,
+        MessageVersion fromVersion,
+        MessageVersion toVersion,
         List<IMessageConverter> converters)
     {
         // Build version graph
@@ -184,14 +184,14 @@ public class MessageConverterRegistry(ILogger<MessageConverterRegistry> logger) 
             foreach (var converter in converters)
             {
                 var possibleTargets = GetPossibleConversions(currentVersion, converter);
-                
+
                 foreach (var targetVersion in possibleTargets)
                 {
                     if (!distances.ContainsKey(targetVersion))
                         continue;
 
                     var newDistance = currentDistance + 1; // Each conversion step costs 1
-                    
+
                     if (newDistance < distances[targetVersion])
                     {
                         unvisited.Remove((distances[targetVersion], targetVersion));
@@ -213,7 +213,7 @@ public class MessageConverterRegistry(ILogger<MessageConverterRegistry> logger) 
 
         var steps = new List<MessageConversionStep>();
         var current = toVersion;
-        
+
         while (previous.ContainsKey(current))
         {
             var (prev, converter) = previous[current];
@@ -230,13 +230,13 @@ public class MessageConverterRegistry(ILogger<MessageConverterRegistry> logger) 
     private static IEnumerable<MessageVersion> GetPossibleConversions(MessageVersion fromVersion, IMessageConverter converter)
     {
         var range = converter.SupportedVersionRange;
-        
+
         // If the converter supports the from version, it can convert to any version in its range
         if (range.Contains(fromVersion))
         {
             yield return range.MinVersion;
             yield return range.MaxVersion;
-            
+
             // In a more sophisticated implementation, we could enumerate all known versions in the range
         }
     }
