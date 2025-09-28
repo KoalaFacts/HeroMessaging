@@ -28,7 +28,7 @@ public class RetryDecorator(
             try
             {
                 var result = await _inner.ProcessAsync(message, context, cancellationToken);
-                
+
                 if (result.Success || !_retryPolicy.ShouldRetry(result.Exception, retryCount))
                 {
                     if (retryCount > 0 && result.Success)
@@ -51,12 +51,12 @@ public class RetryDecorator(
                 var delay = _retryPolicy.GetRetryDelay(retryCount);
                 _logger.LogWarning("Retry {RetryCount}/{MaxRetries} for message {MessageId} after {DelayMs}ms",
                     retryCount + 1, maxRetries, message.MessageId, delay.TotalMilliseconds);
-                
+
                 context = context.WithRetry(retryCount + 1, context.FirstFailureTime);
-                
+
                 await Task.Delay(delay, cancellationToken);
             }
-            
+
             retryCount++;
         }
 
@@ -85,7 +85,7 @@ public class ExponentialBackoffRetryPolicy(
     {
         if (attemptNumber >= MaxRetries) return false;
         if (exception == null) return false;
-        
+
         // Don't retry critical errors
         if (exception is OutOfMemoryException ||
             exception is StackOverflowException ||
@@ -104,7 +104,7 @@ public class ExponentialBackoffRetryPolicy(
         var jitter = RandomHelper.Instance.NextDouble() * _jitterFactor;
         var delayWithJitter = exponentialDelay * (1 + jitter);
         var finalDelay = TimeSpan.FromMilliseconds(Math.Min(delayWithJitter, _maxDelay.TotalMilliseconds));
-        
+
         return finalDelay;
     }
 

@@ -1,7 +1,7 @@
-using System.Collections.Concurrent;
 using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Storage;
+using System.Collections.Concurrent;
 
 namespace HeroMessaging.Storage;
 
@@ -19,7 +19,7 @@ public class InMemoryOutboxStorage : IOutboxStorage
             Status = OutboxStatus.Pending,
             CreatedAt = DateTime.UtcNow
         };
-        
+
         _entries[entry.Id] = entry;
         return Task.FromResult(entry);
     }
@@ -27,7 +27,7 @@ public class InMemoryOutboxStorage : IOutboxStorage
     public Task<IEnumerable<OutboxEntry>> GetPending(OutboxQuery query, CancellationToken cancellationToken = default)
     {
         var pending = _entries.Values.AsEnumerable();
-        
+
         if (query.Status.HasValue)
         {
             var status = query.Status.Value switch
@@ -44,36 +44,36 @@ public class InMemoryOutboxStorage : IOutboxStorage
         {
             pending = pending.Where(e => e.Status == OutboxStatus.Pending);
         }
-        
+
         pending = pending.Where(e => e.NextRetryAt == null || e.NextRetryAt <= DateTime.UtcNow);
-        
+
         if (query.OlderThan.HasValue)
         {
             pending = pending.Where(e => e.CreatedAt < query.OlderThan.Value);
         }
-        
+
         if (query.NewerThan.HasValue)
         {
             pending = pending.Where(e => e.CreatedAt > query.NewerThan.Value);
         }
-        
+
         pending = pending
             .OrderBy(e => e.Options.Priority)
             .ThenBy(e => e.CreatedAt)
             .Take(query.Limit);
-        
+
         return Task.FromResult(pending);
     }
-    
+
     public Task<IEnumerable<OutboxEntry>> GetPending(int limit = 100, CancellationToken cancellationToken = default)
     {
         var pending = _entries.Values
-            .Where(e => e.Status == OutboxStatus.Pending && 
+            .Where(e => e.Status == OutboxStatus.Pending &&
                        (e.NextRetryAt == null || e.NextRetryAt <= DateTime.UtcNow))
             .OrderBy(e => e.Options.Priority)
             .ThenBy(e => e.CreatedAt)
             .Take(limit);
-        
+
         return Task.FromResult(pending);
     }
 
@@ -85,7 +85,7 @@ public class InMemoryOutboxStorage : IOutboxStorage
             entry.ProcessedAt = DateTime.UtcNow;
             return Task.FromResult(true);
         }
-        
+
         return Task.FromResult(false);
     }
 
@@ -97,7 +97,7 @@ public class InMemoryOutboxStorage : IOutboxStorage
             entry.LastError = error;
             return Task.FromResult(true);
         }
-        
+
         return Task.FromResult(false);
     }
 
@@ -107,15 +107,15 @@ public class InMemoryOutboxStorage : IOutboxStorage
         {
             entry.RetryCount = retryCount;
             entry.NextRetryAt = nextRetry;
-            
+
             if (retryCount >= entry.Options.MaxRetries)
             {
                 entry.Status = OutboxStatus.Failed;
             }
-            
+
             return Task.FromResult(true);
         }
-        
+
         return Task.FromResult(false);
     }
 
@@ -131,7 +131,7 @@ public class InMemoryOutboxStorage : IOutboxStorage
             .Where(e => e.Status == OutboxStatus.Failed)
             .OrderBy(e => e.CreatedAt)
             .Take(limit);
-        
+
         return Task.FromResult(failed);
     }
 }

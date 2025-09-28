@@ -1,7 +1,7 @@
-using System.Collections.Concurrent;
 using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Storage;
+using System.Collections.Concurrent;
 
 namespace HeroMessaging.Storage;
 
@@ -12,14 +12,14 @@ public class InMemoryInboxStorage : IInboxStorage
     public Task<InboxEntry?> Add(IMessage message, InboxOptions options, CancellationToken cancellationToken = default)
     {
         var messageId = message.MessageId.ToString();
-        
+
         if (options.RequireIdempotency && _entries.ContainsKey(messageId))
         {
             var existing = _entries[messageId];
             existing.Status = InboxStatus.Duplicate;
             return Task.FromResult<InboxEntry?>(null);
         }
-        
+
         var entry = new InboxEntry
         {
             Id = messageId,
@@ -28,7 +28,7 @@ public class InMemoryInboxStorage : IInboxStorage
             Status = InboxStatus.Pending,
             ReceivedAt = DateTime.UtcNow
         };
-        
+
         _entries[messageId] = entry;
         return Task.FromResult<InboxEntry?>(entry);
     }
@@ -42,10 +42,10 @@ public class InMemoryInboxStorage : IInboxStorage
                 var cutoff = DateTime.UtcNow.Subtract(window.Value);
                 return Task.FromResult(entry.ReceivedAt >= cutoff);
             }
-            
+
             return Task.FromResult(true);
         }
-        
+
         return Task.FromResult(false);
     }
 
@@ -63,7 +63,7 @@ public class InMemoryInboxStorage : IInboxStorage
             entry.ProcessedAt = DateTime.UtcNow;
             return Task.FromResult(true);
         }
-        
+
         return Task.FromResult(false);
     }
 
@@ -75,14 +75,14 @@ public class InMemoryInboxStorage : IInboxStorage
             entry.Error = error;
             return Task.FromResult(true);
         }
-        
+
         return Task.FromResult(false);
     }
 
     public Task<IEnumerable<InboxEntry>> GetPending(InboxQuery query, CancellationToken cancellationToken = default)
     {
         var pending = _entries.Values.AsEnumerable();
-        
+
         if (query.Status.HasValue)
         {
             var status = query.Status.Value switch
@@ -100,31 +100,31 @@ public class InMemoryInboxStorage : IInboxStorage
         {
             pending = pending.Where(e => e.Status == InboxStatus.Pending);
         }
-        
+
         if (query.OlderThan.HasValue)
         {
             pending = pending.Where(e => e.ReceivedAt < query.OlderThan.Value);
         }
-        
+
         if (query.NewerThan.HasValue)
         {
             pending = pending.Where(e => e.ReceivedAt > query.NewerThan.Value);
         }
-        
+
         pending = pending
             .OrderBy(e => e.ReceivedAt)
             .Take(query.Limit);
-        
+
         return Task.FromResult(pending);
     }
-    
+
     public Task<IEnumerable<InboxEntry>> GetUnprocessed(int limit = 100, CancellationToken cancellationToken = default)
     {
         var unprocessed = _entries.Values
             .Where(e => e.Status == InboxStatus.Pending)
             .OrderBy(e => e.ReceivedAt)
             .Take(limit);
-        
+
         return Task.FromResult(unprocessed);
     }
 
@@ -138,16 +138,16 @@ public class InMemoryInboxStorage : IInboxStorage
     {
         var cutoff = DateTime.UtcNow.Subtract(olderThan);
         var toRemove = _entries
-            .Where(kvp => kvp.Value.ReceivedAt < cutoff && 
+            .Where(kvp => kvp.Value.ReceivedAt < cutoff &&
                          kvp.Value.Status == InboxStatus.Processed)
             .Select(kvp => kvp.Key)
             .ToList();
-        
+
         foreach (var key in toRemove)
         {
             _entries.TryRemove(key, out _);
         }
-        
+
         return Task.CompletedTask;
     }
 }

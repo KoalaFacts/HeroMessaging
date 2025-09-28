@@ -1,10 +1,8 @@
 using HeroMessaging.Abstractions.Configuration;
 using HeroMessaging.Abstractions.Versioning;
-using HeroMessaging.Configuration;
 using HeroMessaging.Versioning;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Options;
 
 namespace HeroMessaging.Configuration;
 

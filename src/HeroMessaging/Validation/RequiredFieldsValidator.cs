@@ -1,7 +1,7 @@
-using System.Reflection;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Validation;
 using HeroMessaging.Utilities;
+using System.Reflection;
 
 namespace HeroMessaging.Validation;
 
@@ -14,19 +14,19 @@ public class RequiredFieldsValidator : IMessageValidator
     {
         var errors = new List<string>();
         var type = message.GetType();
-        
+
         // Check MessageId
         if (message.MessageId == Guid.Empty)
         {
             errors.Add("MessageId is required and cannot be empty");
         }
-        
+
         // Check Timestamp
         if (message.Timestamp == default)
         {
             errors.Add("Timestamp is required and cannot be default");
         }
-        
+
         // Check for properties marked with Required attribute (if any)
         var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
         foreach (var property in properties)
@@ -41,8 +41,8 @@ public class RequiredFieldsValidator : IMessageValidator
                 }
             }
         }
-        
-        return CompatibilityHelpers.FromResult(errors.Count > 0 
+
+        return CompatibilityHelpers.FromResult(errors.Count > 0
             ? ValidationResult.Failure(errors.ToArray())
             : ValidationResult.Success());
     }

@@ -11,17 +11,17 @@ public interface IMessageConverter
     /// Determines if this converter can convert between the specified versions
     /// </summary>
     bool CanConvert(Type messageType, MessageVersion fromVersion, MessageVersion toVersion);
-    
+
     /// <summary>
     /// Converts a message from one version to another
     /// </summary>
     Task<IMessage> ConvertAsync(IMessage message, MessageVersion fromVersion, MessageVersion toVersion, CancellationToken cancellationToken = default);
-    
+
     /// <summary>
     /// Gets the supported message type
     /// </summary>
     Type MessageType { get; }
-    
+
     /// <summary>
     /// Gets the version range this converter supports
     /// </summary>
@@ -53,7 +53,7 @@ public abstract class MessageConverter<TMessage> : IMessageConverter<TMessage>
 
     public virtual bool CanConvert(Type messageType, MessageVersion fromVersion, MessageVersion toVersion)
     {
-        return messageType == typeof(TMessage) && 
+        return messageType == typeof(TMessage) &&
                SupportedVersionRange.Contains(fromVersion) &&
                SupportedVersionRange.Contains(toVersion);
     }
@@ -64,7 +64,7 @@ public abstract class MessageConverter<TMessage> : IMessageConverter<TMessage>
     {
         if (message is not TMessage typedMessage)
             throw new ArgumentException($"Message must be of type {typeof(TMessage).Name}", nameof(message));
-        
+
         return await ConvertAsync(typedMessage, fromVersion, toVersion, cancellationToken);
     }
 }
@@ -76,21 +76,21 @@ public readonly record struct MessageVersionRange
 {
     public MessageVersion MinVersion { get; }
     public MessageVersion MaxVersion { get; }
-    
+
     public MessageVersionRange(MessageVersion minVersion, MessageVersion maxVersion)
     {
         if (minVersion > maxVersion)
             throw new ArgumentException("Min version cannot be greater than max version");
-        
+
         MinVersion = minVersion;
         MaxVersion = maxVersion;
     }
-    
+
     public MessageVersionRange(MessageVersion singleVersion)
     {
         MinVersion = MaxVersion = singleVersion;
     }
-    
+
     /// <summary>
     /// Checks if the range contains the specified version
     /// </summary>
@@ -98,7 +98,7 @@ public readonly record struct MessageVersionRange
     {
         return version >= MinVersion && version <= MaxVersion;
     }
-    
+
     /// <summary>
     /// Checks if this range overlaps with another range
     /// </summary>
@@ -106,8 +106,8 @@ public readonly record struct MessageVersionRange
     {
         return MinVersion <= other.MaxVersion && MaxVersion >= other.MinVersion;
     }
-    
-    public override string ToString() => 
+
+    public override string ToString() =>
         MinVersion == MaxVersion ? MinVersion.ToString() : $"{MinVersion}-{MaxVersion}";
 }
 
@@ -120,27 +120,27 @@ public interface IMessageConverterRegistry
     /// Registers a message converter
     /// </summary>
     void RegisterConverter<TMessage>(IMessageConverter<TMessage> converter) where TMessage : class, IMessage;
-    
+
     /// <summary>
     /// Gets a converter for the specified message type and version range
     /// </summary>
     IMessageConverter<TMessage>? GetConverter<TMessage>(MessageVersion fromVersion, MessageVersion toVersion) where TMessage : class, IMessage;
-    
+
     /// <summary>
     /// Gets a converter for the specified message type and version range
     /// </summary>
     IMessageConverter? GetConverter(Type messageType, MessageVersion fromVersion, MessageVersion toVersion);
-    
+
     /// <summary>
     /// Gets all registered converters for a message type
     /// </summary>
     IEnumerable<IMessageConverter> GetConverters(Type messageType);
-    
+
     /// <summary>
     /// Checks if conversion is possible between versions
     /// </summary>
     bool CanConvert(Type messageType, MessageVersion fromVersion, MessageVersion toVersion);
-    
+
     /// <summary>
     /// Finds the conversion path between two versions (may involve multiple steps)
     /// </summary>

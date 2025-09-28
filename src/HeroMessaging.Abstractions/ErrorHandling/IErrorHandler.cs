@@ -23,7 +23,7 @@ public class ErrorHandlingResult
     public ErrorAction Action { get; set; }
     public TimeSpan? RetryDelay { get; set; }
     public string? Reason { get; set; }
-    
+
     public static ErrorHandlingResult Retry(TimeSpan delay) => new() { Action = ErrorAction.Retry, RetryDelay = delay };
     public static ErrorHandlingResult SendToDeadLetter(string reason) => new() { Action = ErrorAction.SendToDeadLetter, Reason = reason };
     public static ErrorHandlingResult Discard(string reason) => new() { Action = ErrorAction.Discard, Reason = reason };

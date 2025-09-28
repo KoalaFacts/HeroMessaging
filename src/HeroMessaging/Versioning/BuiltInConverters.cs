@@ -1,7 +1,7 @@
-using System.Reflection;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Versioning;
 using Microsoft.Extensions.Logging;
+using System.Reflection;
 
 namespace HeroMessaging.Versioning;
 
@@ -22,7 +22,7 @@ public class PropertyAdditionConverter<TMessage>(
     public override async Task<TMessage> ConvertAsync(TMessage message, MessageVersion fromVersion, MessageVersion toVersion, CancellationToken cancellationToken = default)
     {
         await Task.CompletedTask; // Make it async for future extensibility
-        
+
         if (fromVersion == toVersion)
             return message;
 
@@ -32,7 +32,7 @@ public class PropertyAdditionConverter<TMessage>(
         // For property additions, we typically don't need to do anything
         // The newer version will have default values for new properties
         // This converter mainly serves as a compatibility declaration
-        
+
         return message;
     }
 }
@@ -56,7 +56,7 @@ public class PropertyRemovalConverter<TMessage>(
     public override async Task<TMessage> ConvertAsync(TMessage message, MessageVersion fromVersion, MessageVersion toVersion, CancellationToken cancellationToken = default)
     {
         await Task.CompletedTask;
-        
+
         if (fromVersion == toVersion)
             return message;
 
@@ -66,7 +66,7 @@ public class PropertyRemovalConverter<TMessage>(
         // For property removals when going from newer to older version,
         // we need to ensure removed properties are not accessed
         // This is mainly a validation step since JSON serialization handles this automatically
-        
+
         foreach (var removedProperty in _removedProperties)
         {
             _logger.LogDebug("Property '{PropertyName}' was removed in version {ToVersion}",
@@ -96,7 +96,7 @@ public class PropertyMappingConverter<TMessage>(
     public override async Task<TMessage> ConvertAsync(TMessage message, MessageVersion fromVersion, MessageVersion toVersion, CancellationToken cancellationToken = default)
     {
         await Task.CompletedTask;
-        
+
         if (fromVersion == toVersion)
             return message;
 
@@ -107,7 +107,7 @@ public class PropertyMappingConverter<TMessage>(
         // 1. Serializing the message to a dynamic format (JSON, Dictionary)
         // 2. Applying property mappings
         // 3. Deserializing back to the target type
-        
+
         // For now, we log the mappings that would be applied
         foreach (var mapping in _propertyMappings)
         {
@@ -138,7 +138,7 @@ public class TransformationConverter<TMessage>(
     public override async Task<TMessage> ConvertAsync(TMessage message, MessageVersion fromVersion, MessageVersion toVersion, CancellationToken cancellationToken = default)
     {
         await Task.CompletedTask;
-        
+
         if (fromVersion == toVersion)
             return message;
 
@@ -160,7 +160,7 @@ public class TransformationConverter<TMessage>(
                     var currentValue = property.GetValue(message);
                     var transformedValue = transformation.Value(currentValue);
                     property.SetValue(message, transformedValue);
-                    
+
                     _logger.LogDebug("Applied transformation to property '{PropertyName}'",
                         transformation.Key);
                 }
@@ -264,10 +264,10 @@ public class SimplePassThroughConverter<TMessage>(
     public override async Task<TMessage> ConvertAsync(TMessage message, MessageVersion fromVersion, MessageVersion toVersion, CancellationToken cancellationToken = default)
     {
         await Task.CompletedTask;
-        
+
         _logger.LogDebug("Pass-through conversion for {MessageType} from version {FromVersion} to {ToVersion}",
             typeof(TMessage).Name, fromVersion, toVersion);
-        
+
         return message;
     }
 }

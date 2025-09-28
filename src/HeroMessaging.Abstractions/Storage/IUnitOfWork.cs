@@ -11,12 +11,12 @@ public interface IUnitOfWork : IAsyncDisposable
     /// Gets the current transaction isolation level
     /// </summary>
     IsolationLevel IsolationLevel { get; }
-    
+
     /// <summary>
     /// Indicates whether a transaction is currently active
     /// </summary>
     bool IsTransactionActive { get; }
-    
+
     /// <summary>
     /// Begins a new database transaction with the specified isolation level
     /// </summary>
@@ -24,21 +24,21 @@ public interface IUnitOfWork : IAsyncDisposable
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>A task that represents the asynchronous operation</returns>
     Task BeginTransactionAsync(IsolationLevel isolationLevel = IsolationLevel.ReadCommitted, CancellationToken cancellationToken = default);
-    
+
     /// <summary>
     /// Commits the current transaction
     /// </summary>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>A task that represents the asynchronous operation</returns>
     Task CommitAsync(CancellationToken cancellationToken = default);
-    
+
     /// <summary>
     /// Rolls back the current transaction
     /// </summary>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>A task that represents the asynchronous operation</returns>
     Task RollbackAsync(CancellationToken cancellationToken = default);
-    
+
     /// <summary>
     /// Creates a savepoint within the current transaction
     /// </summary>
@@ -46,7 +46,7 @@ public interface IUnitOfWork : IAsyncDisposable
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>A task that represents the asynchronous operation</returns>
     Task SavepointAsync(string savepointName, CancellationToken cancellationToken = default);
-    
+
     /// <summary>
     /// Rolls back to a specific savepoint
     /// </summary>
@@ -54,22 +54,22 @@ public interface IUnitOfWork : IAsyncDisposable
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>A task that represents the asynchronous operation</returns>
     Task RollbackToSavepointAsync(string savepointName, CancellationToken cancellationToken = default);
-    
+
     /// <summary>
     /// Gets the outbox storage within this unit of work
     /// </summary>
     IOutboxStorage OutboxStorage { get; }
-    
+
     /// <summary>
     /// Gets the inbox storage within this unit of work
     /// </summary>
     IInboxStorage InboxStorage { get; }
-    
+
     /// <summary>
     /// Gets the queue storage within this unit of work
     /// </summary>
     IQueueStorage QueueStorage { get; }
-    
+
     /// <summary>
     /// Gets the message storage within this unit of work
     /// </summary>
@@ -87,7 +87,7 @@ public interface IUnitOfWorkFactory
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>A new unit of work instance</returns>
     Task<IUnitOfWork> CreateAsync(CancellationToken cancellationToken = default);
-    
+
     /// <summary>
     /// Creates a new unit of work instance with a specific isolation level
     /// </summary>
@@ -118,7 +118,7 @@ public static class UnitOfWorkExtensions
         CancellationToken cancellationToken = default)
     {
         await unitOfWork.BeginTransactionAsync(isolationLevel, cancellationToken);
-        
+
         try
         {
             var result = await operation(unitOfWork, cancellationToken);
@@ -134,7 +134,7 @@ public static class UnitOfWorkExtensions
             throw;
         }
     }
-    
+
     /// <summary>
     /// Executes an action within a transaction, automatically handling commit/rollback
     /// </summary>
@@ -150,7 +150,7 @@ public static class UnitOfWorkExtensions
         CancellationToken cancellationToken = default)
     {
         await unitOfWork.BeginTransactionAsync(isolationLevel, cancellationToken);
-        
+
         try
         {
             await operation(unitOfWork, cancellationToken);

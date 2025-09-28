@@ -1,6 +1,5 @@
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Storage;
-using Microsoft.Extensions.Logging;
 
 namespace HeroMessaging.Resilience;
 
@@ -61,6 +60,36 @@ public class ResilientMessageStorageDecorator(
         await _resiliencePolicy.ExecuteAsync(async () =>
             await _inner.Clear(cancellationToken), "ClearMessages", cancellationToken);
     }
+
+    public async Task StoreAsync(IMessage message, IStorageTransaction? transaction = null, CancellationToken cancellationToken = default)
+    {
+        await _resiliencePolicy.ExecuteAsync(async () =>
+            await _inner.StoreAsync(message, transaction, cancellationToken), "StoreMessageAsync", cancellationToken);
+    }
+
+    public async Task<IMessage?> RetrieveAsync(Guid messageId, IStorageTransaction? transaction = null, CancellationToken cancellationToken = default)
+    {
+        return await _resiliencePolicy.ExecuteAsync(async () =>
+            await _inner.RetrieveAsync(messageId, transaction, cancellationToken), "RetrieveMessageAsync", cancellationToken);
+    }
+
+    public async Task<List<IMessage>> QueryAsync(MessageQuery query, CancellationToken cancellationToken = default)
+    {
+        return await _resiliencePolicy.ExecuteAsync(async () =>
+            await _inner.QueryAsync(query, cancellationToken), "QueryMessagesAsync", cancellationToken);
+    }
+
+    public async Task DeleteAsync(Guid messageId, CancellationToken cancellationToken = default)
+    {
+        await _resiliencePolicy.ExecuteAsync(async () =>
+            await _inner.DeleteAsync(messageId, cancellationToken), "DeleteMessageAsync", cancellationToken);
+    }
+
+    public async Task<IStorageTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
+    {
+        return await _resiliencePolicy.ExecuteAsync(async () =>
+            await _inner.BeginTransactionAsync(cancellationToken), "BeginTransaction", cancellationToken);
+    }
 }
 
 /// <summary>
@@ -84,7 +113,7 @@ public class ResilientOutboxStorageDecorator(
         return await _resiliencePolicy.ExecuteAsync(async () =>
             await _inner.GetPending(query, cancellationToken), "GetPendingOutboxMessages", cancellationToken);
     }
-    
+
     public async Task<IEnumerable<OutboxEntry>> GetPending(int limit = 100, CancellationToken cancellationToken = default)
     {
         return await _resiliencePolicy.ExecuteAsync(async () =>
@@ -167,7 +196,7 @@ public class ResilientInboxStorageDecorator(
         return await _resiliencePolicy.ExecuteAsync(async () =>
             await _inner.GetPending(query, cancellationToken), "GetPendingInboxMessages", cancellationToken);
     }
-    
+
     public async Task<IEnumerable<InboxEntry>> GetUnprocessed(int limit = 100, CancellationToken cancellationToken = default)
     {
         return await _resiliencePolicy.ExecuteAsync(async () =>

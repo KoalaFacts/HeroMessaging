@@ -9,7 +9,7 @@ public interface IRetryPolicy
     /// Gets the maximum number of retry attempts
     /// </summary>
     int MaxRetries { get; }
-    
+
     /// <summary>
     /// Determines whether to retry based on the exception and attempt number
     /// </summary>
@@ -17,7 +17,7 @@ public interface IRetryPolicy
     /// <param name="attemptNumber">Current attempt number (0-based)</param>
     /// <returns>True if should retry, false otherwise</returns>
     bool ShouldRetry(Exception? exception, int attemptNumber);
-    
+
     /// <summary>
     /// Gets the delay before the next retry attempt
     /// </summary>

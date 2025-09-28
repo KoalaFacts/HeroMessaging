@@ -1,9 +1,9 @@
-using System.Threading.Tasks.Dataflow;
 using HeroMessaging.Abstractions.Events;
 using HeroMessaging.Abstractions.Handlers;
 using HeroMessaging.Abstractions.Processing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System.Threading.Tasks.Dataflow;
 
 namespace HeroMessaging.Processing;
 
@@ -22,10 +22,10 @@ public class EventBusV2 : IEventBus
         _serviceProvider = serviceProvider;
         _logger = logger;
         _pipelineBuilder = new MessageProcessingPipelineBuilder(serviceProvider);
-        
+
         // Configure default pipeline
         ConfigurePipeline();
-        
+
         _processingBlock = new ActionBlock<EventEnvelope>(
             ProcessEventWithPipeline,
             new ExecutionDataflowBlockOptions
@@ -50,7 +50,7 @@ public class EventBusV2 : IEventBus
         var eventType = @event.GetType();
         var handlerType = typeof(IEventHandler<>).MakeGenericType(eventType);
         var handlers = _serviceProvider.GetServices(handlerType).ToList();
-        
+
         if (!handlers.Any())
         {
             _logger.LogDebug("No handlers found for event type {EventType}", eventType.Name);
@@ -67,7 +67,7 @@ public class EventBusV2 : IEventBus
                 HandlerType = handlerType,
                 CancellationToken = cancellationToken
             };
-            
+
             return _processingBlock.SendAsync(envelope, cancellationToken);
         });
 
@@ -84,7 +84,7 @@ public class EventBusV2 : IEventBus
             {
                 throw new InvalidOperationException($"Handle method not found on {envelope.HandlerType.Name}");
             }
-            
+
             await (Task)handleMethod.Invoke(envelope.Handler, [envelope.Event, ct])!;
         });
 
@@ -103,12 +103,12 @@ public class EventBusV2 : IEventBus
 
         // Process through the pipeline
         var result = await pipeline.ProcessAsync(envelope.Event, context, envelope.CancellationToken);
-        
+
         if (!result.Success && result.Exception != null)
         {
-            _logger.LogError(result.Exception, 
+            _logger.LogError(result.Exception,
                 "Failed to process event {EventType} with handler {HandlerType}: {Message}",
-                envelope.Event.GetType().Name, 
+                envelope.Event.GetType().Name,
                 envelope.Handler.GetType().Name,
                 result.Message);
         }

@@ -1,8 +1,4 @@
-using System;
-using System.Collections.Generic;
 using System.Reflection;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace HeroMessaging.Abstractions.Plugins;
 
@@ -15,23 +11,23 @@ public interface IPluginDiscovery
     /// Discover plugins in the specified assembly
     /// </summary>
     Task<IEnumerable<IPluginDescriptor>> DiscoverPluginsAsync(
-        Assembly assembly, 
+        Assembly assembly,
         CancellationToken cancellationToken = default);
-    
+
     /// <summary>
     /// Discover plugins in assemblies from the specified directory
     /// </summary>
     Task<IEnumerable<IPluginDescriptor>> DiscoverPluginsAsync(
-        string directory, 
+        string directory,
         string searchPattern = "*.dll",
         CancellationToken cancellationToken = default);
-    
+
     /// <summary>
     /// Discover plugins in the current application domain
     /// </summary>
     Task<IEnumerable<IPluginDescriptor>> DiscoverPluginsAsync(
         CancellationToken cancellationToken = default);
-    
+
     /// <summary>
     /// Discover plugins by category
     /// </summary>
@@ -49,42 +45,42 @@ public interface IPluginRegistry
     /// Register a plugin descriptor
     /// </summary>
     void Register(IPluginDescriptor descriptor);
-    
+
     /// <summary>
     /// Register multiple plugin descriptors
     /// </summary>
     void RegisterRange(IEnumerable<IPluginDescriptor> descriptors);
-    
+
     /// <summary>
     /// Get all registered plugins
     /// </summary>
     IEnumerable<IPluginDescriptor> GetAll();
-    
+
     /// <summary>
     /// Get plugins by category
     /// </summary>
     IEnumerable<IPluginDescriptor> GetByCategory(PluginCategory category);
-    
+
     /// <summary>
     /// Get a specific plugin by name
     /// </summary>
     IPluginDescriptor? GetByName(string name);
-    
+
     /// <summary>
     /// Check if a plugin is registered
     /// </summary>
     bool IsRegistered(string name);
-    
+
     /// <summary>
     /// Remove a plugin from the registry
     /// </summary>
     bool Unregister(string name);
-    
+
     /// <summary>
     /// Clear all registered plugins
     /// </summary>
     void Clear();
-    
+
     /// <summary>
     /// Get plugins that provide a specific feature
     /// </summary>

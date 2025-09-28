@@ -1,0 +1,492 @@
+name: Cross-Platform Test Matrix
+
+on:
+  push:
+    branches: [ main, develop, 'feature/*', 'release/*' ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run nightly tests at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      run_performance_tests:
+        description: 'Run performance benchmarks'
+        required: false
+        default: false
+        type: boolean
+      run_integration_tests:
+        description: 'Run integration tests'
+        required: false
+        default: true
+        type: boolean
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  NUGET_XMLDOC_MODE: skip
+
+jobs:
+  # Job for detecting changes to determine test scope
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      core-changed: ${{ steps.changes.outputs.core }}
+      tests-changed: ${{ steps.changes.outputs.tests }}
+      storage-changed: ${{ steps.changes.outputs.storage }}
+      serialization-changed: ${{ steps.changes.outputs.serialization }}
+      observability-changed: ${{ steps.changes.outputs.observability }}
+      docs-only: ${{ steps.changes.outputs.docs-only }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: dorny/paths-filter@v2
+        id: changes
+        with:
+          filters: |
+            core:
+              - 'src/HeroMessaging/**'
+              - 'src/HeroMessaging.Abstractions/**'
+            tests:
+              - 'tests/**'
+              - '!tests/**/*.md'
+            storage:
+              - 'src/HeroMessaging.Storage.*/**'
+            serialization:
+              - 'src/HeroMessaging.Serialization.*/**'
+            observability:
+              - 'src/HeroMessaging.Observability.*/**'
+            docs-only:
+              - '**/*.md'
+              - 'docs/**'
+              - '!src/**'
+              - '!tests/**'
+
+  # Matrix job for unit tests across platforms and frameworks
+  unit-tests:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.docs-only != 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        framework: [net6.0, net8.0, net10.0]
+        configuration: [Debug, Release]
+        exclude:
+          # Reduce matrix size for non-critical combinations
+          - os: macos-latest
+            configuration: Debug
+          - framework: net6.0
+            configuration: Debug
+            os: macos-latest
+        include:
+          # Add netstandard2.0 tests on Windows only
+          - os: windows-latest
+            framework: netstandard2.0
+            configuration: Release
+          # Add performance configuration
+          - os: ubuntu-latest
+            framework: net8.0
+            configuration: Release
+            run-benchmarks: true
+
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: |
+            6.0.x
+            8.0.x
+            10.0.x
+          dotnet-quality: 'ga'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/*.props') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore dependencies
+        run: dotnet restore --verbosity minimal
+
+      - name: Build solution
+        run: dotnet build --configuration ${{ matrix.configuration }} --no-restore --verbosity minimal
+
+      - name: Run unit tests
+        run: |
+          dotnet test \
+            --configuration ${{ matrix.configuration }} \
+            --no-build \
+            --verbosity minimal \
+            --framework ${{ matrix.framework }} \
+            --filter "Category=Unit" \
+            --collect:"XPlat Code Coverage" \
+            --results-directory ./test-results \
+            --logger "trx;LogFileName=unit-tests-${{ matrix.os }}-${{ matrix.framework }}.trx" \
+            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
+
+      - name: Run performance benchmarks
+        if: matrix.run-benchmarks == true && (github.event.inputs.run_performance_tests == 'true' || github.event_name == 'schedule')
+        run: |
+          dotnet run \
+            --project tests/HeroMessaging.Benchmarks \
+            --configuration Release \
+            --framework ${{ matrix.framework }} \
+            -- --exporters json \
+            --artifacts ./benchmark-results
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: test-results-${{ matrix.os }}-${{ matrix.framework }}-${{ matrix.configuration }}
+          path: |
+            ./test-results/**/*.trx
+            ./test-results/**/*.xml
+          retention-days: 7
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v3
+        if: matrix.run-benchmarks == true && always()
+        with:
+          name: benchmark-results-${{ matrix.os }}-${{ matrix.framework }}
+          path: ./benchmark-results/**/*.json
+          retention-days: 30
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        if: matrix.os == 'ubuntu-latest' && matrix.framework == 'net8.0' && matrix.configuration == 'Release'
+        with:
+          directory: ./test-results
+          flags: unit-tests
+          fail_ci_if_error: false
+
+  # Integration tests with real dependencies
+  integration-tests:
+    needs: [detect-changes, unit-tests]
+    if: needs.detect-changes.outputs.docs-only != 'true' && (github.event.inputs.run_integration_tests == 'true' || github.event.inputs.run_integration_tests == null)
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        framework: [net8.0]
+        test-category: [Storage, Serialization, Observability, Pipeline]
+
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: heromessaging_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          SA_PASSWORD: HeroMessaging123!
+          ACCEPT_EULA: Y
+        options: >-
+          --health-cmd "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P HeroMessaging123! -Q 'SELECT 1'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 1433:1433
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: |
+            8.0.x
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/*.props') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build solution
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Wait for services
+        run: |
+          echo "Waiting for database services to be ready..."
+          sleep 30
+
+      - name: Run integration tests
+        env:
+          PostgreSQL__ConnectionString: "Host=localhost;Port=5432;Database=heromessaging_test;Username=postgres;Password=postgres"
+          SqlServer__ConnectionString: "Server=localhost,1433;Database=heromessaging_test;User Id=sa;Password=HeroMessaging123!;TrustServerCertificate=true"
+          Redis__ConnectionString: "localhost:6379"
+        run: |
+          dotnet test \
+            --configuration Release \
+            --no-build \
+            --framework ${{ matrix.framework }} \
+            --filter "Category=Integration&Category=${{ matrix.test-category }}" \
+            --collect:"XPlat Code Coverage" \
+            --results-directory ./test-results \
+            --logger "trx;LogFileName=integration-${{ matrix.test-category }}-${{ matrix.os }}.trx" \
+            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
+
+      - name: Upload integration test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: integration-results-${{ matrix.test-category }}-${{ matrix.os }}
+          path: |
+            ./test-results/**/*.trx
+            ./test-results/**/*.xml
+          retention-days: 7
+
+  # Contract tests for API compatibility
+  contract-tests:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.core-changed == 'true' || needs.detect-changes.outputs.tests-changed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build solution
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Run contract tests
+        run: |
+          dotnet test \
+            --configuration Release \
+            --no-build \
+            --filter "Category=Contract" \
+            --logger "trx;LogFileName=contract-tests.trx" \
+            --results-directory ./test-results
+
+      - name: Upload contract test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: contract-test-results
+          path: ./test-results/**/*.trx
+
+  # Performance regression detection
+  performance-regression:
+    needs: [detect-changes, unit-tests]
+    if: github.event_name == 'schedule' || github.event.inputs.run_performance_tests == 'true' || (needs.detect-changes.outputs.core-changed == 'true' && github.event_name == 'pull_request')
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build benchmarks
+        run: dotnet build tests/HeroMessaging.Benchmarks --configuration Release --no-restore
+
+      - name: Download baseline benchmarks
+        uses: actions/download-artifact@v3
+        continue-on-error: true
+        with:
+          name: performance-baseline
+          path: ./benchmark-baseline
+
+      - name: Run performance benchmarks
+        run: |
+          dotnet run \
+            --project tests/HeroMessaging.Benchmarks \
+            --configuration Release \
+            -- --exporters json \
+            --artifacts ./benchmark-results \
+            --job short
+
+      - name: Analyze performance regression
+        run: |
+          dotnet run \
+            --project tests/HeroMessaging.Benchmarks \
+            --configuration Release \
+            -- --analyze-regression \
+            --current ./benchmark-results \
+            --baseline ./benchmark-baseline \
+            --threshold 10
+
+      - name: Upload current benchmarks as baseline
+        uses: actions/upload-artifact@v3
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        with:
+          name: performance-baseline
+          path: ./benchmark-results/**/*.json
+          retention-days: 90
+
+      - name: Comment performance results
+        uses: actions/github-script@v6
+        if: github.event_name == 'pull_request'
+        with:
+          script: |
+            const fs = require('fs');
+            const path = './benchmark-results/regression-report.md';
+            if (fs.existsSync(path)) {
+              const report = fs.readFileSync(path, 'utf8');
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: `## Performance Analysis\n\n${report}`
+              });
+            }
+
+  # Quality gates and final validation
+  quality-gates:
+    needs: [unit-tests, integration-tests, contract-tests]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all test results
+        uses: actions/download-artifact@v3
+        with:
+          path: ./all-test-results
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Install ReportGenerator
+        run: dotnet tool install --global dotnet-reportgenerator-globaltool
+
+      - name: Generate combined coverage report
+        run: |
+          reportgenerator \
+            -reports:"./all-test-results/**/coverage.cobertura.xml" \
+            -targetdir:"./coverage-report" \
+            -reporttypes:"Html;Badges;TextSummary" \
+            -classfilters:"-System.*;-Microsoft.*"
+
+      - name: Read coverage summary
+        id: coverage
+        run: |
+          if [ -f "./coverage-report/Summary.txt" ]; then
+            COVERAGE=$(grep "Line coverage:" ./coverage-report/Summary.txt | grep -o '[0-9.]*%' | head -1 | sed 's/%//')
+            echo "coverage=$COVERAGE" >> $GITHUB_OUTPUT
+            echo "Coverage: $COVERAGE%"
+          else
+            echo "coverage=0" >> $GITHUB_OUTPUT
+            echo "No coverage data found"
+          fi
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report
+          path: ./coverage-report/**/*
+          retention-days: 30
+
+      - name: Check quality gates
+        run: |
+          echo "Checking quality gates..."
+
+          # Check coverage threshold
+          COVERAGE=${{ steps.coverage.outputs.coverage }}
+          MIN_COVERAGE=80
+
+          if (( $(echo "$COVERAGE < $MIN_COVERAGE" | bc -l) )); then
+            echo "❌ Coverage $COVERAGE% is below minimum threshold $MIN_COVERAGE%"
+            exit 1
+          else
+            echo "✅ Coverage $COVERAGE% meets minimum threshold $MIN_COVERAGE%"
+          fi
+
+          # Check test results
+          UNIT_TESTS_PASSED="${{ needs.unit-tests.result }}"
+          INTEGRATION_TESTS_PASSED="${{ needs.integration-tests.result }}"
+          CONTRACT_TESTS_PASSED="${{ needs.contract-tests.result }}"
+
+          echo "Unit tests: $UNIT_TESTS_PASSED"
+          echo "Integration tests: $INTEGRATION_TESTS_PASSED"
+          echo "Contract tests: $CONTRACT_TESTS_PASSED"
+
+          if [[ "$UNIT_TESTS_PASSED" != "success" ]]; then
+            echo "❌ Unit tests failed"
+            exit 1
+          fi
+
+          if [[ "$INTEGRATION_TESTS_PASSED" != "success" && "$INTEGRATION_TESTS_PASSED" != "skipped" ]]; then
+            echo "❌ Integration tests failed"
+            exit 1
+          fi
+
+          if [[ "$CONTRACT_TESTS_PASSED" != "success" && "$CONTRACT_TESTS_PASSED" != "skipped" ]]; then
+            echo "❌ Contract tests failed"
+            exit 1
+          fi
+
+          echo "✅ All quality gates passed"
+
+      - name: Update status badges
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          echo "Updating status badges..."
+          # This would typically update README badges or external services

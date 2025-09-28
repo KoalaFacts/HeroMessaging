@@ -1,51 +1,9 @@
 <Project>
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0;net6.0;net7.0;net8.0;net9.0</TargetFrameworks>
+    <TargetFrameworks>netstandard2.0;net6.0;net7.0;net8.0;net9.0;net10.0</TargetFrameworks>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
     <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
   </PropertyGroup>
-
-  <!-- Enable ImplicitUsings for modern frameworks -->
-  <PropertyGroup Condition="'$(TargetFramework)' != 'netstandard2.0'">
-    <ImplicitUsings>enable</ImplicitUsings>
-  </PropertyGroup>
-
-  <!-- Common package references with version compatibility -->
-  <ItemGroup>
-    <!-- Use older versions for netstandard2.0 compatibility -->
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" 
-                      Version="3.1.32" 
-                      Condition="'$(TargetFramework)' == 'netstandard2.0'" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" 
-                      Version="3.1.32" 
-                      Condition="'$(TargetFramework)' == 'netstandard2.0'" />
-    
-    <!-- Use newer versions for modern frameworks -->
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" 
-                      Version="9.0.0" 
-                      Condition="'$(TargetFramework)' != 'netstandard2.0'" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" 
-                      Version="9.0.0" 
-                      Condition="'$(TargetFramework)' != 'netstandard2.0'" />
-    
-    <!-- PolySharp for polyfills across all frameworks -->
-    <PackageReference Include="PolySharp" Version="1.14.1">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-  </ItemGroup>
-  
-  <!-- System.Collections.Immutable version by framework -->
-  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0' OR '$(TargetFramework)' == 'net9.0'">
-    <PackageReference Include="System.Collections.Immutable" Version="9.0.0" />
-  </ItemGroup>
-  
-  <ItemGroup Condition="'$(TargetFramework)' == 'net6.0' OR '$(TargetFramework)' == 'net7.0'">
-    <PackageReference Include="System.Collections.Immutable" Version="8.0.0" />
-  </ItemGroup>
-  
-  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
-    <PackageReference Include="System.Collections.Immutable" Version="1.7.1" />
-  </ItemGroup>
 </Project>

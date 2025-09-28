@@ -24,7 +24,7 @@ public class HeroMessagingService(
     private readonly IOutboxProcessor? _outboxProcessor = outboxProcessor;
     private readonly IInboxProcessor? _inboxProcessor = inboxProcessor;
     private readonly ILogger<HeroMessagingService> _logger = logger;
-    
+
     private readonly MessagingMetrics _metrics = new();
 
     public async Task Send(ICommand command, CancellationToken cancellationToken = default)
@@ -55,7 +55,7 @@ public class HeroMessagingService(
     {
         if (_queueProcessor == null)
             throw new InvalidOperationException("Queue functionality is not enabled. Call WithQueues() during configuration.");
-        
+
         _metrics.MessagesQueued++;
         await _queueProcessor.Enqueue(message, queueName, options, cancellationToken);
     }
@@ -64,7 +64,7 @@ public class HeroMessagingService(
     {
         if (_queueProcessor == null)
             throw new InvalidOperationException("Queue functionality is not enabled. Call WithQueues() during configuration.");
-            
+
         await _queueProcessor.StartQueue(queueName, cancellationToken);
     }
 
@@ -72,7 +72,7 @@ public class HeroMessagingService(
     {
         if (_queueProcessor == null)
             throw new InvalidOperationException("Queue functionality is not enabled. Call WithQueues() during configuration.");
-            
+
         await _queueProcessor.StopQueue(queueName, cancellationToken);
     }
 
@@ -80,7 +80,7 @@ public class HeroMessagingService(
     {
         if (_outboxProcessor == null)
             throw new InvalidOperationException("Outbox functionality is not enabled. Call WithOutbox() during configuration.");
-        
+
         _metrics.OutboxMessages++;
         await _outboxProcessor.PublishToOutbox(message, options, cancellationToken);
     }
@@ -89,7 +89,7 @@ public class HeroMessagingService(
     {
         if (_inboxProcessor == null)
             throw new InvalidOperationException("Inbox functionality is not enabled. Call WithInbox() during configuration.");
-        
+
         _metrics.InboxMessages++;
         await _inboxProcessor.ProcessIncoming(message, options, cancellationToken);
     }

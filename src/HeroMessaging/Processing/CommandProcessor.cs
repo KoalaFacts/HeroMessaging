@@ -1,11 +1,10 @@
-using System.Threading.Tasks.Dataflow;
-using System.Diagnostics;
 using HeroMessaging.Abstractions.Commands;
 using HeroMessaging.Abstractions.Handlers;
 using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Utilities;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
+using System.Threading.Tasks.Dataflow;
 
 namespace HeroMessaging.Processing;
 
@@ -18,14 +17,14 @@ public class CommandProcessor : ICommandProcessor, IProcessor
     private long _failedCount;
     private readonly List<long> _durations = new();
     private readonly object _metricsLock = new();
-    
+
     public bool IsRunning { get; private set; } = true;
 
     public CommandProcessor(IServiceProvider serviceProvider, ILogger<CommandProcessor> logger)
     {
         _serviceProvider = serviceProvider;
         _logger = logger;
-        
+
         _processingBlock = new ActionBlock<Func<Task>>(
             async action => await action(),
             new ExecutionDataflowBlockOptions
@@ -38,17 +37,17 @@ public class CommandProcessor : ICommandProcessor, IProcessor
     public async Task Send(ICommand command, CancellationToken cancellationToken = default)
     {
         CompatibilityHelpers.ThrowIfNull(command, nameof(command));
-        
+
         var handlerType = typeof(ICommandHandler<>).MakeGenericType(command.GetType());
         var handler = _serviceProvider.GetService(handlerType);
-        
+
         if (handler == null)
         {
             throw new InvalidOperationException($"No handler found for command type {command.GetType().Name}");
         }
 
         var tcs = new TaskCompletionSource<bool>();
-        
+
         var posted = await _processingBlock.SendAsync(async () =>
         {
             try
@@ -58,14 +57,14 @@ public class CommandProcessor : ICommandProcessor, IProcessor
                 var sw = Stopwatch.StartNew();
                 await (Task)handleMethod!.Invoke(handler, [command, cancellationToken])!;
                 sw.Stop();
-                
+
                 lock (_metricsLock)
                 {
                     _processedCount++;
                     _durations.Add(sw.ElapsedMilliseconds);
                     if (_durations.Count > 100) _durations.RemoveAt(0);
                 }
-                
+
                 tcs.SetResult(true);
             }
             catch (OperationCanceledException)
@@ -78,12 +77,12 @@ public class CommandProcessor : ICommandProcessor, IProcessor
                 {
                     _failedCount++;
                 }
-                
+
                 _logger.LogError(ex, "Error processing command {CommandType}", command.GetType().Name);
                 tcs.SetException(ex);
             }
         }, cancellationToken);
-        
+
         if (!posted)
         {
             tcs.SetCanceled(cancellationToken);
@@ -95,17 +94,17 @@ public class CommandProcessor : ICommandProcessor, IProcessor
     public async Task<TResponse> Send<TResponse>(ICommand<TResponse> command, CancellationToken cancellationToken = default)
     {
         CompatibilityHelpers.ThrowIfNull(command, nameof(command));
-        
+
         var handlerType = typeof(ICommandHandler<,>).MakeGenericType(command.GetType(), typeof(TResponse));
         var handler = _serviceProvider.GetService(handlerType);
-        
+
         if (handler == null)
         {
             throw new InvalidOperationException($"No handler found for command type {command.GetType().Name}");
         }
 
         var tcs = new TaskCompletionSource<TResponse>();
-        
+
         var posted = await _processingBlock.SendAsync(async () =>
         {
             try
@@ -115,14 +114,14 @@ public class CommandProcessor : ICommandProcessor, IProcessor
                 var sw = Stopwatch.StartNew();
                 var result = await (Task<TResponse>)handleMethod!.Invoke(handler, [command, cancellationToken])!;
                 sw.Stop();
-                
+
                 lock (_metricsLock)
                 {
                     _processedCount++;
                     _durations.Add(sw.ElapsedMilliseconds);
                     if (_durations.Count > 100) _durations.RemoveAt(0);
                 }
-                
+
                 tcs.SetResult(result);
             }
             catch (OperationCanceledException)
@@ -135,12 +134,12 @@ public class CommandProcessor : ICommandProcessor, IProcessor
                 {
                     _failedCount++;
                 }
-                
+
                 _logger.LogError(ex, "Error processing command {CommandType}", command.GetType().Name);
                 tcs.SetException(ex);
             }
         }, cancellationToken);
-        
+
         if (!posted)
         {
             tcs.SetCanceled(cancellationToken);
@@ -148,7 +147,7 @@ public class CommandProcessor : ICommandProcessor, IProcessor
 
         return await tcs.Task;
     }
-    
+
     public IProcessorMetrics GetMetrics()
     {
         lock (_metricsLock)
@@ -157,7 +156,7 @@ public class CommandProcessor : ICommandProcessor, IProcessor
             {
                 ProcessedCount = _processedCount,
                 FailedCount = _failedCount,
-                AverageDuration = _durations.Count > 0 
+                AverageDuration = _durations.Count > 0
                     ? TimeSpan.FromMilliseconds(_durations.Average())
                     : TimeSpan.Zero
             };

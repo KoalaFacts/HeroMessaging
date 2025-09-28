@@ -1,8 +1,8 @@
-using System.Data;
-using System.Text.Json;
 using HeroMessaging.Abstractions.ErrorHandling;
 using HeroMessaging.Abstractions.Messages;
 using Microsoft.Data.SqlClient;
+using System.Data;
+using System.Text.Json;
 
 namespace HeroMessaging.Storage.SqlServer;
 
@@ -26,7 +26,7 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
             PropertyNameCaseInsensitive = true,
             WriteIndented = false
         };
-        
+
         InitializeDatabase().GetAwaiter().GetResult();
     }
 
@@ -34,7 +34,7 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
     {
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync();
-        
+
         var createTableSql = """
             IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'DeadLetterQueue')
             BEGIN
@@ -58,19 +58,19 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
                 )
             END
             """;
-        
+
         using var command = new SqlCommand(createTableSql, connection);
         await command.ExecuteNonQueryAsync();
     }
 
-    public async Task<string> SendToDeadLetter<T>(T message, DeadLetterContext context, CancellationToken cancellationToken = default) 
+    public async Task<string> SendToDeadLetter<T>(T message, DeadLetterContext context, CancellationToken cancellationToken = default)
         where T : IMessage
     {
         var deadLetterId = Guid.NewGuid().ToString();
-        
+
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
-        
+
         var sql = """
             INSERT INTO DeadLetterQueue (
                 Id, MessagePayload, MessageType, Reason, Component, 
@@ -83,7 +83,7 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
                 @ExceptionMessage, @Metadata
             )
             """;
-        
+
         using var command = new SqlCommand(sql, connection);
         command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = deadLetterId;
         command.Parameters.Add("@MessagePayload", SqlDbType.NVarChar, -1).Value = JsonSerializer.Serialize(message, _jsonOptions);
@@ -95,19 +95,19 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
         command.Parameters.Add("@Status", SqlDbType.Int).Value = (int)DeadLetterStatus.Active;
         command.Parameters.Add("@CreatedAt", SqlDbType.DateTime2).Value = DateTime.UtcNow;
         command.Parameters.Add("@ExceptionMessage", SqlDbType.NVarChar, -1).Value = (object?)context.Exception?.Message ?? DBNull.Value;
-        command.Parameters.Add("@Metadata", SqlDbType.NVarChar, -1).Value = 
+        command.Parameters.Add("@Metadata", SqlDbType.NVarChar, -1).Value =
             context.Metadata.Any() ? JsonSerializer.Serialize(context.Metadata, _jsonOptions) : (object)DBNull.Value;
-        
+
         await command.ExecuteNonQueryAsync(cancellationToken);
         return deadLetterId;
     }
 
-    public async Task<IEnumerable<DeadLetterEntry<T>>> GetDeadLetters<T>(int limit = 100, CancellationToken cancellationToken = default) 
+    public async Task<IEnumerable<DeadLetterEntry<T>>> GetDeadLetters<T>(int limit = 100, CancellationToken cancellationToken = default)
         where T : IMessage
     {
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
-        
+
         var sql = """
             SELECT TOP(@Limit)
                 Id, MessagePayload, Reason, Component, RetryCount, FailureTime,
@@ -116,27 +116,27 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
             WHERE MessageType = @MessageType AND Status = @ActiveStatus
             ORDER BY FailureTime DESC
             """;
-        
+
         var entries = new List<DeadLetterEntry<T>>();
-        
+
         using var command = new SqlCommand(sql, connection);
         command.Parameters.Add("@Limit", SqlDbType.Int).Value = limit;
         command.Parameters.Add("@MessageType", SqlDbType.NVarChar, 500).Value = typeof(T).FullName ?? "Unknown";
         command.Parameters.Add("@ActiveStatus", SqlDbType.Int).Value = (int)DeadLetterStatus.Active;
-        
+
         using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
         {
             var messagePayload = reader.GetString(1);
             var message = JsonSerializer.Deserialize<T>(messagePayload, _jsonOptions);
-            
+
             if (message != null)
             {
                 var metadataJson = reader.IsDBNull(11) ? null : reader.GetString(11);
-                var metadata = !string.IsNullOrEmpty(metadataJson) 
+                var metadata = !string.IsNullOrEmpty(metadataJson)
                     ? JsonSerializer.Deserialize<Dictionary<string, object>>(metadataJson, _jsonOptions) ?? new()
                     : new Dictionary<string, object>();
-                
+
                 entries.Add(new DeadLetterEntry<T>
                 {
                     Id = reader.GetString(0),
@@ -157,28 +157,28 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
                 });
             }
         }
-        
+
         return entries;
     }
 
-    public async Task<bool> Retry<T>(string deadLetterId, CancellationToken cancellationToken = default) 
+    public async Task<bool> Retry<T>(string deadLetterId, CancellationToken cancellationToken = default)
         where T : IMessage
     {
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
-        
+
         var sql = """
             UPDATE DeadLetterQueue
             SET Status = @Status, RetriedAt = @RetriedAt
             WHERE Id = @Id AND Status = @ActiveStatus
             """;
-        
+
         using var command = new SqlCommand(sql, connection);
         command.Parameters.Add("@Status", SqlDbType.Int).Value = (int)DeadLetterStatus.Retried;
         command.Parameters.Add("@RetriedAt", SqlDbType.DateTime2).Value = DateTime.UtcNow;
         command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = deadLetterId;
         command.Parameters.Add("@ActiveStatus", SqlDbType.Int).Value = (int)DeadLetterStatus.Active;
-        
+
         var result = await command.ExecuteNonQueryAsync(cancellationToken);
         return result > 0;
     }
@@ -187,19 +187,19 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
     {
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
-        
+
         var sql = """
             UPDATE DeadLetterQueue
             SET Status = @Status, DiscardedAt = @DiscardedAt
             WHERE Id = @Id AND Status = @ActiveStatus
             """;
-        
+
         using var command = new SqlCommand(sql, connection);
         command.Parameters.Add("@Status", SqlDbType.Int).Value = (int)DeadLetterStatus.Discarded;
         command.Parameters.Add("@DiscardedAt", SqlDbType.DateTime2).Value = DateTime.UtcNow;
         command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = deadLetterId;
         command.Parameters.Add("@ActiveStatus", SqlDbType.Int).Value = (int)DeadLetterStatus.Active;
-        
+
         var result = await command.ExecuteNonQueryAsync(cancellationToken);
         return result > 0;
     }
@@ -208,12 +208,12 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
     {
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
-        
+
         var sql = "SELECT COUNT(*) FROM DeadLetterQueue WHERE Status = @Status";
-        
+
         using var command = new SqlCommand(sql, connection);
         command.Parameters.Add("@Status", SqlDbType.Int).Value = (int)DeadLetterStatus.Active;
-        
+
         var result = await command.ExecuteScalarAsync(cancellationToken);
         return Convert.ToInt64(result ?? 0);
     }
@@ -222,9 +222,9 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
     {
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
-        
+
         var statistics = new DeadLetterStatistics();
-        
+
         // Get counts by status
         var statusSql = """
             SELECT 
@@ -234,7 +234,7 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
                 COUNT(*) as TotalCount
             FROM DeadLetterQueue
             """;
-        
+
         using (var statusCommand = new SqlCommand(statusSql, connection))
         using (var reader = await statusCommand.ExecuteReaderAsync(cancellationToken))
         {
@@ -246,7 +246,7 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
                 statistics.TotalCount = reader.IsDBNull(3) ? 0 : reader.GetInt64(3);
             }
         }
-        
+
         // Get counts by component
         var componentSql = """
             SELECT Component, COUNT(*) as Count
@@ -254,7 +254,7 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
             WHERE Status = 0
             GROUP BY Component
             """;
-        
+
         using (var componentCommand = new SqlCommand(componentSql, connection))
         using (var reader = await componentCommand.ExecuteReaderAsync(cancellationToken))
         {
@@ -263,7 +263,7 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
                 statistics.CountByComponent[reader.GetString(0)] = reader.GetInt64(1);
             }
         }
-        
+
         // Get counts by reason (top 10)
         var reasonSql = """
             SELECT TOP 10 Reason, COUNT(*) as Count
@@ -272,7 +272,7 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
             GROUP BY Reason
             ORDER BY COUNT(*) DESC
             """;
-        
+
         using (var reasonCommand = new SqlCommand(reasonSql, connection))
         using (var reader = await reasonCommand.ExecuteReaderAsync(cancellationToken))
         {
@@ -281,7 +281,7 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
                 statistics.CountByReason[reader.GetString(0)] = reader.GetInt64(1);
             }
         }
-        
+
         // Get oldest and newest entries
         var dateSql = """
             SELECT 
@@ -290,7 +290,7 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
             FROM DeadLetterQueue
             WHERE Status = 0
             """;
-        
+
         using (var dateCommand = new SqlCommand(dateSql, connection))
         using (var reader = await dateCommand.ExecuteReaderAsync(cancellationToken))
         {
@@ -300,7 +300,7 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
                 statistics.NewestEntry = reader.IsDBNull(1) ? null : reader.GetDateTime(1);
             }
         }
-        
+
         return statistics;
     }
 }

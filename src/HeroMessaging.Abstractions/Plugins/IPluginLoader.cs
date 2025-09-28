@@ -1,8 +1,3 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
-
 namespace HeroMessaging.Abstractions.Plugins;
 
 /// <summary>
@@ -14,10 +9,10 @@ public interface IPluginLoader
     /// Load a plugin from its descriptor
     /// </summary>
     Task<IMessagingPlugin> LoadAsync(
-        IPluginDescriptor descriptor, 
+        IPluginDescriptor descriptor,
         IServiceProvider serviceProvider,
         CancellationToken cancellationToken = default);
-    
+
     /// <summary>
     /// Load and configure a plugin
     /// </summary>
@@ -26,14 +21,14 @@ public interface IPluginLoader
         IServiceProvider serviceProvider,
         Action<object>? configure,
         CancellationToken cancellationToken = default);
-    
+
     /// <summary>
     /// Check if a plugin can be loaded
     /// </summary>
     Task<bool> CanLoadAsync(
         IPluginDescriptor descriptor,
         CancellationToken cancellationToken = default);
-    
+
     /// <summary>
     /// Validate plugin dependencies
     /// </summary>
@@ -65,28 +60,28 @@ public interface IPluginLifecycleManager
         IMessagingPlugin plugin,
         IServiceProvider serviceProvider,
         CancellationToken cancellationToken = default);
-    
+
     /// <summary>
     /// Start a plugin
     /// </summary>
     Task StartAsync(
         IMessagingPlugin plugin,
         CancellationToken cancellationToken = default);
-    
+
     /// <summary>
     /// Stop a plugin
     /// </summary>
     Task StopAsync(
         IMessagingPlugin plugin,
         CancellationToken cancellationToken = default);
-    
+
     /// <summary>
     /// Dispose a plugin
     /// </summary>
     Task DisposeAsync(
         IMessagingPlugin plugin,
         CancellationToken cancellationToken = default);
-    
+
     /// <summary>
     /// Get the current state of a plugin
     /// </summary>

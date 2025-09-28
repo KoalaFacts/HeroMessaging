@@ -1,30 +1,27 @@
-using System.Reflection;
 using HeroMessaging.Abstractions;
-using HeroMessaging.Abstractions.Commands;
 using HeroMessaging.Abstractions.Configuration;
 using HeroMessaging.Abstractions.ErrorHandling;
-using HeroMessaging.Abstractions.Events;
 using HeroMessaging.Abstractions.Handlers;
 using HeroMessaging.Abstractions.Plugins;
-using HeroMessaging.Abstractions.Queries;
 using HeroMessaging.Abstractions.Storage;
 using HeroMessaging.ErrorHandling;
 using HeroMessaging.Processing;
 using HeroMessaging.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System.Reflection;
 
 namespace HeroMessaging.Configuration;
 
 public class HeroMessagingBuilder(IServiceCollection services) : IHeroMessagingBuilder
 {
     private readonly IServiceCollection _services = services;
-    
+
     public IServiceCollection Services => _services;
     private readonly List<Assembly> _assemblies = new();
     private readonly List<IMessagingPlugin> _plugins = new();
     private ProcessingOptions _processingOptions = new();
-    
+
     private bool _withMediator;
     private bool _withEventBus;
     private bool _withQueues;
@@ -69,7 +66,7 @@ public class HeroMessagingBuilder(IServiceCollection services) : IHeroMessagingB
         _services.AddSingleton<IQueueStorage, InMemoryQueueStorage>();
         return this;
     }
-    
+
     public IHeroMessagingBuilder WithErrorHandling()
     {
         _services.AddSingleton<IDeadLetterQueue, InMemoryDeadLetterQueue>();
@@ -112,7 +109,7 @@ public class HeroMessagingBuilder(IServiceCollection services) : IHeroMessagingB
         _services.AddSingleton<IMessagingPlugin, TPlugin>();
         return this;
     }
-    
+
     public IHeroMessagingBuilder AddPlugin<TPlugin>(Action<TPlugin> configure) where TPlugin : class, IMessagingPlugin
     {
         var plugin = Activator.CreateInstance<TPlugin>();
@@ -158,20 +155,20 @@ public class HeroMessagingBuilder(IServiceCollection services) : IHeroMessagingB
         });
         return this;
     }
-    
+
     public IHeroMessagingBuilder DiscoverPlugins()
     {
         // Discover plugins from the current app domain
         return DiscoverPlugins(AppDomain.CurrentDomain.BaseDirectory);
     }
-    
+
     public IHeroMessagingBuilder DiscoverPlugins(string directory)
     {
         // This would be implemented with the plugin discovery system
         // For now, it's a placeholder
         return this;
     }
-    
+
     public IHeroMessagingBuilder DiscoverPlugins(Assembly assembly)
     {
         // This would scan the assembly for plugins
@@ -182,60 +179,60 @@ public class HeroMessagingBuilder(IServiceCollection services) : IHeroMessagingB
     public IServiceCollection Build()
     {
         _services.AddSingleton(_processingOptions);
-        
+
         if (_withMediator)
         {
             _services.AddSingleton<ICommandProcessor, CommandProcessor>();
             _services.AddSingleton<IQueryProcessor, QueryProcessor>();
         }
-        
+
         if (_withEventBus)
         {
             // Register the new pipeline-based EventBus
             _services.AddSingleton<IEventBus, EventBusV2>();
-            
+
             // Register pipeline services
             _services.AddMessageProcessingPipeline();
         }
-        
+
         if (_withQueues)
         {
             _services.AddSingleton<IQueueProcessor, QueueProcessor>();
         }
-        
+
         if (_withOutbox)
         {
             _services.AddSingleton<IOutboxProcessor, OutboxProcessor>();
         }
-        
+
         if (_withInbox)
         {
             _services.AddSingleton<IInboxProcessor, InboxProcessor>();
         }
-        
+
         _services.AddSingleton<IHeroMessaging, HeroMessagingService>();
-        
+
         RegisterHandlers();
-        
+
         foreach (var plugin in _plugins)
         {
             plugin.Configure(_services);
         }
-        
+
         // Register configuration validator
-        _services.AddSingleton<IConfigurationValidator>(sp => 
+        _services.AddSingleton<IConfigurationValidator>(sp =>
             new ConfigurationValidator(_services, sp.GetService<ILogger<ConfigurationValidator>>()));
-        
+
         return _services;
     }
-    
+
     private void RegisterHandlers()
     {
         foreach (var assembly in _assemblies)
         {
             var handlerTypes = assembly.GetTypes()
                 .Where(t => t.IsClass && !t.IsAbstract)
-                .Where(t => t.GetInterfaces().Any(i => 
+                .Where(t => t.GetInterfaces().Any(i =>
                     i.IsGenericType && (
                         i.GetGenericTypeDefinition() == typeof(ICommandHandler<>) ||
                         i.GetGenericTypeDefinition() == typeof(ICommandHandler<,>) ||

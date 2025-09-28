@@ -1,6 +1,3 @@
-using System;
-using System.Threading;
-
 namespace HeroMessaging.Utilities;
 
 /// <summary>
@@ -10,7 +7,7 @@ internal static class RandomHelper
 {
 #if NETSTANDARD2_0
     private static readonly ThreadLocal<Random> ThreadLocalRandom = new ThreadLocal<Random>(() => new Random(Guid.NewGuid().GetHashCode()));
-    
+
     /// <summary>
     /// Gets a thread-safe Random instance
     /// </summary>

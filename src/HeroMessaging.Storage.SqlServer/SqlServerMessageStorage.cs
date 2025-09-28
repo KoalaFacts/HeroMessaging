@@ -1,8 +1,8 @@
-using System.Data;
-using System.Text.Json;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Storage;
 using Microsoft.Data.SqlClient;
+using System.Data;
+using System.Text.Json;
 
 namespace HeroMessaging.Storage.SqlServer;
 
@@ -23,13 +23,13 @@ public class SqlServerMessageStorage : IMessageStorage
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _connectionString = options.ConnectionString;
         _tableName = _options.GetFullTableName(_options.MessagesTableName);
-        
+
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
             WriteIndented = false
         };
-        
+
         InitializeDatabase().GetAwaiter().GetResult();
     }
 
@@ -40,12 +40,12 @@ public class SqlServerMessageStorage : IMessageStorage
     {
         _sharedConnection = connection ?? throw new ArgumentNullException(nameof(connection));
         _sharedTransaction = transaction;
-        
+
         // Use default options when using shared connection
         _options = new SqlServerStorageOptions { ConnectionString = connection.ConnectionString };
         _connectionString = connection.ConnectionString;
         _tableName = _options.GetFullTableName(_options.MessagesTableName);
-        
+
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
@@ -57,7 +57,7 @@ public class SqlServerMessageStorage : IMessageStorage
     {
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync();
-        
+
         // Create schema if it doesn't exist
         if (!string.IsNullOrEmpty(_options.Schema) && _options.Schema != "dbo")
         {
@@ -67,11 +67,11 @@ public class SqlServerMessageStorage : IMessageStorage
                     EXEC('CREATE SCHEMA [{_options.Schema}]')
                 END
                 """;
-            
+
             using var schemaCommand = new SqlCommand(createSchemaSql, connection);
             await schemaCommand.ExecuteNonQueryAsync();
         }
-        
+
         var createTableSql = $"""
             IF NOT EXISTS (SELECT * FROM sys.tables t
                           JOIN sys.schemas s ON t.schema_id = s.schema_id
@@ -95,7 +95,7 @@ public class SqlServerMessageStorage : IMessageStorage
                 )
             END
             """;
-        
+
         using var command = new SqlCommand(createTableSql, connection);
         await command.ExecuteNonQueryAsync();
     }
@@ -104,17 +104,17 @@ public class SqlServerMessageStorage : IMessageStorage
     {
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
-        
+
         var messageId = Guid.NewGuid().ToString();
-        var expiresAt = options?.Ttl != null 
-            ? DateTime.UtcNow.Add(options.Ttl.Value) 
+        var expiresAt = options?.Ttl != null
+            ? DateTime.UtcNow.Add(options.Ttl.Value)
             : (DateTime?)null;
-        
+
         var sql = $"""
             INSERT INTO {_tableName} (Id, MessageType, Payload, Timestamp, CorrelationId, Collection, Metadata, ExpiresAt, CreatedAt)
             VALUES (@Id, @MessageType, @Payload, @Timestamp, @CorrelationId, @Collection, @Metadata, @ExpiresAt, @CreatedAt)
             """;
-        
+
         using var command = new SqlCommand(sql, connection);
         command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = messageId;
         command.Parameters.Add("@MessageType", SqlDbType.NVarChar, 500).Value = message.GetType().FullName ?? "Unknown";
@@ -122,12 +122,12 @@ public class SqlServerMessageStorage : IMessageStorage
         command.Parameters.Add("@Timestamp", SqlDbType.DateTime2).Value = message.Timestamp;
         command.Parameters.Add("@CorrelationId", SqlDbType.NVarChar, 100).Value = DBNull.Value;
         command.Parameters.Add("@Collection", SqlDbType.NVarChar, 100).Value = (object?)options?.Collection ?? DBNull.Value;
-        command.Parameters.Add("@Metadata", SqlDbType.NVarChar, -1).Value = options?.Metadata != null 
-            ? JsonSerializer.Serialize(options.Metadata, _jsonOptions) 
+        command.Parameters.Add("@Metadata", SqlDbType.NVarChar, -1).Value = options?.Metadata != null
+            ? JsonSerializer.Serialize(options.Metadata, _jsonOptions)
             : DBNull.Value;
         command.Parameters.Add("@ExpiresAt", SqlDbType.DateTime2).Value = (object?)expiresAt ?? DBNull.Value;
         command.Parameters.Add("@CreatedAt", SqlDbType.DateTime2).Value = DateTime.UtcNow;
-        
+
         await command.ExecuteNonQueryAsync(cancellationToken);
         return messageId;
     }
@@ -136,23 +136,23 @@ public class SqlServerMessageStorage : IMessageStorage
     {
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
-        
+
         var sql = $"""
             SELECT Payload FROM {_tableName} 
             WHERE Id = @Id 
             AND (ExpiresAt IS NULL OR ExpiresAt > GETUTCDATE())
             """;
-        
+
         using var command = new SqlCommand(sql, connection);
         command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = messageId;
-        
+
         using var reader = await command.ExecuteReaderAsync(cancellationToken);
         if (await reader.ReadAsync(cancellationToken))
         {
             var payload = reader.GetString(0);
             return JsonSerializer.Deserialize<T>(payload, _jsonOptions);
         }
-        
+
         return default;
     }
 
@@ -160,34 +160,34 @@ public class SqlServerMessageStorage : IMessageStorage
     {
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
-        
+
         var whereClauses = new List<string> { "(ExpiresAt IS NULL OR ExpiresAt > GETUTCDATE())" };
         var parameters = new List<SqlParameter>();
-        
+
         if (!string.IsNullOrEmpty(query.Collection))
         {
             whereClauses.Add("Collection = @Collection");
             parameters.Add(new SqlParameter("@Collection", SqlDbType.NVarChar, 100) { Value = query.Collection });
         }
-        
+
         if (query.FromTimestamp.HasValue)
         {
             whereClauses.Add("Timestamp >= @FromTimestamp");
             parameters.Add(new SqlParameter("@FromTimestamp", SqlDbType.DateTime2) { Value = query.FromTimestamp.Value });
         }
-        
+
         if (query.ToTimestamp.HasValue)
         {
             whereClauses.Add("Timestamp <= @ToTimestamp");
             parameters.Add(new SqlParameter("@ToTimestamp", SqlDbType.DateTime2) { Value = query.ToTimestamp.Value });
         }
-        
+
         var whereClause = string.Join(" AND ", whereClauses);
         var orderBy = query.OrderBy ?? "Timestamp";
         var orderDirection = query.Ascending ? "ASC" : "DESC";
         var limit = query.Limit ?? 100;
         var offset = query.Offset ?? 0;
-        
+
         var sql = $"""
             SELECT Payload FROM {_tableName}
             WHERE {whereClause}
@@ -195,14 +195,14 @@ public class SqlServerMessageStorage : IMessageStorage
             OFFSET @Offset ROWS
             FETCH NEXT @Limit ROWS ONLY
             """;
-        
+
         var messages = new List<T>();
-        
+
         using var command = new SqlCommand(sql, connection);
         command.Parameters.AddRange(parameters.ToArray());
         command.Parameters.Add("@Offset", SqlDbType.Int).Value = offset;
         command.Parameters.Add("@Limit", SqlDbType.Int).Value = limit;
-        
+
         using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
         {
@@ -213,7 +213,7 @@ public class SqlServerMessageStorage : IMessageStorage
                 messages.Add(message);
             }
         }
-        
+
         return messages;
     }
 
@@ -221,12 +221,12 @@ public class SqlServerMessageStorage : IMessageStorage
     {
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
-        
+
         var sql = $"DELETE FROM {_tableName} WHERE Id = @Id";
-        
+
         using var command = new SqlCommand(sql, connection);
         command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = messageId;
-        
+
         var result = await command.ExecuteNonQueryAsync(cancellationToken);
         return result > 0;
     }
@@ -235,7 +235,7 @@ public class SqlServerMessageStorage : IMessageStorage
     {
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
-        
+
         var sql = $"""
             UPDATE {_tableName}
             SET MessageType = @MessageType,
@@ -244,14 +244,14 @@ public class SqlServerMessageStorage : IMessageStorage
                 CorrelationId = @CorrelationId
             WHERE Id = @Id
             """;
-        
+
         using var command = new SqlCommand(sql, connection);
         command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = messageId;
         command.Parameters.Add("@MessageType", SqlDbType.NVarChar, 500).Value = message.GetType().FullName ?? "Unknown";
         command.Parameters.Add("@Payload", SqlDbType.NVarChar, -1).Value = JsonSerializer.Serialize(message, _jsonOptions);
         command.Parameters.Add("@Timestamp", SqlDbType.DateTime2).Value = message.Timestamp;
         command.Parameters.Add("@CorrelationId", SqlDbType.NVarChar, 100).Value = DBNull.Value;
-        
+
         var result = await command.ExecuteNonQueryAsync(cancellationToken);
         return result > 0;
     }
@@ -260,16 +260,16 @@ public class SqlServerMessageStorage : IMessageStorage
     {
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
-        
+
         var sql = $"""
             SELECT COUNT(*) FROM {_tableName} 
             WHERE Id = @Id 
             AND (ExpiresAt IS NULL OR ExpiresAt > GETUTCDATE())
             """;
-        
+
         using var command = new SqlCommand(sql, connection);
         command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = messageId;
-        
+
         var result = await command.ExecuteScalarAsync(cancellationToken);
         return Convert.ToInt64(result ?? 0) > 0;
     }
@@ -278,10 +278,10 @@ public class SqlServerMessageStorage : IMessageStorage
     {
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
-        
+
         var whereClauses = new List<string> { "(ExpiresAt IS NULL OR ExpiresAt > GETUTCDATE())" };
         var parameters = new List<SqlParameter>();
-        
+
         if (query != null)
         {
             if (!string.IsNullOrEmpty(query.Collection))
@@ -289,26 +289,26 @@ public class SqlServerMessageStorage : IMessageStorage
                 whereClauses.Add("Collection = @Collection");
                 parameters.Add(new SqlParameter("@Collection", SqlDbType.NVarChar, 100) { Value = query.Collection });
             }
-            
+
             if (query.FromTimestamp.HasValue)
             {
                 whereClauses.Add("Timestamp >= @FromTimestamp");
                 parameters.Add(new SqlParameter("@FromTimestamp", SqlDbType.DateTime2) { Value = query.FromTimestamp.Value });
             }
-            
+
             if (query.ToTimestamp.HasValue)
             {
                 whereClauses.Add("Timestamp <= @ToTimestamp");
                 parameters.Add(new SqlParameter("@ToTimestamp", SqlDbType.DateTime2) { Value = query.ToTimestamp.Value });
             }
         }
-        
+
         var whereClause = string.Join(" AND ", whereClauses);
         var sql = $"SELECT COUNT(*) FROM {_tableName} WHERE {whereClause}";
-        
+
         using var command = new SqlCommand(sql, connection);
         command.Parameters.AddRange(parameters.ToArray());
-        
+
         var result = await command.ExecuteScalarAsync(cancellationToken);
         return Convert.ToInt64(result ?? 0);
     }
@@ -317,10 +317,37 @@ public class SqlServerMessageStorage : IMessageStorage
     {
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
-        
+
         var sql = $"TRUNCATE TABLE {_tableName}";
-        
+
         using var command = new SqlCommand(sql, connection);
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
+
+    // New interface methods for compatibility with test infrastructure
+    public Task StoreAsync(IMessage message, IStorageTransaction? transaction = null, CancellationToken cancellationToken = default)
+    {
+        throw new NotImplementedException("SQL Server async storage implementation pending");
+    }
+
+    public Task<IMessage?> RetrieveAsync(Guid messageId, IStorageTransaction? transaction = null, CancellationToken cancellationToken = default)
+    {
+        throw new NotImplementedException("SQL Server async storage implementation pending");
+    }
+
+    public Task<List<IMessage>> QueryAsync(MessageQuery query, CancellationToken cancellationToken = default)
+    {
+        throw new NotImplementedException("SQL Server async storage implementation pending");
+    }
+
+    public Task DeleteAsync(Guid messageId, CancellationToken cancellationToken = default)
+    {
+        throw new NotImplementedException("SQL Server async storage implementation pending");
+    }
+
+    public Task<IStorageTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
+    {
+        throw new NotImplementedException("SQL Server async storage implementation pending");
+    }
 }
+

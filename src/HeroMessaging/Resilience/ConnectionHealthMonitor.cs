@@ -1,6 +1,6 @@
-using System.Collections.Concurrent;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
 
 namespace HeroMessaging.Resilience;
 
@@ -40,8 +40,8 @@ public class ConnectionHealthMonitor(
     {
         var metrics = GetMetrics(operationName);
         metrics.RecordFailure(exception, duration);
-        
-        _logger.LogWarning(exception, 
+
+        _logger.LogWarning(exception,
             "Connection failure for operation {OperationName} after {Duration}ms. Current failure rate: {FailureRate:P}",
             operationName, duration.TotalMilliseconds, metrics.FailureRate);
     }
@@ -64,8 +64,8 @@ public class ConnectionHealthMonitor(
         var totalOperations = _metrics.Count;
         var unhealthyRatio = (double)unhealthyOperations.Count / totalOperations;
 
-        return unhealthyRatio > 0.5 
-            ? ConnectionHealthStatus.Unhealthy 
+        return unhealthyRatio > 0.5
+            ? ConnectionHealthStatus.Unhealthy
             : ConnectionHealthStatus.Degraded;
     }
 
@@ -102,7 +102,7 @@ public class ConnectionHealthMonitor(
             {
                 // Periodic health check logging
                 var report = GetHealthReport();
-                
+
                 if (report.OverallStatus == ConnectionHealthStatus.Unhealthy)
                 {
                     _logger.LogError("Connection health is UNHEALTHY. {UnhealthyOperations} operations are failing.",
@@ -129,7 +129,7 @@ public class ConnectionHealthMonitor(
     private void CleanupOldMetrics()
     {
         var cutoff = DateTime.UtcNow - _options.MetricsRetention;
-        
+
         foreach (var metrics in _metrics.Values)
         {
             metrics.CleanupOldData(cutoff);
@@ -164,7 +164,7 @@ public class ConnectionHealthMetrics
         {
             var results = _recentResults.ToArray();
             if (!results.Any()) return TimeSpan.Zero;
-            
+
             return TimeSpan.FromMilliseconds(results.Average(r => r.Duration.TotalMilliseconds));
         }
     }
@@ -173,14 +173,14 @@ public class ConnectionHealthMetrics
     {
         Interlocked.Increment(ref _totalRequests);
         Interlocked.Increment(ref _successfulRequests);
-        
+
         _recentResults.Enqueue(new OperationResult
         {
             Success = true,
             Duration = duration,
             Timestamp = DateTime.UtcNow
         });
-        
+
         _circuitBreakerOpen = false;
     }
 
@@ -188,10 +188,10 @@ public class ConnectionHealthMetrics
     {
         Interlocked.Increment(ref _totalRequests);
         Interlocked.Increment(ref _failedRequests);
-        
+
         _lastFailureTime = DateTime.UtcNow;
         _lastFailureReason = exception.Message;
-        
+
         _recentResults.Enqueue(new OperationResult
         {
             Success = false,

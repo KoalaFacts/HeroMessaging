@@ -11,47 +11,47 @@ public interface IObservabilityBuilder
     /// Add health checks
     /// </summary>
     IObservabilityBuilder AddHealthChecks(Action<object>? configure = null);
-    
+
     /// <summary>
     /// Add OpenTelemetry instrumentation
     /// </summary>
     IObservabilityBuilder AddOpenTelemetry(Action<OpenTelemetryOptions>? configure = null);
-    
+
     /// <summary>
     /// Add metrics collection
     /// </summary>
     IObservabilityBuilder AddMetrics(Action<MetricsOptions>? configure = null);
-    
+
     /// <summary>
     /// Add distributed tracing
     /// </summary>
     IObservabilityBuilder AddTracing(Action<TracingOptions>? configure = null);
-    
+
     /// <summary>
     /// Add logging enrichment
     /// </summary>
     IObservabilityBuilder AddLoggingEnrichment(Action<LoggingOptions>? configure = null);
-    
+
     /// <summary>
     /// Add custom observability provider
     /// </summary>
     IObservabilityBuilder AddCustomProvider<T>(Action<T>? configure = null) where T : class;
-    
+
     /// <summary>
     /// Enable performance counters
     /// </summary>
     IObservabilityBuilder EnablePerformanceCounters();
-    
+
     /// <summary>
     /// Enable diagnostic listeners
     /// </summary>
     IObservabilityBuilder EnableDiagnosticListeners();
-    
+
     /// <summary>
     /// Set sampling rate for tracing
     /// </summary>
     IObservabilityBuilder WithSamplingRate(double rate);
-    
+
     /// <summary>
     /// Build and return the service collection
     /// </summary>

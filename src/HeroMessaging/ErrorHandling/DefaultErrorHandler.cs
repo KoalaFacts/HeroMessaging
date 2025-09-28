@@ -12,7 +12,7 @@ public class DefaultErrorHandler(ILogger<DefaultErrorHandler> logger, IDeadLette
 
     public async Task<ErrorHandlingResult> HandleError<T>(T message, Exception error, ErrorContext context, CancellationToken cancellationToken = default) where T : IMessage
     {
-        _logger.LogError(error, 
+        _logger.LogError(error,
             "Error processing message {MessageId} of type {MessageType} in component {Component}. Retry {RetryCount}/{MaxRetries}",
             message.MessageId, message.GetType().Name, context.Component, context.RetryCount, context.MaxRetries);
 
@@ -20,7 +20,7 @@ public class DefaultErrorHandler(ILogger<DefaultErrorHandler> logger, IDeadLette
         if (IsTransientError(error) && context.RetryCount < context.MaxRetries)
         {
             var delay = CalculateRetryDelay(context.RetryCount);
-            _logger.LogWarning("Transient error detected. Will retry message {MessageId} after {Delay}ms", 
+            _logger.LogWarning("Transient error detected. Will retry message {MessageId} after {Delay}ms",
                 message.MessageId, delay.TotalMilliseconds);
             return ErrorHandlingResult.Retry(delay);
         }
@@ -35,7 +35,7 @@ public class DefaultErrorHandler(ILogger<DefaultErrorHandler> logger, IDeadLette
         {
             var reason = $"Max retries ({context.MaxRetries}) exceeded. Last error: {error.Message}";
             _logger.LogError("Message {MessageId} exceeded max retries. Sending to dead letter queue.", message.MessageId);
-            
+
             await _deadLetterQueue.SendToDeadLetter(message, new DeadLetterContext
             {
                 Reason = reason,
@@ -45,7 +45,7 @@ public class DefaultErrorHandler(ILogger<DefaultErrorHandler> logger, IDeadLette
                 FailureTime = DateTime.UtcNow,
                 Metadata = context.Metadata
             }, cancellationToken);
-            
+
             return ErrorHandlingResult.SendToDeadLetter(reason);
         }
 
@@ -60,7 +60,7 @@ public class DefaultErrorHandler(ILogger<DefaultErrorHandler> logger, IDeadLette
             FailureTime = DateTime.UtcNow,
             Metadata = context.Metadata
         }, cancellationToken);
-        
+
         return ErrorHandlingResult.SendToDeadLetter(defaultReason);
     }
 
@@ -86,7 +86,7 @@ public class DefaultErrorHandler(ILogger<DefaultErrorHandler> logger, IDeadLette
         var baseDelay = Math.Pow(2, retryCount);
         var jitter = RandomHelper.Instance.NextDouble() * 0.3; // 30% jitter
         var delaySeconds = baseDelay * (1 + jitter);
-        
+
         // Cap at 30 seconds
         return TimeSpan.FromSeconds(Math.Min(delaySeconds, 30));
     }

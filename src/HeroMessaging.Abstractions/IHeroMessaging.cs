@@ -8,25 +8,25 @@ namespace HeroMessaging.Abstractions;
 public interface IHeroMessaging
 {
     Task Send(ICommand command, CancellationToken cancellationToken = default);
-    
+
     Task<TResponse> Send<TResponse>(ICommand<TResponse> command, CancellationToken cancellationToken = default);
-    
+
     Task<TResponse> Send<TResponse>(IQuery<TResponse> query, CancellationToken cancellationToken = default);
-    
+
     Task Publish(IEvent @event, CancellationToken cancellationToken = default);
-    
+
     Task Enqueue(IMessage message, string queueName, EnqueueOptions? options = null, CancellationToken cancellationToken = default);
-    
+
     Task StartQueue(string queueName, CancellationToken cancellationToken = default);
-    
+
     Task StopQueue(string queueName, CancellationToken cancellationToken = default);
-    
+
     Task PublishToOutbox(IMessage message, OutboxOptions? options = null, CancellationToken cancellationToken = default);
-    
+
     Task ProcessIncoming(IMessage message, InboxOptions? options = null, CancellationToken cancellationToken = default);
-    
+
     MessagingMetrics GetMetrics();
-    
+
     MessagingHealth GetHealth();
 }
 

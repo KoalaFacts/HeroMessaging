@@ -1,5 +1,3 @@
-using System;
-using System.Linq;
 using HeroMessaging.Abstractions.Configuration;
 using HeroMessaging.Abstractions.Storage;
 using HeroMessaging.Storage;
@@ -13,80 +11,80 @@ namespace HeroMessaging.Configuration;
 public class StorageBuilder : IStorageBuilder
 {
     private readonly IServiceCollection _services;
-    
+
     public StorageBuilder(IServiceCollection services)
     {
         _services = services ?? throw new ArgumentNullException(nameof(services));
     }
-    
+
     public IStorageBuilder UseInMemory()
     {
         _services.AddSingleton<IMessageStorage, InMemoryMessageStorage>();
         _services.AddSingleton<IOutboxStorage, InMemoryOutboxStorage>();
         _services.AddSingleton<IInboxStorage, InMemoryInboxStorage>();
         _services.AddSingleton<IQueueStorage, InMemoryQueueStorage>();
-        
-        
+
+
         return this;
     }
-    
+
     public IStorageBuilder UseInMemory(Action<InMemoryStorageOptions> configure)
     {
         var options = new InMemoryStorageOptions();
         configure(options);
-        
+
         _services.AddSingleton(options);
         return UseInMemory();
     }
-    
+
     public IStorageBuilder UseMessageStorage<T>() where T : class, IMessageStorage
     {
         _services.AddSingleton<IMessageStorage, T>();
         return this;
     }
-    
+
     public IStorageBuilder UseMessageStorage(IMessageStorage storage)
     {
         _services.AddSingleton(storage);
         return this;
     }
-    
+
     public IStorageBuilder UseOutboxStorage<T>() where T : class, IOutboxStorage
     {
         _services.AddSingleton<IOutboxStorage, T>();
         return this;
     }
-    
+
     public IStorageBuilder UseOutboxStorage(IOutboxStorage storage)
     {
         _services.AddSingleton(storage);
         return this;
     }
-    
+
     public IStorageBuilder UseInboxStorage<T>() where T : class, IInboxStorage
     {
         _services.AddSingleton<IInboxStorage, T>();
         return this;
     }
-    
+
     public IStorageBuilder UseInboxStorage(IInboxStorage storage)
     {
         _services.AddSingleton(storage);
         return this;
     }
-    
+
     public IStorageBuilder UseQueueStorage<T>() where T : class, IQueueStorage
     {
         _services.AddSingleton<IQueueStorage, T>();
         return this;
     }
-    
+
     public IStorageBuilder UseQueueStorage(IQueueStorage storage)
     {
         _services.AddSingleton(storage);
         return this;
     }
-    
+
     public IStorageBuilder WithConnectionPooling(int maxPoolSize = 100)
     {
         _services.Configure<StorageConnectionOptions>(options =>
@@ -96,7 +94,7 @@ public class StorageBuilder : IStorageBuilder
         });
         return this;
     }
-    
+
     public IStorageBuilder WithRetry(int maxRetries = 3, TimeSpan? retryDelay = null)
     {
         _services.Configure<StorageRetryOptions>(options =>
@@ -107,7 +105,7 @@ public class StorageBuilder : IStorageBuilder
         });
         return this;
     }
-    
+
     public IStorageBuilder WithCircuitBreaker(int failureThreshold = 5, TimeSpan breakDuration = default)
     {
         _services.Configure<StorageCircuitBreakerOptions>(options =>
@@ -118,7 +116,7 @@ public class StorageBuilder : IStorageBuilder
         });
         return this;
     }
-    
+
     public IStorageBuilder WithCommandTimeout(TimeSpan timeout)
     {
         _services.Configure<StorageOptions>(options =>
@@ -127,13 +125,13 @@ public class StorageBuilder : IStorageBuilder
         });
         return this;
     }
-    
+
     public IServiceCollection Build()
     {
         // Ensure at least in-memory storage is registered if nothing else was configured
         if (!_services.Any(s => s.ServiceType == typeof(IMessageStorage)))
             UseInMemory();
-        
+
         return _services;
     }
 }

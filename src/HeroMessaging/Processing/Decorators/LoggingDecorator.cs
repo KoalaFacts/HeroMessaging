@@ -1,7 +1,7 @@
-using System.Diagnostics;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Processing;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 
 namespace HeroMessaging.Processing.Decorators;
 
@@ -22,7 +22,7 @@ public class LoggingDecorator(
     {
         var stopwatch = Stopwatch.StartNew();
         var messageType = message.GetType().Name;
-        
+
         _logger.LogDebug("Processing {MessageType} with ID {MessageId} in component {Component}",
             messageType, message.MessageId, context.Component);
 
@@ -38,7 +38,7 @@ public class LoggingDecorator(
 
             if (result.Success)
             {
-                _logger.Log(_successLogLevel, 
+                _logger.Log(_successLogLevel,
                     "Successfully processed {MessageType} with ID {MessageId} in {ElapsedMs}ms",
                     messageType, message.MessageId, stopwatch.ElapsedMilliseconds);
             }
@@ -50,7 +50,7 @@ public class LoggingDecorator(
             }
 
             // Note: Context is immutable, timing info can be passed via result if needed
-            
+
             return result;
         }
         catch (Exception ex)

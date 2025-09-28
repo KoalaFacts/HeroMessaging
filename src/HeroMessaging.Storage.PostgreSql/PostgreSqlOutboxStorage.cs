@@ -1,4 +1,3 @@
-using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Storage;
 using Npgsql;
@@ -32,7 +31,7 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
     {
         throw new NotImplementedException("PostgreSQL outbox storage implementation pending");
     }
-    
+
     public Task<IEnumerable<OutboxEntry>> GetPending(int limit = 100, CancellationToken cancellationToken = default)
     {
         throw new NotImplementedException("PostgreSQL outbox storage implementation pending");

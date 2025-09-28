@@ -1,5 +1,3 @@
-using System;
-using System.Threading.Tasks;
 using HeroMessaging.Abstractions.Plugins;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -16,7 +14,7 @@ public class PluginDiscoveryService
     private readonly IPluginLoader _loader;
     private readonly IServiceCollection _services;
     private readonly ILogger<PluginDiscoveryService>? _logger;
-    
+
     public PluginDiscoveryService(
         IPluginDiscovery discovery,
         IPluginRegistry registry,
@@ -30,14 +28,14 @@ public class PluginDiscoveryService
         _services = services ?? throw new ArgumentNullException(nameof(services));
         _logger = logger;
     }
-    
+
     public async Task DiscoverAndRegisterPluginsAsync()
     {
         try
         {
             var plugins = await _discovery.DiscoverPluginsAsync();
             _registry.RegisterRange(plugins);
-            
+
             foreach (var plugin in plugins)
             {
                 try

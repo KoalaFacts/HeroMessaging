@@ -1,10 +1,8 @@
-using System.Data;
-using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Commands;
-using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Abstractions.Queries;
 using HeroMessaging.Abstractions.Storage;
 using Microsoft.Extensions.Logging;
+using System.Data;
 
 namespace HeroMessaging.Processing.Decorators;
 
@@ -25,24 +23,24 @@ public class TransactionCommandProcessorDecorator(
     public async Task Send(ICommand command, CancellationToken cancellationToken = default)
     {
         await using var unitOfWork = await _unitOfWorkFactory.CreateAsync(_defaultIsolationLevel, cancellationToken);
-        
+
         try
         {
-            _logger.LogDebug("Starting transaction for command {CommandType} with ID {CommandId}", 
+            _logger.LogDebug("Starting transaction for command {CommandType} with ID {CommandId}",
                 command.GetType().Name, command.MessageId);
 
             await _inner.Send(command, cancellationToken);
-            
+
             await unitOfWork.CommitAsync(cancellationToken);
-            
-            _logger.LogDebug("Transaction committed successfully for command {CommandType} with ID {CommandId}", 
+
+            _logger.LogDebug("Transaction committed successfully for command {CommandType} with ID {CommandId}",
                 command.GetType().Name, command.MessageId);
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Transaction rollback for command {CommandType} with ID {CommandId}", 
+            _logger.LogWarning(ex, "Transaction rollback for command {CommandType} with ID {CommandId}",
                 command.GetType().Name, command.MessageId);
-            
+
             await unitOfWork.RollbackAsync(cancellationToken);
             throw;
         }
@@ -51,26 +49,26 @@ public class TransactionCommandProcessorDecorator(
     public async Task<TResponse> Send<TResponse>(ICommand<TResponse> command, CancellationToken cancellationToken = default)
     {
         await using var unitOfWork = await _unitOfWorkFactory.CreateAsync(_defaultIsolationLevel, cancellationToken);
-        
+
         try
         {
-            _logger.LogDebug("Starting transaction for command {CommandType} with ID {CommandId}", 
+            _logger.LogDebug("Starting transaction for command {CommandType} with ID {CommandId}",
                 command.GetType().Name, command.MessageId);
 
             var result = await _inner.Send<TResponse>(command, cancellationToken);
-            
+
             await unitOfWork.CommitAsync(cancellationToken);
-            
-            _logger.LogDebug("Transaction committed successfully for command {CommandType} with ID {CommandId}", 
+
+            _logger.LogDebug("Transaction committed successfully for command {CommandType} with ID {CommandId}",
                 command.GetType().Name, command.MessageId);
-            
+
             return result;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Transaction rollback for command {CommandType} with ID {CommandId}", 
+            _logger.LogWarning(ex, "Transaction rollback for command {CommandType} with ID {CommandId}",
                 command.GetType().Name, command.MessageId);
-            
+
             await unitOfWork.RollbackAsync(cancellationToken);
             throw;
         }
@@ -92,27 +90,27 @@ public class TransactionQueryProcessorDecorator(
     public async Task<TResponse> Send<TResponse>(IQuery<TResponse> query, CancellationToken cancellationToken = default)
     {
         await using var unitOfWork = await _unitOfWorkFactory.CreateAsync(IsolationLevel.ReadCommitted, cancellationToken);
-        
+
         try
         {
-            _logger.LogDebug("Starting read transaction for query {QueryType} with ID {QueryId}", 
+            _logger.LogDebug("Starting read transaction for query {QueryType} with ID {QueryId}",
                 query.GetType().Name, query.MessageId);
 
             var result = await _inner.Send<TResponse>(query, cancellationToken);
-            
+
             // Read-only operations don't need explicit commit, but we can commit for consistency
             await unitOfWork.CommitAsync(cancellationToken);
-            
-            _logger.LogDebug("Read transaction completed for query {QueryType} with ID {QueryId}", 
+
+            _logger.LogDebug("Read transaction completed for query {QueryType} with ID {QueryId}",
                 query.GetType().Name, query.MessageId);
-            
+
             return result;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Read transaction rollback for query {QueryType} with ID {QueryId}", 
+            _logger.LogWarning(ex, "Read transaction rollback for query {QueryType} with ID {QueryId}",
                 query.GetType().Name, query.MessageId);
-            
+
             await unitOfWork.RollbackAsync(cancellationToken);
             throw;
         }

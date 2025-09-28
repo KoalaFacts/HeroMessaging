@@ -5,15 +5,15 @@ namespace HeroMessaging.Abstractions.ErrorHandling;
 public interface IDeadLetterQueue
 {
     Task<string> SendToDeadLetter<T>(T message, DeadLetterContext context, CancellationToken cancellationToken = default) where T : IMessage;
-    
+
     Task<IEnumerable<DeadLetterEntry<T>>> GetDeadLetters<T>(int limit = 100, CancellationToken cancellationToken = default) where T : IMessage;
-    
+
     Task<bool> Retry<T>(string deadLetterId, CancellationToken cancellationToken = default) where T : IMessage;
-    
+
     Task<bool> Discard(string deadLetterId, CancellationToken cancellationToken = default);
-    
+
     Task<long> GetDeadLetterCount(CancellationToken cancellationToken = default);
-    
+
     Task<DeadLetterStatistics> GetStatistics(CancellationToken cancellationToken = default);
 }
 

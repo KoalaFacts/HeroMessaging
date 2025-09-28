@@ -1,10 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Diagnostics.HealthChecks;
-using HeroMessaging.Abstractions.Storage;
 using HeroMessaging.Abstractions.Messages;
+using HeroMessaging.Abstractions.Storage;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace HeroMessaging.Observability.HealthChecks;
 
@@ -20,10 +16,10 @@ public class MessageStorageHealthCheck(IMessageStorage storage, string name = "m
         try
         {
             var testMessage = new TestMessage();
-            
+
             var messageId = await _storage.Store(testMessage, null, cancellationToken);
             var retrieved = await _storage.Retrieve<TestMessage>(messageId, cancellationToken);
-            
+
             if (retrieved == null)
             {
                 return HealthCheckResult.Unhealthy($"{_name}: Failed to retrieve test message");
@@ -71,7 +67,7 @@ public class OutboxStorageHealthCheck(IOutboxStorage storage, string name = "out
                 Status = OutboxEntryStatus.Pending,
                 Limit = 1
             };
-            
+
             await _storage.GetPending(query, cancellationToken);
 
             return HealthCheckResult.Healthy($"{_name}: Storage is operational");
@@ -107,7 +103,7 @@ public class InboxStorageHealthCheck(IInboxStorage storage, string name = "inbox
                 Status = InboxEntryStatus.Pending,
                 Limit = 1
             };
-            
+
             await _storage.GetPending(query, cancellationToken);
 
             return HealthCheckResult.Healthy($"{_name}: Storage is operational");

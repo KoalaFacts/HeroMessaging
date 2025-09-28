@@ -1,9 +1,6 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
+using HeroMessaging.Abstractions.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using HeroMessaging.Abstractions.Storage;
 
 namespace HeroMessaging.Observability.HealthChecks;
 

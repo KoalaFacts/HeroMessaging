@@ -31,7 +31,7 @@ public class MessageProcessingPipelineBuilder(IServiceProvider serviceProvider)
         });
         return this;
     }
-    
+
     /// <summary>
     /// Add validation to the pipeline
     /// </summary>
@@ -44,13 +44,13 @@ public class MessageProcessingPipelineBuilder(IServiceProvider serviceProvider)
             {
                 return processor; // Skip if no validator available
             }
-            
+
             var logger = _serviceProvider.GetRequiredService<ILogger<ValidationDecorator>>();
             return new ValidationDecorator(processor, validatorToUse, logger);
         });
         return this;
     }
-    
+
     /// <summary>
     /// Add retry logic to the pipeline
     /// </summary>
@@ -63,7 +63,7 @@ public class MessageProcessingPipelineBuilder(IServiceProvider serviceProvider)
         });
         return this;
     }
-    
+
     /// <summary>
     /// Add error handling to the pipeline
     /// </summary>
@@ -76,13 +76,13 @@ public class MessageProcessingPipelineBuilder(IServiceProvider serviceProvider)
             {
                 return processor; // Skip if no error handler available
             }
-            
+
             var logger = _serviceProvider.GetRequiredService<ILogger<ErrorHandlingDecorator>>();
             return new ErrorHandlingDecorator(processor, errorHandler, logger, maxRetries);
         });
         return this;
     }
-    
+
     /// <summary>
     /// Add metrics collection to the pipeline
     /// </summary>
@@ -95,12 +95,12 @@ public class MessageProcessingPipelineBuilder(IServiceProvider serviceProvider)
             {
                 return processor; // Skip if no metrics collector available
             }
-            
+
             return new MetricsDecorator(processor, collector);
         });
         return this;
     }
-    
+
     /// <summary>
     /// Add circuit breaker to the pipeline
     /// </summary>
@@ -113,7 +113,7 @@ public class MessageProcessingPipelineBuilder(IServiceProvider serviceProvider)
         });
         return this;
     }
-    
+
     /// <summary>
     /// Add a custom decorator to the pipeline
     /// </summary>
@@ -122,7 +122,7 @@ public class MessageProcessingPipelineBuilder(IServiceProvider serviceProvider)
         _decorators.Add(decorator);
         return this;
     }
-    
+
     /// <summary>
     /// Build the pipeline with the configured decorators
     /// </summary>

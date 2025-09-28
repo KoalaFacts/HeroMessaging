@@ -1,5 +1,5 @@
-using System.Collections.Concurrent;
 using HeroMessaging.Abstractions.Policies;
+using System.Collections.Concurrent;
 
 namespace HeroMessaging.Policies;
 
@@ -23,10 +23,10 @@ public class CircuitBreakerRetryPolicy(
     {
         if (attemptNumber >= MaxRetries) return false;
         if (exception == null) return false;
-        
+
         var circuitKey = GetCircuitKey(exception);
         var state = _circuits.GetOrAdd(circuitKey, _ => new CircuitState());
-        
+
         // Check if circuit is open
         if (state.IsOpen)
         {
@@ -41,42 +41,42 @@ public class CircuitBreakerRetryPolicy(
                 return false;
             }
         }
-        
+
         // Record failure
         state.RecordFailure();
-        
+
         // Check if we should open the circuit
         if (state.FailureCount >= _failureThreshold)
         {
             state.Open();
             return false;
         }
-        
+
         return true;
     }
-    
+
     public TimeSpan GetRetryDelay(int attemptNumber)
     {
         return TimeSpan.FromMilliseconds(_baseDelay.TotalMilliseconds * (attemptNumber + 1));
     }
-    
+
     private string GetCircuitKey(Exception exception)
     {
         // Create a key based on exception type and message
         return $"{exception.GetType().Name}:{exception.Message?.GetHashCode()}";
     }
-    
+
     private class CircuitState
     {
         private int _failureCount;
         private DateTime _openedAt;
         private bool _isOpen;
         private readonly object _lock = new();
-        
+
         public int FailureCount => _failureCount;
         public DateTime OpenedAt => _openedAt;
         public bool IsOpen => _isOpen;
-        
+
         public void RecordFailure()
         {
             lock (_lock)
@@ -84,7 +84,7 @@ public class CircuitBreakerRetryPolicy(
                 _failureCount++;
             }
         }
-        
+
         public void Open()
         {
             lock (_lock)
@@ -93,7 +93,7 @@ public class CircuitBreakerRetryPolicy(
                 _openedAt = DateTime.UtcNow;
             }
         }
-        
+
         public void Reset()
         {
             lock (_lock)

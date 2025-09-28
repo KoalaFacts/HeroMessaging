@@ -1,6 +1,5 @@
 using HeroMessaging.Abstractions.Configuration;
 using HeroMessaging.Abstractions.Storage;
-using HeroMessaging.Configuration;
 using HeroMessaging.Resilience;
 using HeroMessaging.Utilities;
 using Microsoft.Extensions.DependencyInjection;

@@ -1,5 +1,5 @@
-using MessagePack;
 using HeroMessaging.Abstractions.Serialization;
+using MessagePack;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -20,10 +20,10 @@ public static class ServiceCollectionExtensions
     {
         services.TryAddSingleton<IMessageSerializer>(sp =>
             new MessagePackMessageSerializer(options, messagePackOptions));
-        
+
         return services;
     }
-    
+
     /// <summary>
     /// Add MessagePack contract serialization support to HeroMessaging
     /// </summary>
@@ -34,10 +34,10 @@ public static class ServiceCollectionExtensions
     {
         services.TryAddSingleton<IMessageSerializer>(sp =>
             new ContractMessagePackSerializer(options, messagePackOptions));
-        
+
         return services;
     }
-    
+
     /// <summary>
     /// Add MessagePack serialization support with custom configuration
     /// </summary>
@@ -48,14 +48,14 @@ public static class ServiceCollectionExtensions
     {
         var options = new SerializationOptions();
         configureOptions(options);
-        
+
         MessagePackSerializerOptions? messagePackOptions = null;
         if (configureMessagePackOptions != null)
         {
             messagePackOptions = MessagePackSerializerOptions.Standard;
             configureMessagePackOptions(messagePackOptions);
         }
-        
+
         return services.AddHeroMessagingMessagePackSerializer(options, messagePackOptions);
     }
 }

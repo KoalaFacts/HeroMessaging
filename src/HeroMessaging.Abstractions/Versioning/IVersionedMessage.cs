@@ -11,7 +11,7 @@ public interface IVersionedMessage : IMessage
     /// Gets the message schema version
     /// </summary>
     MessageVersion Version { get; }
-    
+
     /// <summary>
     /// Gets the message type name for version identification
     /// </summary>
@@ -34,13 +34,13 @@ public readonly record struct MessageVersion
     public int Major { get; }
     public int Minor { get; }
     public int Patch { get; }
-    
+
     public MessageVersion(int major, int minor = 0, int patch = 0)
     {
         if (major < 0) throw new ArgumentOutOfRangeException(nameof(major), "Major version cannot be negative");
-        if (minor < 0) throw new ArgumentOutOfRangeException(nameof(minor), "Minor version cannot be negative");  
+        if (minor < 0) throw new ArgumentOutOfRangeException(nameof(minor), "Minor version cannot be negative");
         if (patch < 0) throw new ArgumentOutOfRangeException(nameof(patch), "Patch version cannot be negative");
-        
+
         Major = major;
         Minor = minor;
         Patch = patch;
@@ -93,14 +93,14 @@ public readonly record struct MessageVersion
         // Different major versions are not compatible
         if (Major != other.Major)
             return false;
-        
+
         // Same major version - check if this version is >= other version
         if (Minor > other.Minor)
             return true;
-        
+
         if (Minor == other.Minor)
             return Patch >= other.Patch;
-        
+
         return false;
     }
 
@@ -127,10 +127,10 @@ public readonly record struct MessageVersion
     {
         var majorComparison = Major.CompareTo(other.Major);
         if (majorComparison != 0) return majorComparison;
-        
+
         var minorComparison = Minor.CompareTo(other.Minor);
         if (minorComparison != 0) return minorComparison;
-        
+
         return Patch.CompareTo(other.Patch);
     }
 }
@@ -142,12 +142,12 @@ public readonly record struct MessageVersion
 public class MessageVersionAttribute : Attribute
 {
     public MessageVersion Version { get; }
-    
+
     public MessageVersionAttribute(int major, int minor = 0, int patch = 0)
     {
         Version = new MessageVersion(major, minor, patch);
     }
-    
+
     public MessageVersionAttribute(string version)
     {
         Version = MessageVersion.Parse(version);
@@ -161,12 +161,12 @@ public class MessageVersionAttribute : Attribute
 public class AddedInVersionAttribute : Attribute
 {
     public MessageVersion Version { get; }
-    
+
     public AddedInVersionAttribute(int major, int minor = 0, int patch = 0)
     {
         Version = new MessageVersion(major, minor, patch);
     }
-    
+
     public AddedInVersionAttribute(string version)
     {
         Version = MessageVersion.Parse(version);
@@ -182,17 +182,17 @@ public class DeprecatedInVersionAttribute : Attribute
     public MessageVersion Version { get; }
     public string? Reason { get; }
     public string? ReplacedBy { get; }
-    
+
     public DeprecatedInVersionAttribute(int major, int minor = 0, int patch = 0)
     {
         Version = new MessageVersion(major, minor, patch);
     }
-    
+
     public DeprecatedInVersionAttribute(string version)
     {
         Version = MessageVersion.Parse(version);
     }
-    
+
     public DeprecatedInVersionAttribute(string version, string reason, string? replacedBy = null)
         : this(version)
     {

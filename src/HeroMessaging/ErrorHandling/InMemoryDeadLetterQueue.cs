@@ -1,7 +1,7 @@
-using System.Collections.Concurrent;
 using HeroMessaging.Abstractions.ErrorHandling;
 using HeroMessaging.Abstractions.Messages;
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
 
 namespace HeroMessaging.ErrorHandling;
 
@@ -22,10 +22,10 @@ public class InMemoryDeadLetterQueue(ILogger<InMemoryDeadLetterQueue> logger) : 
         };
 
         _deadLetters[entry.Id] = entry;
-        
-        _logger.LogWarning("Message {MessageId} sent to dead letter queue. Reason: {Reason}", 
+
+        _logger.LogWarning("Message {MessageId} sent to dead letter queue. Reason: {Reason}",
             message.MessageId, context.Reason);
-        
+
         return Task.FromResult(entry.Id);
     }
 
@@ -36,7 +36,7 @@ public class InMemoryDeadLetterQueue(ILogger<InMemoryDeadLetterQueue> logger) : 
             .Where(e => e.Status == DeadLetterStatus.Active)
             .OrderByDescending(e => e.CreatedAt)
             .Take(limit);
-        
+
         return Task.FromResult(entries);
     }
 
@@ -48,12 +48,12 @@ public class InMemoryDeadLetterQueue(ILogger<InMemoryDeadLetterQueue> logger) : 
             {
                 typedEntry.Status = DeadLetterStatus.Retried;
                 typedEntry.RetriedAt = DateTime.UtcNow;
-                
+
                 _logger.LogInformation("Dead letter entry {DeadLetterId} marked for retry", deadLetterId);
                 return Task.FromResult(true);
             }
         }
-        
+
         return Task.FromResult(false);
     }
 
@@ -65,12 +65,12 @@ public class InMemoryDeadLetterQueue(ILogger<InMemoryDeadLetterQueue> logger) : 
             {
                 typedEntry.Status = DeadLetterStatus.Discarded;
                 typedEntry.DiscardedAt = DateTime.UtcNow;
-                
+
                 _logger.LogInformation("Dead letter entry {DeadLetterId} discarded", deadLetterId);
                 return Task.FromResult(true);
             }
         }
-        
+
         return Task.FromResult(false);
     }
 
@@ -79,14 +79,14 @@ public class InMemoryDeadLetterQueue(ILogger<InMemoryDeadLetterQueue> logger) : 
         var count = _deadLetters.Values
             .Cast<dynamic>()
             .Count(e => e.Status == DeadLetterStatus.Active);
-        
+
         return Task.FromResult((long)count);
     }
 
     public Task<DeadLetterStatistics> GetStatistics(CancellationToken cancellationToken = default)
     {
         var allEntries = _deadLetters.Values.Cast<dynamic>().ToList();
-        
+
         var stats = new DeadLetterStatistics
         {
             TotalCount = allEntries.Count,
@@ -102,8 +102,8 @@ public class InMemoryDeadLetterQueue(ILogger<InMemoryDeadLetterQueue> logger) : 
 
         // Group by reason (take first 50 chars of reason as key)
         stats.CountByReason = allEntries
-            .GroupBy(e => ((string)e.Context.Reason).Length > 50 
-                ? ((string)e.Context.Reason).Substring(0, 50) + "..." 
+            .GroupBy(e => ((string)e.Context.Reason).Length > 50
+                ? ((string)e.Context.Reason).Substring(0, 50) + "..."
                 : (string)e.Context.Reason)
             .ToDictionary(g => g.Key, g => (long)g.Count());
 

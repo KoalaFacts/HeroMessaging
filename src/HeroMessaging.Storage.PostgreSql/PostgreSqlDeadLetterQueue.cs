@@ -1,8 +1,8 @@
-using System.Text.Json;
 using HeroMessaging.Abstractions.ErrorHandling;
 using HeroMessaging.Abstractions.Messages;
 using Npgsql;
 using NpgsqlTypes;
+using System.Text.Json;
 
 namespace HeroMessaging.Storage.PostgreSql;
 
@@ -24,7 +24,7 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
             PropertyNameCaseInsensitive = true,
             WriteIndented = false
         };
-        
+
         if (_options.AutoCreateTables)
         {
             InitializeDatabase().GetAwaiter().GetResult();
@@ -35,7 +35,7 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
     {
         using var connection = new NpgsqlConnection(_options.ConnectionString);
         await connection.OpenAsync();
-        
+
         var createTableSql = $"""
             CREATE TABLE IF NOT EXISTS {_tableName} (
                 id VARCHAR(100) PRIMARY KEY,
@@ -58,7 +58,7 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
             CREATE INDEX IF NOT EXISTS idx_{_options.DeadLetterTableName}_failure_time ON {_tableName} (failure_time DESC);
             CREATE INDEX IF NOT EXISTS idx_{_options.DeadLetterTableName}_component ON {_tableName} (component);
             """;
-        
+
         using var command = new NpgsqlCommand(createTableSql, connection)
         {
             CommandTimeout = _options.CommandTimeout
@@ -66,14 +66,14 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         await command.ExecuteNonQueryAsync();
     }
 
-    public async Task<string> SendToDeadLetter<T>(T message, DeadLetterContext context, CancellationToken cancellationToken = default) 
+    public async Task<string> SendToDeadLetter<T>(T message, DeadLetterContext context, CancellationToken cancellationToken = default)
         where T : IMessage
     {
         var deadLetterId = Guid.NewGuid().ToString();
-        
+
         using var connection = new NpgsqlConnection(_options.ConnectionString);
         await connection.OpenAsync(cancellationToken);
-        
+
         var sql = $"""
             INSERT INTO {_tableName} (
                 id, message_payload, message_type, reason, component, 
@@ -86,12 +86,12 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
                 @exception_message, @metadata::jsonb
             )
             """;
-        
+
         using var command = new NpgsqlCommand(sql, connection)
         {
             CommandTimeout = _options.CommandTimeout
         };
-        
+
         command.Parameters.AddWithValue("@id", deadLetterId);
         command.Parameters.AddWithValue("@message_payload", NpgsqlDbType.Jsonb, JsonSerializer.Serialize(message, _jsonOptions));
         command.Parameters.AddWithValue("@message_type", message.GetType().FullName ?? "Unknown");
@@ -102,19 +102,19 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         command.Parameters.AddWithValue("@status", (int)DeadLetterStatus.Active);
         command.Parameters.AddWithValue("@created_at", DateTime.UtcNow);
         command.Parameters.AddWithValue("@exception_message", context.Exception?.Message ?? (object)DBNull.Value);
-        command.Parameters.AddWithValue("@metadata", NpgsqlDbType.Jsonb, 
+        command.Parameters.AddWithValue("@metadata", NpgsqlDbType.Jsonb,
             context.Metadata.Any() ? JsonSerializer.Serialize(context.Metadata, _jsonOptions) : (object)DBNull.Value);
-        
+
         await command.ExecuteNonQueryAsync(cancellationToken);
         return deadLetterId;
     }
 
-    public async Task<IEnumerable<DeadLetterEntry<T>>> GetDeadLetters<T>(int limit = 100, CancellationToken cancellationToken = default) 
+    public async Task<IEnumerable<DeadLetterEntry<T>>> GetDeadLetters<T>(int limit = 100, CancellationToken cancellationToken = default)
         where T : IMessage
     {
         using var connection = new NpgsqlConnection(_options.ConnectionString);
         await connection.OpenAsync(cancellationToken);
-        
+
         var sql = $"""
             SELECT id, message_payload, reason, component, retry_count, failure_time,
                    status, created_at, retried_at, discarded_at, exception_message, metadata
@@ -123,31 +123,31 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
             ORDER BY failure_time DESC
             LIMIT @limit
             """;
-        
+
         var entries = new List<DeadLetterEntry<T>>();
-        
+
         using var command = new NpgsqlCommand(sql, connection)
         {
             CommandTimeout = _options.CommandTimeout
         };
-        
+
         command.Parameters.AddWithValue("@message_type", typeof(T).FullName ?? "Unknown");
         command.Parameters.AddWithValue("@active_status", (int)DeadLetterStatus.Active);
         command.Parameters.AddWithValue("@limit", limit);
-        
+
         using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
         {
             var messagePayload = reader.GetString(1);
             var message = JsonSerializer.Deserialize<T>(messagePayload, _jsonOptions);
-            
+
             if (message != null)
             {
                 var metadataJson = reader.IsDBNull(11) ? null : reader.GetString(11);
-                var metadata = !string.IsNullOrEmpty(metadataJson) 
+                var metadata = !string.IsNullOrEmpty(metadataJson)
                     ? JsonSerializer.Deserialize<Dictionary<string, object>>(metadataJson, _jsonOptions) ?? new()
                     : new Dictionary<string, object>();
-                
+
                 entries.Add(new DeadLetterEntry<T>
                 {
                     Id = reader.GetString(0),
@@ -168,32 +168,32 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
                 });
             }
         }
-        
+
         return entries;
     }
 
-    public async Task<bool> Retry<T>(string deadLetterId, CancellationToken cancellationToken = default) 
+    public async Task<bool> Retry<T>(string deadLetterId, CancellationToken cancellationToken = default)
         where T : IMessage
     {
         using var connection = new NpgsqlConnection(_options.ConnectionString);
         await connection.OpenAsync(cancellationToken);
-        
+
         var sql = $"""
             UPDATE {_tableName}
             SET status = @status, retried_at = @retried_at
             WHERE id = @id AND status = @active_status
             """;
-        
+
         using var command = new NpgsqlCommand(sql, connection)
         {
             CommandTimeout = _options.CommandTimeout
         };
-        
+
         command.Parameters.AddWithValue("@status", (int)DeadLetterStatus.Retried);
         command.Parameters.AddWithValue("@retried_at", DateTime.UtcNow);
         command.Parameters.AddWithValue("@id", deadLetterId);
         command.Parameters.AddWithValue("@active_status", (int)DeadLetterStatus.Active);
-        
+
         var result = await command.ExecuteNonQueryAsync(cancellationToken);
         return result > 0;
     }
@@ -202,23 +202,23 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
     {
         using var connection = new NpgsqlConnection(_options.ConnectionString);
         await connection.OpenAsync(cancellationToken);
-        
+
         var sql = $"""
             UPDATE {_tableName}
             SET status = @status, discarded_at = @discarded_at
             WHERE id = @id AND status = @active_status
             """;
-        
+
         using var command = new NpgsqlCommand(sql, connection)
         {
             CommandTimeout = _options.CommandTimeout
         };
-        
+
         command.Parameters.AddWithValue("@status", (int)DeadLetterStatus.Discarded);
         command.Parameters.AddWithValue("@discarded_at", DateTime.UtcNow);
         command.Parameters.AddWithValue("@id", deadLetterId);
         command.Parameters.AddWithValue("@active_status", (int)DeadLetterStatus.Active);
-        
+
         var result = await command.ExecuteNonQueryAsync(cancellationToken);
         return result > 0;
     }
@@ -227,16 +227,16 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
     {
         using var connection = new NpgsqlConnection(_options.ConnectionString);
         await connection.OpenAsync(cancellationToken);
-        
+
         var sql = $"SELECT COUNT(*) FROM {_tableName} WHERE status = @status";
-        
+
         using var command = new NpgsqlCommand(sql, connection)
         {
             CommandTimeout = _options.CommandTimeout
         };
-        
+
         command.Parameters.AddWithValue("@status", (int)DeadLetterStatus.Active);
-        
+
         var result = await command.ExecuteScalarAsync(cancellationToken);
         return Convert.ToInt64(result ?? 0);
     }
@@ -245,9 +245,9 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
     {
         using var connection = new NpgsqlConnection(_options.ConnectionString);
         await connection.OpenAsync(cancellationToken);
-        
+
         var statistics = new DeadLetterStatistics();
-        
+
         // Get counts by status
         var statusSql = $"""
             SELECT 
@@ -257,7 +257,7 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
                 COUNT(*) as total_count
             FROM {_tableName}
             """;
-        
+
         using (var statusCommand = new NpgsqlCommand(statusSql, connection) { CommandTimeout = _options.CommandTimeout })
         using (var reader = await statusCommand.ExecuteReaderAsync(cancellationToken))
         {
@@ -269,7 +269,7 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
                 statistics.TotalCount = reader.IsDBNull(3) ? 0 : reader.GetInt64(3);
             }
         }
-        
+
         // Get counts by component
         var componentSql = $"""
             SELECT component, COUNT(*) as count
@@ -277,7 +277,7 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
             WHERE status = 0
             GROUP BY component
             """;
-        
+
         using (var componentCommand = new NpgsqlCommand(componentSql, connection) { CommandTimeout = _options.CommandTimeout })
         using (var reader = await componentCommand.ExecuteReaderAsync(cancellationToken))
         {
@@ -286,7 +286,7 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
                 statistics.CountByComponent[reader.GetString(0)] = reader.GetInt64(1);
             }
         }
-        
+
         // Get counts by reason (top 10)
         var reasonSql = $"""
             SELECT reason, COUNT(*) as count
@@ -296,7 +296,7 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
             ORDER BY count DESC
             LIMIT 10
             """;
-        
+
         using (var reasonCommand = new NpgsqlCommand(reasonSql, connection) { CommandTimeout = _options.CommandTimeout })
         using (var reader = await reasonCommand.ExecuteReaderAsync(cancellationToken))
         {
@@ -305,7 +305,7 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
                 statistics.CountByReason[reader.GetString(0)] = reader.GetInt64(1);
             }
         }
-        
+
         // Get oldest and newest entries
         var dateSql = $"""
             SELECT 
@@ -314,7 +314,7 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
             FROM {_tableName}
             WHERE status = 0
             """;
-        
+
         using (var dateCommand = new NpgsqlCommand(dateSql, connection) { CommandTimeout = _options.CommandTimeout })
         using (var reader = await dateCommand.ExecuteReaderAsync(cancellationToken))
         {
@@ -324,7 +324,7 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
                 statistics.NewestEntry = reader.IsDBNull(1) ? null : reader.GetDateTime(1);
             }
         }
-        
+
         return statistics;
     }
 }

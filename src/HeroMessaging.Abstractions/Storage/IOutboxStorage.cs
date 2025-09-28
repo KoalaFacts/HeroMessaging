@@ -5,19 +5,19 @@ namespace HeroMessaging.Abstractions.Storage;
 public interface IOutboxStorage
 {
     Task<OutboxEntry> Add(IMessage message, Abstractions.OutboxOptions options, CancellationToken cancellationToken = default);
-    
+
     Task<IEnumerable<OutboxEntry>> GetPending(OutboxQuery query, CancellationToken cancellationToken = default);
-    
+
     Task<IEnumerable<OutboxEntry>> GetPending(int limit = 100, CancellationToken cancellationToken = default);
-    
+
     Task<bool> MarkProcessed(string entryId, CancellationToken cancellationToken = default);
-    
+
     Task<bool> MarkFailed(string entryId, string error, CancellationToken cancellationToken = default);
-    
+
     Task<bool> UpdateRetryCount(string entryId, int retryCount, DateTime? nextRetry = null, CancellationToken cancellationToken = default);
-    
+
     Task<long> GetPendingCount(CancellationToken cancellationToken = default);
-    
+
     Task<IEnumerable<OutboxEntry>> GetFailed(int limit = 100, CancellationToken cancellationToken = default);
 }
 

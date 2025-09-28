@@ -1,5 +1,5 @@
-using System.Collections.Immutable;
 using HeroMessaging.Abstractions.Messages;
+using System.Collections.Immutable;
 
 namespace HeroMessaging.Abstractions.Validation;
 
@@ -26,17 +26,17 @@ public readonly record struct ValidationResult
     /// Whether the validation was successful
     /// </summary>
     public bool IsValid { get; init; }
-    
+
     /// <summary>
     /// Collection of validation errors if any
     /// </summary>
     public ImmutableArray<string> Errors { get; init; }
-    
+
     /// <summary>
     /// Creates a successful validation result
     /// </summary>
     public static ValidationResult Success() => new() { IsValid = true, Errors = ImmutableArray<string>.Empty };
-    
+
     /// <summary>
     /// Creates a failed validation result with errors
     /// </summary>

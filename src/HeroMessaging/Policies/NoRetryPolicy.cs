@@ -8,12 +8,12 @@ namespace HeroMessaging.Policies;
 public class NoRetryPolicy : IRetryPolicy
 {
     public int MaxRetries => 0;
-    
+
     public bool ShouldRetry(Exception? exception, int attemptNumber)
     {
         return false;
     }
-    
+
     public TimeSpan GetRetryDelay(int attemptNumber)
     {
         return TimeSpan.Zero;

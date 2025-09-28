@@ -1,10 +1,8 @@
-using System.Data;
 using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Messages;
-using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Abstractions.Storage;
-using HeroMessaging.Processing;
 using Microsoft.Extensions.Logging;
+using System.Data;
 
 namespace HeroMessaging.Processing.Decorators;
 
@@ -26,33 +24,33 @@ public class TransactionOutboxProcessorDecorator(
     public async Task PublishToOutbox(IMessage message, OutboxOptions? options = null, CancellationToken cancellationToken = default)
     {
         await using var unitOfWork = await _unitOfWorkFactory.CreateAsync(_defaultIsolationLevel, cancellationToken);
-        
+
         try
         {
-            _logger.LogDebug("Starting outbox transaction for message {MessageType} with ID {MessageId}", 
+            _logger.LogDebug("Starting outbox transaction for message {MessageType} with ID {MessageId}",
                 message.GetType().Name, message.MessageId);
 
             await _inner.PublishToOutbox(message, options, cancellationToken);
-            
+
             await unitOfWork.CommitAsync(cancellationToken);
-            
-            _logger.LogDebug("Outbox transaction committed successfully for message {MessageType} with ID {MessageId}", 
+
+            _logger.LogDebug("Outbox transaction committed successfully for message {MessageType} with ID {MessageId}",
                 message.GetType().Name, message.MessageId);
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Outbox transaction rollback for message {MessageType} with ID {MessageId}", 
+            _logger.LogWarning(ex, "Outbox transaction rollback for message {MessageType} with ID {MessageId}",
                 message.GetType().Name, message.MessageId);
-            
+
             await unitOfWork.RollbackAsync(cancellationToken);
             throw;
         }
     }
 
-    public Task Start(CancellationToken cancellationToken = default) => 
+    public Task Start(CancellationToken cancellationToken = default) =>
         _inner.Start(cancellationToken);
 
-    public Task Stop() => 
+    public Task Stop() =>
         _inner.Stop();
 }
 
@@ -74,37 +72,37 @@ public class TransactionInboxProcessorDecorator(
     public async Task<bool> ProcessIncoming(IMessage message, InboxOptions? options = null, CancellationToken cancellationToken = default)
     {
         await using var unitOfWork = await _unitOfWorkFactory.CreateAsync(_defaultIsolationLevel, cancellationToken);
-        
+
         try
         {
-            _logger.LogDebug("Starting inbox transaction for message {MessageType} with ID {MessageId}", 
+            _logger.LogDebug("Starting inbox transaction for message {MessageType} with ID {MessageId}",
                 message.GetType().Name, message.MessageId);
 
             var result = await _inner.ProcessIncoming(message, options, cancellationToken);
-            
+
             await unitOfWork.CommitAsync(cancellationToken);
-            
-            _logger.LogDebug("Inbox transaction committed successfully for message {MessageType} with ID {MessageId}", 
+
+            _logger.LogDebug("Inbox transaction committed successfully for message {MessageType} with ID {MessageId}",
                 message.GetType().Name, message.MessageId);
-            
+
             return result;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Inbox transaction rollback for message {MessageType} with ID {MessageId}", 
+            _logger.LogWarning(ex, "Inbox transaction rollback for message {MessageType} with ID {MessageId}",
                 message.GetType().Name, message.MessageId);
-            
+
             await unitOfWork.RollbackAsync(cancellationToken);
             throw;
         }
     }
 
-    public Task Start(CancellationToken cancellationToken = default) => 
+    public Task Start(CancellationToken cancellationToken = default) =>
         _inner.Start(cancellationToken);
 
-    public Task Stop() => 
+    public Task Stop() =>
         _inner.Stop();
 
-    public Task<long> GetUnprocessedCount(CancellationToken cancellationToken = default) => 
+    public Task<long> GetUnprocessedCount(CancellationToken cancellationToken = default) =>
         _inner.GetUnprocessedCount(cancellationToken);
 }
