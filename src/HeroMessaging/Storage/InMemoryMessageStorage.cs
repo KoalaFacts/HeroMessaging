@@ -142,7 +142,32 @@ public class InMemoryMessageStorage : IMessageStorage
         _messages.Clear();
         return Task.CompletedTask;
     }
-    
+
+    public Task StoreAsync(IMessage message, IStorageTransaction? transaction = null, CancellationToken cancellationToken = default)
+    {
+        return Store(message, null, cancellationToken).ContinueWith(_ => Task.CompletedTask, cancellationToken);
+    }
+
+    public Task<IMessage?> RetrieveAsync(Guid messageId, IStorageTransaction? transaction = null, CancellationToken cancellationToken = default)
+    {
+        return Retrieve<IMessage>(messageId.ToString(), cancellationToken);
+    }
+
+    public Task<List<IMessage>> QueryAsync(MessageQuery query, CancellationToken cancellationToken = default)
+    {
+        return Query<IMessage>(query, cancellationToken).ContinueWith(t => t.Result.ToList(), cancellationToken);
+    }
+
+    public Task DeleteAsync(Guid messageId, CancellationToken cancellationToken = default)
+    {
+        return Delete(messageId.ToString(), cancellationToken).ContinueWith(_ => Task.CompletedTask, cancellationToken);
+    }
+
+    public Task<IStorageTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult<IStorageTransaction>(new InMemoryTransaction());
+    }
+
     private class StoredMessage
     {
         public string Id { get; set; } = null!;
@@ -152,5 +177,23 @@ public class InMemoryMessageStorage : IMessageStorage
         public DateTime? ExpiresAt { get; set; }
         public string? Collection { get; set; }
         public Dictionary<string, object>? Metadata { get; set; }
+    }
+
+    private class InMemoryTransaction : IStorageTransaction
+    {
+        public Task CommitAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task RollbackAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public void Dispose()
+        {
+            // No resources to dispose for in-memory transaction
+        }
     }
 }

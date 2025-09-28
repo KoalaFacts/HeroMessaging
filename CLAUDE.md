@@ -8,6 +8,7 @@ Auto-generated from test suite implementation plan. Last updated: 2025-09-28
 3. **User Experience Consistency**: Intuitive APIs, actionable errors, semantic versioning
 4. **Performance & Efficiency**: <1ms overhead, zero-allocation paths, 100K+ msg/s
 5. **Architectural Governance**: ADRs for decisions, plugin architecture, multi-framework support
+6. **Task Verification Protocol**: Every task must be verified before marking as finished
 
 ## Active Technologies
 - **Language**: C# 12, .NET multi-target (netstandard2.0, net6.0-net10.0)
@@ -133,6 +134,7 @@ public async Task EndToEnd_WithRealDependencies_WorksCorrectly()
 2. **Implement Minimum**: Write minimal code to make test pass
 3. **Refactor**: Improve code quality while keeping tests green
 4. **Coverage Check**: Ensure 80% coverage minimum, 100% for public APIs
+5. **Task Verification**: Verify deliverable meets requirements before marking task complete
 
 ### Quality Assurance
 - **Code Review**: All code requires peer review with constitutional compliance check
@@ -186,3 +188,32 @@ Before implementing any feature, verify:
 - [ ] Documentation is comprehensive
 - [ ] Plugin architecture preserved
 - [ ] Code quality standards met (SOLID, <20 lines/method, <10 complexity)
+
+## Task Verification Protocol
+Before marking any task as finished, verify:
+- [ ] **Deliverable Exists**: All specified files/components have been created or modified
+- [ ] **Requirements Met**: Implementation fulfills all specified task requirements
+- [ ] **Build Success**: Code compiles without errors or warnings
+- [ ] **Test Coverage**: Related tests pass and coverage meets constitutional standards
+- [ ] **Documentation Updated**: Relevant documentation reflects changes made
+- [ ] **Integration Verified**: Changes work correctly with existing codebase
+- [ ] **Constitutional Compliance**: All constitutional principles are upheld
+- [ ] **Quality Standards**: Code meets established quality and performance standards
+
+### Verification Commands
+```bash
+# Verify build
+dotnet build --no-restore --verbosity normal
+
+# Verify tests
+dotnet test --no-build --verbosity normal
+
+# Verify coverage (if applicable)
+dotnet test --collect:"XPlat Code Coverage" --no-build
+
+# Verify file existence
+ls -la [specified-file-path]
+
+# Verify integration (context-dependent)
+# Run relevant integration tests or manual validation
+```

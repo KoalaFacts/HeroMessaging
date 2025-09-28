@@ -94,7 +94,7 @@ public class MessageProcessingTests
         var largeMessage = TestMessageBuilder.CreateLargeMessage(10000); // 10KB message
         var context = new ProcessingContext("test-component");
 
-        var expectedResult = ProcessingResult.Successful("Large message processed", largeMessage.Content);
+        var expectedResult = ProcessingResult.Successful("Large message processed", largeMessage.GetTestContent());
 
         mockProcessor.Setup(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
                     .Returns(ValueTask.FromResult(expectedResult));
@@ -105,7 +105,7 @@ public class MessageProcessingTests
         // Assert
         Assert.True(result.Success);
         Assert.Equal("Large message processed", result.Message);
-        Assert.Equal(largeMessage.Content, result.Data);
+        Assert.Equal(largeMessage.GetTestContent(), result.Data);
         mockProcessor.Verify(p => p.ProcessAsync(largeMessage, It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 

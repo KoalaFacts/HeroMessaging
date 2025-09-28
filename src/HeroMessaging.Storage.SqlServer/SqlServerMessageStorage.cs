@@ -317,10 +317,37 @@ public class SqlServerMessageStorage : IMessageStorage
     {
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
-        
+
         var sql = $"TRUNCATE TABLE {_tableName}";
-        
+
         using var command = new SqlCommand(sql, connection);
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
+
+    // New interface methods for compatibility with test infrastructure
+    public Task StoreAsync(IMessage message, IStorageTransaction? transaction = null, CancellationToken cancellationToken = default)
+    {
+        throw new NotImplementedException("SQL Server async storage implementation pending");
+    }
+
+    public Task<IMessage?> RetrieveAsync(Guid messageId, IStorageTransaction? transaction = null, CancellationToken cancellationToken = default)
+    {
+        throw new NotImplementedException("SQL Server async storage implementation pending");
+    }
+
+    public Task<List<IMessage>> QueryAsync(MessageQuery query, CancellationToken cancellationToken = default)
+    {
+        throw new NotImplementedException("SQL Server async storage implementation pending");
+    }
+
+    public Task DeleteAsync(Guid messageId, CancellationToken cancellationToken = default)
+    {
+        throw new NotImplementedException("SQL Server async storage implementation pending");
+    }
+
+    public Task<IStorageTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
+    {
+        throw new NotImplementedException("SQL Server async storage implementation pending");
+    }
 }
+

@@ -61,6 +61,36 @@ public class ResilientMessageStorageDecorator(
         await _resiliencePolicy.ExecuteAsync(async () =>
             await _inner.Clear(cancellationToken), "ClearMessages", cancellationToken);
     }
+
+    public async Task StoreAsync(IMessage message, IStorageTransaction? transaction = null, CancellationToken cancellationToken = default)
+    {
+        await _resiliencePolicy.ExecuteAsync(async () =>
+            await _inner.StoreAsync(message, transaction, cancellationToken), "StoreMessageAsync", cancellationToken);
+    }
+
+    public async Task<IMessage?> RetrieveAsync(Guid messageId, IStorageTransaction? transaction = null, CancellationToken cancellationToken = default)
+    {
+        return await _resiliencePolicy.ExecuteAsync(async () =>
+            await _inner.RetrieveAsync(messageId, transaction, cancellationToken), "RetrieveMessageAsync", cancellationToken);
+    }
+
+    public async Task<List<IMessage>> QueryAsync(MessageQuery query, CancellationToken cancellationToken = default)
+    {
+        return await _resiliencePolicy.ExecuteAsync(async () =>
+            await _inner.QueryAsync(query, cancellationToken), "QueryMessagesAsync", cancellationToken);
+    }
+
+    public async Task DeleteAsync(Guid messageId, CancellationToken cancellationToken = default)
+    {
+        await _resiliencePolicy.ExecuteAsync(async () =>
+            await _inner.DeleteAsync(messageId, cancellationToken), "DeleteMessageAsync", cancellationToken);
+    }
+
+    public async Task<IStorageTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
+    {
+        return await _resiliencePolicy.ExecuteAsync(async () =>
+            await _inner.BeginTransactionAsync(cancellationToken), "BeginTransaction", cancellationToken);
+    }
 }
 
 /// <summary>

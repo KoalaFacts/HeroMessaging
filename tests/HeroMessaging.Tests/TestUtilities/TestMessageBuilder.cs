@@ -52,7 +52,7 @@ public class TestMessageBuilder
 }
 
 /// <summary>
-/// Test message implementation
+/// Test message implementation with content property for testing
 /// </summary>
 public class TestMessage : IMessage
 {
@@ -67,5 +67,38 @@ public class TestMessage : IMessage
     public Guid MessageId { get; }
     public DateTime Timestamp { get; }
     public Dictionary<string, object>? Metadata { get; }
+
+    /// <summary>
+    /// Content property for test scenarios - not part of core IMessage contract
+    /// </summary>
     public string? Content { get; }
 }
+
+/// <summary>
+/// Test utilities for accessing content from test messages
+/// </summary>
+public static class TestMessageExtensions
+{
+    /// <summary>
+    /// Safely extracts content from a test message
+    /// </summary>
+    public static string? GetTestContent(this IMessage message)
+    {
+        return (message as TestMessage)?.Content;
+    }
+
+    /// <summary>
+    /// Asserts that two messages have the same content (for test messages)
+    /// </summary>
+    public static void AssertSameContent(IMessage expected, IMessage actual)
+    {
+        var expectedContent = expected.GetTestContent();
+        var actualContent = actual.GetTestContent();
+
+        if (expectedContent != actualContent)
+        {
+            throw new Xunit.Sdk.XunitException($"Expected content: '{expectedContent}', Actual content: '{actualContent}'");
+        }
+    }
+}
+
