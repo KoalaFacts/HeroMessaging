@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<RunSettings>
+  <DataCollectionRunSettings>
+    <DataCollectors>
+      <DataCollector friendlyName="XPlat code coverage">
+        <Configuration>
+          <Format>opencover</Format>
+          <Exclude>[*]HeroMessaging.Tests.*</Exclude> <!-- Exclude test assemblies -->
+          <Exclude>[*]HeroMessaging.Benchmarks.*</Exclude> <!-- Exclude benchmark assemblies -->
+          <Exclude>[*]HeroMessaging.Contract.Tests.*</Exclude> <!-- Exclude contract test assemblies -->
+          <Exclude>[*.Tests]*</Exclude> <!-- Exclude all test assemblies -->
+          <ExcludeByFile>**/bin/**</ExcludeByFile> <!-- Exclude bin folders -->
+          <ExcludeByFile>**/obj/**</ExcludeByFile> <!-- Exclude obj folders -->
+          <ExcludeByFile>**/*AssemblyInfo.cs</ExcludeByFile> <!-- Exclude generated assembly info -->
+          <ExcludeByFile>**/GlobalUsings.cs</ExcludeByFile> <!-- Exclude global usings -->
+          <ExcludeByAttribute>Obsolete</ExcludeByAttribute>
+          <ExcludeByAttribute>GeneratedCodeAttribute</ExcludeByAttribute>
+          <ExcludeByAttribute>CompilerGeneratedAttribute</ExcludeByAttribute>
+          <IncludeDirectory>../src/</IncludeDirectory>
+          <SingleHit>false</SingleHit>
+          <UseSourceLink>true</UseSourceLink>
+          <IncludeTestAssembly>false</IncludeTestAssembly>
+          <SkipAutoProps>true</SkipAutoProps>
+          <DeterministicReport>true</DeterministicReport>
+          <Threshold>80</Threshold> <!-- 80% coverage requirement -->
+          <ThresholdType>line</ThresholdType>
+          <ThresholdStat>total</ThresholdStat>
+        </Configuration>
+      </DataCollector>
+    </DataCollectors>
+  </DataCollectionRunSettings>
+</RunSettings>

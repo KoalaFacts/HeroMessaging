@@ -1,0 +1,46 @@
+name: Performance Benchmarks
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: '0 2 * * *'  # Run daily at 2 AM
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet build --no-restore --configuration Release
+
+    - name: Run Benchmarks
+      run: dotnet run --project tests/HeroMessaging.Benchmarks --configuration Release -- --exporters json --artifacts ./BenchmarkDotNet.Artifacts
+      timeout-minutes: 30
+
+    - name: Upload benchmark results
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-results
+        path: |
+          ./BenchmarkDotNet.Artifacts/**/*.json
+          ./BenchmarkDotNet.Artifacts/**/*.html
+
+    - name: Performance Regression Check
+      run: |
+        # This will be implemented in T018 - Performance regression detection
+        echo "Performance regression check placeholder"
+        # Compare current results with baseline
+        # Fail if regression > 10%
