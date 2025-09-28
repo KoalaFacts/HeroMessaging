@@ -5,7 +5,9 @@ namespace HeroMessaging.Tests.TestUtilities;
 /// <summary>
 /// Test utility for creating test messages
 /// </summary>
-public class TestMessageBuilder
+#pragma warning disable CA1052 // Static holder types should be Static or NotInheritable
+public static class TestMessageBuilder
+#pragma warning restore CA1052 // Static holder types should be Static or NotInheritable
 {
     public static TestMessage CreateValidMessage(string content = "Test message content")
     {

@@ -488,10 +488,11 @@ public class StoragePluginTests : IAsyncDisposable
         }
     }
 
-    public class TestStorageTransaction : IStorageTransaction
+    public sealed class TestStorageTransaction : IStorageTransaction
     {
         private readonly Action? _commitAction;
         private readonly Action? _rollbackAction;
+        private bool _disposed = false;
 
         public TestStorageTransaction(Action? commitAction = null, Action? rollbackAction = null)
         {
@@ -511,7 +512,20 @@ public class StoragePluginTests : IAsyncDisposable
             _rollbackAction?.Invoke();
         }
 
-        public void Dispose() { }
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        private void Dispose(bool disposing)
+        {
+            if (!_disposed && disposing)
+            {
+                // Clean up managed resources
+                _disposed = true;
+            }
+        }
     }
 
     // Supporting interfaces and classes
