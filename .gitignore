@@ -485,5 +485,7 @@ $RECYCLE.BIN/
 
 # AI
 .claude
+NUL
+nul
 .specify
 specs

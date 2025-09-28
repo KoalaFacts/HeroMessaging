@@ -25,7 +25,7 @@ public class DecoratorTests
 
         var expectedResult = ProcessingResult.Successful("Processed successfully");
         mockInnerProcessor.Setup(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
-                         .Returns(ValueTask.FromResult(expectedResult));
+                         .ReturnsAsync(expectedResult);
 
         var decorator = new TestLoggingDecorator(mockInnerProcessor.Object, mockLogger.Object);
 
@@ -93,7 +93,7 @@ public class DecoratorTests
         mockInnerProcessor.SetupSequence(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
                          .Throws(new InvalidOperationException("First failure"))
                          .Throws(new InvalidOperationException("Second failure"))
-                         .Returns(ValueTask.FromResult(ProcessingResult.Successful("Success on retry")));
+                         .ReturnsAsync(ProcessingResult.Successful("Success on retry"));
 
         var decorator = new TestRetryDecorator(mockInnerProcessor.Object, maxAttempts: 3);
 
@@ -172,7 +172,7 @@ public class DecoratorTests
         // Setup to fail once, then succeed
         mockInnerProcessor.SetupSequence(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
                          .Throws(new InvalidOperationException("First failure"))
-                         .Returns(ValueTask.FromResult(ProcessingResult.Successful("Success after retry")));
+                         .ReturnsAsync(ProcessingResult.Successful("Success after retry"));
 
         // Chain decorators: Logging -> Retry -> InnerProcessor
         var retryDecorator = new TestRetryDecorator(mockInnerProcessor.Object, maxAttempts: 2);

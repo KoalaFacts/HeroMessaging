@@ -24,10 +24,10 @@ public class MessageProcessingTests
         var expectedResult = ProcessingResult.Successful("Processing completed", "Valid test message");
 
         mockProcessor.Setup(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
-                    .Returns(ValueTask.FromResult(expectedResult));
+                    .ReturnsAsync(expectedResult);
 
         // Act
-        var result = await mockProcessor.Object.ProcessAsync(message, context);
+        var result = await mockProcessor.Object.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -49,7 +49,7 @@ public class MessageProcessingTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentNullException>(
-            () => mockProcessor.Object.ProcessAsync(null, context).AsTask());
+            () => mockProcessor.Object.ProcessAsync(null, context, TestContext.Current.CancellationToken).AsTask());
 
         Assert.Contains("message", exception.ParamName);
         mockProcessor.Verify(p => p.ProcessAsync(null, It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()), Times.Once);
@@ -69,10 +69,10 @@ public class MessageProcessingTests
             "INVALID_CONTENT");
 
         mockProcessor.Setup(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
-                    .Returns(ValueTask.FromResult(expectedResult));
+                    .ReturnsAsync(expectedResult);
 
         // Act
-        var result = await mockProcessor.Object.ProcessAsync(invalidMessage, context);
+        var result = await mockProcessor.Object.ProcessAsync(invalidMessage, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.Success);
@@ -94,10 +94,10 @@ public class MessageProcessingTests
         var expectedResult = ProcessingResult.Successful("Large message processed", largeMessage.GetTestContent());
 
         mockProcessor.Setup(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
-                    .Returns(ValueTask.FromResult(expectedResult));
+                    .ReturnsAsync(expectedResult);
 
         // Act
-        var result = await mockProcessor.Object.ProcessAsync(largeMessage, context);
+        var result = await mockProcessor.Object.ProcessAsync(largeMessage, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -122,8 +122,8 @@ public class MessageProcessingTests
         };
 
         mockProcessor.Setup(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
-                    .Returns((IMessage msg, ProcessingContext ctx, CancellationToken ct) =>
-                        ValueTask.FromResult(ProcessingResult.Successful("Processed", ((TestMessage)msg).Content)));
+                    .ReturnsAsync((IMessage msg, ProcessingContext ctx, CancellationToken ct) =>
+                        ProcessingResult.Successful("Processed", ((TestMessage)msg).Content));
 
         // Act
         var tasks = messages.Select(msg => mockProcessor.Object.ProcessAsync(msg, context).AsTask());
