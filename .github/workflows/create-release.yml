@@ -98,18 +98,18 @@ jobs:
           script: |
             const commitSha = '${{ steps.validate.outputs.commit_sha }}';
 
-            // Find successful test-matrix workflow run for this commit
+            // Find successful CI workflow run for this commit
             const runs = await github.rest.actions.listWorkflowRuns({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              workflow_id: 'test-matrix.yml',
+              workflow_id: 'ci.yml',
               status: 'success',
               head_sha: commitSha,
               per_page: 1
             });
 
             if (runs.data.workflow_runs.length === 0) {
-              core.setFailed(`❌ No successful test-matrix workflow run found for commit ${commitSha}`);
+              core.setFailed(`❌ No successful CI workflow run found for commit ${commitSha}`);
               core.setFailed('Make sure the commit has been pushed to main and all tests have passed.');
               return;
             }

@@ -204,7 +204,7 @@ HeroMessaging.1.0.0.nupkg
 
 ## 🛠️ Implementation Details
 
-### In test-matrix.yml
+### In ci.yml
 
 ```yaml
 - name: Generate build number

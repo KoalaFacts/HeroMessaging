@@ -1,8 +1,7 @@
-name: Cross-Platform Test Matrix
+name: CI
 
 on:
-  push:
-    branches: [ main, develop, 'feature/*', 'release/*' ]
+  push:  # Trigger on every commit to any branch
   pull_request:
     branches: [ main, develop ]
   schedule:
@@ -530,13 +529,36 @@ jobs:
       - name: Build solution
         run: dotnet build --configuration Release --no-restore
 
-      - name: Get version from csproj
-        id: version
+      - name: Generate build number
+        id: build-number
         run: |
-          # Extract version from project file or use commit SHA
-          VERSION=$(grep -oP '<Version>\K[^<]+' src/HeroMessaging/HeroMessaging.csproj || echo "0.0.0-ci.${GITHUB_SHA:0:7}")
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          echo "Building packages with version: ${VERSION}"
+          # Extract base version from project file
+          BASE_VERSION=$(grep -oP '<Version>\K[^<]+' src/HeroMessaging/HeroMessaging.csproj || echo "0.0.0")
+
+          # Extract and sanitize branch name (replace / with -)
+          BRANCH_NAME="${GITHUB_REF#refs/heads/}"
+          BRANCH_NAME=$(echo "$BRANCH_NAME" | sed 's/\//-/g')
+
+          # Build number components
+          BUILD_DATE=$(date -u +%Y%m%d)
+          RUN_NUMBER=${{ github.run_number }}
+          SHORT_SHA=${GITHUB_SHA:0:7}
+
+          # Construct build number: branch.date.run.hash
+          BUILD_NUMBER="${BRANCH_NAME}.${BUILD_DATE}.${RUN_NUMBER}.${SHORT_SHA}"
+          FULL_VERSION="${BASE_VERSION}-ci.${BUILD_NUMBER}"
+
+          echo "build-number=${BUILD_NUMBER}" >> $GITHUB_OUTPUT
+          echo "full-version=${FULL_VERSION}" >> $GITHUB_OUTPUT
+
+          echo "📋 Build Information:"
+          echo "  Base Version: ${BASE_VERSION}"
+          echo "  Branch: ${BRANCH_NAME}"
+          echo "  Date: ${BUILD_DATE}"
+          echo "  Run Number: ${RUN_NUMBER}"
+          echo "  Git Hash: ${SHORT_SHA}"
+          echo "  Build Number: ${BUILD_NUMBER}"
+          echo "  Full Version: ${FULL_VERSION}"
 
       - name: Pack NuGet packages
         run: |
@@ -546,7 +568,7 @@ jobs:
             --configuration Release \
             --no-build \
             --output ./release-packages \
-            -p:PackageVersion=${{ steps.version.outputs.version }}-ci.${GITHUB_SHA:0:7} \
+            -p:PackageVersion=${{ steps.build-number.outputs.full-version }} \
             -p:IncludeSymbols=true \
             -p:SymbolPackageFormat=snupkg
 
@@ -554,7 +576,7 @@ jobs:
             --configuration Release \
             --no-build \
             --output ./release-packages \
-            -p:PackageVersion=${{ steps.version.outputs.version }}-ci.${GITHUB_SHA:0:7} \
+            -p:PackageVersion=${{ steps.build-number.outputs.full-version }} \
             -p:IncludeSymbols=true \
             -p:SymbolPackageFormat=snupkg
 
@@ -565,6 +587,8 @@ jobs:
           echo ""
           echo "Commit SHA: ${GITHUB_SHA}"
           echo "Short SHA: ${GITHUB_SHA:0:7}"
+          echo "Build Number: ${{ steps.build-number.outputs.build-number }}"
+          echo "Full Version: ${{ steps.build-number.outputs.full-version }}"
 
       - name: Upload release packages
         uses: actions/upload-artifact@v4

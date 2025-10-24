@@ -10,7 +10,7 @@ Complete documentation of all CI/CD workflows for the HeroMessaging project.
 |----------|------|---------|----------|
 | **Coverage Report** | `coverage.yml` | Code coverage enforcement (80% threshold) | Push (main, develop), PR (main) |
 | **Tests** | `test.yml` | Quick cross-platform validation | Push (main, develop), PR (main, develop) |
-| **Cross-Platform Test Matrix** | `test-matrix.yml` | Comprehensive testing with change detection | Push (all branches), PR, Schedule, Manual |
+| **CI** | `ci.yml` | Comprehensive testing with change detection | Push (all branches), PR, Schedule, Manual |
 | **Performance Benchmarks** | `performance.yml` | Performance testing and benchmarking | Push (main), PR (main), Schedule |
 | **Publish to NuGet** | `publish-nuget.yml` | Package publishing via trusted publishing | Release, Manual |
 
@@ -26,7 +26,7 @@ Complete documentation of all CI/CD workflows for the HeroMessaging project.
 └─────────────────────────────────────────────────────────────────────┘
                                 ↓
 ┌─────────────────────────────────────────────────────────────────────┐
-│ WORKFLOW: Cross-Platform Test Matrix (test-matrix.yml)              │
+│ WORKFLOW: CI (ci.yml)              │
 │ ├─ detect-changes: Analyze what files changed                       │
 │ ├─ unit-tests: 3 OS × 3 .NET versions × 2 configs = 18 jobs        │
 │ │  └─ Runs on: ubuntu, windows, macos                              │
@@ -54,7 +54,7 @@ Complete documentation of all CI/CD workflows for the HeroMessaging project.
 │ └───────────────────────────────────────────────────────────────┘  │
 │                                                                      │
 │ ┌───────────────────────────────────────────────────────────────┐  │
-│ │ 3. Cross-Platform Test Matrix (test-matrix.yml)               │  │
+│ │ 3. CI (ci.yml)               │  │
 │ │    └─ Full test suite with change detection                   │  │
 │ └───────────────────────────────────────────────────────────────┘  │
 │                                                                      │
@@ -74,7 +74,7 @@ Complete documentation of all CI/CD workflows for the HeroMessaging project.
 │ Push to main triggers workflows:                                    │
 │ ├─ Tests (test.yml)                                                 │
 │ ├─ Coverage Report (coverage.yml)                                   │
-│ ├─ Cross-Platform Test Matrix (test-matrix.yml)                     │
+│ ├─ CI (ci.yml)                     │
 │ │  └─ Stores performance baseline for regression detection          │
 │ └─ Performance Benchmarks (performance.yml)                         │
 │    └─ Stores benchmark results as artifacts                         │
@@ -155,7 +155,7 @@ Every day at 2:00 AM UTC:
                                 ↓
 ┌─────────────────────────────────────────────────────────────────────┐
 │ Run in parallel:                                                     │
-│ ├─ Cross-Platform Test Matrix (with performance tests enabled)      │
+│ ├─ CI (with performance tests enabled)      │
 │ │  └─ Full matrix + performance regression detection                │
 │ └─ Performance Benchmarks                                           │
 │    └─ Detailed benchmark runs                                       │
@@ -208,7 +208,7 @@ Every day at 2:00 AM UTC:
 
 ---
 
-### 3. Cross-Platform Test Matrix (test-matrix.yml)
+### 3. CI (ci.yml)
 
 **Runtime**: ~15-45 minutes total
 **Timeout**: Various per job
@@ -326,15 +326,15 @@ Every day at 2:00 AM UTC:
 ### Scenario 1: Feature Development
 
 ```
-1. Create feature branch → Pushes trigger: test-matrix.yml
-2. Create PR to main → Triggers: test.yml, coverage.yml, test-matrix.yml, performance.yml
+1. Create feature branch → Pushes trigger: ci.yml
+2. Create PR to main → Triggers: test.yml, coverage.yml, ci.yml, performance.yml
 3. All workflows pass → Merge approved
 4. Merge to main → Triggers: All test workflows again + stores baselines
 ```
 
 **Coverage**: ✅ Complete
 **Gaps**: None
-**Optimization**: Consider consolidating test.yml and test-matrix.yml
+**Optimization**: Consider consolidating test.yml and ci.yml
 
 ---
 
@@ -376,7 +376,7 @@ Every day at 2:00 AM UTC:
 
 ```
 1. Cron triggers at 2 AM UTC
-2. test-matrix.yml runs full suite + performance tests
+2. ci.yml runs full suite + performance tests
 3. performance.yml runs detailed benchmarks
 4. Baselines updated if on main branch
 5. Team notified of failures via GitHub notifications
@@ -391,16 +391,16 @@ Every day at 2:00 AM UTC:
 
 ### Code Quality Gates
 - ✅ Unit tests (all workflows)
-- ✅ Integration tests (test-matrix.yml)
-- ✅ Contract tests (test-matrix.yml)
-- ✅ Coverage threshold 80% (coverage.yml, test-matrix.yml)
-- ✅ Cross-platform testing (test.yml, test-matrix.yml)
+- ✅ Integration tests (ci.yml)
+- ✅ Contract tests (ci.yml)
+- ✅ Coverage threshold 80% (coverage.yml, ci.yml)
+- ✅ Cross-platform testing (test.yml, ci.yml)
 - ✅ Multi-framework testing (.NET 6, 8, 10)
 
 ### Performance Monitoring
 - ✅ Performance benchmarks (performance.yml)
-- ✅ Regression detection (test-matrix.yml)
-- ✅ Baseline tracking (test-matrix.yml)
+- ✅ Regression detection (ci.yml)
+- ✅ Baseline tracking (ci.yml)
 - ✅ PR performance comments (performance.yml)
 
 ### Security
@@ -429,12 +429,12 @@ Every day at 2:00 AM UTC:
 ## 🚨 Identified Gaps and Recommendations
 
 ### Gap 1: Workflow Duplication
-**Issue**: `test.yml` and `test-matrix.yml` have overlapping functionality
+**Issue**: `test.yml` and `ci.yml` have overlapping functionality
 
 **Impact**: Medium - Extra CI minutes consumed
 
 **Recommendation**:
-- **Option A**: Remove `test.yml`, rely solely on `test-matrix.yml`
+- **Option A**: Remove `test.yml`, rely solely on `ci.yml`
 - **Option B**: Make `test.yml` a quick smoke test (single OS, single .NET version)
 - **Option C**: Keep both but clarify purposes in names
 
@@ -449,7 +449,7 @@ Every day at 2:00 AM UTC:
 
 **Recommendation**:
 1. Add secrets to GitHub repository settings
-2. Update test-matrix.yml to use secrets
+2. Update ci.yml to use secrets
 3. See `.github/SECRETS_MIGRATION.md` for instructions
 
 **Status**: ⚠️ Action required
@@ -517,10 +517,10 @@ jobs:
 
 | Event | Workflows Triggered | Parallel Jobs | Est. Runtime | CI Cost |
 |-------|---------------------|---------------|--------------|---------|
-| **Push to feature branch** | test-matrix.yml | 18-26 jobs | 15-25 min | Medium |
+| **Push to feature branch** | ci.yml | 18-26 jobs | 15-25 min | Medium |
 | **PR to main** | All 4 test workflows | 30-40 jobs | 20-30 min | High |
 | **Merge to main** | All 4 test workflows | 30-40 jobs | 20-30 min | High |
-| **Nightly schedule** | test-matrix, performance | 20-30 jobs | 30-45 min | Medium |
+| **Nightly schedule** | ci, performance | 20-30 jobs | 30-45 min | Medium |
 | **Release publish** | publish-nuget.yml | 5 jobs (sequential) | 5-10 min | Low |
 
 **Total estimated monthly CI minutes** (assuming 50 PRs/month + nightly):
@@ -545,7 +545,7 @@ jobs:
 6. **Multi-framework**: .NET 6, 8, 10 coverage
 
 ### Areas for Improvement ⚠️
-1. **Workflow consolidation**: test.yml and test-matrix.yml overlap
+1. **Workflow consolidation**: test.yml and ci.yml overlap
 2. **Secrets migration**: Move hardcoded passwords to GitHub Secrets
 3. **Security scanning**: Add CodeQL for vulnerability detection
 4. **Pre-commit hooks**: Catch issues before CI

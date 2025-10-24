@@ -13,7 +13,7 @@ The following secrets should be added to your GitHub repository settings at:
 - **Description**: Password for PostgreSQL test database
 - **Recommended Value**: Generate a strong random password (e.g., use `openssl rand -base64 32`)
 - **Usage**: Integration tests for PostgreSQL storage plugin
-- **Workflow**: `test-matrix.yml`
+- **Workflow**: `ci.yml`
 
 #### 2. TEST_SQLSERVER_PASSWORD
 - **Description**: Password for SQL Server test database
@@ -22,11 +22,11 @@ The following secrets should be added to your GitHub repository settings at:
   - Contains uppercase, lowercase, numbers, and special characters
 - **Recommended Value**: Generate a strong random password (e.g., `HeroMessaging_$(openssl rand -base64 16)!`)
 - **Usage**: Integration tests for SQL Server storage plugin
-- **Workflow**: `test-matrix.yml`
+- **Workflow**: `ci.yml`
 
 ## Current Status
 
-⚠️ **SECURITY WARNING**: Currently, test database passwords are hardcoded in `test-matrix.yml`:
+⚠️ **SECURITY WARNING**: Currently, test database passwords are hardcoded in `ci.yml`:
 - Line 208: `POSTGRES_PASSWORD: postgres`
 - Line 214: `SA_PASSWORD: HeroMessaging123!`
 
@@ -44,9 +44,9 @@ The following secrets should be added to your GitHub repository settings at:
    - Name: `TEST_SQLSERVER_PASSWORD`
    - Value: `<your-secure-password>`
 
-### Step 2: Update test-matrix.yml
+### Step 2: Update ci.yml
 
-Replace the hardcoded passwords in `.github/workflows/test-matrix.yml`:
+Replace the hardcoded passwords in `.github/workflows/ci.yml`:
 
 **Before (lines 207-215):**
 ```yaml

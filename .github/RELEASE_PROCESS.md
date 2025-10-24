@@ -8,7 +8,7 @@ This document describes how to create and publish releases for HeroMessaging usi
 
 The release process uses a 3-stage pipeline:
 
-1. **CI Workflow** (`test-matrix.yml`) - Tests pass on main → automatically builds and stores packages
+1. **CI Workflow** (`ci.yml`) - Tests pass on main → automatically builds and stores packages
 2. **Create Release** (`create-release.yml`) - Downloads pre-built packages → creates GitHub release
 3. **Publish to NuGet** (`publish-nuget.yml`) - Downloads from release assets → publishes to NuGet.org
 
@@ -99,7 +99,7 @@ gh workflow run create-release.yml \
 
 ```
 ┌─────────────────────────────────────────┐
-│ test-matrix.yml (on main branch push)   │
+│ ci.yml (on main branch push)   │
 │ ├─ Run all tests (unit, integration, etc)│
 │ ├─ Quality gates check (80% coverage)   │
 │ └─ build-release-packages job:          │
