@@ -104,7 +104,11 @@ gh workflow run create-release.yml \
 │ ├─ Quality gates check (80% coverage)   │
 │ └─ build-release-packages job:          │
 │    ├─ Build solution                    │
-│    ├─ Pack with CI version              │
+│    ├─ Generate build number:            │
+│    │  {date}.{run_number}.{git_hash}    │
+│    │  Example: 20251024.1234.abc123f    │
+│    ├─ Pack with CI version:             │
+│    │  1.0.0-ci.20251024.1234.abc123f    │
 │    └─ Store as artifacts (90 days)      │
 └─────────────────────────────────────────┘
 ```
@@ -123,8 +127,10 @@ gh workflow run create-release.yml \
 ┌─────────────────────────────────────────┐
 │ Job 2: download-packages                │
 │ ├─ Download from CI workflow artifacts  │
-│ ├─ Rename from CI version to release    │
-│ │  (e.g., 1.0.0-ci.abc123 → 1.0.0)     │
+│ ├─ Rename from CI version to release:   │
+│ │  1.0.0-ci.20251024.1234.abc123f      │
+│ │       ↓                               │
+│ │  1.0.0                                │
 │ └─ Upload renamed packages               │
 └─────────────────────────────────────────┘
                  ↓
