@@ -6,16 +6,19 @@ This document describes how to create and publish releases for HeroMessaging usi
 
 ## 📋 Overview
 
-The release process is split into two workflows:
+The release process uses a 3-stage pipeline:
 
-1. **Create Release** (`create-release.yml`) - Sets version, builds packages, creates GitHub release
-2. **Publish to NuGet** (`publish-nuget.yml`) - Publishes release assets to NuGet.org and GitHub Packages
+1. **CI Workflow** (`test-matrix.yml`) - Tests pass on main → automatically builds and stores packages
+2. **Create Release** (`create-release.yml`) - Downloads pre-built packages → creates GitHub release
+3. **Publish to NuGet** (`publish-nuget.yml`) - Downloads from release assets → publishes to NuGet.org
 
-This separation provides:
+This approach provides:
+- ✅ **No duplicate builds** - Packages built once by CI, reused for releases
+- ✅ **No duplicate tests** - Release uses packages that already passed all tests
+- ✅ **Fast releases** - No build/test time, just package downloads
 - ✅ **Review before publish** - Draft releases can be reviewed before going live
-- ✅ **Single source of truth** - Packages built once, published from release assets
-- ✅ **Version consistency** - Version set explicitly, used throughout
-- ✅ **Failure recovery** - Can retry publish without rebuilding
+- ✅ **Audit trail** - Release links back to exact CI run that built the packages
+- ✅ **Failure recovery** - Can retry at any stage without rebuilding
 
 ---
 
@@ -23,24 +26,28 @@ This separation provides:
 
 ### Standard Release
 
+**Prerequisites**: Latest commit on `main` has passed all CI tests
+
 ```bash
 # 1. Go to Actions → Create Release
 # 2. Click "Run workflow"
 # 3. Enter version: 1.0.0
-# 4. Leave "prerelease" and "draft" unchecked
-# 5. Click "Run workflow"
+# 4. Leave "commit SHA" empty (uses latest main)
+# 5. Leave "prerelease" and "draft" unchecked
+# 6. Click "Run workflow"
 
 # The workflow will:
 # - Validate version format
-# - Run all tests
-# - Build NuGet packages
+# - Find successful CI workflow run for latest main commit
+# - Download pre-built packages from CI artifacts
+# - Rename packages with release version
 # - Create GitHub release with tag v1.0.0
 # - Attach packages as release assets
 # - Auto-trigger publish-nuget workflow
 # - Publish to NuGet.org and GitHub Packages
 ```
 
-**Result**: Version 1.0.0 published to NuGet.org in ~10-15 minutes
+**Result**: Version 1.0.0 published to NuGet.org in ~5-8 minutes (no build/test time!)
 
 ---
 
@@ -88,38 +95,45 @@ gh workflow run create-release.yml \
 
 ### Step 2: What Happens Automatically
 
-#### create-release.yml workflow:
+#### STAGE 1: CI builds packages (happens on every main push)
 
 ```
 ┌─────────────────────────────────────────┐
-│ Job 1: validate-version                 │
+│ test-matrix.yml (on main branch push)   │
+│ ├─ Run all tests (unit, integration, etc)│
+│ ├─ Quality gates check (80% coverage)   │
+│ └─ build-release-packages job:          │
+│    ├─ Build solution                    │
+│    ├─ Pack with CI version              │
+│    └─ Store as artifacts (90 days)      │
+└─────────────────────────────────────────┘
+```
+
+#### STAGE 2: create-release.yml workflow:
+
+```
+┌─────────────────────────────────────────┐
+│ Job 1: validate-and-prepare             │
 │ ├─ Check semantic version format        │
 │ ├─ Verify tag doesn't already exist     │
-│ └─ Output: version, tag                 │
+│ ├─ Get commit SHA (input or latest main)│
+│ └─ Find successful CI run for commit    │
 └─────────────────────────────────────────┘
                  ↓
 ┌─────────────────────────────────────────┐
-│ Job 2: build-and-test                   │
-│ ├─ Checkout code                        │
-│ ├─ Setup .NET (6, 8, 10)                │
-│ ├─ Build with version                   │
-│ ├─ Run unit tests (MUST PASS)           │
-│ └─ Run contract tests                   │
+│ Job 2: download-packages                │
+│ ├─ Download from CI workflow artifacts  │
+│ ├─ Rename from CI version to release    │
+│ │  (e.g., 1.0.0-ci.abc123 → 1.0.0)     │
+│ └─ Upload renamed packages               │
 └─────────────────────────────────────────┘
                  ↓
 ┌─────────────────────────────────────────┐
-│ Job 3: build-packages                   │
-│ ├─ Pack HeroMessaging.nupkg             │
-│ ├─ Pack HeroMessaging.Abstractions      │
-│ ├─ Include symbol packages (.snupkg)    │
-│ └─ Upload as workflow artifacts         │
-└─────────────────────────────────────────┘
-                 ↓
-┌─────────────────────────────────────────┐
-│ Job 4: create-release                   │
-│ ├─ Download packages                    │
+│ Job 3: create-release                   │
+│ ├─ Download renamed packages             │
 │ ├─ Generate release notes               │
 │ │  └─ Includes commits since last tag   │
+│ │  └─ Links to CI run that built packages│
 │ ├─ Create GitHub Release                │
 │ │  └─ Tag: v{version}                   │
 │ └─ Upload packages as release assets    │

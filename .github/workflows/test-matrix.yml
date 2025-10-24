@@ -502,3 +502,80 @@ jobs:
         run: |
           echo "Updating status badges..."
           # This would typically update README badges or external services
+
+  # Build release packages for main branch (used by create-release workflow)
+  build-release-packages:
+    needs: quality-gates
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            6.0.x
+            8.0.x
+            10.0.x
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build solution
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Get version from csproj
+        id: version
+        run: |
+          # Extract version from project file or use commit SHA
+          VERSION=$(grep -oP '<Version>\K[^<]+' src/HeroMessaging/HeroMessaging.csproj || echo "0.0.0-ci.${GITHUB_SHA:0:7}")
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Building packages with version: ${VERSION}"
+
+      - name: Pack NuGet packages
+        run: |
+          mkdir -p ./release-packages
+
+          dotnet pack src/HeroMessaging/HeroMessaging.csproj \
+            --configuration Release \
+            --no-build \
+            --output ./release-packages \
+            -p:PackageVersion=${{ steps.version.outputs.version }}-ci.${GITHUB_SHA:0:7} \
+            -p:IncludeSymbols=true \
+            -p:SymbolPackageFormat=snupkg
+
+          dotnet pack src/HeroMessaging.Abstractions/HeroMessaging.Abstractions.csproj \
+            --configuration Release \
+            --no-build \
+            --output ./release-packages \
+            -p:PackageVersion=${{ steps.version.outputs.version }}-ci.${GITHUB_SHA:0:7} \
+            -p:IncludeSymbols=true \
+            -p:SymbolPackageFormat=snupkg
+
+      - name: List packages
+        run: |
+          echo "📦 Packages created:"
+          ls -lh ./release-packages/
+          echo ""
+          echo "Commit SHA: ${GITHUB_SHA}"
+          echo "Short SHA: ${GITHUB_SHA:0:7}"
+
+      - name: Upload release packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-packages-${{ github.sha }}
+          path: ./release-packages/*
+          retention-days: 90  # Keep for 90 days for releases
+
+      - name: Upload release packages (latest)
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-packages-latest
+          path: ./release-packages/*
+          retention-days: 90

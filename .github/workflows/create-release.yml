@@ -7,6 +7,10 @@ on:
         description: 'Release version (e.g., 1.0.0 or 1.0.0-beta.1)'
         required: true
         type: string
+      commit_sha:
+        description: 'Commit SHA to release (leave empty for latest main)'
+        required: false
+        type: string
       prerelease:
         description: 'Mark as pre-release'
         required: false
@@ -19,31 +23,33 @@ on:
         type: boolean
 
 permissions:
-  contents: write  # Required to create releases and tags
+  contents: write
+  actions: read
   pull-requests: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false  # Don't cancel release creation
+  cancel-in-progress: false
 
 env:
   DOTNET_NOLOGO: true
-  DOTNET_CLI_TELEMETRY_OPTOUT: true
-  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
 
 jobs:
-  validate-version:
-    name: Validate Version
+  validate-and-prepare:
+    name: Validate Release Parameters
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     outputs:
       version: ${{ steps.validate.outputs.version }}
       tag: ${{ steps.validate.outputs.tag }}
+      commit_sha: ${{ steps.validate.outputs.commit_sha }}
+      workflow_run_id: ${{ steps.find-workflow.outputs.run_id }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.inputs.commit_sha || 'main' }}
           fetch-depth: 0
 
       - name: Validate version format
@@ -67,116 +73,109 @@ jobs:
           # Check if tag already exists
           if git rev-parse "$TAG" >/dev/null 2>&1; then
             echo "❌ Tag $TAG already exists!"
-            echo "Use a different version number."
+            echo "Use a different version number or delete the existing tag."
             exit 1
+          fi
+
+          # Get commit SHA
+          COMMIT_SHA="${{ github.event.inputs.commit_sha }}"
+          if [ -z "$COMMIT_SHA" ]; then
+            COMMIT_SHA=$(git rev-parse HEAD)
+            echo "No commit SHA provided, using latest main: $COMMIT_SHA"
           fi
 
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "commit_sha=${COMMIT_SHA}" >> $GITHUB_OUTPUT
           echo "✅ Version validated: ${VERSION}"
           echo "✅ Tag will be created: ${TAG}"
+          echo "✅ Commit SHA: ${COMMIT_SHA}"
 
-  build-and-test:
-    name: Build and Test
-    needs: validate-version
+      - name: Find successful workflow run
+        id: find-workflow
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const commitSha = '${{ steps.validate.outputs.commit_sha }}';
+
+            // Find successful test-matrix workflow run for this commit
+            const runs = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'test-matrix.yml',
+              status: 'success',
+              head_sha: commitSha,
+              per_page: 1
+            });
+
+            if (runs.data.workflow_runs.length === 0) {
+              core.setFailed(`❌ No successful test-matrix workflow run found for commit ${commitSha}`);
+              core.setFailed('Make sure the commit has been pushed to main and all tests have passed.');
+              return;
+            }
+
+            const run = runs.data.workflow_runs[0];
+            console.log(`✅ Found workflow run: ${run.id}`);
+            console.log(`   Status: ${run.status}`);
+            console.log(`   Conclusion: ${run.conclusion}`);
+            console.log(`   Run URL: ${run.html_url}`);
+
+            core.setOutput('run_id', run.id);
+
+  download-packages:
+    name: Download Pre-built Packages
+    needs: validate-and-prepare
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Download packages from CI workflow
+        uses: actions/download-artifact@v4
         with:
-          fetch-depth: 0
+          name: release-packages-${{ needs.validate-and-prepare.outputs.commit_sha }}
+          path: ./release-packages
+          run-id: ${{ needs.validate-and-prepare.outputs.workflow_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: |
-            6.0.x
-            8.0.x
-            10.0.x
-
-      - name: Restore dependencies
-        run: dotnet restore
-
-      - name: Build solution
-        run: dotnet build --configuration Release --no-restore -p:Version=${{ needs.validate-version.outputs.version }}
-
-      - name: Run unit tests
-        run: dotnet test --configuration Release --no-build --verbosity normal --filter "Category=Unit"
-        timeout-minutes: 10
-
-      - name: Run contract tests
-        run: dotnet test --configuration Release --no-build --verbosity normal --filter "Category=Contract"
-        timeout-minutes: 5
-        continue-on-error: true
-
-  build-packages:
-    name: Build NuGet Packages
-    needs: [validate-version, build-and-test]
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: |
-            6.0.x
-            8.0.x
-            10.0.x
-
-      - name: Restore dependencies
-        run: dotnet restore
-
-      - name: Build solution
-        run: dotnet build --configuration Release --no-restore
-
-      - name: Pack NuGet packages
+      - name: List downloaded packages
         run: |
-          mkdir -p ./release-packages
-
-          dotnet pack src/HeroMessaging/HeroMessaging.csproj \
-            --configuration Release \
-            --no-build \
-            --output ./release-packages \
-            -p:PackageVersion=${{ needs.validate-version.outputs.version }} \
-            -p:IncludeSymbols=true \
-            -p:SymbolPackageFormat=snupkg
-
-          dotnet pack src/HeroMessaging.Abstractions/HeroMessaging.Abstractions.csproj \
-            --configuration Release \
-            --no-build \
-            --output ./release-packages \
-            -p:PackageVersion=${{ needs.validate-version.outputs.version }} \
-            -p:IncludeSymbols=true \
-            -p:SymbolPackageFormat=snupkg
-
-      - name: List packages
-        run: |
-          echo "📦 Packages created:"
+          echo "📦 Downloaded packages from CI workflow:"
           ls -lh ./release-packages/
           echo ""
-          echo "Package details:"
-          for pkg in ./release-packages/*.nupkg; do
-            echo "  - $(basename $pkg)"
+          echo "These packages were built and tested in workflow run:"
+          echo "${{ needs.validate-and-prepare.outputs.workflow_run_id }}"
+
+      - name: Rename packages with release version
+        run: |
+          VERSION="${{ needs.validate-and-prepare.outputs.version }}"
+
+          cd ./release-packages
+
+          # Rename packages from CI version to release version
+          for file in *.nupkg *.snupkg; do
+            if [[ "$file" =~ (.+)-ci\.[a-f0-9]+\.(nupkg|snupkg)$ ]]; then
+              base="${BASH_REMATCH[1]}"
+              ext="${BASH_REMATCH[2]}"
+              newname="${base}.${VERSION}.${ext}"
+              echo "Renaming: $file → $newname"
+              mv "$file" "$newname"
+            fi
           done
 
-      - name: Upload packages as artifacts
+          echo ""
+          echo "📦 Renamed packages:"
+          ls -lh
+
+      - name: Upload renamed packages
         uses: actions/upload-artifact@v4
         with:
-          name: nuget-packages-${{ needs.validate-version.outputs.version }}
+          name: release-packages-${{ needs.validate-and-prepare.outputs.version }}
           path: ./release-packages/*
           retention-days: 90
 
   create-release:
     name: Create GitHub Release
-    needs: [validate-version, build-packages]
+    needs: [validate-and-prepare, download-packages]
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -184,19 +183,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
+          ref: ${{ needs.validate-and-prepare.outputs.commit_sha }}
           fetch-depth: 0
 
       - name: Download packages
         uses: actions/download-artifact@v4
         with:
-          name: nuget-packages-${{ needs.validate-version.outputs.version }}
+          name: release-packages-${{ needs.validate-and-prepare.outputs.version }}
           path: ./release-packages
 
       - name: Generate release notes
         id: release-notes
         run: |
-          VERSION="${{ needs.validate-version.outputs.version }}"
-          TAG="${{ needs.validate-version.outputs.tag }}"
+          VERSION="${{ needs.validate-and-prepare.outputs.version }}"
+          TAG="${{ needs.validate-and-prepare.outputs.tag }}"
+          COMMIT_SHA="${{ needs.validate-and-prepare.outputs.commit_sha }}"
 
           # Get the last tag
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
@@ -222,7 +223,7 @@ jobs:
           if [ -n "$LAST_TAG" ]; then
             echo "### Commits since ${LAST_TAG}" >> release-notes.md
             echo "" >> release-notes.md
-            git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" >> release-notes.md
+            git log ${LAST_TAG}..${COMMIT_SHA} --pretty=format:"- %s (%h)" >> release-notes.md
             echo "" >> release-notes.md
           else
             echo "Initial release" >> release-notes.md
@@ -231,7 +232,12 @@ jobs:
           echo "" >> release-notes.md
           echo "---" >> release-notes.md
           echo "" >> release-notes.md
-          echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${LAST_TAG}...${TAG}" >> release-notes.md
+          echo "**Release commit**: ${COMMIT_SHA}" >> release-notes.md
+          echo "**Built by**: [CI Workflow Run](https://github.com/${{ github.repository }}/actions/runs/${{ needs.validate-and-prepare.outputs.workflow_run_id }})" >> release-notes.md
+
+          if [ -n "$LAST_TAG" ]; then
+            echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${LAST_TAG}...${TAG}" >> release-notes.md
+          fi
 
       - name: Create GitHub Release
         uses: actions/github-script@v7
@@ -240,8 +246,9 @@ jobs:
             const fs = require('fs');
             const path = require('path');
 
-            const version = '${{ needs.validate-version.outputs.version }}';
-            const tag = '${{ needs.validate-version.outputs.tag }}';
+            const version = '${{ needs.validate-and-prepare.outputs.version }}';
+            const tag = '${{ needs.validate-and-prepare.outputs.tag }}';
+            const commitSha = '${{ needs.validate-and-prepare.outputs.commit_sha }}';
             const isPrerelease = ${{ github.event.inputs.prerelease }};
             const isDraft = ${{ github.event.inputs.draft }};
 
@@ -257,7 +264,7 @@ jobs:
               body: releaseNotes,
               draft: isDraft,
               prerelease: isPrerelease,
-              target_commitish: context.sha
+              target_commitish: commitSha
             });
 
             console.log(`✅ Created release: ${release.data.html_url}`);
@@ -286,24 +293,23 @@ jobs:
               }
             }
 
-            // Set output for reference
             core.setOutput('release-id', release.data.id);
             core.setOutput('release-url', release.data.html_url);
-            core.setOutput('upload-url', release.data.upload_url);
 
       - name: Summary
         run: |
-          cat >> $GITHUB_STEP_SUMMARY << EOF
+          cat >> $GITHUB_STEP_SUMMARY << 'EOF'
           ## ✅ Release Created Successfully
 
-          **Version**: ${{ needs.validate-version.outputs.version }}
-          **Tag**: ${{ needs.validate-version.outputs.tag }}
+          **Version**: ${{ needs.validate-and-prepare.outputs.version }}
+          **Tag**: ${{ needs.validate-and-prepare.outputs.tag }}
+          **Commit**: ${{ needs.validate-and-prepare.outputs.commit_sha }}
           **Pre-release**: ${{ github.event.inputs.prerelease }}
           **Draft**: ${{ github.event.inputs.draft }}
 
           ### 📦 Packages Included
 
-          $(ls -1 ./release-packages/*.nupkg | xargs -I {} basename {} | sed 's/^/- /')
+          Built from [CI Workflow Run #${{ needs.validate-and-prepare.outputs.workflow_run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ needs.validate-and-prepare.outputs.workflow_run_id }})
 
           ### 🚀 Next Steps
 
@@ -311,11 +317,12 @@ jobs:
           The **Publish to NuGet** workflow will automatically trigger and publish packages to:
           - NuGet.org via Trusted Publishing
           - GitHub Packages
+
+          No rebuild or re-test needed - using pre-built artifacts from CI!
           ' || '
           This is a **draft release**. To publish:
-          1. Review the release at the URL above
+          1. Review the release
           2. Edit and publish the release
           3. The Publish to NuGet workflow will then trigger automatically
           ' }}
-
           EOF
