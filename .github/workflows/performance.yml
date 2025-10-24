@@ -8,9 +8,18 @@ on:
   schedule:
     - cron: '0 2 * * *'  # Run daily at 2 AM
 
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   benchmark:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     steps:
     - uses: actions/checkout@v4
@@ -38,9 +47,22 @@ jobs:
           ./BenchmarkDotNet.Artifacts/**/*.json
           ./BenchmarkDotNet.Artifacts/**/*.html
 
-    - name: Performance Regression Check
-      run: |
-        # This will be implemented in T018 - Performance regression detection
-        echo "Performance regression check placeholder"
-        # Compare current results with baseline
-        # Fail if regression > 10%
+    - name: Comment on PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const path = require('path');
+
+          let comment = '## Performance Benchmark Results\n\n';
+          comment += 'Benchmark execution completed successfully.\n\n';
+          comment += 'For detailed performance regression analysis, see the `Cross-Platform Test Matrix` workflow.\n\n';
+          comment += '**Artifacts:** Download the benchmark results from the workflow artifacts.';
+
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });

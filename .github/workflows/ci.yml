@@ -1,8 +1,7 @@
-name: Cross-Platform Test Matrix
+name: CI
 
 on:
-  push:
-    branches: [ main, develop, 'feature/*', 'release/*' ]
+  push:  # Trigger on every commit to any branch
   pull_request:
     branches: [ main, develop ]
   schedule:
@@ -20,6 +19,15 @@ on:
         required: false
         default: true
         type: boolean
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   DOTNET_NOLOGO: true
@@ -43,7 +51,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: dorny/paths-filter@v2
+      - uses: dorny/paths-filter@v3
         id: changes
         with:
           filters: |
@@ -59,11 +67,14 @@ jobs:
               - 'src/HeroMessaging.Serialization.*/**'
             observability:
               - 'src/HeroMessaging.Observability.*/**'
+            workflows:
+              - '.github/workflows/**'
             docs-only:
               - '**/*.md'
               - 'docs/**'
               - '!src/**'
               - '!tests/**'
+              - '!.github/**'
 
   # Matrix job for unit tests across platforms and frameworks
   unit-tests:
@@ -103,7 +114,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v3
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: |
             6.0.x
@@ -112,10 +123,10 @@ jobs:
           dotnet-quality: 'ga'
 
       - name: Cache NuGet packages
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.nuget/packages
-          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/*.props') }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/*.props', 'global.json', 'Directory.Build.*') }}
           restore-keys: |
             ${{ runner.os }}-nuget-
 
@@ -149,7 +160,7 @@ jobs:
             --artifacts ./benchmark-results
 
       - name: Upload test results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: test-results-${{ matrix.os }}-${{ matrix.framework }}-${{ matrix.configuration }}
@@ -159,7 +170,7 @@ jobs:
           retention-days: 7
 
       - name: Upload benchmark results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: matrix.run-benchmarks == true && always()
         with:
           name: benchmark-results-${{ matrix.os }}-${{ matrix.framework }}
@@ -167,7 +178,7 @@ jobs:
           retention-days: 30
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         if: matrix.os == 'ubuntu-latest' && matrix.framework == 'net8.0' && matrix.configuration == 'Release'
         with:
           directory: ./test-results
@@ -181,7 +192,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest]  # Service containers only work properly on Linux
         framework: [net8.0]
         test-category: [Storage, Serialization, Observability, Pipeline]
 
@@ -230,16 +241,16 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v3
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: |
             8.0.x
 
       - name: Cache NuGet packages
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.nuget/packages
-          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/*.props') }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/*.props', 'global.json', 'Directory.Build.*') }}
           restore-keys: |
             ${{ runner.os }}-nuget-
 
@@ -271,7 +282,7 @@ jobs:
             -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
 
       - name: Upload integration test results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: integration-results-${{ matrix.test-category }}-${{ matrix.os }}
@@ -292,7 +303,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v3
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
 
@@ -312,7 +323,7 @@ jobs:
             --results-directory ./test-results
 
       - name: Upload contract test results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: contract-test-results
@@ -332,7 +343,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v3
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
 
@@ -343,7 +354,7 @@ jobs:
         run: dotnet build tests/HeroMessaging.Benchmarks --configuration Release --no-restore
 
       - name: Download baseline benchmarks
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         continue-on-error: true
         with:
           name: performance-baseline
@@ -369,7 +380,7 @@ jobs:
             --threshold 10
 
       - name: Upload current benchmarks as baseline
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         with:
           name: performance-baseline
@@ -377,7 +388,7 @@ jobs:
           retention-days: 90
 
       - name: Comment performance results
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         if: github.event_name == 'pull_request'
         with:
           script: |
@@ -405,12 +416,12 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Download all test results
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           path: ./all-test-results
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v3
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
 
@@ -438,7 +449,7 @@ jobs:
           fi
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: ./coverage-report/**/*
@@ -490,3 +501,105 @@ jobs:
         run: |
           echo "Updating status badges..."
           # This would typically update README badges or external services
+
+  # Build release packages for main branch (used by create-release workflow)
+  build-release-packages:
+    needs: quality-gates
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            6.0.x
+            8.0.x
+            10.0.x
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build solution
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Generate build number
+        id: build-number
+        run: |
+          # Extract base version from project file
+          BASE_VERSION=$(grep -oP '<Version>\K[^<]+' src/HeroMessaging/HeroMessaging.csproj || echo "0.0.0")
+
+          # Extract and sanitize branch name (replace / with -)
+          BRANCH_NAME="${GITHUB_REF#refs/heads/}"
+          BRANCH_NAME=$(echo "$BRANCH_NAME" | sed 's/\//-/g')
+
+          # Build number components
+          BUILD_DATE=$(date -u +%Y%m%d)
+          RUN_NUMBER=${{ github.run_number }}
+          SHORT_SHA=${GITHUB_SHA:0:7}
+
+          # Construct build number: branch.date.run.hash
+          BUILD_NUMBER="${BRANCH_NAME}.${BUILD_DATE}.${RUN_NUMBER}.${SHORT_SHA}"
+          FULL_VERSION="${BASE_VERSION}-ci.${BUILD_NUMBER}"
+
+          echo "build-number=${BUILD_NUMBER}" >> $GITHUB_OUTPUT
+          echo "full-version=${FULL_VERSION}" >> $GITHUB_OUTPUT
+
+          echo "📋 Build Information:"
+          echo "  Base Version: ${BASE_VERSION}"
+          echo "  Branch: ${BRANCH_NAME}"
+          echo "  Date: ${BUILD_DATE}"
+          echo "  Run Number: ${RUN_NUMBER}"
+          echo "  Git Hash: ${SHORT_SHA}"
+          echo "  Build Number: ${BUILD_NUMBER}"
+          echo "  Full Version: ${FULL_VERSION}"
+
+      - name: Pack NuGet packages
+        run: |
+          mkdir -p ./release-packages
+
+          dotnet pack src/HeroMessaging/HeroMessaging.csproj \
+            --configuration Release \
+            --no-build \
+            --output ./release-packages \
+            -p:PackageVersion=${{ steps.build-number.outputs.full-version }} \
+            -p:IncludeSymbols=true \
+            -p:SymbolPackageFormat=snupkg
+
+          dotnet pack src/HeroMessaging.Abstractions/HeroMessaging.Abstractions.csproj \
+            --configuration Release \
+            --no-build \
+            --output ./release-packages \
+            -p:PackageVersion=${{ steps.build-number.outputs.full-version }} \
+            -p:IncludeSymbols=true \
+            -p:SymbolPackageFormat=snupkg
+
+      - name: List packages
+        run: |
+          echo "📦 Packages created:"
+          ls -lh ./release-packages/
+          echo ""
+          echo "Commit SHA: ${GITHUB_SHA}"
+          echo "Short SHA: ${GITHUB_SHA:0:7}"
+          echo "Build Number: ${{ steps.build-number.outputs.build-number }}"
+          echo "Full Version: ${{ steps.build-number.outputs.full-version }}"
+
+      - name: Upload release packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-packages-${{ github.sha }}
+          path: ./release-packages/*
+          retention-days: 90  # Keep for 90 days for releases
+
+      - name: Upload release packages (latest)
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-packages-latest
+          path: ./release-packages/*
+          retention-days: 90
