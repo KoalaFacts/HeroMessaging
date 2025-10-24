@@ -104,12 +104,19 @@ env:
 2. Trigger a workflow run (push to a branch or manually trigger)
 3. Verify that integration tests pass with the new secrets
 
-## Optional Secrets for Future Features
+## NuGet Publishing
 
-### NUGET_API_KEY (for NuGet publishing)
-- **Description**: API key for publishing to NuGet.org
-- **Recommendation**: Use **NuGet Trusted Publishing** instead (no API key needed)
-- **Alternative**: If not using trusted publishing, generate API key at https://www.nuget.org/account/apikeys
+### ✅ Using Trusted Publishing (No Secrets Required)
+
+This repository is configured to use **NuGet Trusted Publishing** for secure, keyless package publishing.
+
+**No NUGET_API_KEY needed!** 🎉
+
+For setup instructions, see: `.github/NUGET_TRUSTED_PUBLISHING.md`
+
+### NUGET_API_KEY (Not Required)
+- **Status**: ❌ Not used (trusted publishing enabled)
+- **Note**: If you ever need to temporarily use API key authentication, uncomment the fallback section in `publish-nuget.yml` and add this secret
 
 ### CODECOV_TOKEN (for Codecov)
 - **Description**: Token for uploading coverage to Codecov

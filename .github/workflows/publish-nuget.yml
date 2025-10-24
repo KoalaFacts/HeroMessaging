@@ -148,7 +148,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment:
-      name: nuget-production
+      name: production
       url: https://www.nuget.org/packages/HeroMessaging
 
     steps:
@@ -163,29 +163,25 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
-      # Option 1: Trusted Publishing (Recommended)
-      # Requires setup at https://www.nuget.org/account/Packages
-      # See: https://devblogs.microsoft.com/nuget/introducing-nuget-package-signing/
+      # Trusted Publishing (Recommended - ENABLED)
+      # Setup instructions at https://www.nuget.org/account/Packages
+      # See: https://learn.microsoft.com/en-us/nuget/nuget-org/publish-a-package#trusted-publishers
       - name: Publish to NuGet (Trusted Publishing)
-        if: false  # Set to true when trusted publishing is configured
         run: |
           dotnet nuget push "./packages/*.nupkg" \
             --source https://api.nuget.org/v3/index.json \
             --skip-duplicate \
             --no-symbols
 
-      # Option 2: API Key (Fallback)
-      # Store NUGET_API_KEY in GitHub Secrets
-      - name: Publish to NuGet (API Key)
-        if: true  # Set to false when using trusted publishing
-        run: |
-          dotnet nuget push "./packages/*.nupkg" \
-            --source https://api.nuget.org/v3/index.json \
-            --api-key ${{ secrets.NUGET_API_KEY }} \
-            --skip-duplicate \
-            --no-symbols
-        env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+      # API Key Method (DISABLED - using trusted publishing instead)
+      # Uncomment below if you need to temporarily use API key instead
+      # - name: Publish to NuGet (API Key)
+      #   run: |
+      #     dotnet nuget push "./packages/*.nupkg" \
+      #       --source https://api.nuget.org/v3/index.json \
+      #       --api-key ${{ secrets.NUGET_API_KEY }} \
+      #       --skip-duplicate \
+      #       --no-symbols
 
   publish-github-packages:
     name: Publish to GitHub Packages
