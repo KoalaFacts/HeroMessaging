@@ -1,0 +1,321 @@
+name: Create Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., 1.0.0 or 1.0.0-beta.1)'
+        required: true
+        type: string
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        default: false
+        type: boolean
+      draft:
+        description: 'Create as draft release'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write  # Required to create releases and tags
+  pull-requests: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false  # Don't cancel release creation
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+jobs:
+  validate-version:
+    name: Validate Version
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.validate.outputs.version }}
+      tag: ${{ steps.validate.outputs.tag }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate version format
+        id: validate
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+
+          # Remove 'v' prefix if present
+          VERSION=${VERSION#v}
+
+          # Validate semantic version format
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9\.]+)?$ ]]; then
+            echo "❌ Invalid version format: $VERSION"
+            echo "Expected format: X.Y.Z or X.Y.Z-prerelease"
+            echo "Examples: 1.0.0, 1.0.0-beta.1, 1.0.0-rc.2"
+            exit 1
+          fi
+
+          TAG="v${VERSION}"
+
+          # Check if tag already exists
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "❌ Tag $TAG already exists!"
+            echo "Use a different version number."
+            exit 1
+          fi
+
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "✅ Version validated: ${VERSION}"
+          echo "✅ Tag will be created: ${TAG}"
+
+  build-and-test:
+    name: Build and Test
+    needs: validate-version
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            6.0.x
+            8.0.x
+            10.0.x
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build solution
+        run: dotnet build --configuration Release --no-restore -p:Version=${{ needs.validate-version.outputs.version }}
+
+      - name: Run unit tests
+        run: dotnet test --configuration Release --no-build --verbosity normal --filter "Category=Unit"
+        timeout-minutes: 10
+
+      - name: Run contract tests
+        run: dotnet test --configuration Release --no-build --verbosity normal --filter "Category=Contract"
+        timeout-minutes: 5
+        continue-on-error: true
+
+  build-packages:
+    name: Build NuGet Packages
+    needs: [validate-version, build-and-test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            6.0.x
+            8.0.x
+            10.0.x
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build solution
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Pack NuGet packages
+        run: |
+          mkdir -p ./release-packages
+
+          dotnet pack src/HeroMessaging/HeroMessaging.csproj \
+            --configuration Release \
+            --no-build \
+            --output ./release-packages \
+            -p:PackageVersion=${{ needs.validate-version.outputs.version }} \
+            -p:IncludeSymbols=true \
+            -p:SymbolPackageFormat=snupkg
+
+          dotnet pack src/HeroMessaging.Abstractions/HeroMessaging.Abstractions.csproj \
+            --configuration Release \
+            --no-build \
+            --output ./release-packages \
+            -p:PackageVersion=${{ needs.validate-version.outputs.version }} \
+            -p:IncludeSymbols=true \
+            -p:SymbolPackageFormat=snupkg
+
+      - name: List packages
+        run: |
+          echo "📦 Packages created:"
+          ls -lh ./release-packages/
+          echo ""
+          echo "Package details:"
+          for pkg in ./release-packages/*.nupkg; do
+            echo "  - $(basename $pkg)"
+          done
+
+      - name: Upload packages as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-packages-${{ needs.validate-version.outputs.version }}
+          path: ./release-packages/*
+          retention-days: 90
+
+  create-release:
+    name: Create GitHub Release
+    needs: [validate-version, build-packages]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          name: nuget-packages-${{ needs.validate-version.outputs.version }}
+          path: ./release-packages
+
+      - name: Generate release notes
+        id: release-notes
+        run: |
+          VERSION="${{ needs.validate-version.outputs.version }}"
+          TAG="${{ needs.validate-version.outputs.tag }}"
+
+          # Get the last tag
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+          # Generate release notes
+          cat > release-notes.md << EOF
+          ## NuGet Packages
+
+          - [HeroMessaging v${VERSION}](https://www.nuget.org/packages/HeroMessaging/${VERSION})
+          - [HeroMessaging.Abstractions v${VERSION}](https://www.nuget.org/packages/HeroMessaging.Abstractions/${VERSION})
+
+          ## Installation
+
+          \`\`\`bash
+          dotnet add package HeroMessaging --version ${VERSION}
+          \`\`\`
+
+          ## What's Changed
+
+          EOF
+
+          # Add commit log since last tag
+          if [ -n "$LAST_TAG" ]; then
+            echo "### Commits since ${LAST_TAG}" >> release-notes.md
+            echo "" >> release-notes.md
+            git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" >> release-notes.md
+            echo "" >> release-notes.md
+          else
+            echo "Initial release" >> release-notes.md
+          fi
+
+          echo "" >> release-notes.md
+          echo "---" >> release-notes.md
+          echo "" >> release-notes.md
+          echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${LAST_TAG}...${TAG}" >> release-notes.md
+
+      - name: Create GitHub Release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            const version = '${{ needs.validate-version.outputs.version }}';
+            const tag = '${{ needs.validate-version.outputs.tag }}';
+            const isPrerelease = ${{ github.event.inputs.prerelease }};
+            const isDraft = ${{ github.event.inputs.draft }};
+
+            // Read release notes
+            const releaseNotes = fs.readFileSync('release-notes.md', 'utf8');
+
+            // Create the release
+            const release = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: tag,
+              name: `Release ${version}`,
+              body: releaseNotes,
+              draft: isDraft,
+              prerelease: isPrerelease,
+              target_commitish: context.sha
+            });
+
+            console.log(`✅ Created release: ${release.data.html_url}`);
+
+            // Upload packages as release assets
+            const packagesDir = './release-packages';
+            const files = fs.readdirSync(packagesDir);
+
+            for (const file of files) {
+              if (file.endsWith('.nupkg') || file.endsWith('.snupkg')) {
+                const filePath = path.join(packagesDir, file);
+                const stats = fs.statSync(filePath);
+                const fileContent = fs.readFileSync(filePath);
+
+                console.log(`📤 Uploading ${file} (${stats.size} bytes)...`);
+
+                await github.rest.repos.uploadReleaseAsset({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  release_id: release.data.id,
+                  name: file,
+                  data: fileContent
+                });
+
+                console.log(`✅ Uploaded ${file}`);
+              }
+            }
+
+            // Set output for reference
+            core.setOutput('release-id', release.data.id);
+            core.setOutput('release-url', release.data.html_url);
+            core.setOutput('upload-url', release.data.upload_url);
+
+      - name: Summary
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## ✅ Release Created Successfully
+
+          **Version**: ${{ needs.validate-version.outputs.version }}
+          **Tag**: ${{ needs.validate-version.outputs.tag }}
+          **Pre-release**: ${{ github.event.inputs.prerelease }}
+          **Draft**: ${{ github.event.inputs.draft }}
+
+          ### 📦 Packages Included
+
+          $(ls -1 ./release-packages/*.nupkg | xargs -I {} basename {} | sed 's/^/- /')
+
+          ### 🚀 Next Steps
+
+          ${{ github.event.inputs.draft == 'false' && '
+          The **Publish to NuGet** workflow will automatically trigger and publish packages to:
+          - NuGet.org via Trusted Publishing
+          - GitHub Packages
+          ' || '
+          This is a **draft release**. To publish:
+          1. Review the release at the URL above
+          2. Edit and publish the release
+          3. The Publish to NuGet workflow will then trigger automatically
+          ' }}
+
+          EOF

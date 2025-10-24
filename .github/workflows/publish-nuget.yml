@@ -3,20 +3,9 @@ name: Publish to NuGet
 on:
   release:
     types: [published]
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version to publish (e.g., 1.0.0)'
-        required: true
-        type: string
-      prerelease:
-        description: 'Is this a prerelease?'
-        required: false
-        default: false
-        type: boolean
 
 permissions:
-  contents: read
+  contents: write
   packages: write
   id-token: write  # Required for NuGet trusted publishing
 
@@ -30,121 +19,119 @@ env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
 
 jobs:
-  validate:
+  validate-release:
     name: Validate Release
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     outputs:
       version: ${{ steps.version.outputs.version }}
       is-prerelease: ${{ steps.version.outputs.is-prerelease }}
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Determine version
+      - name: Extract version from tag
         id: version
         run: |
-          if [ "${{ github.event_name }}" = "release" ]; then
-            VERSION="${{ github.event.release.tag_name }}"
-            IS_PRERELEASE="${{ github.event.release.prerelease }}"
-          else
-            VERSION="${{ github.event.inputs.version }}"
-            IS_PRERELEASE="${{ github.event.inputs.prerelease }}"
-          fi
+          TAG="${{ github.event.release.tag_name }}"
+          IS_PRERELEASE="${{ github.event.release.prerelease }}"
 
           # Remove 'v' prefix if present
-          VERSION=${VERSION#v}
+          VERSION=${TAG#v}
 
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "is-prerelease=${IS_PRERELEASE}" >> $GITHUB_OUTPUT
           echo "Publishing version: ${VERSION}"
           echo "Is prerelease: ${IS_PRERELEASE}"
+          echo "Release URL: ${{ github.event.release.html_url }}"
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+      - name: Verify release assets exist
+        uses: actions/github-script@v7
         with:
-          dotnet-version: |
-            6.0.x
-            8.0.x
-            10.0.x
+          script: |
+            const release = await github.rest.repos.getRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: ${{ github.event.release.id }}
+            });
 
-      - name: Restore dependencies
-        run: dotnet restore
+            const assets = release.data.assets;
+            const nupkgAssets = assets.filter(a => a.name.endsWith('.nupkg'));
+            const snupkgAssets = assets.filter(a => a.name.endsWith('.snupkg'));
 
-      - name: Build
-        run: dotnet build --configuration Release --no-restore
+            console.log(`Found ${nupkgAssets.length} .nupkg files`);
+            console.log(`Found ${snupkgAssets.length} .snupkg files`);
 
-      - name: Run tests
-        run: dotnet test --configuration Release --no-build --verbosity normal --filter "Category=Unit"
-        timeout-minutes: 5
+            if (nupkgAssets.length === 0) {
+              core.setFailed('❌ No .nupkg files found in release assets!');
+              core.setFailed('Make sure the create-release workflow completed successfully.');
+              return;
+            }
 
-  build-packages:
-    name: Build NuGet Packages
-    needs: validate
+            console.log('✅ Release assets validated');
+            console.log('\nPackages to publish:');
+            nupkgAssets.forEach(asset => {
+              console.log(`  - ${asset.name} (${asset.size} bytes)`);
+            });
+
+  download-packages:
+    name: Download Release Packages
+    needs: validate-release
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Download release assets
+        uses: actions/github-script@v7
         with:
-          fetch-depth: 0
+          script: |
+            const fs = require('fs');
+            const { mkdir } = require('fs/promises');
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: |
-            6.0.x
-            8.0.x
-            10.0.x
+            // Create packages directory
+            await mkdir('./packages', { recursive: true });
 
-      - name: Restore dependencies
-        run: dotnet restore
+            // Get release assets
+            const release = await github.rest.repos.getRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: ${{ github.event.release.id }}
+            });
 
-      - name: Build solution
-        run: dotnet build --configuration Release --no-restore
+            const assets = release.data.assets.filter(a =>
+              a.name.endsWith('.nupkg') || a.name.endsWith('.snupkg')
+            );
 
-      - name: Pack NuGet packages
+            // Download each asset
+            for (const asset of assets) {
+              console.log(`Downloading ${asset.name}...`);
+
+              const response = await github.rest.repos.getReleaseAsset({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                asset_id: asset.id,
+                headers: {
+                  accept: 'application/octet-stream'
+                }
+              });
+
+              fs.writeFileSync(`./packages/${asset.name}`, Buffer.from(response.data));
+              console.log(`✅ Downloaded ${asset.name}`);
+            }
+
+      - name: List downloaded packages
         run: |
-          dotnet pack src/HeroMessaging/HeroMessaging.csproj \
-            --configuration Release \
-            --no-build \
-            --output ./packages \
-            -p:PackageVersion=${{ needs.validate.outputs.version }} \
-            -p:IncludeSymbols=true \
-            -p:SymbolPackageFormat=snupkg
+          echo "📦 Downloaded packages:"
+          ls -lh ./packages/
 
-          dotnet pack src/HeroMessaging.Abstractions/HeroMessaging.Abstractions.csproj \
-            --configuration Release \
-            --no-build \
-            --output ./packages \
-            -p:PackageVersion=${{ needs.validate.outputs.version }} \
-            -p:IncludeSymbols=true \
-            -p:SymbolPackageFormat=snupkg
-
-      - name: List packages
-        run: ls -lh ./packages/
-
-      - name: Upload packages
+      - name: Upload packages as workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: nuget-packages
-          path: ./packages/*.nupkg
-          retention-days: 30
-
-      - name: Upload symbols
-        uses: actions/upload-artifact@v4
-        with:
-          name: nuget-symbols
-          path: ./packages/*.snupkg
+          name: release-packages
+          path: ./packages/*
           retention-days: 30
 
   publish-nuget:
     name: Publish to NuGet.org
-    needs: [validate, build-packages]
+    needs: [validate-release, download-packages]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment:
@@ -155,7 +142,7 @@ jobs:
       - name: Download packages
         uses: actions/download-artifact@v4
         with:
-          name: nuget-packages
+          name: release-packages
           path: ./packages
 
       - name: Setup .NET
@@ -172,9 +159,28 @@ jobs:
             --skip-duplicate \
             --no-symbols
 
+      - name: Summary
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## ✅ Published to NuGet.org
+
+          **Version**: ${{ needs.validate-release.outputs.version }}
+
+          ### 📦 Packages Published
+
+          - [HeroMessaging v${{ needs.validate-release.outputs.version }}](https://www.nuget.org/packages/HeroMessaging/${{ needs.validate-release.outputs.version }})
+          - [HeroMessaging.Abstractions v${{ needs.validate-release.outputs.version }}](https://www.nuget.org/packages/HeroMessaging.Abstractions/${{ needs.validate-release.outputs.version }})
+
+          ### Installation
+
+          \`\`\`bash
+          dotnet add package HeroMessaging --version ${{ needs.validate-release.outputs.version }}
+          \`\`\`
+          EOF
+
   publish-github-packages:
     name: Publish to GitHub Packages
-    needs: [validate, build-packages]
+    needs: [validate-release, download-packages]
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -182,7 +188,7 @@ jobs:
       - name: Download packages
         uses: actions/download-artifact@v4
         with:
-          name: nuget-packages
+          name: release-packages
           path: ./packages
 
       - name: Setup .NET
@@ -199,47 +205,68 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  create-release-notes:
-    name: Create Release Notes
-    needs: [validate, publish-nuget, publish-github-packages]
+      - name: Summary
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## ✅ Published to GitHub Packages
+
+          **Version**: ${{ needs.validate-release.outputs.version }}
+
+          ### 📦 View Packages
+
+          - [GitHub Packages](https://github.com/${{ github.repository }}/packages)
+
+          ### Installation
+
+          \`\`\`bash
+          dotnet nuget add source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json -n github
+          dotnet add package HeroMessaging --version ${{ needs.validate-release.outputs.version }}
+          \`\`\`
+          EOF
+
+  update-release-notes:
+    name: Update Release Notes
+    needs: [validate-release, publish-nuget, publish-github-packages]
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    if: github.event_name == 'release'
+    timeout-minutes: 5
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Update release notes
+      - name: Update release description
         uses: actions/github-script@v7
         with:
           script: |
-            const version = '${{ needs.validate.outputs.version }}';
-            const releaseNotes = `
-            ## NuGet Packages Published
+            const version = '${{ needs.validate-release.outputs.version }}';
 
-            - ✅ [HeroMessaging v${version}](https://www.nuget.org/packages/HeroMessaging/${version})
-            - ✅ [HeroMessaging.Abstractions v${version}](https://www.nuget.org/packages/HeroMessaging.Abstractions/${version})
+            // Get current release
+            const release = await github.rest.repos.getRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: ${{ github.event.release.id }}
+            });
 
-            ## Installation
+            // Add publication status to release notes
+            const updatedBody = `${release.data.body}
 
-            \`\`\`bash
-            dotnet add package HeroMessaging --version ${version}
-            \`\`\`
+---
 
-            ## Links
+## ✅ Publication Status
 
-            - [NuGet Gallery](https://www.nuget.org/packages/HeroMessaging/)
-            - [GitHub Packages](https://github.com/${{ github.repository }}/packages)
-            - [Documentation](https://github.com/${{ github.repository }})
+- ✅ **NuGet.org**: [View packages](https://www.nuget.org/packages/HeroMessaging/${version})
+- ✅ **GitHub Packages**: [View packages](https://github.com/${{ github.repository }}/packages)
 
-            ---
-            ${context.payload.release.body || ''}
-            `;
+**Published**: ${new Date().toISOString()}
 
+---
+
+_Published automatically via [Publish to NuGet workflow](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})_
+`;
+
+            // Update release
             await github.rest.repos.updateRelease({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              release_id: context.payload.release.id,
-              body: releaseNotes
+              release_id: ${{ github.event.release.id }},
+              body: updatedBody
             });
+
+            console.log('✅ Release notes updated');
