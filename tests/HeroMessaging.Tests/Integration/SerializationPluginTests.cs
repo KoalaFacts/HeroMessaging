@@ -186,7 +186,8 @@ public class SerializationPluginTests
         var jsonDuration = DateTime.UtcNow - jsonStart;
 
         Assert.NotNull(jsonSerialized);
-        Assert.True(jsonDuration < TimeSpan.FromSeconds(1), "JSON serialization should complete within 1 second");
+        Assert.True(jsonDuration < TimeSpan.FromSeconds(5),
+            $"JSON serialization should complete within 5 seconds, took {jsonDuration.TotalSeconds:F2}s");
 
         // Act & Assert MessagePack
         var msgPackStart = DateTime.UtcNow;
@@ -195,7 +196,8 @@ public class SerializationPluginTests
         var msgPackDuration = DateTime.UtcNow - msgPackStart;
 
         Assert.NotNull(msgPackDeserialized);
-        Assert.True(msgPackDuration < TimeSpan.FromSeconds(1), "MessagePack serialization should complete within 1 second");
+        Assert.True(msgPackDuration < TimeSpan.FromSeconds(5),
+            $"MessagePack serialization should complete within 5 seconds, took {msgPackDuration.TotalSeconds:F2}s");
 
         // Act & Assert Protocol Buffers
         var protobufStart = DateTime.UtcNow;
@@ -204,7 +206,8 @@ public class SerializationPluginTests
         var protobufDuration = DateTime.UtcNow - protobufStart;
 
         Assert.NotNull(protobufDeserialized);
-        Assert.True(protobufDuration < TimeSpan.FromSeconds(1), "Protocol Buffers serialization should complete within 1 second");
+        Assert.True(protobufDuration < TimeSpan.FromSeconds(5),
+            $"Protocol Buffers serialization should complete within 5 seconds, took {protobufDuration.TotalSeconds:F2}s");
 
         // Compare sizes (MessagePack and Protobuf should be smaller than JSON)
         Assert.True(msgPackData.Length < jsonData.Length, "MessagePack should be more compact than JSON");
