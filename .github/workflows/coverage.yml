@@ -57,13 +57,13 @@ jobs:
         fi
 
     - name: Upload Coverage Report
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: coverage-report
         path: coverage-report/
 
     - name: Upload Coverage Badge
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: coverage-badge
         path: coverage-report/badge_*.svg
