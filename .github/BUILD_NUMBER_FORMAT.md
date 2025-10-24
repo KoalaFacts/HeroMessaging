@@ -6,7 +6,7 @@ Documentation for the HeroMessaging build numbering scheme.
 
 ## 📋 Overview
 
-HeroMessaging uses a structured build number format for CI-built packages that provides complete traceability and chronological ordering.
+HeroMessaging uses a structured build number format for CI-built packages that provides complete traceability, branch identification, and chronological ordering.
 
 ---
 
@@ -15,7 +15,7 @@ HeroMessaging uses a structured build number format for CI-built packages that p
 ### CI Build Version Format
 
 ```
-{base-version}-ci.{date}.{run-number}.{git-hash}
+{base-version}-ci.{branch}.{date}.{run-number}.{git-hash}
 ```
 
 ### Components
@@ -24,6 +24,7 @@ HeroMessaging uses a structured build number format for CI-built packages that p
 |-----------|--------|---------|-------------|
 | **base-version** | `X.Y.Z` | `1.0.0` | Semantic version from project file |
 | **ci** | Literal | `ci` | Indicates CI build (not release) |
+| **branch** | Sanitized name | `main`, `develop`, `release-1.0` | Git branch name (/ → -) |
 | **date** | `YYYYMMDD` | `20251024` | UTC build date |
 | **run-number** | Integer | `1234` | GitHub Actions run number (auto-incrementing) |
 | **git-hash** | 7 chars | `abc123f` | Short commit SHA |
@@ -31,35 +32,58 @@ HeroMessaging uses a structured build number format for CI-built packages that p
 ### Complete Example
 
 ```
-1.0.0-ci.20251024.1234.abc123f
-│     │  │        │    │
-│     │  │        │    └─ Git commit (abc123f)
-│     │  │        └────── Run #1234
-│     │  └─────────────── Built on Oct 24, 2025
-│     └────────────────── CI build marker
-└──────────────────────── Base version 1.0.0
+1.0.0-ci.main.20251024.1234.abc123f
+│     │  │    │        │    │
+│     │  │    │        │    └─ Git commit (abc123f)
+│     │  │    │        └────── Run #1234
+│     │  │    └─────────────── Built on Oct 24, 2025
+│     │  └──────────────────── From main branch
+│     └─────────────────────── CI build marker
+└───────────────────────────── Base version 1.0.0
 ```
 
 ---
 
 ## 🎯 Benefits
 
-### 1. **Chronological Ordering**
+### 1. **Branch Identification**
+- Instantly know which branch built the package
+- Essential for multi-branch workflows
+- Helps organize artifacts by branch
+
+```bash
+# Main branch builds
+1.0.0-ci.main.20251024.1234.abc123f
+
+# Develop branch builds
+1.0.0-ci.develop.20251024.1235.def456a
+
+# Release branch builds
+1.0.0-ci.release-1.0.20251024.1236.789bcd2
+```
+
+### 2. **Chronological Ordering**
 - Date prefix ensures packages sort by build date
-- Easy to identify latest builds
+- Easy to identify latest builds per branch
 - Helps with debugging ("what changed between date X and Y?")
 
-### 2. **Uniqueness**
-- Run number ensures no collisions on same day
+### 3. **Uniqueness**
+- Branch + date + run number ensures no collisions
 - Git hash provides exact source code reference
 - Impossible to have duplicate versions
 
-### 3. **Traceability**
+### 4. **Complete Traceability**
+- Branch: Know which branch it was built from
 - Date: Know when it was built
 - Run number: Link to exact GitHub Actions workflow run
 - Git hash: Know exact source code state
 
-### 4. **NuGet Compatible**
+### 5. **Multi-Branch Support**
+- Can build from multiple branches simultaneously
+- Each branch has its own version stream
+- Easy to filter by branch in artifact search
+
+### 6. **NuGet Compatible**
 - Follows semantic versioning with pre-release suffix
 - NuGet understands `-ci` as pre-release tag
 - Sorts correctly in package feeds
@@ -68,46 +92,82 @@ HeroMessaging uses a structured build number format for CI-built packages that p
 
 ## 📊 Examples
 
-### Typical Progression
+### Different Branches
+
+```bash
+# Main branch
+1.0.0-ci.main.20251024.1234.abc123f
+
+# Develop branch
+1.1.0-ci.develop.20251024.1235.def456a
+
+# Feature branch (sanitized: feature/new-api → feature-new-api)
+1.1.0-ci.feature-new-api.20251024.1236.789bcd2
+
+# Release branch (sanitized: release/1.0.0 → release-1.0.0)
+1.0.0-ci.release-1.0.0.20251024.1237.fedcba9
+```
+
+### Typical Progression (Main Branch)
 
 ```
-1.0.0-ci.20251024.1234.abc123f  ← Morning build (run #1234)
-1.0.0-ci.20251024.1235.def456a  ← Afternoon build (run #1235)
-1.0.0-ci.20251025.1236.789bcd2  ← Next day (run #1236)
-1.1.0-ci.20251026.1237.fedcba9  ← Version bump (run #1237)
+1.0.0-ci.main.20251024.1234.abc123f  ← Morning build (run #1234)
+1.0.0-ci.main.20251024.1235.def456a  ← Afternoon build (run #1235)
+1.0.0-ci.main.20251025.1236.789bcd2  ← Next day (run #1236)
+1.1.0-ci.main.20251026.1237.fedcba9  ← Version bump (run #1237)
 ```
 
 ### Comparison with Release Versions
 
 ```
-CI Builds:
-1.0.0-ci.20251024.1234.abc123f
-1.0.0-ci.20251024.1235.def456a
-1.0.0-ci.20251025.1236.789bcd2
+CI Builds (main branch):
+1.0.0-ci.main.20251024.1234.abc123f
+1.0.0-ci.main.20251024.1235.def456a
+1.0.0-ci.main.20251025.1236.789bcd2
 
 Release:
-1.0.0  ← Created from build 20251024.1234.abc123f
+1.0.0  ← Created from build main.20251024.1234.abc123f
+```
+
+### Multi-Branch Parallel Development
+
+```
+Main branch (stable):
+1.0.0-ci.main.20251024.1234.abc123f
+
+Develop branch (next version):
+1.1.0-ci.develop.20251024.1235.def456a
+
+Feature branch (experimental):
+1.1.0-ci.feature-widget.20251024.1236.789bcd2
+
+Release branch (preparing 1.0.1):
+1.0.1-ci.release-1.0.1.20251024.1237.fedcba9
 ```
 
 ---
 
 ## 🔍 How to Decode a Build Number
 
-Given: `1.2.3-ci.20251024.1456.a1b2c3d`
+Given: `1.2.3-ci.main.20251024.1456.a1b2c3d`
 
 1. **Base Version**: `1.2.3`
    - Major: 1, Minor: 2, Patch: 3
 
-2. **Build Date**: `20251024`
+2. **Branch**: `main`
+   - Built from main branch
+   - Could be: main, develop, feature-*, release-*, etc.
+
+3. **Build Date**: `20251024`
    - Year: 2025
    - Month: 10 (October)
    - Day: 24
 
-3. **Run Number**: `1456`
+4. **Run Number**: `1456`
    - This was the 1,456th workflow run
    - Link: `https://github.com/KoalaFacts/HeroMessaging/actions/runs/{find-run-1456}`
 
-4. **Git Commit**: `a1b2c3d`
+5. **Git Commit**: `a1b2c3d`
    - Short SHA: a1b2c3d
    - Full commit: `https://github.com/KoalaFacts/HeroMessaging/commit/a1b2c3d`
    - View code: `git show a1b2c3d`
@@ -121,8 +181,8 @@ Given: `1.2.3-ci.20251024.1456.a1b2c3d`
 When creating a release, the CI build number is stripped:
 
 ```bash
-# CI Build Package
-HeroMessaging.1.0.0-ci.20251024.1234.abc123f.nupkg
+# CI Build Package (from main branch)
+HeroMessaging.1.0.0-ci.main.20251024.1234.abc123f.nupkg
 
 # Renamed for Release
 HeroMessaging.1.0.0.nupkg
@@ -136,7 +196,7 @@ HeroMessaging.1.0.0.nupkg
 5. Publish to NuGet.org
 
 **Traceability Maintained**:
-- Release notes include: "Built from CI run #1234"
+- Release notes include: "Built from main branch, CI run #1234"
 - Link to exact workflow run
 - Git commit tagged with release
 
@@ -151,11 +211,16 @@ HeroMessaging.1.0.0.nupkg
   id: build-number
   run: |
     BASE_VERSION=$(grep -oP '<Version>\K[^<]+' src/HeroMessaging/HeroMessaging.csproj)
+
+    # Extract and sanitize branch name
+    BRANCH_NAME="${GITHUB_REF#refs/heads/}"
+    BRANCH_NAME=$(echo "$BRANCH_NAME" | sed 's/\//-/g')
+
     BUILD_DATE=$(date -u +%Y%m%d)
     RUN_NUMBER=${{ github.run_number }}
     SHORT_SHA=${GITHUB_SHA:0:7}
 
-    BUILD_NUMBER="${BUILD_DATE}.${RUN_NUMBER}.${SHORT_SHA}"
+    BUILD_NUMBER="${BRANCH_NAME}.${BUILD_DATE}.${RUN_NUMBER}.${SHORT_SHA}"
     FULL_VERSION="${BASE_VERSION}-ci.${BUILD_NUMBER}"
 
     echo "full-version=${FULL_VERSION}" >> $GITHUB_OUTPUT
@@ -166,8 +231,8 @@ HeroMessaging.1.0.0.nupkg
 ```yaml
 - name: Rename packages with release version
   run: |
-    # Match pattern: {package}-ci.{date}.{run}.{sha}.{ext}
-    if [[ "$file" =~ (.+)-ci\.[0-9]+\.[0-9]+\.[a-f0-9]+\.(nupkg|snupkg)$ ]]; then
+    # Match pattern: {package}-ci.{branch}.{date}.{run}.{sha}.{ext}
+    if [[ "$file" =~ (.+)-ci\.[a-zA-Z0-9_-]+\.[0-9]+\.[0-9]+\.[a-f0-9]+\.(nupkg|snupkg)$ ]]; then
       base="${BASH_REMATCH[1]}"
       ext="${BASH_REMATCH[2]}"
       newname="${base}.${VERSION}.${ext}"
@@ -179,17 +244,31 @@ HeroMessaging.1.0.0.nupkg
 
 ## 📈 Use Cases
 
-### 1. Finding a Specific Build
+### 1. Finding Builds from Specific Branch
 
-**Question**: "What was built on October 24, 2025?"
+**Question**: "What was built from the develop branch?"
 
 **Answer**:
 ```bash
 # Search artifacts
-gh run list --created 2025-10-24
+gh run list --branch develop
 
 # Look for packages with pattern
-*-ci.20251024.*
+*-ci.develop.*
+```
+
+### 2. Finding Builds from Specific Date and Branch
+
+**Question**: "What was built from main on October 24, 2025?"
+
+**Answer**:
+```bash
+# Search for main branch builds from that date
+*-ci.main.20251024.*
+
+# Example results:
+1.0.0-ci.main.20251024.1234.abc123f.nupkg
+1.0.0-ci.main.20251024.1235.def456a.nupkg
 ```
 
 ### 2. Debugging a CI Build
@@ -269,26 +348,28 @@ Given a build number, you can:
 ### Format Pattern
 
 ```regex
-^(\d+\.\d+\.\d+)-ci\.(\d{8})\.(\d+)\.([a-f0-9]{7})$
+^(\d+\.\d+\.\d+)-ci\.([a-zA-Z0-9_-]+)\.(\d{8})\.(\d+)\.([a-f0-9]{7})$
 ```
 
 ### Regex Groups
 
 1. Base version (e.g., `1.0.0`)
-2. Date (e.g., `20251024`)
-3. Run number (e.g., `1234`)
-4. Git hash (e.g., `abc123f`)
+2. Branch name (e.g., `main`, `develop`, `release-1.0`)
+3. Date (e.g., `20251024`)
+4. Run number (e.g., `1234`)
+5. Git hash (e.g., `abc123f`)
 
 ### Example Parsing (Bash)
 
 ```bash
-BUILD="1.0.0-ci.20251024.1234.abc123f"
+BUILD="1.0.0-ci.main.20251024.1234.abc123f"
 
-if [[ "$BUILD" =~ ^([0-9.]+)-ci\.([0-9]{8})\.([0-9]+)\.([a-f0-9]{7})$ ]]; then
+if [[ "$BUILD" =~ ^([0-9.]+)-ci\.([a-zA-Z0-9_-]+)\.([0-9]{8})\.([0-9]+)\.([a-f0-9]{7})$ ]]; then
   VERSION="${BASH_REMATCH[1]}"    # 1.0.0
-  DATE="${BASH_REMATCH[2]}"       # 20251024
-  RUN="${BASH_REMATCH[3]}"        # 1234
-  SHA="${BASH_REMATCH[4]}"        # abc123f
+  BRANCH="${BASH_REMATCH[2]}"     # main
+  DATE="${BASH_REMATCH[3]}"       # 20251024
+  RUN="${BASH_REMATCH[4]}"        # 1234
+  SHA="${BASH_REMATCH[5]}"        # abc123f
 fi
 ```
 

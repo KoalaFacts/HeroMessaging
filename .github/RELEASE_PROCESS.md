@@ -105,10 +105,10 @@ gh workflow run create-release.yml \
 │ └─ build-release-packages job:          │
 │    ├─ Build solution                    │
 │    ├─ Generate build number:            │
-│    │  {date}.{run_number}.{git_hash}    │
-│    │  Example: 20251024.1234.abc123f    │
+│    │  {branch}.{date}.{run}.{hash}      │
+│    │  Example: main.20251024.1234.abc123│
 │    ├─ Pack with CI version:             │
-│    │  1.0.0-ci.20251024.1234.abc123f    │
+│    │  1.0.0-ci.main.20251024.1234.abc123│
 │    └─ Store as artifacts (90 days)      │
 └─────────────────────────────────────────┘
 ```
@@ -128,7 +128,7 @@ gh workflow run create-release.yml \
 │ Job 2: download-packages                │
 │ ├─ Download from CI workflow artifacts  │
 │ ├─ Rename from CI version to release:   │
-│ │  1.0.0-ci.20251024.1234.abc123f      │
+│ │  1.0.0-ci.main.20251024.1234.abc123  │
 │ │       ↓                               │
 │ │  1.0.0                                │
 │ └─ Upload renamed packages               │
