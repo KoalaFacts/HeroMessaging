@@ -114,9 +114,8 @@ This repository is configured to use **NuGet Trusted Publishing** for secure, ke
 
 For setup instructions, see: `.github/NUGET_TRUSTED_PUBLISHING.md`
 
-### NUGET_API_KEY (Not Required)
-- **Status**: ❌ Not used (trusted publishing enabled)
-- **Note**: If you ever need to temporarily use API key authentication, uncomment the fallback section in `publish-nuget.yml` and add this secret
+### NUGET_API_KEY
+- **Status**: ❌ Not used - repository uses NuGet Trusted Publishing exclusively
 
 ### CODECOV_TOKEN (for Codecov)
 - **Description**: Token for uploading coverage to Codecov

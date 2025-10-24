@@ -163,25 +163,14 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
-      # Trusted Publishing (Recommended - ENABLED)
-      # Setup instructions at https://www.nuget.org/account/Packages
-      # See: https://learn.microsoft.com/en-us/nuget/nuget-org/publish-a-package#trusted-publishers
-      - name: Publish to NuGet (Trusted Publishing)
+      # Trusted Publishing - Secure, keyless authentication via OIDC
+      # Setup instructions: .github/NUGET_TRUSTED_PUBLISHING.md
+      - name: Publish to NuGet.org
         run: |
           dotnet nuget push "./packages/*.nupkg" \
             --source https://api.nuget.org/v3/index.json \
             --skip-duplicate \
             --no-symbols
-
-      # API Key Method (DISABLED - using trusted publishing instead)
-      # Uncomment below if you need to temporarily use API key instead
-      # - name: Publish to NuGet (API Key)
-      #   run: |
-      #     dotnet nuget push "./packages/*.nupkg" \
-      #       --source https://api.nuget.org/v3/index.json \
-      #       --api-key ${{ secrets.NUGET_API_KEY }} \
-      #       --skip-duplicate \
-      #       --no-symbols
 
   publish-github-packages:
     name: Publish to GitHub Packages

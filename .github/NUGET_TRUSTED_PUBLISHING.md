@@ -227,17 +227,6 @@ https://github.com/KoalaFacts/HeroMessaging/settings/environments/production
 
 ---
 
-## Migration from API Key (If Needed)
-
-If you previously used API keys and need to temporarily switch back:
-
-1. Uncomment the API key section in `publish-nuget.yml` (lines 176-184)
-2. Comment out the trusted publishing section (lines 166-174)
-3. Add `NUGET_API_KEY` to GitHub Secrets
-4. Update the workflow
-
-**Not recommended** - Trusted publishing is more secure and requires no maintenance.
-
 ---
 
 ## Additional Resources
