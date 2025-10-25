@@ -138,17 +138,22 @@ internal class InMemoryConsumer : ITransportConsumer
         _metrics.MessagesReceived++;
         _metrics.LastMessageReceived = startTime;
 
+        // Track whether user manually handled message lifecycle
+        bool messageHandled = false;
+
         try
         {
             var context = new MessageContext(_transport.Name, Source)
             {
                 Acknowledge = async (ct) =>
                 {
+                    messageHandled = true;
                     _metrics.MessagesAcknowledged++;
                     await Task.CompletedTask;
                 },
                 Reject = async (requeue, ct) =>
                 {
+                    messageHandled = true;
                     _metrics.MessagesRejected++;
                     if (requeue)
                     {
@@ -157,6 +162,7 @@ internal class InMemoryConsumer : ITransportConsumer
                 },
                 DeadLetter = async (reason, ct) =>
                 {
+                    messageHandled = true;
                     _metrics.MessagesDeadLettered++;
                     await Task.CompletedTask;
                 }
@@ -165,8 +171,8 @@ internal class InMemoryConsumer : ITransportConsumer
             // Invoke user handler
             await _handler(envelope, context, cancellationToken);
 
-            // Auto-acknowledge if configured
-            if (_options.AutoAcknowledge)
+            // Auto-acknowledge if configured and user didn't manually handle the message
+            if (_options.AutoAcknowledge && !messageHandled)
             {
                 await context.AcknowledgeAsync(cancellationToken);
             }
