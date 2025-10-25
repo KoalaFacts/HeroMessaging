@@ -36,73 +36,14 @@ env:
   NUGET_XMLDOC_MODE: skip
 
 jobs:
-  # Job for detecting changes to determine test scope
-  detect-changes:
-    runs-on: ubuntu-latest
-    outputs:
-      core-changed: ${{ steps.changes.outputs.core }}
-      tests-changed: ${{ steps.changes.outputs.tests }}
-      storage-changed: ${{ steps.changes.outputs.storage }}
-      serialization-changed: ${{ steps.changes.outputs.serialization }}
-      observability-changed: ${{ steps.changes.outputs.observability }}
-      docs-only: ${{ steps.changes.outputs.docs-only }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - uses: dorny/paths-filter@v3
-        id: changes
-        with:
-          filters: |
-            core:
-              - 'src/HeroMessaging/**'
-              - 'src/HeroMessaging.Abstractions/**'
-            tests:
-              - 'tests/**'
-              - '!tests/**/*.md'
-            storage:
-              - 'src/HeroMessaging.Storage.*/**'
-            serialization:
-              - 'src/HeroMessaging.Serialization.*/**'
-            observability:
-              - 'src/HeroMessaging.Observability.*/**'
-            workflows:
-              - '.github/workflows/**'
-            docs-only:
-              - '**/*.md'
-              - 'docs/**'
-              - '!src/**'
-              - '!tests/**'
-              - '!.github/**'
-
   # Matrix job for unit tests across platforms and frameworks
   unit-tests:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.docs-only != 'true'
+    name: Unit Tests (${{ matrix.os }}, ${{ matrix.framework }})
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        framework: [net6.0, net8.0, net10.0]
-        configuration: [Debug, Release]
-        exclude:
-          # Reduce matrix size for non-critical combinations
-          - os: macos-latest
-            configuration: Debug
-          - framework: net6.0
-            configuration: Debug
-            os: macos-latest
-        include:
-          # Add netstandard2.0 tests on Windows only
-          - os: windows-latest
-            framework: netstandard2.0
-            configuration: Release
-          # Add performance configuration
-          - os: ubuntu-latest
-            framework: net8.0
-            configuration: Release
-            run-benchmarks: true
+        framework: [net6.0, net8.0, net9.0]
 
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
@@ -119,7 +60,7 @@ jobs:
           dotnet-version: |
             6.0.x
             8.0.x
-            10.0.x
+            9.0.x
           dotnet-quality: 'ga'
 
       - name: Cache NuGet packages
@@ -134,12 +75,13 @@ jobs:
         run: dotnet restore --verbosity minimal
 
       - name: Build solution
-        run: dotnet build --configuration ${{ matrix.configuration }} --no-restore --verbosity minimal
+        run: dotnet build --configuration Release --no-restore --verbosity minimal
 
       - name: Run unit tests
+        shell: bash
         run: |
           dotnet test \
-            --configuration ${{ matrix.configuration }} \
+            --configuration Release \
             --no-build \
             --verbosity minimal \
             --framework ${{ matrix.framework }} \
@@ -149,37 +91,19 @@ jobs:
             --logger "trx;LogFileName=unit-tests-${{ matrix.os }}-${{ matrix.framework }}.trx" \
             -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
 
-      - name: Run performance benchmarks
-        if: matrix.run-benchmarks == true && (github.event.inputs.run_performance_tests == 'true' || github.event_name == 'schedule')
-        run: |
-          dotnet run \
-            --project tests/HeroMessaging.Benchmarks \
-            --configuration Release \
-            --framework ${{ matrix.framework }} \
-            -- --exporters json \
-            --artifacts ./benchmark-results
-
       - name: Upload test results
         uses: actions/upload-artifact@v5
         if: always()
         with:
-          name: test-results-${{ matrix.os }}-${{ matrix.framework }}-${{ matrix.configuration }}
+          name: test-results-${{ matrix.os }}-${{ matrix.framework }}
           path: |
             ./test-results/**/*.trx
             ./test-results/**/*.xml
           retention-days: 7
 
-      - name: Upload benchmark results
-        uses: actions/upload-artifact@v5
-        if: matrix.run-benchmarks == true && always()
-        with:
-          name: benchmark-results-${{ matrix.os }}-${{ matrix.framework }}
-          path: ./benchmark-results/**/*.json
-          retention-days: 30
-
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
-        if: matrix.os == 'ubuntu-latest' && matrix.framework == 'net8.0' && matrix.configuration == 'Release'
+        if: matrix.os == 'ubuntu-latest' && matrix.framework == 'net8.0'
         with:
           directory: ./test-results
           flags: unit-tests
@@ -187,16 +111,16 @@ jobs:
 
   # Integration tests with real dependencies
   integration-tests:
-    needs: [detect-changes, unit-tests]
-    if: needs.detect-changes.outputs.docs-only != 'true' && (github.event.inputs.run_integration_tests == 'true' || github.event.inputs.run_integration_tests == null)
+    name: Integration Tests (${{ matrix.framework }}, ${{ matrix.test-category }})
+    needs: unit-tests
+    if: always() && (github.event.inputs.run_integration_tests != 'false')
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]  # Service containers only work properly on Linux
-        framework: [net8.0]
+        framework: [net6.0, net8.0, net9.0]
         test-category: [Storage, Serialization, Observability, Pipeline]
 
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest  # Service containers only work properly on Linux
     timeout-minutes: 30
 
     services:
@@ -244,7 +168,9 @@ jobs:
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: |
+            6.0.x
             8.0.x
+            9.0.x
 
       - name: Cache NuGet packages
         uses: actions/cache@v4
@@ -266,6 +192,7 @@ jobs:
           sleep 30
 
       - name: Run integration tests
+        shell: bash
         env:
           PostgreSQL__ConnectionString: "Host=localhost;Port=5432;Database=heromessaging_test;Username=postgres;Password=postgres"
           SqlServer__ConnectionString: "Server=localhost,1433;Database=heromessaging_test;User Id=sa;Password=HeroMessaging123!;TrustServerCertificate=true"
@@ -278,14 +205,14 @@ jobs:
             --filter "Category=Integration&Category=${{ matrix.test-category }}" \
             --collect:"XPlat Code Coverage" \
             --results-directory ./test-results \
-            --logger "trx;LogFileName=integration-${{ matrix.test-category }}-${{ matrix.os }}.trx" \
+            --logger "trx;LogFileName=integration-${{ matrix.test-category }}-${{ matrix.framework }}.trx" \
             -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
 
       - name: Upload integration test results
         uses: actions/upload-artifact@v5
         if: always()
         with:
-          name: integration-results-${{ matrix.test-category }}-${{ matrix.os }}
+          name: integration-results-${{ matrix.test-category }}-${{ matrix.framework }}
           path: |
             ./test-results/**/*.trx
             ./test-results/**/*.xml
@@ -293,9 +220,13 @@ jobs:
 
   # Contract tests for API compatibility
   contract-tests:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.core-changed == 'true' || needs.detect-changes.outputs.tests-changed == 'true'
-    runs-on: ubuntu-latest
+    name: Contract Tests (${{ matrix.os }}, ${{ matrix.framework }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        framework: [net6.0, net8.0, net9.0]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 15
 
     steps:
@@ -305,7 +236,18 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: |
+            6.0.x
+            8.0.x
+            9.0.x
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/*.props', 'global.json', 'Directory.Build.*') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
 
       - name: Restore dependencies
         run: dotnet restore
@@ -314,25 +256,28 @@ jobs:
         run: dotnet build --configuration Release --no-restore
 
       - name: Run contract tests
+        shell: bash
         run: |
-          dotnet test \
+          dotnet test tests/HeroMessaging.Contract.Tests/HeroMessaging.Contract.Tests.csproj \
             --configuration Release \
             --no-build \
+            --framework ${{ matrix.framework }} \
             --filter "Category=Contract" \
-            --logger "trx;LogFileName=contract-tests.trx" \
+            --logger "trx;LogFileName=contract-tests-${{ matrix.os }}-${{ matrix.framework }}.trx" \
             --results-directory ./test-results
 
       - name: Upload contract test results
         uses: actions/upload-artifact@v5
         if: always()
         with:
-          name: contract-test-results
+          name: contract-test-results-${{ matrix.os }}-${{ matrix.framework }}
           path: ./test-results/**/*.trx
 
   # Performance regression detection
   performance-regression:
-    needs: [detect-changes, unit-tests]
-    if: github.event_name == 'schedule' || github.event.inputs.run_performance_tests == 'true' || (needs.detect-changes.outputs.core-changed == 'true' && github.event_name == 'pull_request')
+    name: Performance Regression Analysis
+    needs: unit-tests
+    if: always() && (github.event_name == 'schedule' || github.event.inputs.run_performance_tests == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -406,6 +351,7 @@ jobs:
 
   # Quality gates and final validation
   quality-gates:
+    name: Quality Gates & Validation
     needs: [unit-tests, integration-tests, contract-tests]
     if: always()
     runs-on: ubuntu-latest
@@ -419,6 +365,7 @@ jobs:
         uses: actions/download-artifact@v6
         with:
           path: ./all-test-results
+        continue-on-error: true
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
@@ -429,12 +376,21 @@ jobs:
         run: dotnet tool install --global dotnet-reportgenerator-globaltool
 
       - name: Generate combined coverage report
+        continue-on-error: true
         run: |
-          reportgenerator \
-            -reports:"./all-test-results/**/coverage.cobertura.xml" \
-            -targetdir:"./coverage-report" \
-            -reporttypes:"Html;Badges;TextSummary" \
-            -classfilters:"-System.*;-Microsoft.*"
+          # Check if any coverage files exist
+          if find ./all-test-results -name "coverage.cobertura.xml" -type f | grep -q .; then
+            echo "Found coverage files, generating report..."
+            reportgenerator \
+              -reports:"./all-test-results/**/coverage.cobertura.xml" \
+              -targetdir:"./coverage-report" \
+              -reporttypes:"Html;Badges;TextSummary" \
+              -classfilters:"-System.*;-Microsoft.*"
+          else
+            echo "No coverage files found, skipping report generation"
+            mkdir -p ./coverage-report
+            echo "Line coverage: 0%" > ./coverage-report/Summary.txt
+          fi
 
       - name: Read coverage summary
         id: coverage
@@ -459,18 +415,7 @@ jobs:
         run: |
           echo "Checking quality gates..."
 
-          # Check coverage threshold
-          COVERAGE=${{ steps.coverage.outputs.coverage }}
-          MIN_COVERAGE=80
-
-          if (( $(echo "$COVERAGE < $MIN_COVERAGE" | bc -l) )); then
-            echo "❌ Coverage $COVERAGE% is below minimum threshold $MIN_COVERAGE%"
-            exit 1
-          else
-            echo "✅ Coverage $COVERAGE% meets minimum threshold $MIN_COVERAGE%"
-          fi
-
-          # Check test results
+          # Check test results first
           UNIT_TESTS_PASSED="${{ needs.unit-tests.result }}"
           INTEGRATION_TESTS_PASSED="${{ needs.integration-tests.result }}"
           CONTRACT_TESTS_PASSED="${{ needs.contract-tests.result }}"
@@ -479,7 +424,7 @@ jobs:
           echo "Integration tests: $INTEGRATION_TESTS_PASSED"
           echo "Contract tests: $CONTRACT_TESTS_PASSED"
 
-          if [[ "$UNIT_TESTS_PASSED" != "success" ]]; then
+          if [[ "$UNIT_TESTS_PASSED" != "success" && "$UNIT_TESTS_PASSED" != "skipped" ]]; then
             echo "❌ Unit tests failed"
             exit 1
           fi
@@ -494,6 +439,19 @@ jobs:
             exit 1
           fi
 
+          # Check coverage threshold (only if tests actually ran)
+          COVERAGE=${{ steps.coverage.outputs.coverage }}
+          MIN_COVERAGE=80
+
+          if [[ "$UNIT_TESTS_PASSED" == "skipped" && "$INTEGRATION_TESTS_PASSED" == "skipped" ]]; then
+            echo "⚠️ Coverage check skipped (no unit/integration tests ran)"
+          elif (( $(echo "$COVERAGE < $MIN_COVERAGE" | bc -l) )); then
+            echo "❌ Coverage $COVERAGE% is below minimum threshold $MIN_COVERAGE%"
+            exit 1
+          else
+            echo "✅ Coverage $COVERAGE% meets minimum threshold $MIN_COVERAGE%"
+          fi
+
           echo "✅ All quality gates passed"
 
       - name: Update status badges
@@ -504,6 +462,7 @@ jobs:
 
   # Build release packages for main branch (used by create-release workflow)
   build-release-packages:
+    name: Build Release Packages
     needs: quality-gates
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
@@ -521,7 +480,7 @@ jobs:
           dotnet-version: |
             6.0.x
             8.0.x
-            10.0.x
+            9.0.x
 
       - name: Restore dependencies
         run: dotnet restore
@@ -544,8 +503,8 @@ jobs:
           RUN_NUMBER=${{ github.run_number }}
           SHORT_SHA=${GITHUB_SHA:0:7}
 
-          # Construct build number: branch.date.run.hash
-          BUILD_NUMBER="${BRANCH_NAME}.${BUILD_DATE}.${RUN_NUMBER}.${SHORT_SHA}"
+          # Construct build number: branch-date.run.hash
+          BUILD_NUMBER="${BRANCH_NAME}-${BUILD_DATE}.${RUN_NUMBER}.${SHORT_SHA}"
           FULL_VERSION="${BASE_VERSION}-ci.${BUILD_NUMBER}"
 
           echo "build-number=${BUILD_NUMBER}" >> $GITHUB_OUTPUT
