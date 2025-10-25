@@ -2,7 +2,7 @@ name: Publish to NuGet
 
 on:
   release:
-    types: [published]
+    types: [released, published]  # 'released' for direct publish, 'published' for draft->published
 
 permissions:
   contents: write
