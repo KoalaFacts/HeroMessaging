@@ -169,7 +169,7 @@ jobs:
           ls -lh
 
       - name: Upload renamed packages
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: release-packages-${{ needs.validate-and-prepare.outputs.version }}
           path: ./release-packages/*

@@ -160,7 +160,7 @@ jobs:
             --artifacts ./benchmark-results
 
       - name: Upload test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: always()
         with:
           name: test-results-${{ matrix.os }}-${{ matrix.framework }}-${{ matrix.configuration }}
@@ -170,7 +170,7 @@ jobs:
           retention-days: 7
 
       - name: Upload benchmark results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: matrix.run-benchmarks == true && always()
         with:
           name: benchmark-results-${{ matrix.os }}-${{ matrix.framework }}
@@ -282,7 +282,7 @@ jobs:
             -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
 
       - name: Upload integration test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: always()
         with:
           name: integration-results-${{ matrix.test-category }}-${{ matrix.os }}
@@ -323,7 +323,7 @@ jobs:
             --results-directory ./test-results
 
       - name: Upload contract test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: always()
         with:
           name: contract-test-results
@@ -380,7 +380,7 @@ jobs:
             --threshold 10
 
       - name: Upload current benchmarks as baseline
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         with:
           name: performance-baseline
@@ -449,7 +449,7 @@ jobs:
           fi
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: coverage-report
           path: ./coverage-report/**/*
@@ -591,14 +591,14 @@ jobs:
           echo "Full Version: ${{ steps.build-number.outputs.full-version }}"
 
       - name: Upload release packages
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: release-packages-${{ github.sha }}
           path: ./release-packages/*
           retention-days: 90  # Keep for 90 days for releases
 
       - name: Upload release packages (latest)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: release-packages-latest
           path: ./release-packages/*
