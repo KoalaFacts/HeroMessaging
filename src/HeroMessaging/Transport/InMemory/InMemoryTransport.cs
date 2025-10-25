@@ -45,15 +45,18 @@ public class InMemoryTransport : IMessageTransport
             if (_state == TransportState.Connected)
                 return;
 
-            ChangeState(TransportState.Connecting, "Connecting to in-memory transport");
-
             // Simulate network delay if configured
             if (_options.SimulateNetworkDelay)
             {
+                ChangeState(TransportState.Connecting, "Connecting to in-memory transport");
                 await Task.Delay(_options.SimulatedDelayMin, cancellationToken);
+                ChangeState(TransportState.Connected, "Connected to in-memory transport");
             }
-
-            ChangeState(TransportState.Connected, "Connected to in-memory transport");
+            else
+            {
+                // For in-memory transport, skip intermediate Connecting state since connection is instant
+                ChangeState(TransportState.Connected, "Connected to in-memory transport");
+            }
         }
         finally
         {
@@ -70,6 +73,12 @@ public class InMemoryTransport : IMessageTransport
         foreach (var consumer in _consumers.Values)
         {
             _ = consumer.StopAsync(cancellationToken);
+        }
+
+        // Dispose all queues to stop background processing
+        foreach (var queue in _queues.Values)
+        {
+            queue.Dispose();
         }
 
         _consumers.Clear();

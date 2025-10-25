@@ -93,8 +93,8 @@ public class InMemoryTransportTests : IAsyncLifetime
         await _transport.ConnectAsync(); // Already connected in InitializeAsync
         await _transport.ConnectAsync(); // Second connect
 
-        // Assert - Should only fire once during InitializeAsync
-        Assert.Equal(2, eventCount); // Connecting and Connected events
+        // Assert - Should not fire events when already connected
+        Assert.Equal(0, eventCount); // No events should fire
     }
 
     [Fact]
