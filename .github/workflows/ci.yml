@@ -38,6 +38,7 @@ env:
 jobs:
   # Job for detecting changes to determine test scope
   detect-changes:
+    name: Detect Changes
     runs-on: ubuntu-latest
     outputs:
       core-changed: ${{ steps.changes.outputs.core }}
@@ -78,6 +79,7 @@ jobs:
 
   # Matrix job for unit tests across platforms and frameworks
   unit-tests:
+    name: Unit Tests (${{ matrix.os }}, ${{ matrix.framework }}, ${{ matrix.configuration }})
     needs: detect-changes
     if: needs.detect-changes.outputs.docs-only != 'true'
     strategy:
@@ -187,6 +189,7 @@ jobs:
 
   # Integration tests with real dependencies
   integration-tests:
+    name: Integration Tests (${{ matrix.framework }}, ${{ matrix.test-category }})
     needs: [detect-changes, unit-tests]
     if: needs.detect-changes.outputs.docs-only != 'true' && (github.event.inputs.run_integration_tests == 'true' || github.event.inputs.run_integration_tests == null)
     strategy:
@@ -295,6 +298,7 @@ jobs:
 
   # Contract tests for API compatibility
   contract-tests:
+    name: Contract Tests (${{ matrix.os }}, ${{ matrix.framework }})
     needs: detect-changes
     if: needs.detect-changes.outputs.core-changed == 'true' || needs.detect-changes.outputs.tests-changed == 'true'
     strategy:
@@ -350,6 +354,7 @@ jobs:
 
   # Performance regression detection
   performance-regression:
+    name: Performance Regression Analysis
     needs: [detect-changes, unit-tests]
     if: github.event_name == 'schedule' || github.event.inputs.run_performance_tests == 'true' || (needs.detect-changes.outputs.core-changed == 'true' && github.event_name == 'pull_request')
     runs-on: ubuntu-latest
@@ -425,6 +430,7 @@ jobs:
 
   # Quality gates and final validation
   quality-gates:
+    name: Quality Gates & Validation
     needs: [unit-tests, integration-tests, contract-tests]
     if: always()
     runs-on: ubuntu-latest
@@ -523,6 +529,7 @@ jobs:
 
   # Build release packages for main branch (used by create-release workflow)
   build-release-packages:
+    name: Build Release Packages
     needs: quality-gates
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
