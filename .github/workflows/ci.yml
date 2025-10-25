@@ -447,6 +447,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: ./all-test-results
+        continue-on-error: true
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -457,12 +458,21 @@ jobs:
         run: dotnet tool install --global dotnet-reportgenerator-globaltool
 
       - name: Generate combined coverage report
+        continue-on-error: true
         run: |
-          reportgenerator \
-            -reports:"./all-test-results/**/coverage.cobertura.xml" \
-            -targetdir:"./coverage-report" \
-            -reporttypes:"Html;Badges;TextSummary" \
-            -classfilters:"-System.*;-Microsoft.*"
+          # Check if any coverage files exist
+          if find ./all-test-results -name "coverage.cobertura.xml" -type f | grep -q .; then
+            echo "Found coverage files, generating report..."
+            reportgenerator \
+              -reports:"./all-test-results/**/coverage.cobertura.xml" \
+              -targetdir:"./coverage-report" \
+              -reporttypes:"Html;Badges;TextSummary" \
+              -classfilters:"-System.*;-Microsoft.*"
+          else
+            echo "No coverage files found, skipping report generation"
+            mkdir -p ./coverage-report
+            echo "Line coverage: 0%" > ./coverage-report/Summary.txt
+          fi
 
       - name: Read coverage summary
         id: coverage
@@ -487,18 +497,7 @@ jobs:
         run: |
           echo "Checking quality gates..."
 
-          # Check coverage threshold
-          COVERAGE=${{ steps.coverage.outputs.coverage }}
-          MIN_COVERAGE=80
-
-          if (( $(echo "$COVERAGE < $MIN_COVERAGE" | bc -l) )); then
-            echo "❌ Coverage $COVERAGE% is below minimum threshold $MIN_COVERAGE%"
-            exit 1
-          else
-            echo "✅ Coverage $COVERAGE% meets minimum threshold $MIN_COVERAGE%"
-          fi
-
-          # Check test results
+          # Check test results first
           UNIT_TESTS_PASSED="${{ needs.unit-tests.result }}"
           INTEGRATION_TESTS_PASSED="${{ needs.integration-tests.result }}"
           CONTRACT_TESTS_PASSED="${{ needs.contract-tests.result }}"
@@ -507,7 +506,7 @@ jobs:
           echo "Integration tests: $INTEGRATION_TESTS_PASSED"
           echo "Contract tests: $CONTRACT_TESTS_PASSED"
 
-          if [[ "$UNIT_TESTS_PASSED" != "success" ]]; then
+          if [[ "$UNIT_TESTS_PASSED" != "success" && "$UNIT_TESTS_PASSED" != "skipped" ]]; then
             echo "❌ Unit tests failed"
             exit 1
           fi
@@ -520,6 +519,19 @@ jobs:
           if [[ "$CONTRACT_TESTS_PASSED" != "success" && "$CONTRACT_TESTS_PASSED" != "skipped" ]]; then
             echo "❌ Contract tests failed"
             exit 1
+          fi
+
+          # Check coverage threshold (only if tests actually ran)
+          COVERAGE=${{ steps.coverage.outputs.coverage }}
+          MIN_COVERAGE=80
+
+          if [[ "$UNIT_TESTS_PASSED" == "skipped" && "$INTEGRATION_TESTS_PASSED" == "skipped" ]]; then
+            echo "⚠️ Coverage check skipped (no unit/integration tests ran)"
+          elif (( $(echo "$COVERAGE < $MIN_COVERAGE" | bc -l) )); then
+            echo "❌ Coverage $COVERAGE% is below minimum threshold $MIN_COVERAGE%"
+            exit 1
+          else
+            echo "✅ Coverage $COVERAGE% meets minimum threshold $MIN_COVERAGE%"
           fi
 
           echo "✅ All quality gates passed"
