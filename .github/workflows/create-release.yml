@@ -93,7 +93,7 @@ jobs:
 
       - name: Find successful workflow run
         id: find-workflow
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const commitSha = '${{ steps.validate.outputs.commit_sha }}';
@@ -242,7 +242,7 @@ jobs:
           fi
 
       - name: Create GitHub Release
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs');
