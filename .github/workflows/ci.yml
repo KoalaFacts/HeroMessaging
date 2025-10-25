@@ -139,6 +139,7 @@ jobs:
         run: dotnet build --configuration ${{ matrix.configuration }} --no-restore --verbosity minimal
 
       - name: Run unit tests
+        shell: bash
         run: |
           dotnet test \
             --configuration ${{ matrix.configuration }} \
@@ -271,6 +272,7 @@ jobs:
           sleep 30
 
       - name: Run integration tests
+        shell: bash
         env:
           PostgreSQL__ConnectionString: "Host=localhost;Port=5432;Database=heromessaging_test;Username=postgres;Password=postgres"
           SqlServer__ConnectionString: "Server=localhost,1433;Database=heromessaging_test;User Id=sa;Password=HeroMessaging123!;TrustServerCertificate=true"
@@ -336,6 +338,7 @@ jobs:
         run: dotnet build --configuration Release --no-restore
 
       - name: Run contract tests
+        shell: bash
         run: |
           dotnet test tests/HeroMessaging.Contract.Tests/HeroMessaging.Contract.Tests.csproj \
             --configuration Release \
