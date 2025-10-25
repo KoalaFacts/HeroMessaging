@@ -136,7 +136,7 @@ jobs:
         run: dotnet restore --verbosity minimal
 
       - name: Build solution
-        run: dotnet build --configuration ${{ matrix.configuration }} --framework ${{ matrix.framework }} --no-restore --verbosity minimal
+        run: dotnet build --configuration ${{ matrix.configuration }} --no-restore --verbosity minimal
 
       - name: Run unit tests
         run: |
@@ -263,7 +263,7 @@ jobs:
         run: dotnet restore
 
       - name: Build solution
-        run: dotnet build --configuration Release --framework ${{ matrix.framework }} --no-restore
+        run: dotnet build --configuration Release --no-restore
 
       - name: Wait for services
         run: |
@@ -333,7 +333,7 @@ jobs:
         run: dotnet restore
 
       - name: Build solution
-        run: dotnet build --configuration Release --framework ${{ matrix.framework }} --no-restore
+        run: dotnet build --configuration Release --no-restore
 
       - name: Run contract tests
         run: |
