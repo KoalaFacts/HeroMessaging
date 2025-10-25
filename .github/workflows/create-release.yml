@@ -130,7 +130,7 @@ jobs:
 
     steps:
       - name: Download packages from CI workflow
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: release-packages-${{ needs.validate-and-prepare.outputs.commit_sha }}
           path: ./release-packages
@@ -189,7 +189,7 @@ jobs:
           fetch-depth: 0
 
       - name: Download packages
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: release-packages-${{ needs.validate-and-prepare.outputs.version }}
           path: ./release-packages
