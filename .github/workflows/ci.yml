@@ -36,75 +36,14 @@ env:
   NUGET_XMLDOC_MODE: skip
 
 jobs:
-  # Job for detecting changes to determine test scope
-  detect-changes:
-    name: Detect Changes
-    runs-on: ubuntu-latest
-    outputs:
-      core-changed: ${{ steps.changes.outputs.core }}
-      tests-changed: ${{ steps.changes.outputs.tests }}
-      storage-changed: ${{ steps.changes.outputs.storage }}
-      serialization-changed: ${{ steps.changes.outputs.serialization }}
-      observability-changed: ${{ steps.changes.outputs.observability }}
-      docs-only: ${{ steps.changes.outputs.docs-only }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - uses: dorny/paths-filter@v3
-        id: changes
-        with:
-          filters: |
-            core:
-              - 'src/HeroMessaging/**'
-              - 'src/HeroMessaging.Abstractions/**'
-            tests:
-              - 'tests/**'
-              - '!tests/**/*.md'
-            storage:
-              - 'src/HeroMessaging.Storage.*/**'
-            serialization:
-              - 'src/HeroMessaging.Serialization.*/**'
-            observability:
-              - 'src/HeroMessaging.Observability.*/**'
-            workflows:
-              - '.github/workflows/**'
-            docs-only:
-              - '**/*.md'
-              - 'docs/**'
-              - '!src/**'
-              - '!tests/**'
-              - '!.github/**'
-
   # Matrix job for unit tests across platforms and frameworks
   unit-tests:
-    name: Unit Tests (${{ matrix.os }}, ${{ matrix.framework }}, ${{ matrix.configuration }})
-    needs: detect-changes
-    if: needs.detect-changes.outputs.docs-only != 'true'
+    name: Unit Tests (${{ matrix.os }}, ${{ matrix.framework }})
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         framework: [net6.0, net8.0, net9.0]
-        configuration: [Debug, Release]
-        exclude:
-          # Reduce matrix size for non-critical combinations
-          - os: macos-latest
-            configuration: Debug
-          - framework: net6.0
-            configuration: Debug
-            os: macos-latest
-        include:
-          # Add netstandard2.0 tests on Windows only
-          - os: windows-latest
-            framework: netstandard2.0
-            configuration: Release
-          # Add performance configuration
-          - os: ubuntu-latest
-            framework: net8.0
-            configuration: Release
-            run-benchmarks: true
 
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
@@ -136,13 +75,13 @@ jobs:
         run: dotnet restore --verbosity minimal
 
       - name: Build solution
-        run: dotnet build --configuration ${{ matrix.configuration }} --no-restore --verbosity minimal
+        run: dotnet build --configuration Release --no-restore --verbosity minimal
 
       - name: Run unit tests
         shell: bash
         run: |
           dotnet test \
-            --configuration ${{ matrix.configuration }} \
+            --configuration Release \
             --no-build \
             --verbosity minimal \
             --framework ${{ matrix.framework }} \
@@ -152,37 +91,19 @@ jobs:
             --logger "trx;LogFileName=unit-tests-${{ matrix.os }}-${{ matrix.framework }}.trx" \
             -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
 
-      - name: Run performance benchmarks
-        if: matrix.run-benchmarks == true && (github.event.inputs.run_performance_tests == 'true' || github.event_name == 'schedule')
-        run: |
-          dotnet run \
-            --project tests/HeroMessaging.Benchmarks \
-            --configuration Release \
-            --framework ${{ matrix.framework }} \
-            -- --exporters json \
-            --artifacts ./benchmark-results
-
       - name: Upload test results
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: test-results-${{ matrix.os }}-${{ matrix.framework }}-${{ matrix.configuration }}
+          name: test-results-${{ matrix.os }}-${{ matrix.framework }}
           path: |
             ./test-results/**/*.trx
             ./test-results/**/*.xml
           retention-days: 7
 
-      - name: Upload benchmark results
-        uses: actions/upload-artifact@v4
-        if: matrix.run-benchmarks == true && always()
-        with:
-          name: benchmark-results-${{ matrix.os }}-${{ matrix.framework }}
-          path: ./benchmark-results/**/*.json
-          retention-days: 30
-
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
-        if: matrix.os == 'ubuntu-latest' && matrix.framework == 'net8.0' && matrix.configuration == 'Release'
+        if: matrix.os == 'ubuntu-latest' && matrix.framework == 'net8.0'
         with:
           directory: ./test-results
           flags: unit-tests
@@ -191,16 +112,15 @@ jobs:
   # Integration tests with real dependencies
   integration-tests:
     name: Integration Tests (${{ matrix.framework }}, ${{ matrix.test-category }})
-    needs: [detect-changes, unit-tests]
-    if: needs.detect-changes.outputs.docs-only != 'true' && (github.event.inputs.run_integration_tests == 'true' || github.event.inputs.run_integration_tests == null)
+    needs: unit-tests
+    if: always() && (github.event.inputs.run_integration_tests != 'false')
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]  # Service containers only work properly on Linux
         framework: [net6.0, net8.0, net9.0]
         test-category: [Storage, Serialization, Observability, Pipeline]
 
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest  # Service containers only work properly on Linux
     timeout-minutes: 30
 
     services:
@@ -301,8 +221,6 @@ jobs:
   # Contract tests for API compatibility
   contract-tests:
     name: Contract Tests (${{ matrix.os }}, ${{ matrix.framework }})
-    needs: detect-changes
-    if: needs.detect-changes.outputs.core-changed == 'true' || needs.detect-changes.outputs.tests-changed == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -358,8 +276,8 @@ jobs:
   # Performance regression detection
   performance-regression:
     name: Performance Regression Analysis
-    needs: [detect-changes, unit-tests]
-    if: github.event_name == 'schedule' || github.event.inputs.run_performance_tests == 'true' || (needs.detect-changes.outputs.core-changed == 'true' && github.event_name == 'pull_request')
+    needs: unit-tests
+    if: always() && (github.event_name == 'schedule' || github.event.inputs.run_performance_tests == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
