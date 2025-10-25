@@ -152,15 +152,20 @@ jobs:
           cd ./release-packages
 
           # Rename packages from CI version to release version
-          # CI format: {package}-{version}-ci.{branch}.{date}.{run}.{sha}.{ext}
-          # Release format: {package}.{version}.{ext}
+          # CI format: {PackageId}.{major}.{minor}.{patch}-ci.{branch}.{date}.{run}.{sha}.{ext}
+          # Example: HeroMessaging.0.0.0-ci.main-20251025.57.2478e37.nupkg
+          # Release format: {PackageId}.{version}.{ext}
+          # Example: HeroMessaging.1.0.0.nupkg
           for file in *.nupkg *.snupkg; do
-            if [[ "$file" =~ (.+)-ci\.[a-zA-Z0-9_-]+\.[0-9]+\.[0-9]+\.[a-f0-9]+\.(nupkg|snupkg)$ ]]; then
-              base="${BASH_REMATCH[1]}"
+            # Match: PackageName.0.0.0-ci.branch.date.run.sha.ext
+            if [[ "$file" =~ ^(.+?)\.[0-9]+\.[0-9]+\.[0-9]+-ci\.[a-zA-Z0-9_-]+\.[0-9]+\.[0-9]+\.[a-f0-9]+\.(nupkg|snupkg)$ ]]; then
+              package="${BASH_REMATCH[1]}"
               ext="${BASH_REMATCH[2]}"
-              newname="${base}.${VERSION}.${ext}"
+              newname="${package}.${VERSION}.${ext}"
               echo "Renaming: $file → $newname"
               mv "$file" "$newname"
+            else
+              echo "Warning: Skipping $file (doesn't match expected CI package format)"
             fi
           done
 
