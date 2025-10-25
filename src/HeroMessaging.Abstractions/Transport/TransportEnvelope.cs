@@ -130,9 +130,9 @@ public readonly record struct TransportEnvelope
     public TransportEnvelope WithHeaders(IEnumerable<KeyValuePair<string, object>> headers)
     {
         var builder = Headers.ToBuilder();
-        foreach (var (key, value) in headers)
+        foreach (var header in headers)
         {
-            builder[key] = value;
+            builder[header.Key] = header.Value;
         }
         return this with { Headers = builder.ToImmutable() };
     }

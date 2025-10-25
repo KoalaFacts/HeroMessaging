@@ -47,10 +47,11 @@ public class RetryPolicy
             return InitialDelay;
 
         // Exponential backoff: InitialDelay * 2^(attemptNumber-1)
-        var exponentialDelay = InitialDelay * Math.Pow(2, attemptNumber - 1);
-        var clampedDelay = TimeSpan.FromMilliseconds(Math.Min(exponentialDelay.TotalMilliseconds, MaxDelay.TotalMilliseconds));
+        var multiplier = Math.Pow(2, attemptNumber - 1);
+        var exponentialDelayMs = InitialDelay.TotalMilliseconds * multiplier;
+        var clampedDelayMs = Math.Min(exponentialDelayMs, MaxDelay.TotalMilliseconds);
 
-        return clampedDelay;
+        return TimeSpan.FromMilliseconds(clampedDelayMs);
     }
 
     /// <summary>

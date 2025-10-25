@@ -19,7 +19,8 @@ public readonly record struct TransportAddress
 
     public TransportAddress(Uri uri)
     {
-        ArgumentNullException.ThrowIfNull(uri);
+        if (uri == null)
+            throw new ArgumentNullException(nameof(uri));
 
         Scheme = uri.Scheme;
         Host = uri.Host;
@@ -28,7 +29,7 @@ public readonly record struct TransportAddress
         Path = uri.AbsolutePath.TrimStart('/');
 
         // Parse the path to extract name and type
-        var segments = Path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        var segments = Path.Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
         if (segments.Length > 0)
         {
             var lastSegment = segments[^1];
@@ -108,7 +109,8 @@ public readonly record struct TransportAddress
     /// </summary>
     public static TransportAddress Parse(string address)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(address);
+        if (string.IsNullOrWhiteSpace(address))
+            throw new ArgumentException("Address cannot be null or whitespace.", nameof(address));
 
         // Try to parse as URI
         if (Uri.TryCreate(address, UriKind.Absolute, out var uri))
