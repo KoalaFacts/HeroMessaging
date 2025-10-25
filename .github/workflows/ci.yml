@@ -109,7 +109,7 @@ jobs:
           flags: unit-tests
           fail_ci_if_error: false
 
-  # Integration tests with real dependencies using .NET Aspire test containers
+  # Integration tests with mock dependencies (faster, runs on .NET 9 only)
   integration-tests:
     name: Integration Tests (.NET 9)
     needs: unit-tests
@@ -140,7 +140,7 @@ jobs:
       - name: Build solution
         run: dotnet build --configuration Release --no-restore
 
-      - name: Run integration tests with Aspire test containers
+      - name: Run integration tests
         shell: bash
         run: |
           dotnet test \
