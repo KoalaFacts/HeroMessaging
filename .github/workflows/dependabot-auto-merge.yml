@@ -1,0 +1,72 @@
+name: Dependabot Auto-merge
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    name: Auto-merge Dependabot PRs
+    runs-on: ubuntu-latest
+    if: github.actor == 'dependabot[bot]'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Fetch Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Check if auto-merge is allowed
+        id: check
+        run: |
+          # Auto-merge for patch and minor updates (low/medium risk)
+          UPDATE_TYPE="${{ steps.metadata.outputs.update-type }}"
+
+          echo "Update type: $UPDATE_TYPE"
+          echo "Dependency: ${{ steps.metadata.outputs.dependency-names }}"
+
+          if [[ "$UPDATE_TYPE" == "version-update:semver-patch" || "$UPDATE_TYPE" == "version-update:semver-minor" ]]; then
+            echo "✅ Auto-merge allowed for $UPDATE_TYPE"
+            echo "auto-merge=true" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ Auto-merge not allowed for $UPDATE_TYPE (major updates require manual review)"
+            echo "auto-merge=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Wait for CI to complete
+        if: steps.check.outputs.auto-merge == 'true'
+        uses: lewagon/wait-on-check-action@v1.3.4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          check-name: 'Quality Gates & Validation'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 30
+          allowed-conclusions: success
+
+      - name: Approve and merge PR
+        if: steps.check.outputs.auto-merge == 'true'
+        run: |
+          echo "Approving PR #${{ github.event.pull_request.number }}"
+          gh pr review --approve "${{ github.event.pull_request.number }}" \
+            --body "✅ Auto-approving ${{ steps.metadata.outputs.update-type }} update for ${{ steps.metadata.outputs.dependency-names }}"
+
+          echo "Enabling auto-merge with squash"
+          gh pr merge --auto --squash "${{ github.event.pull_request.number }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Comment on major updates
+        if: steps.check.outputs.auto-merge == 'false'
+        run: |
+          gh pr comment "${{ github.event.pull_request.number }}" \
+            --body "⚠️ This is a **major version update** which may contain breaking changes. Please review manually before merging."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
