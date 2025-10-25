@@ -134,7 +134,7 @@ jobs:
         run: dotnet restore --verbosity minimal
 
       - name: Build solution
-        run: dotnet build --configuration ${{ matrix.configuration }} --no-restore --verbosity minimal
+        run: dotnet build --configuration ${{ matrix.configuration }} --framework ${{ matrix.framework }} --no-restore --verbosity minimal
 
       - name: Run unit tests
         run: |
@@ -193,7 +193,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]  # Service containers only work properly on Linux
-        framework: [net8.0]
+        framework: [net6.0, net8.0, net9.0]
         test-category: [Storage, Serialization, Observability, Pipeline]
 
     runs-on: ${{ matrix.os }}
@@ -244,7 +244,9 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: |
+            6.0.x
             8.0.x
+            9.0.x
 
       - name: Cache NuGet packages
         uses: actions/cache@v4
@@ -258,7 +260,7 @@ jobs:
         run: dotnet restore
 
       - name: Build solution
-        run: dotnet build --configuration Release --no-restore
+        run: dotnet build --configuration Release --framework ${{ matrix.framework }} --no-restore
 
       - name: Wait for services
         run: |
@@ -278,14 +280,14 @@ jobs:
             --filter "Category=Integration&Category=${{ matrix.test-category }}" \
             --collect:"XPlat Code Coverage" \
             --results-directory ./test-results \
-            --logger "trx;LogFileName=integration-${{ matrix.test-category }}-${{ matrix.os }}.trx" \
+            --logger "trx;LogFileName=integration-${{ matrix.test-category }}-${{ matrix.framework }}.trx" \
             -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
 
       - name: Upload integration test results
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: integration-results-${{ matrix.test-category }}-${{ matrix.os }}
+          name: integration-results-${{ matrix.test-category }}-${{ matrix.framework }}
           path: |
             ./test-results/**/*.trx
             ./test-results/**/*.xml
@@ -295,7 +297,12 @@ jobs:
   contract-tests:
     needs: detect-changes
     if: needs.detect-changes.outputs.core-changed == 'true' || needs.detect-changes.outputs.tests-changed == 'true'
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        framework: [net6.0, net8.0, net9.0]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 15
 
     steps:
@@ -305,28 +312,40 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: |
+            6.0.x
+            8.0.x
+            9.0.x
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/*.props', 'global.json', 'Directory.Build.*') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
 
       - name: Restore dependencies
         run: dotnet restore
 
       - name: Build solution
-        run: dotnet build --configuration Release --no-restore
+        run: dotnet build --configuration Release --framework ${{ matrix.framework }} --no-restore
 
       - name: Run contract tests
         run: |
           dotnet test \
             --configuration Release \
             --no-build \
+            --framework ${{ matrix.framework }} \
             --filter "Category=Contract" \
-            --logger "trx;LogFileName=contract-tests.trx" \
+            --logger "trx;LogFileName=contract-tests-${{ matrix.os }}-${{ matrix.framework }}.trx" \
             --results-directory ./test-results
 
       - name: Upload contract test results
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: contract-test-results
+          name: contract-test-results-${{ matrix.os }}-${{ matrix.framework }}
           path: ./test-results/**/*.trx
 
   # Performance regression detection
