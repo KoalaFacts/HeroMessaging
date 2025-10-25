@@ -337,7 +337,7 @@ jobs:
 
       - name: Run contract tests
         run: |
-          dotnet test \
+          dotnet test tests/HeroMessaging.Contract.Tests/HeroMessaging.Contract.Tests.csproj \
             --configuration Release \
             --no-build \
             --framework ${{ matrix.framework }} \
