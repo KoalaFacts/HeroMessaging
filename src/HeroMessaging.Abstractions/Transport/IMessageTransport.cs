@@ -6,17 +6,12 @@ namespace HeroMessaging.Abstractions.Transport;
 /// Core abstraction for message transport implementations
 /// Provides a unified interface for various message brokers and transports
 /// </summary>
-public interface IMessageTransport : IAsyncDisposable
+public interface IMessageTransport : IAsyncDisposable, ITransportObservability
 {
     /// <summary>
     /// Gets the name of the transport (e.g., "RabbitMQ", "AzureServiceBus", "InMemory")
     /// </summary>
     string Name { get; }
-
-    /// <summary>
-    /// Gets the current connection state
-    /// </summary>
-    TransportState State { get; }
 
     /// <summary>
     /// Connect to the transport
@@ -69,16 +64,6 @@ public interface IMessageTransport : IAsyncDisposable
     /// Get transport-specific health information
     /// </summary>
     Task<TransportHealth> GetHealthAsync(CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Event raised when connection state changes
-    /// </summary>
-    event EventHandler<TransportStateChangedEventArgs>? StateChanged;
-
-    /// <summary>
-    /// Event raised when a transport error occurs
-    /// </summary>
-    event EventHandler<TransportErrorEventArgs>? Error;
 }
 
 /// <summary>
@@ -110,38 +95,4 @@ public interface ITransportConsumer : IAsyncDisposable
     /// Get consumer metrics
     /// </summary>
     ConsumerMetrics GetMetrics();
-}
-
-/// <summary>
-/// Transport connection state
-/// </summary>
-public enum TransportState
-{
-    Disconnected,
-    Connecting,
-    Connected,
-    Reconnecting,
-    Disconnecting,
-    Faulted
-}
-
-/// <summary>
-/// Event args for state changes
-/// </summary>
-public class TransportStateChangedEventArgs(TransportState previousState, TransportState currentState, string? reason = null) : EventArgs
-{
-    public TransportState PreviousState { get; } = previousState;
-    public TransportState CurrentState { get; } = currentState;
-    public string? Reason { get; } = reason;
-    public DateTime Timestamp { get; } = DateTime.UtcNow;
-}
-
-/// <summary>
-/// Event args for transport errors
-/// </summary>
-public class TransportErrorEventArgs(Exception exception, string? context = null) : EventArgs
-{
-    public Exception Exception { get; } = exception;
-    public string? Context { get; } = context;
-    public DateTime Timestamp { get; } = DateTime.UtcNow;
 }

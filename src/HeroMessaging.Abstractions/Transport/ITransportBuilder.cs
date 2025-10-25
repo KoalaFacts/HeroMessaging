@@ -22,11 +22,6 @@ public interface ITransportBuilder
     ITransportBuilder WithDefaultConsumerOptions(Action<ConsumerOptions> configure);
 
     /// <summary>
-    /// Add a transport-specific configuration
-    /// </summary>
-    ITransportBuilder ConfigureTransport(Action<object> configure);
-
-    /// <summary>
     /// Build and register the transport
     /// </summary>
     void Build();

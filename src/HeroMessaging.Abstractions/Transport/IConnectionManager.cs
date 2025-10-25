@@ -4,17 +4,12 @@ namespace HeroMessaging.Abstractions.Transport;
 /// Manages connections to message transport
 /// Handles connection pooling, reconnection, and lifecycle
 /// </summary>
-public interface IConnectionManager : IAsyncDisposable
+public interface IConnectionManager : IAsyncDisposable, ITransportObservability
 {
     /// <summary>
     /// Gets the transport name
     /// </summary>
     string TransportName { get; }
-
-    /// <summary>
-    /// Gets the current connection state
-    /// </summary>
-    TransportState State { get; }
 
     /// <summary>
     /// Gets whether the connection is active
@@ -50,16 +45,6 @@ public interface IConnectionManager : IAsyncDisposable
     /// Get connection metrics
     /// </summary>
     ConnectionMetrics GetMetrics();
-
-    /// <summary>
-    /// Event raised when connection state changes
-    /// </summary>
-    event EventHandler<TransportStateChangedEventArgs>? StateChanged;
-
-    /// <summary>
-    /// Event raised when a connection error occurs
-    /// </summary>
-    event EventHandler<TransportErrorEventArgs>? Error;
 }
 
 /// <summary>
@@ -96,7 +81,7 @@ public interface ITransportConnection : IAsyncDisposable
 /// <summary>
 /// Connection pool metrics
 /// </summary>
-public class ConnectionMetrics
+public class ConnectionMetrics : ComponentMetrics
 {
     /// <summary>
     /// Total number of connections in the pool
@@ -114,39 +99,25 @@ public class ConnectionMetrics
     public int IdleConnections { get; set; }
 
     /// <summary>
-    /// Number of failed connection attempts
+    /// Number of failed connection attempts (alias for FailedOperations)
     /// </summary>
-    public long FailedConnectionAttempts { get; set; }
+    public long FailedConnectionAttempts
+    {
+        get => FailedOperations;
+        set => FailedOperations = value;
+    }
 
     /// <summary>
-    /// Number of successful connection attempts
+    /// Number of successful connection attempts (alias for SuccessfulOperations)
     /// </summary>
-    public long SuccessfulConnectionAttempts { get; set; }
+    public long SuccessfulConnectionAttempts
+    {
+        get => SuccessfulOperations;
+        set => SuccessfulOperations = value;
+    }
 
     /// <summary>
     /// Average connection establishment time
     /// </summary>
     public TimeSpan AverageConnectionTime { get; set; }
-
-    /// <summary>
-    /// Last connection error
-    /// </summary>
-    public string? LastError { get; set; }
-
-    /// <summary>
-    /// Last connection error time
-    /// </summary>
-    public DateTime? LastErrorTime { get; set; }
-
-    /// <summary>
-    /// Connection success rate (0.0 - 1.0)
-    /// </summary>
-    public double SuccessRate
-    {
-        get
-        {
-            var total = SuccessfulConnectionAttempts + FailedConnectionAttempts;
-            return total > 0 ? (double)SuccessfulConnectionAttempts / total : 0.0;
-        }
-    }
 }

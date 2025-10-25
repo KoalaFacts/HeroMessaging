@@ -16,24 +16,15 @@ public abstract class TransportOptions
     public bool AutoReconnect { get; set; } = true;
 
     /// <summary>
-    /// Maximum number of reconnection attempts (0 = infinite)
+    /// Reconnection retry policy
     /// </summary>
-    public int MaxReconnectAttempts { get; set; } = 0;
-
-    /// <summary>
-    /// Initial reconnection delay
-    /// </summary>
-    public TimeSpan ReconnectDelay { get; set; } = TimeSpan.FromSeconds(5);
-
-    /// <summary>
-    /// Maximum reconnection delay
-    /// </summary>
-    public TimeSpan MaxReconnectDelay { get; set; } = TimeSpan.FromMinutes(1);
-
-    /// <summary>
-    /// Whether to use exponential backoff for reconnection
-    /// </summary>
-    public bool UseExponentialBackoff { get; set; } = true;
+    public RetryPolicy ReconnectionPolicy { get; set; } = new()
+    {
+        MaxAttempts = -1, // Infinite reconnection attempts by default
+        InitialDelay = TimeSpan.FromSeconds(5),
+        MaxDelay = TimeSpan.FromMinutes(1),
+        UseExponentialBackoff = true
+    };
 
     /// <summary>
     /// Connection timeout
@@ -205,9 +196,16 @@ public class AzureServiceBusTransportOptions : TransportOptions
     public bool UseManagedIdentity { get; set; }
 
     /// <summary>
-    /// Retry options
+    /// Retry policy for transient failures
     /// </summary>
-    public AzureServiceBusRetryOptions RetryOptions { get; set; } = new();
+    public RetryPolicy RetryPolicy { get; set; } = new()
+    {
+        MaxAttempts = 3,
+        InitialDelay = TimeSpan.FromSeconds(1),
+        MaxDelay = TimeSpan.FromSeconds(60),
+        UseExponentialBackoff = true,
+        AttemptTimeout = TimeSpan.FromSeconds(60)
+    };
 
     /// <summary>
     /// Transport type (AMQP or WebSockets)
@@ -218,17 +216,6 @@ public class AzureServiceBusTransportOptions : TransportOptions
     /// Maximum message size in bytes
     /// </summary>
     public long MaxMessageSizeInBytes { get; set; } = 256 * 1024; // 256 KB for Standard tier
-}
-
-/// <summary>
-/// Azure Service Bus retry options
-/// </summary>
-public class AzureServiceBusRetryOptions
-{
-    public int MaxRetries { get; set; } = 3;
-    public TimeSpan Delay { get; set; } = TimeSpan.FromSeconds(1);
-    public TimeSpan MaxDelay { get; set; } = TimeSpan.FromSeconds(60);
-    public TimeSpan TryTimeout { get; set; } = TimeSpan.FromSeconds(60);
 }
 
 /// <summary>

@@ -80,7 +80,11 @@ public class TransportHealth
             TransportName = transportName,
             Status = HealthStatus.Healthy,
             State = state,
-            StatusMessage = "Transport is healthy"
+            StatusMessage = "Transport is healthy",
+            Timestamp = DateTime.UtcNow,
+            Duration = TimeSpan.Zero,
+            ActiveConnections = 0,
+            ActiveConsumers = 0
         };
     }
 
@@ -94,7 +98,11 @@ public class TransportHealth
             TransportName = transportName,
             Status = HealthStatus.Degraded,
             State = state,
-            StatusMessage = reason
+            StatusMessage = reason,
+            Timestamp = DateTime.UtcNow,
+            Duration = TimeSpan.Zero,
+            ActiveConnections = 0,
+            ActiveConsumers = 0
         };
     }
 
@@ -108,7 +116,11 @@ public class TransportHealth
             TransportName = transportName,
             Status = HealthStatus.Unhealthy,
             State = state,
-            StatusMessage = reason
+            StatusMessage = reason,
+            Timestamp = DateTime.UtcNow,
+            Duration = TimeSpan.Zero,
+            ActiveConnections = 0,
+            ActiveConsumers = 0
         };
     }
 
@@ -124,7 +136,11 @@ public class TransportHealth
             State = TransportState.Faulted,
             StatusMessage = exception.Message,
             LastError = exception.ToString(),
-            LastErrorTime = DateTime.UtcNow
+            LastErrorTime = DateTime.UtcNow,
+            Timestamp = DateTime.UtcNow,
+            Duration = TimeSpan.Zero,
+            ActiveConnections = 0,
+            ActiveConsumers = 0
         };
     }
 }

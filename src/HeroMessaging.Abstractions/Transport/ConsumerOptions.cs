@@ -36,19 +36,15 @@ public class ConsumerOptions
     public bool RequeueOnFailure { get; set; } = true;
 
     /// <summary>
-    /// Maximum number of retries before dead lettering
+    /// Retry policy for failed message processing
     /// </summary>
-    public int MaxRetries { get; set; } = 3;
-
-    /// <summary>
-    /// Delay between retries
-    /// </summary>
-    public TimeSpan RetryDelay { get; set; } = TimeSpan.FromSeconds(5);
-
-    /// <summary>
-    /// Whether to use exponential backoff for retries
-    /// </summary>
-    public bool UseExponentialBackoff { get; set; } = true;
+    public RetryPolicy MessageRetryPolicy { get; set; } = new()
+    {
+        MaxAttempts = 3,
+        InitialDelay = TimeSpan.FromSeconds(5),
+        MaxDelay = TimeSpan.FromMinutes(1),
+        UseExponentialBackoff = true
+    };
 
     /// <summary>
     /// Message lock duration (for brokers that support message locking)
@@ -125,8 +121,13 @@ public class ConsumerOptions
             PrefetchCount = 1,
             AutoAcknowledge = false,
             RequeueOnFailure = true,
-            MaxRetries = maxRetries,
-            UseExponentialBackoff = true
+            MessageRetryPolicy = new RetryPolicy
+            {
+                MaxAttempts = maxRetries,
+                InitialDelay = TimeSpan.FromSeconds(5),
+                MaxDelay = TimeSpan.FromMinutes(1),
+                UseExponentialBackoff = true
+            }
         };
     }
 }
@@ -134,7 +135,7 @@ public class ConsumerOptions
 /// <summary>
 /// Consumer metrics
 /// </summary>
-public class ConsumerMetrics
+public class ConsumerMetrics : ComponentMetrics
 {
     /// <summary>
     /// Total messages received
@@ -142,14 +143,22 @@ public class ConsumerMetrics
     public long MessagesReceived { get; set; }
 
     /// <summary>
-    /// Total messages processed successfully
+    /// Total messages processed successfully (alias for SuccessfulOperations)
     /// </summary>
-    public long MessagesProcessed { get; set; }
+    public long MessagesProcessed
+    {
+        get => SuccessfulOperations;
+        set => SuccessfulOperations = value;
+    }
 
     /// <summary>
-    /// Total messages failed
+    /// Total messages failed (alias for FailedOperations)
     /// </summary>
-    public long MessagesFailed { get; set; }
+    public long MessagesFailed
+    {
+        get => FailedOperations;
+        set => FailedOperations = value;
+    }
 
     /// <summary>
     /// Total messages acknowledged
@@ -185,16 +194,4 @@ public class ConsumerMetrics
     /// Currently processing message count
     /// </summary>
     public int CurrentlyProcessing { get; set; }
-
-    /// <summary>
-    /// Success rate (0.0 - 1.0)
-    /// </summary>
-    public double SuccessRate
-    {
-        get
-        {
-            var total = MessagesProcessed + MessagesFailed;
-            return total > 0 ? (double)MessagesProcessed / total : 0.0;
-        }
-    }
 }
