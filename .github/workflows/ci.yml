@@ -570,8 +570,8 @@ jobs:
           RUN_NUMBER=${{ github.run_number }}
           SHORT_SHA=${GITHUB_SHA:0:7}
 
-          # Construct build number: branch.date.run.hash
-          BUILD_NUMBER="${BRANCH_NAME}.${BUILD_DATE}.${RUN_NUMBER}.${SHORT_SHA}"
+          # Construct build number: branch-date.run.hash
+          BUILD_NUMBER="${BRANCH_NAME}-${BUILD_DATE}.${RUN_NUMBER}.${SHORT_SHA}"
           FULL_VERSION="${BASE_VERSION}-ci.${BUILD_NUMBER}"
 
           echo "build-number=${BUILD_NUMBER}" >> $GITHUB_OUTPUT
