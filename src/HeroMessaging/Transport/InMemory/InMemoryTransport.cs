@@ -10,6 +10,7 @@ namespace HeroMessaging.Transport.InMemory;
 /// </summary>
 public class InMemoryTransport : IMessageTransport
 {
+    private static readonly Random _random = new Random();
     private readonly InMemoryTransportOptions _options;
     private readonly ConcurrentDictionary<string, InMemoryQueue> _queues = new();
     private readonly ConcurrentDictionary<string, InMemoryTopic> _topics = new();
@@ -87,7 +88,7 @@ public class InMemoryTransport : IMessageTransport
         // Simulate network delay if configured
         if (_options.SimulateNetworkDelay)
         {
-            var delay = Random.Shared.Next(
+            var delay = _random.Next(
                 (int)_options.SimulatedDelayMin.TotalMilliseconds,
                 (int)_options.SimulatedDelayMax.TotalMilliseconds);
             await Task.Delay(delay, cancellationToken);
@@ -109,7 +110,7 @@ public class InMemoryTransport : IMessageTransport
         // Simulate network delay if configured
         if (_options.SimulateNetworkDelay)
         {
-            var delay = Random.Shared.Next(
+            var delay = _random.Next(
                 (int)_options.SimulatedDelayMin.TotalMilliseconds,
                 (int)_options.SimulatedDelayMax.TotalMilliseconds);
             await Task.Delay(delay, cancellationToken);
