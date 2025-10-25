@@ -137,16 +137,19 @@ jobs:
           - 5432:5432
 
       sqlserver:
-        image: mcr.microsoft.com/mssql/server:2019-latest
+        image: mcr.microsoft.com/mssql/server:2022-latest
         env:
           SA_PASSWORD: HeroMessaging123!
           ACCEPT_EULA: Y
           MSSQL_PID: Developer
+          MSSQL_COLLATION: SQL_Latin1_General_CP1_CI_AS
         options: >-
-          --health-cmd "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P HeroMessaging123! -Q 'SELECT 1' || exit 1"
+          --hostname sql1
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P HeroMessaging123! -Q 'SELECT 1' -C || exit 1"
           --health-interval 20s
           --health-timeout 10s
           --health-retries 10
+          --health-start-period 60s
         ports:
           - 1433:1433
 
@@ -189,8 +192,8 @@ jobs:
       - name: Wait for services
         run: |
           echo "Waiting for database services to be ready..."
-          echo "SQL Server takes longer to initialize, waiting 45 seconds..."
-          sleep 45
+          echo "SQL Server 2022 takes longer to initialize, waiting 60 seconds..."
+          sleep 60
 
       - name: Run integration tests
         shell: bash
