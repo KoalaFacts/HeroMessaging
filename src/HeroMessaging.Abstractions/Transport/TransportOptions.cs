@@ -77,6 +77,7 @@ public abstract class TransportOptions
 /// </summary>
 public class InMemoryTransportOptions : TransportOptions
 {
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     public InMemoryTransportOptions()
     {
         Name = "InMemory";
@@ -114,6 +115,7 @@ public class InMemoryTransportOptions : TransportOptions
 /// </summary>
 public class RabbitMqTransportOptions : TransportOptions
 {
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     public RabbitMqTransportOptions()
     {
         Name = "RabbitMQ";
@@ -175,6 +177,7 @@ public class RabbitMqTransportOptions : TransportOptions
 /// </summary>
 public class AzureServiceBusTransportOptions : TransportOptions
 {
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     public AzureServiceBusTransportOptions()
     {
         Name = "AzureServiceBus";
@@ -232,6 +235,7 @@ public enum AzureServiceBusTransportType
 /// </summary>
 public class AmazonSqsTransportOptions : TransportOptions
 {
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     public AmazonSqsTransportOptions()
     {
         Name = "AmazonSqs";
@@ -293,6 +297,7 @@ public class AmazonSqsTransportOptions : TransportOptions
 /// </summary>
 public class KafkaTransportOptions : TransportOptions
 {
+    [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     public KafkaTransportOptions()
     {
         Name = "Kafka";
