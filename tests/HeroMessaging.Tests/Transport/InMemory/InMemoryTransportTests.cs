@@ -20,13 +20,13 @@ public class InMemoryTransportTests : IAsyncLifetime
         };
     }
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         _transport = new InMemoryTransport(_options);
         await _transport.ConnectAsync();
     }
 
-    public async Task DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         if (_transport != null)
         {
