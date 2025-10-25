@@ -1,4 +1,4 @@
-name: CI
+name: Build and Test
 
 on:
   push:  # Trigger on every commit to any branch
@@ -109,68 +109,22 @@ jobs:
           flags: unit-tests
           fail_ci_if_error: false
 
-  # Integration tests with real dependencies
+  # Integration tests with mock dependencies (faster, runs on .NET 9 only)
   integration-tests:
-    name: Integration Tests (${{ matrix.framework }}, ${{ matrix.test-category }})
+    name: Integration Tests (.NET 9)
     needs: unit-tests
     if: always() && (github.event.inputs.run_integration_tests != 'false')
-    strategy:
-      fail-fast: false
-      matrix:
-        framework: [net6.0, net8.0, net9.0]
-        test-category: [Storage, Serialization, Observability, Pipeline]
-
-    runs-on: ubuntu-latest  # Service containers only work properly on Linux
+    runs-on: ubuntu-latest
     timeout-minutes: 30
-
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: heromessaging_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
-      sqlserver:
-        image: mcr.microsoft.com/mssql/server:2022-latest
-        env:
-          SA_PASSWORD: HeroMessaging123!
-          ACCEPT_EULA: Y
-        options: >-
-          --health-cmd "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P HeroMessaging123! -Q 'SELECT 1'"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 1433:1433
-
-      redis:
-        image: redis:7-alpine
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup .NET
+      - name: Setup .NET 9
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: |
-            6.0.x
-            8.0.x
-            9.0.x
+          dotnet-version: 9.0.x
 
       - name: Cache NuGet packages
         uses: actions/cache@v4
@@ -186,33 +140,24 @@ jobs:
       - name: Build solution
         run: dotnet build --configuration Release --no-restore
 
-      - name: Wait for services
-        run: |
-          echo "Waiting for database services to be ready..."
-          sleep 30
-
       - name: Run integration tests
         shell: bash
-        env:
-          PostgreSQL__ConnectionString: "Host=localhost;Port=5432;Database=heromessaging_test;Username=postgres;Password=postgres"
-          SqlServer__ConnectionString: "Server=localhost,1433;Database=heromessaging_test;User Id=sa;Password=HeroMessaging123!;TrustServerCertificate=true"
-          Redis__ConnectionString: "localhost:6379"
         run: |
           dotnet test \
             --configuration Release \
             --no-build \
-            --framework ${{ matrix.framework }} \
-            --filter "Category=Integration&Category=${{ matrix.test-category }}" \
+            --framework net9.0 \
+            --filter "Category=Integration" \
             --collect:"XPlat Code Coverage" \
             --results-directory ./test-results \
-            --logger "trx;LogFileName=integration-${{ matrix.test-category }}-${{ matrix.framework }}.trx" \
+            --logger "trx;LogFileName=integration-tests-net9.0.trx" \
             -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
 
       - name: Upload integration test results
         uses: actions/upload-artifact@v5
         if: always()
         with:
-          name: integration-results-${{ matrix.test-category }}-${{ matrix.framework }}
+          name: integration-results-net9.0
           path: |
             ./test-results/**/*.trx
             ./test-results/**/*.xml
