@@ -432,21 +432,25 @@ public class InMemorySchedulerTests : IAsyncLifetime
 
 /// <summary>
 /// Test helper to capture delivered messages
+/// Thread-safe implementation for use with Timer callbacks that execute on thread pool threads
 /// </summary>
 public class TestMessageDeliveryHandler : IMessageDeliveryHandler
 {
-    public List<IMessage> DeliveredMessages { get; } = new();
-    public List<(Guid ScheduleId, Exception Exception)> FailedDeliveries { get; } = new();
+    private readonly System.Collections.Concurrent.ConcurrentBag<IMessage> _deliveredMessages = new();
+    private readonly System.Collections.Concurrent.ConcurrentBag<(Guid ScheduleId, Exception Exception)> _failedDeliveries = new();
+
+    public List<IMessage> DeliveredMessages => _deliveredMessages.ToList();
+    public List<(Guid ScheduleId, Exception Exception)> FailedDeliveries => _failedDeliveries.ToList();
 
     public Task DeliverAsync(ScheduledMessage scheduledMessage, CancellationToken cancellationToken = default)
     {
-        DeliveredMessages.Add(scheduledMessage.Message);
+        _deliveredMessages.Add(scheduledMessage.Message);
         return Task.CompletedTask;
     }
 
     public Task HandleDeliveryFailureAsync(Guid scheduleId, Exception exception, CancellationToken cancellationToken = default)
     {
-        FailedDeliveries.Add((scheduleId, exception));
+        _failedDeliveries.Add((scheduleId, exception));
         return Task.CompletedTask;
     }
 }

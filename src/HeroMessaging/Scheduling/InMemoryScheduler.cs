@@ -83,7 +83,7 @@ public sealed class InMemoryScheduler : IMessageScheduler, IDisposable
 
         // Create timer for delivery
         var timer = new Timer(
-            callback: state => _ = DeliverScheduledMessage(scheduleId),
+            callback: state => { _ = Task.Run(() => DeliverScheduledMessage(scheduleId)); },
             state: null,
             dueTime: dueTime,
             period: Timeout.InfiniteTimeSpan);
