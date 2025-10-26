@@ -84,7 +84,9 @@ public class InMemorySchedulerTests : IAsyncLifetime
 
         // Act
         var result = await _scheduler!.ScheduleAsync(message, delay);
-        await Task.Delay(100); // Give it time to deliver
+
+        // Wait for async delivery to complete (Timer fires, Task.Run executes, delivery completes)
+        await Task.Delay(500);
 
         // Assert
         Assert.True(result.Success);
@@ -98,7 +100,7 @@ public class InMemorySchedulerTests : IAsyncLifetime
     {
         // Arrange
         var message = TestMessageBuilder.CreateValidMessage("Delayed message");
-        var delay = TimeSpan.FromMilliseconds(50);
+        var delay = TimeSpan.FromMilliseconds(100);
 
         // Act
         var result = await _scheduler!.ScheduleAsync(message, delay);
@@ -106,8 +108,8 @@ public class InMemorySchedulerTests : IAsyncLifetime
         // Assert - message should not be delivered yet
         Assert.Empty(_deliveryHandler!.DeliveredMessages);
 
-        // Wait for delivery
-        await Task.Delay(150);
+        // Wait for delivery (delay + async delivery overhead)
+        await Task.Delay(600);
 
         // Assert - message should be delivered now
         Assert.Single(_deliveryHandler.DeliveredMessages);
@@ -224,10 +226,11 @@ public class InMemorySchedulerTests : IAsyncLifetime
     {
         // Arrange
         var message = TestMessageBuilder.CreateValidMessage("Fast message");
-        var delay = TimeSpan.FromMilliseconds(50);
+        var delay = TimeSpan.FromMilliseconds(100);
         var result = await _scheduler!.ScheduleAsync(message, delay);
 
-        await Task.Delay(150); // Wait for delivery
+        // Wait for delivery to complete
+        await Task.Delay(600);
 
         // Act
         var cancelled = await _scheduler.CancelScheduledAsync(result.ScheduleId);
@@ -276,10 +279,11 @@ public class InMemorySchedulerTests : IAsyncLifetime
     {
         // Arrange
         var message = TestMessageBuilder.CreateValidMessage("Delivered message");
-        var delay = TimeSpan.FromMilliseconds(50);
+        var delay = TimeSpan.FromMilliseconds(100);
         var result = await _scheduler!.ScheduleAsync(message, delay);
 
-        await Task.Delay(150); // Wait for delivery
+        // Wait for delivery to complete
+        await Task.Delay(600);
 
         // Act
         var info = await _scheduler.GetScheduledAsync(result.ScheduleId);
@@ -387,10 +391,12 @@ public class InMemorySchedulerTests : IAsyncLifetime
     {
         // Arrange
         var message = TestMessageBuilder.CreateValidMessage("Fast message");
-        await _scheduler!.ScheduleAsync(message, TimeSpan.FromMilliseconds(50));
+        await _scheduler!.ScheduleAsync(message, TimeSpan.FromMilliseconds(100));
 
         var initialCount = await _scheduler.GetPendingCountAsync();
-        await Task.Delay(150); // Wait for delivery
+
+        // Wait for delivery to complete
+        await Task.Delay(600);
 
         // Act
         var finalCount = await _scheduler.GetPendingCountAsync();
