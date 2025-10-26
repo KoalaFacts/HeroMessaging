@@ -15,20 +15,17 @@ public class InMemorySchedulerTests : IAsyncLifetime
     private InMemoryScheduler? _scheduler;
     private TestMessageDeliveryHandler? _deliveryHandler;
 
-    public Task InitializeAsync()
+    public ValueTask InitializeAsync()
     {
         _deliveryHandler = new TestMessageDeliveryHandler();
         _scheduler = new InMemoryScheduler(_deliveryHandler);
-        return Task.CompletedTask;
+        return ValueTask.CompletedTask;
     }
 
-    public async Task DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        if (_scheduler is IDisposable disposable)
-        {
-            disposable.Dispose();
-        }
-        await Task.CompletedTask;
+        _scheduler?.Dispose();
+        return ValueTask.CompletedTask;
     }
 
     #region ScheduleAsync with TimeSpan Tests
