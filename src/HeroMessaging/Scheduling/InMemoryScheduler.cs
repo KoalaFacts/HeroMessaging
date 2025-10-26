@@ -81,10 +81,10 @@ public sealed class InMemoryScheduler : IMessageScheduler, IDisposable
         var delay = deliverAt - now;
         var dueTime = delay > TimeSpan.Zero ? delay : TimeSpan.Zero;
 
-        // Create timer for delivery
+        // Create timer for delivery - pass scheduleId via state parameter
         var timer = new Timer(
-            callback: state => { _ = Task.Run(() => DeliverScheduledMessage(scheduleId)); },
-            state: null,
+            callback: TimerCallback,
+            state: scheduleId,
             dueTime: dueTime,
             period: Timeout.InfiniteTimeSpan);
 
@@ -194,6 +194,15 @@ public sealed class InMemoryScheduler : IMessageScheduler, IDisposable
 
         var count = _scheduledMessages.Values.Count(e => e.Status == ScheduledMessageStatus.Pending);
         return Task.FromResult((long)count);
+    }
+
+    private void TimerCallback(object? state)
+    {
+        if (state is Guid scheduleId)
+        {
+            // Execute delivery on thread pool to avoid blocking timer thread
+            _ = Task.Run(async () => await DeliverScheduledMessage(scheduleId));
+        }
     }
 
     private async Task DeliverScheduledMessage(Guid scheduleId)
