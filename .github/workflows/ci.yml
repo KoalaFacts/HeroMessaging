@@ -43,7 +43,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        framework: [net6.0, net8.0, net9.0]
+        framework: [net8.0, net9.0]
 
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
@@ -58,7 +58,6 @@ jobs:
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: |
-            6.0.x
             8.0.x
             9.0.x
           dotnet-quality: 'ga'
@@ -170,7 +169,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        framework: [net6.0, net8.0, net9.0]
+        framework: [net8.0, net9.0]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
 
@@ -182,7 +181,6 @@ jobs:
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: |
-            6.0.x
             8.0.x
             9.0.x
 
@@ -421,7 +419,6 @@ jobs:
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: |
-            6.0.x
             8.0.x
             9.0.x
 
