@@ -8,7 +8,7 @@ namespace HeroMessaging.Scheduling;
 /// Default implementation of message delivery handler that publishes scheduled messages
 /// through the HeroMessaging system.
 /// </summary>
-internal sealed class DefaultMessageDeliveryHandler : IMessageDeliveryHandler
+public sealed class DefaultMessageDeliveryHandler : IMessageDeliveryHandler
 {
     private readonly IHeroMessaging _messaging;
     private readonly ILogger<DefaultMessageDeliveryHandler> _logger;

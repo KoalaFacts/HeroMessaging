@@ -17,7 +17,7 @@ namespace HeroMessaging.Scheduling;
 /// - Memory usage: ~200 bytes per scheduled message
 /// - Supports concurrent operations via ConcurrentDictionary
 /// </remarks>
-internal sealed class InMemoryScheduler : IMessageScheduler, IDisposable
+public sealed class InMemoryScheduler : IMessageScheduler, IDisposable
 {
     private readonly IMessageDeliveryHandler _deliveryHandler;
     private readonly ConcurrentDictionary<Guid, ScheduledEntry> _scheduledMessages;

@@ -5,7 +5,7 @@ namespace HeroMessaging.Scheduling;
 /// <summary>
 /// Handles the delivery of scheduled messages when they become due.
 /// </summary>
-internal interface IMessageDeliveryHandler
+public interface IMessageDeliveryHandler
 {
     /// <summary>
     /// Delivers a scheduled message that has become due.
