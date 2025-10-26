@@ -292,6 +292,9 @@ public enum CircuitState
 /// <summary>
 /// Exception thrown when circuit breaker is open
 /// </summary>
-public class CircuitBreakerOpenException(string message) : Exception(message)
+public class CircuitBreakerOpenException : Exception
 {
+    public CircuitBreakerOpenException() : base("Circuit breaker is open") { }
+    public CircuitBreakerOpenException(string message) : base(message) { }
+    public CircuitBreakerOpenException(string message, Exception innerException) : base(message, innerException) { }
 }

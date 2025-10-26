@@ -83,7 +83,7 @@ public class ObservabilityTests : IAsyncDisposable
         }
 
         // Simulate processing time
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         var metrics = metricsCollector.GetCollectedMetrics();
 
@@ -242,7 +242,7 @@ public class ObservabilityTests : IAsyncDisposable
         for (int i = 0; i < 10; i++)
         {
             metricsAggregator.RecordProcessingTime(100 + i * 10); // 100, 110, 120, ... 190ms
-            await Task.Delay(10);
+            await Task.Delay(10, TestContext.Current.CancellationToken);
         }
 
         var aggregatedMetrics = await metricsAggregator.GetAggregatedMetricsAsync(TimeSpan.FromSeconds(1));
@@ -271,7 +271,7 @@ public class ObservabilityTests : IAsyncDisposable
         alertingSystem.ReportMetric("error_rate_percent", 75.0);
         alertingSystem.ReportMetric("average_latency_ms", 500.0);
 
-        await Task.Delay(100); // Allow alerts to process
+        await Task.Delay(100, TestContext.Current.CancellationToken); // Allow alerts to process
 
         var triggeredAlerts = alertingSystem.GetTriggeredAlerts();
 
@@ -282,7 +282,7 @@ public class ObservabilityTests : IAsyncDisposable
 
         // Act - Trigger high latency alert
         alertingSystem.ReportMetric("average_latency_ms", 1500.0);
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         triggeredAlerts = alertingSystem.GetTriggeredAlerts();
 
@@ -329,7 +329,7 @@ public class ObservabilityTests : IAsyncDisposable
     }
 
     // Test implementation classes
-    public class TestHealthCheckRegistry : IAsyncDisposable
+    private class TestHealthCheckRegistry : IAsyncDisposable
     {
         private readonly Dictionary<string, IHealthCheck> _healthChecks = new();
 
@@ -371,11 +371,11 @@ public class ObservabilityTests : IAsyncDisposable
         }
     }
 
-    public class TestMessageProcessorHealthCheck : IHealthCheck
+    private class TestMessageProcessorHealthCheck : IHealthCheck
     {
         public async Task<HealthCheckResult> CheckHealthAsync()
         {
-            await Task.Delay(10); // Simulate health check
+            await Task.Delay(10, TestContext.Current.CancellationToken); // Simulate health check
             return new HealthCheckResult
             {
                 Status = HealthStatus.Healthy,
@@ -385,7 +385,7 @@ public class ObservabilityTests : IAsyncDisposable
         }
     }
 
-    public class TestStorageHealthCheck : IHealthCheck
+    private class TestStorageHealthCheck : IHealthCheck
     {
         private bool _simulateFailure = false;
         private string _failureMessage = "";
@@ -398,7 +398,7 @@ public class ObservabilityTests : IAsyncDisposable
 
         public async Task<HealthCheckResult> CheckHealthAsync()
         {
-            await Task.Delay(15); // Simulate health check
+            await Task.Delay(15, TestContext.Current.CancellationToken); // Simulate health check
 
             if (_simulateFailure)
             {
@@ -419,7 +419,7 @@ public class ObservabilityTests : IAsyncDisposable
         }
     }
 
-    public class TestMetricsCollector : IAsyncDisposable
+    private class TestMetricsCollector : IAsyncDisposable
     {
         private readonly Dictionary<string, Metric> _metrics = new(StringComparer.OrdinalIgnoreCase);
         private readonly object _syncRoot = new();
@@ -493,7 +493,7 @@ public class ObservabilityTests : IAsyncDisposable
         }
     }
 
-    public class TestTracer : IAsyncDisposable
+    private class TestTracer : IAsyncDisposable
     {
         private readonly List<Trace> _traces = new();
 
@@ -530,7 +530,7 @@ public class ObservabilityTests : IAsyncDisposable
         }
     }
 
-    public class TestObservableMessageProcessor
+    private class TestObservableMessageProcessor
     {
         private readonly TestMetricsCollector? _metricsCollector;
         private readonly TestTracer? _tracer;
@@ -562,7 +562,7 @@ public class ObservabilityTests : IAsyncDisposable
 
             try
             {
-                await Task.Delay(50); // Simulate processing
+                await Task.Delay(50, TestContext.Current.CancellationToken); // Simulate processing
 
                 _metricsCollector?.RecordMetric("messages_processed_total", 1);
                 _metricsCollector?.RecordMetric("message_processing_duration_ms", 50);
@@ -577,7 +577,7 @@ public class ObservabilityTests : IAsyncDisposable
         }
     }
 
-    public class TestFailingMessageProcessor
+    private class TestFailingMessageProcessor
     {
         private readonly TestMetricsCollector _metricsCollector;
 
@@ -588,7 +588,7 @@ public class ObservabilityTests : IAsyncDisposable
 
         public async Task ProcessAsync(IMessage message)
         {
-            await Task.Delay(10);
+            await Task.Delay(10, TestContext.Current.CancellationToken);
 
             _metricsCollector.RecordMetric("messages_failed_total", 1);
             _metricsCollector.RecordMetric("error_rate_percent", 100.0);
@@ -598,39 +598,39 @@ public class ObservabilityTests : IAsyncDisposable
     }
 
     // Supporting classes and enums
-    public interface IHealthCheck
+    private interface IHealthCheck
     {
         Task<HealthCheckResult> CheckHealthAsync();
     }
 
-    public enum HealthStatus
+    private enum HealthStatus
     {
         Healthy,
         Unhealthy,
         Degraded
     }
 
-    public class HealthCheckResult
+    private class HealthCheckResult
     {
         public HealthStatus Status { get; set; }
         public string Description { get; set; } = "";
         public TimeSpan Duration { get; set; }
     }
 
-    public class HealthReport
+    private class HealthReport
     {
         public HealthStatus OverallStatus { get; set; }
         public Dictionary<string, HealthEntry> Entries { get; set; } = new();
     }
 
-    public class HealthEntry
+    private class HealthEntry
     {
         public HealthStatus Status { get; set; }
         public string Description { get; set; } = "";
         public TimeSpan Duration { get; set; }
     }
 
-    public class Metric
+    private class Metric
     {
         public string Name { get; set; } = "";
         public double Value { get; set; }
@@ -638,7 +638,7 @@ public class ObservabilityTests : IAsyncDisposable
         public DateTime Timestamp { get; set; }
     }
 
-    public class Trace
+    private class Trace
     {
         public string TraceId { get; set; } = "";
         public string? ParentTraceId { get; set; }
@@ -648,7 +648,7 @@ public class ObservabilityTests : IAsyncDisposable
         public Dictionary<string, string> Tags { get; set; } = new();
     }
 
-    public class TraceContext
+    private class TraceContext
     {
         public string TraceId { get; set; } = "";
         public string? ParentTraceId { get; set; }
@@ -658,7 +658,7 @@ public class ObservabilityTests : IAsyncDisposable
     }
 
     // Additional test classes for remaining functionality
-    public class TestCustomMetrics : IAsyncDisposable
+    private class TestCustomMetrics : IAsyncDisposable
     {
         private readonly Dictionary<string, long> _counters = new();
         private readonly Dictionary<string, List<double>> _histograms = new();
@@ -675,7 +675,7 @@ public class ObservabilityTests : IAsyncDisposable
         public async ValueTask DisposeAsync() => await Task.CompletedTask;
     }
 
-    public class TestMetricsAggregator : IAsyncDisposable
+    private class TestMetricsAggregator : IAsyncDisposable
     {
         private readonly List<double> _values = new();
 
@@ -683,7 +683,7 @@ public class ObservabilityTests : IAsyncDisposable
 
         public async Task<AggregatedMetrics> GetAggregatedMetricsAsync(TimeSpan timeWindow)
         {
-            await Task.Delay(10);
+            await Task.Delay(10, TestContext.Current.CancellationToken);
             return new AggregatedMetrics
             {
                 Count = _values.Count,
@@ -697,7 +697,7 @@ public class ObservabilityTests : IAsyncDisposable
         public async ValueTask DisposeAsync() => await Task.CompletedTask;
     }
 
-    public class TestAlertingSystem : IAsyncDisposable
+    private class TestAlertingSystem : IAsyncDisposable
     {
         private readonly Dictionary<string, AlertRule> _alertRules = new(StringComparer.OrdinalIgnoreCase);
         private readonly List<TriggeredAlert> _triggeredAlerts = new();
@@ -750,13 +750,13 @@ public class ObservabilityTests : IAsyncDisposable
         public async ValueTask DisposeAsync() => await Task.CompletedTask;
     }
 
-    public class TestObservabilityProvider : IAsyncDisposable
+    private class TestObservabilityProvider : IAsyncDisposable
     {
         private readonly ObservabilityConfiguration _config;
 
         public TestObservabilityProvider(ObservabilityConfiguration config) => _config = config;
 
-        public async Task InitializeAsync() => await Task.Delay(50);
+        public async Task InitializeAsync() => await Task.Delay(50, TestContext.Current.CancellationToken);
 
         public bool IsMetricsEnabled => _config.EnableMetrics;
         public bool IsTracingEnabled => _config.EnableTracing;
@@ -767,7 +767,7 @@ public class ObservabilityTests : IAsyncDisposable
         public async ValueTask DisposeAsync() => await Task.CompletedTask;
     }
 
-    public class ObservabilityConfiguration
+    private class ObservabilityConfiguration
     {
         public bool EnableMetrics { get; set; }
         public bool EnableTracing { get; set; }
@@ -777,7 +777,7 @@ public class ObservabilityTests : IAsyncDisposable
         public TimeSpan HealthCheckInterval { get; set; }
     }
 
-    public class AggregatedMetrics
+    private class AggregatedMetrics
     {
         public int Count { get; set; }
         public double Min { get; set; }
@@ -786,7 +786,7 @@ public class ObservabilityTests : IAsyncDisposable
         public double Sum { get; set; }
     }
 
-    public class TriggeredAlert
+    private class TriggeredAlert
     {
         public string Name { get; set; } = "";
         public string MetricName { get; set; } = "";

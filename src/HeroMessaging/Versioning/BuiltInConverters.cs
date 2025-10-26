@@ -277,6 +277,7 @@ public class SimplePassThroughConverter<TMessage>(
 /// </summary>
 public class MessageConversionException : Exception
 {
+    public MessageConversionException() : base("Message conversion failed") { }
     public MessageConversionException(string message) : base(message) { }
     public MessageConversionException(string message, Exception innerException) : base(message, innerException) { }
 }

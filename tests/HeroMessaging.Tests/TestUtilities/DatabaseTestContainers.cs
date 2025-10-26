@@ -135,7 +135,7 @@ public class PostgreSqlTestContainer : DatabaseTestContainer
                 return true;
             }
 
-            await Task.Delay(1000);
+            await Task.Delay(1000, TestContext.Current.CancellationToken);
         }
 
         return false;
@@ -257,7 +257,7 @@ public class SqlServerTestContainer : DatabaseTestContainer
             {
             }
 
-            await Task.Delay(2000);
+            await Task.Delay(2000, TestContext.Current.CancellationToken);
         }
 
         return false;

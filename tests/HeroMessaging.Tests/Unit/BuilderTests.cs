@@ -67,8 +67,8 @@ public class BuilderTests
         var builder = new TestHeroMessagingBuilder();
 
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => builder.AddStorage(null, Mock.Of<IMessageStorage>()));
-        Assert.Throws<ArgumentNullException>(() => builder.AddStorage("test", null));
+        Assert.Throws<ArgumentNullException>(() => builder.AddStorage(null!, Mock.Of<IMessageStorage>()));
+        Assert.Throws<ArgumentNullException>(() => builder.AddStorage("test", null!));
         Assert.Throws<ArgumentException>(() => builder.AddStorage("", Mock.Of<IMessageStorage>()));
     }
 
@@ -331,12 +331,12 @@ public class BuilderTests
         }
 
         public bool IsPluginRegistered(string name) => _plugins.Any(p => p.Name == name);
-        public List<IHeroMessagingPlugin> GetRegisteredPlugins() => _plugins.ToList();
+        public IReadOnlyList<IHeroMessagingPlugin> GetRegisteredPlugins() => _plugins;
     }
 
     public class TestPluginDiscovery
     {
-        public List<IHeroMessagingPlugin> ScanAssemblies(System.Reflection.Assembly[] assemblies)
+        public IReadOnlyList<IHeroMessagingPlugin> ScanAssemblies(System.Reflection.Assembly[] assemblies)
         {
             var plugins = new List<IHeroMessagingPlugin>();
 

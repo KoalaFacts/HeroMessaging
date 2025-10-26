@@ -341,6 +341,7 @@ public enum ConnectionCircuitState
 /// </summary>
 public class ConnectionResilienceException : Exception
 {
+    public ConnectionResilienceException() : base("Connection resilience failed") { }
     public ConnectionResilienceException(string message) : base(message) { }
     public ConnectionResilienceException(string message, Exception innerException) : base(message, innerException) { }
 }

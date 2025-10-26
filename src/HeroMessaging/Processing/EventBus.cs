@@ -168,6 +168,7 @@ public class EventBus : IEventBus, IProcessor
         public DateTime? FirstFailureTime { get; set; }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1024:Use properties where appropriate", Justification = "This method performs computation (locking and object creation) and is not a simple getter")]
     public IEventBusMetrics GetMetrics()
     {
         lock (_metricsLock)

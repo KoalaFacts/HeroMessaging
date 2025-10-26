@@ -40,7 +40,7 @@ public class PerformanceBenchmarkContractTests
         public bool HasRegressions { get; set; }
         public PerformanceMetric[] RegressedMetrics { get; set; } = Array.Empty<PerformanceMetric>();
         public double MaxRegressionPercentage { get; set; }
-        public string[] Recommendations { get; set; } = Array.Empty<string>();
+        public IReadOnlyList<string> Recommendations { get; set; } = Array.Empty<string>();
     }
 
     [Fact]

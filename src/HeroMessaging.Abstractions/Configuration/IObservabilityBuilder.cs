@@ -74,7 +74,7 @@ public class MetricsOptions
     public bool EnableCounters { get; set; } = true;
     public bool EnableGauges { get; set; } = true;
     public TimeSpan FlushInterval { get; set; } = TimeSpan.FromMinutes(1);
-    public string[] CustomMetrics { get; set; } = Array.Empty<string>();
+    public IReadOnlyCollection<string> CustomMetrics { get; set; } = Array.Empty<string>();
 }
 
 public class TracingOptions
@@ -82,7 +82,7 @@ public class TracingOptions
     public double SamplingRate { get; set; } = 1.0;
     public bool RecordExceptions { get; set; } = true;
     public bool RecordEvents { get; set; } = true;
-    public string[] IgnoredOperations { get; set; } = Array.Empty<string>();
+    public IReadOnlyCollection<string> IgnoredOperations { get; set; } = Array.Empty<string>();
 }
 
 public class LoggingOptions

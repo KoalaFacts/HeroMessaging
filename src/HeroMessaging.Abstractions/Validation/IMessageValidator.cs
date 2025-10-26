@@ -46,13 +46,46 @@ public readonly record struct ValidationResult
 /// <summary>
 /// Exception thrown when message validation fails
 /// </summary>
-/// <remarks>
-/// Initializes a new instance of ValidationException
-/// </remarks>
-public class ValidationException(IReadOnlyList<string> errors) : Exception($"Validation failed: {string.Join(", ", errors)}")
+public class ValidationException : Exception
 {
     /// <summary>
     /// Gets the validation errors
     /// </summary>
-    public IReadOnlyList<string> Errors { get; } = errors;
+    public IReadOnlyList<string> Errors { get; }
+
+    /// <summary>
+    /// Initializes a new instance of ValidationException
+    /// </summary>
+    public ValidationException()
+        : base("Validation failed")
+    {
+        Errors = Array.Empty<string>();
+    }
+
+    /// <summary>
+    /// Initializes a new instance of ValidationException with a message
+    /// </summary>
+    public ValidationException(string message)
+        : base(message)
+    {
+        Errors = Array.Empty<string>();
+    }
+
+    /// <summary>
+    /// Initializes a new instance of ValidationException with a message and inner exception
+    /// </summary>
+    public ValidationException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+        Errors = Array.Empty<string>();
+    }
+
+    /// <summary>
+    /// Initializes a new instance of ValidationException with validation errors
+    /// </summary>
+    public ValidationException(IReadOnlyList<string> errors)
+        : base($"Validation failed: {string.Join(", ", errors)}")
+    {
+        Errors = errors ?? Array.Empty<string>();
+    }
 }

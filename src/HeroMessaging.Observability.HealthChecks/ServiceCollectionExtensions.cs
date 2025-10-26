@@ -123,5 +123,5 @@ public class HeroMessagingHealthCheckOptions
     public bool CheckInboxStorage { get; set; } = true;
     public bool CheckQueueStorage { get; set; } = true;
     public HealthStatus? FailureStatus { get; set; } = HealthStatus.Unhealthy;
-    public string[]? Tags { get; set; }
+    public IReadOnlyCollection<string>? Tags { get; set; }
 }

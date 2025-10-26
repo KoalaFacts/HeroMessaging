@@ -5,37 +5,43 @@ namespace HeroMessaging.Abstractions.Transport;
 /// </summary>
 public class TransportTopology
 {
+    private readonly List<QueueDefinition> _queues = [];
+    private readonly List<TopicDefinition> _topics = [];
+    private readonly List<ExchangeDefinition> _exchanges = [];
+    private readonly List<SubscriptionDefinition> _subscriptions = [];
+    private readonly List<BindingDefinition> _bindings = [];
+
     /// <summary>
     /// Queues to create or configure
     /// </summary>
-    public List<QueueDefinition> Queues { get; set; } = [];
+    public IReadOnlyCollection<QueueDefinition> Queues => _queues;
 
     /// <summary>
     /// Topics to create or configure
     /// </summary>
-    public List<TopicDefinition> Topics { get; set; } = [];
+    public IReadOnlyCollection<TopicDefinition> Topics => _topics;
 
     /// <summary>
     /// Exchanges to create or configure (RabbitMQ)
     /// </summary>
-    public List<ExchangeDefinition> Exchanges { get; set; } = [];
+    public IReadOnlyCollection<ExchangeDefinition> Exchanges => _exchanges;
 
     /// <summary>
     /// Subscriptions to create or configure (Azure Service Bus, SNS/SQS)
     /// </summary>
-    public List<SubscriptionDefinition> Subscriptions { get; set; } = [];
+    public IReadOnlyCollection<SubscriptionDefinition> Subscriptions => _subscriptions;
 
     /// <summary>
     /// Bindings between exchanges and queues (RabbitMQ)
     /// </summary>
-    public List<BindingDefinition> Bindings { get; set; } = [];
+    public IReadOnlyCollection<BindingDefinition> Bindings => _bindings;
 
     /// <summary>
     /// Add a queue definition
     /// </summary>
     public TransportTopology AddQueue(QueueDefinition queue)
     {
-        Queues.Add(queue);
+        _queues.Add(queue);
         return this;
     }
 
@@ -44,7 +50,7 @@ public class TransportTopology
     /// </summary>
     public TransportTopology AddTopic(TopicDefinition topic)
     {
-        Topics.Add(topic);
+        _topics.Add(topic);
         return this;
     }
 
@@ -53,7 +59,7 @@ public class TransportTopology
     /// </summary>
     public TransportTopology AddExchange(ExchangeDefinition exchange)
     {
-        Exchanges.Add(exchange);
+        _exchanges.Add(exchange);
         return this;
     }
 
@@ -62,7 +68,7 @@ public class TransportTopology
     /// </summary>
     public TransportTopology AddSubscription(SubscriptionDefinition subscription)
     {
-        Subscriptions.Add(subscription);
+        _subscriptions.Add(subscription);
         return this;
     }
 
@@ -71,7 +77,7 @@ public class TransportTopology
     /// </summary>
     public TransportTopology AddBinding(BindingDefinition binding)
     {
-        Bindings.Add(binding);
+        _bindings.Add(binding);
         return this;
     }
 }

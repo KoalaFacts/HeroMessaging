@@ -9,7 +9,7 @@ namespace HeroMessaging.Tests.Infrastructure;
 /// Validates NuGet packages for completeness, metadata accuracy, and multi-framework support
 /// Ensures packages meet constitutional standards for distribution and compatibility
 /// </summary>
-public class PackageValidation
+internal class PackageValidation
 {
     private readonly PackageValidationConfiguration _config;
 
@@ -738,7 +738,7 @@ public class PackageValidation
 
 // Supporting data structures
 
-public class PackageValidationConfiguration
+internal class PackageValidationConfiguration
 {
     public List<string> RequiredTargetFrameworks { get; set; } = new() { "netstandard2.0", "net6.0", "net8.0", "net10.0" };
     public List<string> RequiredPackages { get; set; } = new() { "HeroMessaging", "HeroMessaging.Abstractions" };
@@ -748,7 +748,7 @@ public class PackageValidationConfiguration
     public bool RequireXmlDocumentation { get; set; } = true;
 }
 
-public class PackageValidationResults
+internal class PackageValidationResults
 {
     public DateTime StartTime { get; set; }
     public DateTime EndTime { get; set; }
@@ -765,7 +765,7 @@ public class PackageValidationResults
     public string ValidationReport { get; set; } = string.Empty;
 }
 
-public class PackageValidationResult
+internal class PackageValidationResult
 {
     public string PackagePath { get; set; } = string.Empty;
     public string PackageName { get; set; } = string.Empty;
@@ -779,21 +779,21 @@ public class PackageValidationResult
     public DocumentationValidation DocumentationValidation { get; set; } = new();
 }
 
-public class PackageStructureValidation
+internal class PackageStructureValidation
 {
     public bool IsValid { get; set; }
     public List<string> Errors { get; set; } = new();
     public List<string> Warnings { get; set; } = new();
 }
 
-public class PackageMetadataValidation
+internal class PackageMetadataValidation
 {
     public bool IsValid { get; set; }
     public List<string> Errors { get; set; } = new();
     public List<string> Warnings { get; set; } = new();
 }
 
-public class TargetFrameworkValidation
+internal class TargetFrameworkValidation
 {
     public bool IsValid { get; set; }
     public List<string> Errors { get; set; } = new();
@@ -801,7 +801,7 @@ public class TargetFrameworkValidation
     public List<string> SupportedFrameworks { get; set; } = new();
 }
 
-public class AssemblyValidation
+internal class AssemblyValidation
 {
     public bool IsValid { get; set; }
     public List<string> Errors { get; set; } = new();
@@ -809,7 +809,7 @@ public class AssemblyValidation
     public List<AssemblyInfo> Assemblies { get; set; } = new();
 }
 
-public class AssemblyInfo
+internal class AssemblyInfo
 {
     public string Name { get; set; } = string.Empty;
     public string Version { get; set; } = string.Empty;
@@ -817,7 +817,7 @@ public class AssemblyInfo
     public string Path { get; set; } = string.Empty;
 }
 
-public class PackageDependencyValidationResult
+internal class PackageDependencyValidationResult
 {
     public bool IsValid { get; set; }
     public List<string> Errors { get; set; } = new();
@@ -825,20 +825,20 @@ public class PackageDependencyValidationResult
     public List<PackageDependency> Dependencies { get; set; } = new();
 }
 
-public class PackageDependency
+internal class PackageDependency
 {
     public string Id { get; set; } = string.Empty;
     public string Version { get; set; } = string.Empty;
 }
 
-public class DocumentationValidation
+internal class DocumentationValidation
 {
     public bool IsValid { get; set; }
     public List<string> Errors { get; set; } = new();
     public List<string> Warnings { get; set; } = new();
 }
 
-public class PackageDependencyValidation
+internal class PackageDependencyValidation
 {
     public bool IsValid { get; set; }
     public List<string> Errors { get; set; } = new();
@@ -846,7 +846,7 @@ public class PackageDependencyValidation
     public Dictionary<string, List<string>> DependencyGraph { get; set; } = new();
 }
 
-public class ConstitutionalComplianceValidation
+internal class ConstitutionalComplianceValidation
 {
     public bool IsValid { get; set; }
     public List<string> Errors { get; set; } = new();

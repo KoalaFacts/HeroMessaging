@@ -9,7 +9,7 @@ namespace HeroMessaging.Tests.Infrastructure;
 /// Advanced test execution runner with categorization, parallel execution, and reporting
 /// Orchestrates test execution across different categories and provides detailed results
 /// </summary>
-public class TestRunner
+internal class TestRunner
 {
     private readonly TestRunnerConfiguration _config;
     private readonly ITestOutputHelper? _outputHelper;
@@ -502,7 +502,7 @@ public class TestRunner
 /// <summary>
 /// Configuration for test runner execution
 /// </summary>
-public class TestRunnerConfiguration
+internal class TestRunnerConfiguration
 {
     public List<string> DefaultCategories { get; set; } = new() { "Unit", "Integration" };
     public List<string> TestAssemblyPatterns { get; set; } = new() { "*.Tests.dll", "*.Test.dll" };
@@ -516,7 +516,7 @@ public class TestRunnerConfiguration
 /// <summary>
 /// Comprehensive test execution results
 /// </summary>
-public class TestExecutionResults
+internal class TestExecutionResults
 {
     public DateTime StartTime { get; set; }
     public DateTime EndTime { get; set; }
@@ -531,7 +531,7 @@ public class TestExecutionResults
 /// <summary>
 /// Test results for a specific category
 /// </summary>
-public class CategoryTestResults
+internal class CategoryTestResults
 {
     public string Category { get; set; } = string.Empty;
     public DateTime StartTime { get; set; }
@@ -549,7 +549,7 @@ public class CategoryTestResults
 /// <summary>
 /// Test results for a group of tests (typically a test class)
 /// </summary>
-public class TestGroupResults
+internal class TestGroupResults
 {
     public string TestClassName { get; set; } = string.Empty;
     public DateTime StartTime { get; set; }
@@ -567,7 +567,7 @@ public class TestGroupResults
 /// <summary>
 /// Coverage report information
 /// </summary>
-public class CoverageReport
+internal class CoverageReport
 {
     public double OverallCoveragePercent { get; set; }
     public DateTime GeneratedAt { get; set; }
@@ -577,7 +577,7 @@ public class CoverageReport
 /// <summary>
 /// Configuration validation results
 /// </summary>
-public class TestConfigurationValidation
+internal class TestConfigurationValidation
 {
     public bool IsValid { get; set; }
     public List<string> Errors { get; set; } = new();

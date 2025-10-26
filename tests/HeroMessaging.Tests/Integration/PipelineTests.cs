@@ -230,7 +230,7 @@ public class PipelineTests : IAsyncDisposable
         var results = await Task.WhenAll(messages.Select(msg => pipeline.ProcessMessageAsync(msg)));
 
         // Allow metrics to be collected
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         var metrics = pipeline.GetCollectedMetrics();
 
@@ -399,7 +399,7 @@ public class PipelineTests : IAsyncDisposable
     }
 
     // Test pipeline implementation
-    public class TestMessagePipeline : IAsyncDisposable
+    private class TestMessagePipeline : IAsyncDisposable
     {
         private string _serializationType = "";
         private string _storageType = "";
@@ -436,7 +436,7 @@ public class PipelineTests : IAsyncDisposable
                 });
             }
 
-            await Task.Delay(50); // Simulate initialization
+            await Task.Delay(50, TestContext.Current.CancellationToken); // Simulate initialization
         }
 
         public async Task<PipelineResult> ProcessMessageAsync(IMessage message)
@@ -557,7 +557,7 @@ public class PipelineTests : IAsyncDisposable
                 throw new InvalidOperationException("Storage service unavailable");
             }
 
-            await Task.Delay(5); // Simulate retrieval
+            await Task.Delay(5, TestContext.Current.CancellationToken); // Simulate retrieval
             lock (_storageLock)
             {
                 return _storage.TryGetValue(messageId, out var message) ? message : null;
@@ -566,7 +566,7 @@ public class PipelineTests : IAsyncDisposable
 
         public async Task<HealthReport> CheckHealthAsync()
         {
-            await Task.Delay(10);
+            await Task.Delay(10, TestContext.Current.CancellationToken);
 
             var components = new Dictionary<string, HealthStatus>
             {
@@ -616,7 +616,7 @@ public class PipelineTests : IAsyncDisposable
 
         private async Task ExecuteProcessingStep(string step, IMessage message)
         {
-            await Task.Delay(5); // Simulate step execution
+            await Task.Delay(5, TestContext.Current.CancellationToken); // Simulate step execution
 
             // Different steps have different characteristics
             switch (step)
@@ -643,7 +643,7 @@ public class PipelineTests : IAsyncDisposable
 
         private async Task<byte[]> SerializeMessage(IMessage message)
         {
-            await Task.Delay(2);
+            await Task.Delay(2, TestContext.Current.CancellationToken);
 
             // Simulate different serialization sizes
             var content = message.GetTestContent() ?? "";
@@ -711,7 +711,7 @@ public class PipelineTests : IAsyncDisposable
     }
 
     // Supporting classes
-    public class PipelineResult
+    private class PipelineResult
     {
         public bool Success { get; set; }
         public Guid ProcessedMessageId { get; set; }
@@ -721,20 +721,20 @@ public class PipelineTests : IAsyncDisposable
         public string? ErrorMessage { get; set; }
     }
 
-    public class PipelineMetric
+    private class PipelineMetric
     {
         public string Name { get; set; } = "";
         public double Value { get; set; }
         public DateTime Timestamp { get; set; }
     }
 
-    public class HealthReport
+    private class HealthReport
     {
         public HealthStatus OverallStatus { get; set; }
         public Dictionary<string, HealthStatus> Components { get; set; } = new();
     }
 
-    public enum HealthStatus
+    private enum HealthStatus
     {
         Healthy,
         Unhealthy,

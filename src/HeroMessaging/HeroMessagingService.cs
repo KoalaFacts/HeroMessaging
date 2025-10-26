@@ -12,7 +12,6 @@ public class HeroMessagingService(
     ICommandProcessor commandProcessor,
     IQueryProcessor queryProcessor,
     IEventBus eventBus,
-    ILogger<HeroMessagingService> logger,
     IQueueProcessor? queueProcessor = null,
     IOutboxProcessor? outboxProcessor = null,
     IInboxProcessor? inboxProcessor = null) : IHeroMessaging
@@ -23,7 +22,6 @@ public class HeroMessagingService(
     private readonly IQueueProcessor? _queueProcessor = queueProcessor;
     private readonly IOutboxProcessor? _outboxProcessor = outboxProcessor;
     private readonly IInboxProcessor? _inboxProcessor = inboxProcessor;
-    private readonly ILogger<HeroMessagingService> _logger = logger;
 
     private readonly MessagingMetrics _metrics = new();
 
