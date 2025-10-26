@@ -166,7 +166,7 @@ public class InMemorySchedulerTests : IAsyncLifetime
     {
         // Arrange
         var message = TestMessageBuilder.CreateValidMessage("Past message");
-        var deliverAt = DateTimeOffset.UtcNow.AddSeconds(-1);
+        var deliverAt = DateTimeOffset.UtcNow.AddSeconds(-2); // More than 1 second in past
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentException>(

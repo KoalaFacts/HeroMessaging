@@ -39,8 +39,9 @@ public sealed class InMemoryScheduler : IMessageScheduler, IDisposable
         if (message == null) throw new ArgumentNullException(nameof(message));
         if (delay < TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(delay), "Delay cannot be negative");
 
-        var deliverAt = DateTimeOffset.UtcNow.Add(delay);
-        return ScheduleAsync(message, deliverAt, options, cancellationToken);
+        var now = DateTimeOffset.UtcNow;
+        var deliverAt = now.Add(delay);
+        return ScheduleAsyncInternal(message, deliverAt, now, options, cancellationToken);
     }
 
     public Task<ScheduleResult> ScheduleAsync<T>(
@@ -50,8 +51,21 @@ public sealed class InMemoryScheduler : IMessageScheduler, IDisposable
         CancellationToken cancellationToken = default) where T : IMessage
     {
         if (message == null) throw new ArgumentNullException(nameof(message));
-        if (deliverAt < DateTimeOffset.UtcNow) throw new ArgumentException("Delivery time cannot be in the past", nameof(deliverAt));
 
+        var now = DateTimeOffset.UtcNow;
+        // Allow a small tolerance (1 second) for timing issues, but reject significantly past times
+        if (deliverAt < now.AddSeconds(-1)) throw new ArgumentException("Delivery time cannot be in the past", nameof(deliverAt));
+
+        return ScheduleAsyncInternal(message, deliverAt, now, options, cancellationToken);
+    }
+
+    private Task<ScheduleResult> ScheduleAsyncInternal<T>(
+        T message,
+        DateTimeOffset deliverAt,
+        DateTimeOffset now,
+        SchedulingOptions? options,
+        CancellationToken cancellationToken) where T : IMessage
+    {
         ThrowIfDisposed();
 
         var scheduleId = Guid.NewGuid();
@@ -61,10 +75,10 @@ public sealed class InMemoryScheduler : IMessageScheduler, IDisposable
             Message = message,
             DeliverAt = deliverAt,
             Options = options ?? new SchedulingOptions(),
-            ScheduledAt = DateTimeOffset.UtcNow
+            ScheduledAt = now
         };
 
-        var delay = deliverAt - DateTimeOffset.UtcNow;
+        var delay = deliverAt - now;
         var dueTime = delay > TimeSpan.Zero ? delay : TimeSpan.Zero;
 
         // Create timer for delivery
