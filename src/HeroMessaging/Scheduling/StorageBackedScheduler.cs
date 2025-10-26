@@ -1,7 +1,7 @@
 using System.Threading.Channels;
+using HeroMessaging.Abstractions.Configuration;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Scheduling;
-using HeroMessaging.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace HeroMessaging.Scheduling;
