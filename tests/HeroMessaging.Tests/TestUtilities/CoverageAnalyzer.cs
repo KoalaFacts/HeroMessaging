@@ -112,7 +112,7 @@ public class CoverageConfiguration
     public decimal MinimumCoverage { get; set; } = 80.0m;
     public decimal MinimumLineCoverage { get; set; } = 80.0m;
     public decimal MinimumBranchCoverage { get; set; } = 75.0m;
-    public string[] ExcludedPaths { get; set; } = Array.Empty<string>();
+    public IReadOnlyList<string> ExcludedPaths { get; set; } = Array.Empty<string>();
 }
 
 public class CoverageReport
@@ -121,7 +121,7 @@ public class CoverageReport
     public decimal LineCoverage { get; set; }
     public decimal BranchCoverage { get; set; }
     public Dictionary<string, decimal> AssemblyCoverage { get; set; } = new();
-    public string[] ExcludedPaths { get; set; } = Array.Empty<string>();
+    public IReadOnlyList<string> ExcludedPaths { get; set; } = Array.Empty<string>();
     public DateTime Timestamp { get; set; }
     public string Framework { get; set; } = string.Empty;
 }
@@ -131,6 +131,6 @@ public class ValidationResult
     public bool IsValid { get; set; }
     public decimal ActualCoverage { get; set; }
     public decimal RequiredCoverage { get; set; }
-    public string[] Violations { get; set; } = Array.Empty<string>();
-    public string[] Recommendations { get; set; } = Array.Empty<string>();
+    public IReadOnlyList<string> Violations { get; set; } = Array.Empty<string>();
+    public IReadOnlyList<string> Recommendations { get; set; } = Array.Empty<string>();
 }

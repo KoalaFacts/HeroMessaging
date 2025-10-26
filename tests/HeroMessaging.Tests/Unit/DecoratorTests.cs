@@ -30,7 +30,7 @@ public class DecoratorTests
         var decorator = new TestLoggingDecorator(mockInnerProcessor.Object, mockLogger.Object);
 
         // Act
-        var result = await decorator.ProcessAsync(message, context);
+        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -65,7 +65,7 @@ public class DecoratorTests
 
         // Act & Assert
         var thrownException = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => decorator.ProcessAsync(message, context).AsTask());
+            () => decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken).AsTask());
 
         Assert.Equal("Processing failed", thrownException.Message);
 
@@ -98,7 +98,7 @@ public class DecoratorTests
         var decorator = new TestRetryDecorator(mockInnerProcessor.Object, maxAttempts: 3);
 
         // Act
-        var result = await decorator.ProcessAsync(message, context);
+        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -122,7 +122,7 @@ public class DecoratorTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => decorator.ProcessAsync(message, context).AsTask());
+            () => decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken).AsTask());
 
         Assert.Equal("Persistent failure", exception.Message);
         mockInnerProcessor.Verify(p => p.ProcessAsync(message, context, It.IsAny<CancellationToken>()), Times.Exactly(2));
@@ -146,12 +146,12 @@ public class DecoratorTests
         for (int i = 0; i < 3; i++)
         {
             await Assert.ThrowsAsync<InvalidOperationException>(
-                () => decorator.ProcessAsync(message, context).AsTask());
+                () => decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken).AsTask());
         }
 
         // Circuit breaker should now be open - subsequent calls should fail fast
         var circuitOpenException = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => decorator.ProcessAsync(message, context).AsTask());
+            () => decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken).AsTask());
 
         // Assert
         Assert.Contains("Circuit breaker is open", circuitOpenException.Message);
@@ -179,7 +179,7 @@ public class DecoratorTests
         var loggingDecorator = new TestLoggingDecorator(retryDecorator, mockLogger.Object);
 
         // Act
-        var result = await loggingDecorator.ProcessAsync(message, context);
+        var result = await loggingDecorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -247,7 +247,7 @@ public class DecoratorTests
                 }
                 catch (Exception) when (attempt < _maxAttempts)
                 {
-                    await Task.Delay(10, cancellationToken); // Short delay between retries
+                    await Task.Delay(10, TestContext.Current.CancellationToken); // Short delay between retries
                 }
             }
 

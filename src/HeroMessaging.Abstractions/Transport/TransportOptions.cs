@@ -119,6 +119,7 @@ public class RabbitMqTransportOptions : TransportOptions
     public RabbitMqTransportOptions()
     {
         Name = "RabbitMQ";
+        Host = string.Empty;
     }
 
     /// <summary>
@@ -239,6 +240,7 @@ public class AmazonSqsTransportOptions : TransportOptions
     public AmazonSqsTransportOptions()
     {
         Name = "AmazonSqs";
+        Region = string.Empty;
     }
 
     /// <summary>
@@ -301,6 +303,7 @@ public class KafkaTransportOptions : TransportOptions
     public KafkaTransportOptions()
     {
         Name = "Kafka";
+        BootstrapServers = string.Empty;
     }
 
     /// <summary>

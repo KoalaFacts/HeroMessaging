@@ -1,0 +1,15 @@
+<Project>
+  <!-- Import parent Directory.Build.props -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <PropertyGroup>
+    <!-- Disable code analysis warnings for test projects -->
+    <!-- CA1002: List<T> is fine for test code -->
+    <!-- CA1034: Nested public types are fine in test helpers -->
+    <!-- CA1051: Public fields are acceptable in test fixtures -->
+    <!-- CA1813: Unsealed attributes are fine for test attributes -->
+    <!-- CA1819: Array properties are acceptable in test data -->
+    <!-- CA1024: Methods that look like properties are fine in tests -->
+    <NoWarn>$(NoWarn);CA1002;CA1034;CA1051;CA1813;CA1819;CA1024</NoWarn>
+  </PropertyGroup>
+</Project>

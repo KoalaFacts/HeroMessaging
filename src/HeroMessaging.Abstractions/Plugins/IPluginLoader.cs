@@ -43,9 +43,9 @@ public interface IPluginLoader
 public class PluginValidationResult
 {
     public bool IsValid { get; set; }
-    public string[] Errors { get; set; } = Array.Empty<string>();
-    public string[] Warnings { get; set; } = Array.Empty<string>();
-    public string[] MissingDependencies { get; set; } = Array.Empty<string>();
+    public IReadOnlyCollection<string> Errors { get; set; } = Array.Empty<string>();
+    public IReadOnlyCollection<string> Warnings { get; set; } = Array.Empty<string>();
+    public IReadOnlyCollection<string> MissingDependencies { get; set; } = Array.Empty<string>();
 }
 
 /// <summary>

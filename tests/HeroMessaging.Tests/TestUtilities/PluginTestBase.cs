@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Loader;
@@ -13,8 +14,8 @@ public abstract class PluginTestBase<TPlugin> : IDisposable where TPlugin : clas
 {
     private readonly List<IDisposable> _disposables = new();
     private bool _disposed = false;
-    protected IServiceProvider ServiceProvider { get; private set; }
-    protected TPlugin Plugin { get; private set; }
+    protected IServiceProvider ServiceProvider { get; private set; } = null!;
+    protected TPlugin Plugin { get; private set; } = null!;
 
     protected PluginTestBase()
     {

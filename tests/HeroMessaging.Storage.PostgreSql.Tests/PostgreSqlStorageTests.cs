@@ -24,7 +24,7 @@ public sealed class PostgreSqlStorageTests : IDisposable
         // Real storage tests would be added when PostgreSQL storage plugin is implemented
 
         // For now, we'll test that our test infrastructure is working
-        await Task.Delay(1); // Simulate async work
+        await Task.Delay(1, TestContext.Current.CancellationToken); // Simulate async work
 
         Assert.True(true, "PostgreSQL test infrastructure is ready");
     }
@@ -36,7 +36,7 @@ public sealed class PostgreSqlStorageTests : IDisposable
         // Test that we can generate valid connection strings
         var expectedPattern = @"Host=localhost;Port=\d+;Database=\w+;Username=\w+;Password=.+";
 
-        await Task.Delay(1); // Simulate async work
+        await Task.Delay(1, TestContext.Current.CancellationToken); // Simulate async work
 
         // Mock connection string validation
         var mockConnectionString = "Host=localhost;Port=5432;Database=herotest;Username=postgres;Password=Test123!";

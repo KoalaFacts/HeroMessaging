@@ -139,64 +139,44 @@ public readonly record struct MessageVersion
 /// Attribute to specify the version of a message type
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
-public class MessageVersionAttribute : Attribute
+public sealed class MessageVersionAttribute(int major, int minor = 0, int patch = 0) : Attribute
 {
-    public MessageVersion Version { get; }
-
-    public MessageVersionAttribute(int major, int minor = 0, int patch = 0)
-    {
-        Version = new MessageVersion(major, minor, patch);
-    }
-
-    public MessageVersionAttribute(string version)
-    {
-        Version = MessageVersion.Parse(version);
-    }
+    public int Major { get; } = major;
+    public int Minor { get; } = minor;
+    public int Patch { get; } = patch;
+    public MessageVersion Version { get; } = new MessageVersion(major, minor, patch);
 }
 
 /// <summary>
 /// Attribute to mark properties that were added in a specific version
 /// </summary>
 [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = false, Inherited = true)]
-public class AddedInVersionAttribute : Attribute
+public sealed class AddedInVersionAttribute(int major, int minor = 0, int patch = 0) : Attribute
 {
-    public MessageVersion Version { get; }
-
-    public AddedInVersionAttribute(int major, int minor = 0, int patch = 0)
-    {
-        Version = new MessageVersion(major, minor, patch);
-    }
-
-    public AddedInVersionAttribute(string version)
-    {
-        Version = MessageVersion.Parse(version);
-    }
+    public int Major { get; } = major;
+    public int Minor { get; } = minor;
+    public int Patch { get; } = patch;
+    public MessageVersion Version { get; } = new MessageVersion(major, minor, patch);
 }
 
 /// <summary>
 /// Attribute to mark properties that were deprecated in a specific version
 /// </summary>
 [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = false, Inherited = true)]
-public class DeprecatedInVersionAttribute : Attribute
+public sealed class DeprecatedInVersionAttribute : Attribute
 {
+    public int Major { get; }
+    public int Minor { get; }
+    public int Patch { get; }
     public MessageVersion Version { get; }
-    public string? Reason { get; }
-    public string? ReplacedBy { get; }
+    public string? Reason { get; set; }
+    public string? ReplacedBy { get; set; }
 
     public DeprecatedInVersionAttribute(int major, int minor = 0, int patch = 0)
     {
+        Major = major;
+        Minor = minor;
+        Patch = patch;
         Version = new MessageVersion(major, minor, patch);
-    }
-
-    public DeprecatedInVersionAttribute(string version)
-    {
-        Version = MessageVersion.Parse(version);
-    }
-
-    public DeprecatedInVersionAttribute(string version, string reason, string? replacedBy = null)
-        : this(version)
-    {
-        Reason = reason;
-        ReplacedBy = replacedBy;
     }
 }

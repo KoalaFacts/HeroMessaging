@@ -8,7 +8,7 @@ namespace HeroMessaging.Tests.Infrastructure;
 /// Comprehensive coverage reporting with ReportGenerator integration and threshold enforcement
 /// Provides detailed coverage analysis, trend tracking, and quality gate enforcement
 /// </summary>
-public class CoverageReporting
+internal class CoverageReporting
 {
     private readonly CoverageConfiguration _config;
     private const double MinimumCoverageThreshold = 80.0;
@@ -622,7 +622,7 @@ public class CoverageReporting
 
 // Supporting data structures
 
-public class CoverageConfiguration
+internal class CoverageConfiguration
 {
     public double MinimumAssemblyCoverage { get; set; } = 80.0;
     public double MinimumPublicApiCoverage { get; set; } = 100.0;
@@ -631,7 +631,7 @@ public class CoverageConfiguration
     public string? BaselineDirectory { get; set; }
 }
 
-public class CoverageReportResults
+internal class CoverageReportResults
 {
     public DateTime StartTime { get; set; }
     public DateTime EndTime { get; set; }
@@ -648,19 +648,19 @@ public class CoverageReportResults
     public DiffCoverageAnalysis? DiffCoverage { get; set; }
 }
 
-public class CoverageData
+internal class CoverageData
 {
     public CoverageMetrics OverallCoverage { get; set; } = new();
     public List<AssemblyCoverage> Assemblies { get; set; } = new();
 }
 
-public class CoverageMetrics
+internal class CoverageMetrics
 {
     public double LinePercentage { get; set; }
     public double BranchPercentage { get; set; }
 }
 
-public class AssemblyCoverage
+internal class AssemblyCoverage
 {
     public string Name { get; set; } = string.Empty;
     public double LinePercentage { get; set; }
@@ -668,14 +668,14 @@ public class AssemblyCoverage
     public List<ClassCoverage> Classes { get; set; } = new();
 }
 
-public class ClassCoverage
+internal class ClassCoverage
 {
     public string Name { get; set; } = string.Empty;
     public double LinePercentage { get; set; }
     public double BranchPercentage { get; set; }
 }
 
-public class CoverageThresholdValidation
+internal class CoverageThresholdValidation
 {
     public bool Success { get; set; }
     public string? ErrorMessage { get; set; }
@@ -685,7 +685,7 @@ public class CoverageThresholdValidation
     public List<CriticalPathValidation> CriticalPathValidations { get; set; } = new();
 }
 
-public class AssemblyCoverageValidation
+internal class AssemblyCoverageValidation
 {
     public string AssemblyName { get; set; } = string.Empty;
     public double CoveragePercent { get; set; }
@@ -694,20 +694,20 @@ public class AssemblyCoverageValidation
     public bool PublicApiPassesThreshold { get; set; }
 }
 
-public class CriticalPathValidation
+internal class CriticalPathValidation
 {
     public string Path { get; set; } = string.Empty;
     public double CoveragePercent { get; set; }
     public bool PassesThreshold { get; set; }
 }
 
-public class CriticalPath
+internal class CriticalPath
 {
     public string Path { get; set; } = string.Empty;
     public double CoveragePercent { get; set; }
 }
 
-public class CoverageTrendAnalysis
+internal class CoverageTrendAnalysis
 {
     public double CurrentCoverage { get; set; }
     public double PreviousCoverage { get; set; }
@@ -719,7 +719,7 @@ public class CoverageTrendAnalysis
     public string? ErrorMessage { get; set; }
 }
 
-public class DiffCoverageAnalysis
+internal class DiffCoverageAnalysis
 {
     public bool Success { get; set; }
     public string? ErrorMessage { get; set; }
@@ -732,7 +732,7 @@ public class DiffCoverageAnalysis
     public string? ReportPath { get; set; }
 }
 
-public class AssemblyCoverageDiff
+internal class AssemblyCoverageDiff
 {
     public string AssemblyName { get; set; } = string.Empty;
     public double BaselineCoverage { get; set; }
@@ -740,20 +740,20 @@ public class AssemblyCoverageDiff
     public double CoverageChange { get; set; }
 }
 
-public class CoverageDataPoint
+internal class CoverageDataPoint
 {
     public DateTime Date { get; set; }
     public double OverallCoverage { get; set; }
     public Dictionary<string, double> AssemblyCoverages { get; set; } = new();
 }
 
-public class TrendChartData
+internal class TrendChartData
 {
     public List<string> Labels { get; set; } = new();
     public List<double> CoverageValues { get; set; } = new();
 }
 
-public enum CoverageTrendDirection
+internal enum CoverageTrendDirection
 {
     Unknown,
     Improving,

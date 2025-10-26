@@ -52,6 +52,6 @@ public class RequiredFieldsValidator : IMessageValidator
 /// Attribute to mark properties as required for validation
 /// </summary>
 [AttributeUsage(AttributeTargets.Property)]
-public class RequiredAttribute : Attribute
+public sealed class RequiredAttribute : Attribute
 {
 }

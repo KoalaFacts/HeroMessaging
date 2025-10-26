@@ -70,7 +70,7 @@ public enum PluginCategory
 /// Attribute to mark a class as a HeroMessaging plugin
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
-public class HeroMessagingPluginAttribute : Attribute
+public sealed class HeroMessagingPluginAttribute : Attribute
 {
     public string Name { get; }
     public PluginCategory Category { get; }

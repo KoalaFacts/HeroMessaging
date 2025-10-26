@@ -321,37 +321,35 @@ public class StoragePluginTests : IAsyncDisposable
     }
 
     // Test storage implementations
-    public class TestPostgreSqlStorage : IMessageStorage, IAsyncDisposable
+    private class TestPostgreSqlStorage : IMessageStorage, IAsyncDisposable
     {
         private readonly ConcurrentDictionary<Guid, IMessage> _storage = new();
         private bool _connectionFailure = false;
-        private bool _initialized = false;
 
         public async Task InitializeAsync()
         {
             // Simulate PostgreSQL container startup
-            await Task.Delay(100);
-            _initialized = true;
+            await Task.Delay(100, TestContext.Current.CancellationToken);
         }
 
         public async Task StoreAsync(IMessage message, IStorageTransaction? transaction = null)
         {
             ThrowIfConnectionFailure();
-            await Task.Delay(10); // Simulate database operation
+            await Task.Delay(10, TestContext.Current.CancellationToken); // Simulate database operation
             _storage[message.MessageId] = message;
         }
 
         public async Task<IMessage?> RetrieveAsync(Guid messageId, IStorageTransaction? transaction = null)
         {
             ThrowIfConnectionFailure();
-            await Task.Delay(5); // Simulate database operation
+            await Task.Delay(5, TestContext.Current.CancellationToken); // Simulate database operation
             return _storage.TryGetValue(messageId, out var message) ? message : null;
         }
 
         public async Task<List<IMessage>> QueryAsync(MessageQuery query)
         {
             ThrowIfConnectionFailure();
-            await Task.Delay(20); // Simulate query operation
+            await Task.Delay(20, TestContext.Current.CancellationToken); // Simulate query operation
 
             var results = _storage.Values.AsEnumerable();
 
@@ -376,14 +374,14 @@ public class StoragePluginTests : IAsyncDisposable
         public async Task DeleteAsync(Guid messageId)
         {
             ThrowIfConnectionFailure();
-            await Task.Delay(10);
+            await Task.Delay(10, TestContext.Current.CancellationToken);
             _storage.TryRemove(messageId, out _);
         }
 
         public async Task<IStorageTransaction> BeginTransactionAsync()
         {
             ThrowIfConnectionFailure();
-            await Task.Delay(5);
+            await Task.Delay(5, TestContext.Current.CancellationToken);
             return new TestStorageTransaction();
         }
 
@@ -403,7 +401,7 @@ public class StoragePluginTests : IAsyncDisposable
         }
     }
 
-    public class TestSqlServerStorage : IMessageStorage, IAsyncDisposable
+    private class TestSqlServerStorage : IMessageStorage, IAsyncDisposable
     {
         private readonly ConcurrentDictionary<Guid, IMessage> _storage = new();
         private readonly ConcurrentDictionary<Guid, IMessage> _transactionStorage = new();
@@ -411,12 +409,12 @@ public class StoragePluginTests : IAsyncDisposable
         public async Task InitializeAsync()
         {
             // Simulate SQL Server container startup
-            await Task.Delay(150);
+            await Task.Delay(150, TestContext.Current.CancellationToken);
         }
 
         public async Task StoreAsync(IMessage message, IStorageTransaction? transaction = null)
         {
-            await Task.Delay(8);
+            await Task.Delay(8, TestContext.Current.CancellationToken);
 
             if (transaction != null)
             {
@@ -430,7 +428,7 @@ public class StoragePluginTests : IAsyncDisposable
 
         public async Task<IMessage?> RetrieveAsync(Guid messageId, IStorageTransaction? transaction = null)
         {
-            await Task.Delay(6);
+            await Task.Delay(6, TestContext.Current.CancellationToken);
 
             if (transaction != null)
             {
@@ -442,7 +440,7 @@ public class StoragePluginTests : IAsyncDisposable
 
         public async Task<List<IMessage>> QueryAsync(MessageQuery query)
         {
-            await Task.Delay(25);
+            await Task.Delay(25, TestContext.Current.CancellationToken);
 
             var results = _storage.Values.AsEnumerable();
 
@@ -456,13 +454,13 @@ public class StoragePluginTests : IAsyncDisposable
 
         public async Task DeleteAsync(Guid messageId)
         {
-            await Task.Delay(12);
+            await Task.Delay(12, TestContext.Current.CancellationToken);
             _storage.TryRemove(messageId, out _);
         }
 
         public async Task<IStorageTransaction> BeginTransactionAsync()
         {
-            await Task.Delay(8);
+            await Task.Delay(8, TestContext.Current.CancellationToken);
             return new TestStorageTransaction(() => CommitTransaction(), () => RollbackTransaction());
         }
 
@@ -488,7 +486,7 @@ public class StoragePluginTests : IAsyncDisposable
         }
     }
 
-    public sealed class TestStorageTransaction : IStorageTransaction
+    private sealed class TestStorageTransaction : IStorageTransaction
     {
         private readonly Action? _commitAction;
         private readonly Action? _rollbackAction;
@@ -502,13 +500,13 @@ public class StoragePluginTests : IAsyncDisposable
 
         public async Task CommitAsync()
         {
-            await Task.Delay(5);
+            await Task.Delay(5, TestContext.Current.CancellationToken);
             _commitAction?.Invoke();
         }
 
         public async Task RollbackAsync()
         {
-            await Task.Delay(3);
+            await Task.Delay(3, TestContext.Current.CancellationToken);
             _rollbackAction?.Invoke();
         }
 
@@ -529,7 +527,7 @@ public class StoragePluginTests : IAsyncDisposable
     }
 
     // Supporting interfaces and classes
-    public interface IMessageStorage
+    private interface IMessageStorage
     {
         Task StoreAsync(IMessage message, IStorageTransaction? transaction = null);
         Task<IMessage?> RetrieveAsync(Guid messageId, IStorageTransaction? transaction = null);
@@ -538,13 +536,13 @@ public class StoragePluginTests : IAsyncDisposable
         Task<IStorageTransaction> BeginTransactionAsync();
     }
 
-    public interface IStorageTransaction : IDisposable
+    private interface IStorageTransaction : IDisposable
     {
         Task CommitAsync();
         Task RollbackAsync();
     }
 
-    public class MessageQuery
+    private class MessageQuery
     {
         public string? ContentContains { get; set; }
         public DateTime? FromTimestamp { get; set; }

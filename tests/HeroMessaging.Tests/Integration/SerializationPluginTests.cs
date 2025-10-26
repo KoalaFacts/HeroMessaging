@@ -326,7 +326,7 @@ public class SerializationPluginTests
     }
 
     // Test serializer implementations
-    public class TestJsonSerializer : IMessageSerializer
+    private class TestJsonSerializer : IMessageSerializer
     {
         public string Version { get; }
 
@@ -344,7 +344,7 @@ public class SerializationPluginTests
 
         public async Task<byte[]> SerializeAsync(IMessage message)
         {
-            await Task.Delay(1); // Simulate serialization work
+            await Task.Delay(1, TestContext.Current.CancellationToken); // Simulate serialization work
 
             // Simple JSON serialization simulation
             var content = message.GetTestContent() ?? "";
@@ -389,7 +389,7 @@ public class SerializationPluginTests
 
         public async Task<IMessage> DeserializeAsync(byte[] data)
         {
-            await Task.Delay(1); // Simulate deserialization work
+            await Task.Delay(1, TestContext.Current.CancellationToken); // Simulate deserialization work
 
             var jsonString = Encoding.UTF8.GetString(data);
 
@@ -479,11 +479,11 @@ public class SerializationPluginTests
         }
     }
 
-    public class TestMessagePackSerializer : IMessageSerializer
+    private class TestMessagePackSerializer : IMessageSerializer
     {
         public async Task<byte[]> SerializeAsync(IMessage message)
         {
-            await Task.Delay(1);
+            await Task.Delay(1, TestContext.Current.CancellationToken);
 
             // Simulate MessagePack binary format (simplified)
             var data = new List<byte>();
@@ -500,7 +500,7 @@ public class SerializationPluginTests
 
         public async Task<IMessage> DeserializeAsync(byte[] data)
         {
-            await Task.Delay(1);
+            await Task.Delay(1, TestContext.Current.CancellationToken);
 
             // Simulate MessagePack deserialization
             var offset = 0;
@@ -523,11 +523,11 @@ public class SerializationPluginTests
         }
     }
 
-    public class TestProtocolBuffersSerializer : IMessageSerializer
+    private class TestProtocolBuffersSerializer : IMessageSerializer
     {
         public async Task<byte[]> SerializeAsync(IMessage message)
         {
-            await Task.Delay(1);
+            await Task.Delay(1, TestContext.Current.CancellationToken);
 
             // Simulate Protocol Buffers binary format (simplified)
             var data = new List<byte>();
@@ -557,7 +557,7 @@ public class SerializationPluginTests
 
         public async Task<IMessage> DeserializeAsync(byte[] data)
         {
-            await Task.Delay(1);
+            await Task.Delay(1, TestContext.Current.CancellationToken);
 
             // Simplified Protocol Buffers deserialization
             var offset = 0;
@@ -609,26 +609,29 @@ public class SerializationPluginTests
     }
 
     // Supporting classes
-    public interface IMessageSerializer
+    private interface IMessageSerializer
     {
         Task<byte[]> SerializeAsync(IMessage message);
         Task<IMessage> DeserializeAsync(byte[] data);
     }
 
-    public class JsonSerializationOptions
+    private class JsonSerializationOptions
     {
         public bool IgnoreNullValues { get; set; }
         public bool CamelCasePropertyNames { get; set; }
     }
 
-    public class SerializationException : Exception
+    private class SerializationException : Exception
     {
+        public SerializationException() : base() { }
         public SerializationException(string message) : base(message) { }
         public SerializationException(string message, Exception innerException) : base(message, innerException) { }
     }
 
-    public class SerializationVersionException : SerializationException
+    private class SerializationVersionException : SerializationException
     {
+        public SerializationVersionException() : base() { }
         public SerializationVersionException(string message) : base(message) { }
+        public SerializationVersionException(string message, Exception innerException) : base(message, innerException) { }
     }
 }

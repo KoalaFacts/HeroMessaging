@@ -44,15 +44,15 @@ public class MessageProcessingTests
         var mockProcessor = new Mock<IMessageProcessor>();
         var context = new ProcessingContext("test-component");
 
-        mockProcessor.Setup(p => p.ProcessAsync(null, It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
+        mockProcessor.Setup(p => p.ProcessAsync(null!, It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
                     .Throws(new ArgumentNullException("message"));
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentNullException>(
-            () => mockProcessor.Object.ProcessAsync(null, context, TestContext.Current.CancellationToken).AsTask());
+            () => mockProcessor.Object.ProcessAsync(null!, context, TestContext.Current.CancellationToken).AsTask());
 
         Assert.Contains("message", exception.ParamName);
-        mockProcessor.Verify(p => p.ProcessAsync(null, It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()), Times.Once);
+        mockProcessor.Verify(p => p.ProcessAsync(null!, It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
