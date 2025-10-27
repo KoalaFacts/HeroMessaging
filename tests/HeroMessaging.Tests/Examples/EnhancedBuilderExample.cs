@@ -242,21 +242,26 @@ public static class AdvancedBuilderExample
                     })
                 .TransitionTo(new State("AwaitingPayment"));
 
-        // Example: Nested conditionals
+        // Example: Conditional with inline logic for complex scenarios
         builder.InState("AwaitingPayment")
             .When(new Event<PaymentAuthorizedEvent>("PaymentAuthorized"))
-                .If(ctx => ctx.Instance.TotalAmount > 1000)
-                    .Then(ctx => { /* High value order processing */ })
-                    .TransitionTo("RequiresApproval")
-                .Else()
-                    .If(ctx => ctx.Instance.IsPremiumCustomer)
-                        .Then(ctx => { /* Premium fast-track */ })
-                        .TransitionTo("FastTrackCompleted")
-                    .Else()
-                        .Then(ctx => { /* Standard processing */ })
-                        .TransitionTo("Completed")
-                    .EndIf()
-                .EndIf();
+                .Then(ctx =>
+                {
+                    // For complex nested conditions, use inline logic
+                    if (ctx.Instance.TotalAmount > 1000)
+                    {
+                        ctx.Instance.CurrentState = "RequiresApproval";
+                    }
+                    else if (ctx.Instance.IsPremiumCustomer)
+                    {
+                        ctx.Instance.CurrentState = "FastTrackCompleted";
+                    }
+                    else
+                    {
+                        ctx.Instance.CurrentState = "Completed";
+                    }
+                    ctx.Instance.UpdatedAt = DateTime.UtcNow;
+                });
 
         return builder.Build();
     }
