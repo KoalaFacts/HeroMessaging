@@ -304,6 +304,8 @@ public class StoragePluginTests : IAsyncDisposable
         return new TestMessage(
             messageId: Guid.NewGuid(),
             timestamp: timestamp,
+            correlationId: null,
+            causationId: null,
             content: content,
             metadata: new Dictionary<string, object>
             {

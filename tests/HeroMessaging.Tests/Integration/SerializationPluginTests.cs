@@ -245,6 +245,8 @@ public class SerializationPluginTests
         var messageWithNulls = new TestMessage(
             messageId: Guid.NewGuid(),
             timestamp: DateTime.UtcNow,
+            correlationId: null,
+            causationId: null,
             content: null, // Null content
             metadata: new Dictionary<string, object>
             {
@@ -305,6 +307,8 @@ public class SerializationPluginTests
         return new TestMessage(
             messageId: Guid.NewGuid(),
             timestamp: DateTime.UtcNow,
+            correlationId: null,
+            causationId: null,
             content: "Complex message with nested data",
             metadata: new Dictionary<string, object>
             {
@@ -462,7 +466,7 @@ public class SerializationPluginTests
                 }
             }
 
-            return new TestMessage(messageId, timestamp, contentStr, metadata);
+            return new TestMessage(messageId, timestamp, null, null, contentStr, metadata);
         }
 
         private string? ExtractValue(string json, string key)
@@ -519,7 +523,7 @@ public class SerializationPluginTests
             var contentBytes = data.Skip(offset).Take(contentLength).ToArray();
             var content = Encoding.UTF8.GetString(contentBytes);
 
-            return new TestMessage(messageId, timestamp, content);
+            return new TestMessage(messageId, timestamp, null, null, content, null);
         }
     }
 
@@ -604,7 +608,7 @@ public class SerializationPluginTests
                 }
             }
 
-            return new TestMessage(messageId, timestamp, content);
+            return new TestMessage(messageId, timestamp, null, null, content, null);
         }
     }
 
