@@ -1,12 +1,13 @@
+using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Commands;
 using HeroMessaging.Abstractions.Events;
 using HeroMessaging.Abstractions.Handlers;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Choreography;
+using HeroMessaging.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace HeroMessaging.Tests.Integration;
 
@@ -15,12 +16,6 @@ namespace HeroMessaging.Tests.Integration;
 /// </summary>
 public class ChoreographyWorkflowTests
 {
-    private readonly ITestOutputHelper _output;
-
-    public ChoreographyWorkflowTests(ITestOutputHelper output)
-    {
-        _output = output;
-    }
 
     [Fact]
     [Trait("Category", "Integration")]
@@ -30,7 +25,7 @@ public class ChoreographyWorkflowTests
         var services = new ServiceCollection();
         var capturedEvents = new List<IMessage>();
 
-        services.AddLogging(builder => builder.AddXUnit(_output));
+        services.AddLogging();
 
         services.AddHeroMessaging(builder => builder
             .WithEventBus()
@@ -67,11 +62,6 @@ public class ChoreographyWorkflowTests
 
         foreach (var capturedEvent in capturedEvents)
         {
-            _output.WriteLine($"Event: {capturedEvent.GetType().Name}, " +
-                            $"Correlation: {capturedEvent.CorrelationId}, " +
-                            $"Causation: {capturedEvent.CausationId}, " +
-                            $"MessageId: {capturedEvent.MessageId}");
-
             // All events should share the same correlation ID
             Assert.Equal(initialCorrelationId, capturedEvent.CorrelationId);
         }
