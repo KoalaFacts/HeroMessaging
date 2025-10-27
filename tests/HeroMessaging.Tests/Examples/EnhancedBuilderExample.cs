@@ -50,7 +50,7 @@ public record PaymentAuthorizedEvent(string UserId, string PaymentId, decimal Am
     public Dictionary<string, object>? Metadata { get; init; }
 }
 
-public record PaymentFailedEvent(string UserId, string Reason) : IEvent, IMessage
+public record CartPaymentFailedEvent(string UserId, string Reason) : IEvent, IMessage
 {
     public Guid MessageId { get; init; } = Guid.NewGuid();
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
@@ -59,7 +59,7 @@ public record PaymentFailedEvent(string UserId, string Reason) : IEvent, IMessag
     public Dictionary<string, object>? Metadata { get; init; }
 }
 
-public record OrderCompletedEvent(string UserId, string PaymentId) : IEvent, IMessage
+public record CartCompletedEvent(string UserId, string PaymentId) : IEvent, IMessage
 {
     public Guid MessageId { get; init; } = Guid.NewGuid();
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
@@ -125,7 +125,7 @@ public static class ShoppingCartStateMachine
 
         // Example 4: Multiple failure paths with clear error handling
         builder.InState("AwaitingPayment")
-            .When(new Event<PaymentFailedEvent>("PaymentFailed"))
+            .When(new Event<CartPaymentFailedEvent>("CartPaymentFailed"))
                 .SetProperty(
                     (saga, reason) => saga.FailureReason = reason,
                     ctx => ctx.Data.Reason)
@@ -151,7 +151,7 @@ public static class ShoppingCartStateMachine
         var cartCreated = new Event<CartCreatedEvent>("CartCreated");
         var discountApplied = new Event<DiscountAppliedEvent>("DiscountApplied");
         var paymentAuthorized = new Event<PaymentAuthorizedEvent>("PaymentAuthorized");
-        var paymentFailed = new Event<PaymentFailedEvent>("PaymentFailed");
+        var paymentFailed = new Event<CartPaymentFailedEvent>("CartPaymentFailed");
 
         builder.Initially()
             .When(cartCreated)
