@@ -27,23 +27,13 @@ public static class MessageCorrelationExtensions
             return message;
         }
 
-        // DEBUG: Capture diagnostic info in metadata for troubleshooting
-        var metadata = message.Metadata != null
-            ? new Dictionary<string, object>(message.Metadata)
-            : new Dictionary<string, object>();
-
-        metadata["Debug_AppliedCausationId"] = causationId ?? "null";
-        metadata["Debug_AppliedCorrelationId"] = correlationId ?? "null";
-        metadata["Debug_MessageType"] = message.GetType().Name;
-
         // IMPORTANT: Preserve the original MessageId when creating the new record
         // The 'with' expression would otherwise trigger the MessageId initializer and create a new GUID
         return message with
         {
             MessageId = message.MessageId,  // Preserve original MessageId
             CorrelationId = correlationId,
-            CausationId = causationId,
-            Metadata = metadata
+            CausationId = causationId
         };
     }
 

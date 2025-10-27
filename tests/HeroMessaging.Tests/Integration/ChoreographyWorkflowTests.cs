@@ -32,10 +32,7 @@ public class ChoreographyWorkflowTests
         // Register event tracker (use interface to avoid type ambiguity)
         services.AddSingleton<System.Collections.Concurrent.ConcurrentBag<IMessage>>(capturedEvents);
 
-        // Register workflow handlers
-        services.AddTransient<IEventHandler<OrderCreatedEvent>, ReserveInventoryHandler>();
-        services.AddTransient<IEventHandler<InventoryReservedEvent>, ProcessPaymentHandler>();
-        services.AddTransient<IEventHandler<PaymentProcessedEvent>, ShipOrderHandler>();
+        // Note: Handlers are auto-registered by ScanAssembly above, no need for explicit registration
 
         var serviceProvider = services.BuildServiceProvider();
         var messaging = serviceProvider.GetRequiredService<IHeroMessaging>();
@@ -98,16 +95,7 @@ public class ChoreographyWorkflowTests
         }
         catch
         {
-            // Detailed diagnostic: show all events with metadata
-            var allEvents = capturedEvents.Select((e, idx) =>
-            {
-                var metaStr = e.Metadata != null && e.Metadata.Count > 0
-                    ? $", Meta: {string.Join(", ", e.Metadata.Select(kv => $"{kv.Key}={kv.Value}"))}"
-                    : "";
-                return $"\n  [{idx}] {e.GetType().Name}: Id={e.MessageId}, Corr={e.CorrelationId}, Cause={e.CausationId}{metaStr}";
-            });
-            var eventDetails = string.Join("", allEvents);
-            throw new InvalidOperationException($"Causation chain broken: inventory.MessageId={inventoryEvent.MessageId} != payment.CausationId={paymentEvent.CausationId}\nAll captured events:{eventDetails}");
+            throw new InvalidOperationException($"Causation chain broken: inventory.MessageId={inventoryEvent.MessageId} != payment.CausationId={paymentEvent.CausationId}");
         }
 
         try
@@ -171,19 +159,12 @@ public class ChoreographyWorkflowTests
             // Simulate inventory reservation
             await Task.Delay(10, cancellationToken);
 
-            // DEBUG: Check correlation context
-            var corrId = HeroMessaging.Choreography.CorrelationContext.CurrentCorrelationId;
-            var msgId = HeroMessaging.Choreography.CorrelationContext.CurrentMessageId;
-            System.Console.WriteLine($"[ReserveInventory] CorrelationContext - CorrId: {corrId}, MsgId: {msgId}, IncomingEvent: {@event.MessageId}");
-
             // Publish next event in choreography with automatic correlation
             var inventoryEvent = new InventoryReservedEvent
             {
                 OrderId = @event.OrderId,
                 ReservationId = Guid.NewGuid()
             }.WithCorrelation(); // Automatically applies correlation context
-
-            System.Console.WriteLine($"[ReserveInventory] Created InventoryEvent - Id: {inventoryEvent.MessageId}, CorrId: {inventoryEvent.CorrelationId}, CausationId: {inventoryEvent.CausationId}");
 
             _capturedEvents.Add(inventoryEvent);
             await _messaging.Publish(inventoryEvent, cancellationToken);
@@ -208,19 +189,12 @@ public class ChoreographyWorkflowTests
             // Simulate payment processing
             await Task.Delay(10, cancellationToken);
 
-            // DEBUG: Check correlation context
-            var corrId = HeroMessaging.Choreography.CorrelationContext.CurrentCorrelationId;
-            var msgId = HeroMessaging.Choreography.CorrelationContext.CurrentMessageId;
-            System.Console.WriteLine($"[ProcessPayment] CorrelationContext - CorrId: {corrId}, MsgId: {msgId}, IncomingEvent: {@event.MessageId}");
-
             var paymentEvent = new PaymentProcessedEvent
             {
                 OrderId = @event.OrderId,
                 TransactionId = Guid.NewGuid(),
                 Amount = 99.99m
             }.WithCorrelation(); // Automatically applies correlation context
-
-            System.Console.WriteLine($"[ProcessPayment] Created PaymentEvent - Id: {paymentEvent.MessageId}, CorrId: {paymentEvent.CorrelationId}, CausationId: {paymentEvent.CausationId}");
 
             _capturedEvents.Add(paymentEvent);
             await _messaging.Publish(paymentEvent, cancellationToken);
@@ -245,19 +219,12 @@ public class ChoreographyWorkflowTests
             // Simulate shipping
             await Task.Delay(10, cancellationToken);
 
-            // DEBUG: Check correlation context
-            var corrId = HeroMessaging.Choreography.CorrelationContext.CurrentCorrelationId;
-            var msgId = HeroMessaging.Choreography.CorrelationContext.CurrentMessageId;
-            System.Console.WriteLine($"[ShipOrder] CorrelationContext - CorrId: {corrId}, MsgId: {msgId}, IncomingEvent: {@event.MessageId}");
-
             var shippingEvent = new OrderShippedEvent
             {
                 OrderId = @event.OrderId,
                 ShipmentId = Guid.NewGuid(),
                 TrackingNumber = $"TRACK-{Guid.NewGuid():N}"
             }.WithCorrelation(); // Automatically applies correlation context
-
-            System.Console.WriteLine($"[ShipOrder] Created ShippingEvent - Id: {shippingEvent.MessageId}, CorrId: {shippingEvent.CorrelationId}, CausationId: {shippingEvent.CausationId}");
 
             _capturedEvents.Add(shippingEvent);
             await _messaging.Publish(shippingEvent, cancellationToken);
