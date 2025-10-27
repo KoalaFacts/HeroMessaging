@@ -26,7 +26,7 @@ public class SagaTimeoutHandlerTests
 
         var options = new SagaTimeoutOptions
         {
-            CheckInterval = TimeSpan.FromMilliseconds(100),
+            CheckInterval = TimeSpan.FromMilliseconds(50), // Faster checks for testing
             DefaultTimeout = TimeSpan.FromSeconds(1)
         };
 
@@ -51,8 +51,18 @@ public class SagaTimeoutHandlerTests
         using var cts = new CancellationTokenSource();
         var handlerTask = handler.StartAsync(cts.Token);
 
-        // Wait for timeout check to occur
-        await Task.Delay(250);
+        // Poll for the timeout to be processed (with timeout)
+        var pollTimeout = DateTime.UtcNow.AddSeconds(5);
+        TestSaga? updatedSaga = null;
+        while (DateTime.UtcNow < pollTimeout)
+        {
+            updatedSaga = await repository.FindAsync(staleSaga.CorrelationId);
+            if (updatedSaga?.CurrentState == "TimedOut")
+            {
+                break;
+            }
+            await Task.Delay(50);
+        }
 
         // Stop the handler
         cts.Cancel();
@@ -66,7 +76,6 @@ public class SagaTimeoutHandlerTests
         }
 
         // Assert
-        var updatedSaga = await repository.FindAsync(staleSaga.CorrelationId);
         Assert.NotNull(updatedSaga);
         Assert.Equal("TimedOut", updatedSaga!.CurrentState);
         Assert.True(updatedSaga.IsCompleted);
@@ -190,7 +199,7 @@ public class SagaTimeoutHandlerTests
 
         var options = new SagaTimeoutOptions
         {
-            CheckInterval = TimeSpan.FromMilliseconds(100),
+            CheckInterval = TimeSpan.FromMilliseconds(50), // Faster checks for testing
             DefaultTimeout = TimeSpan.FromSeconds(1)
         };
 
@@ -232,7 +241,24 @@ public class SagaTimeoutHandlerTests
         // Act
         using var cts = new CancellationTokenSource();
         var handlerTask = handler.StartAsync(cts.Token);
-        await Task.Delay(250);
+
+        // Poll for all sagas to be timed out (with timeout)
+        var pollTimeout = DateTime.UtcNow.AddSeconds(5);
+        while (DateTime.UtcNow < pollTimeout)
+        {
+            var updated1 = await repository.FindAsync(saga1.CorrelationId);
+            var updated2 = await repository.FindAsync(saga2.CorrelationId);
+            var updated3 = await repository.FindAsync(saga3.CorrelationId);
+
+            if (updated1?.CurrentState == "TimedOut" &&
+                updated2?.CurrentState == "TimedOut" &&
+                updated3?.CurrentState == "TimedOut")
+            {
+                break;
+            }
+            await Task.Delay(50);
+        }
+
         cts.Cancel();
         try
         {
@@ -244,17 +270,17 @@ public class SagaTimeoutHandlerTests
         }
 
         // Assert - All three should be timed out
-        var updated1 = await repository.FindAsync(saga1.CorrelationId);
-        var updated2 = await repository.FindAsync(saga2.CorrelationId);
-        var updated3 = await repository.FindAsync(saga3.CorrelationId);
+        var final1 = await repository.FindAsync(saga1.CorrelationId);
+        var final2 = await repository.FindAsync(saga2.CorrelationId);
+        var final3 = await repository.FindAsync(saga3.CorrelationId);
 
-        Assert.Equal("TimedOut", updated1!.CurrentState);
-        Assert.Equal("TimedOut", updated2!.CurrentState);
-        Assert.Equal("TimedOut", updated3!.CurrentState);
+        Assert.Equal("TimedOut", final1!.CurrentState);
+        Assert.Equal("TimedOut", final2!.CurrentState);
+        Assert.Equal("TimedOut", final3!.CurrentState);
 
-        Assert.True(updated1.IsCompleted);
-        Assert.True(updated2.IsCompleted);
-        Assert.True(updated3.IsCompleted);
+        Assert.True(final1.IsCompleted);
+        Assert.True(final2.IsCompleted);
+        Assert.True(final3.IsCompleted);
     }
 
     [Fact]
