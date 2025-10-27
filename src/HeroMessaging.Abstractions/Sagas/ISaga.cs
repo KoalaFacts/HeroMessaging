@@ -9,7 +9,7 @@ public interface ISaga
     /// <summary>
     /// Unique identifier correlating all messages in this saga instance
     /// </summary>
-    Guid CorrelationId { get; }
+    Guid CorrelationId { get; set; }
 
     /// <summary>
     /// Current state of the saga
@@ -19,7 +19,7 @@ public interface ISaga
     /// <summary>
     /// When this saga instance was created
     /// </summary>
-    DateTime CreatedAt { get; }
+    DateTime CreatedAt { get; set; }
 
     /// <summary>
     /// When this saga instance was last updated
@@ -29,7 +29,7 @@ public interface ISaga
     /// <summary>
     /// Whether this saga has completed (successfully or failed)
     /// </summary>
-    bool IsCompleted { get; }
+    bool IsCompleted { get; set; }
 
     /// <summary>
     /// Version for optimistic concurrency control
