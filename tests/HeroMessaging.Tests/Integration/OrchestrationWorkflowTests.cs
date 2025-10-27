@@ -4,7 +4,6 @@ using HeroMessaging.Abstractions.Sagas;
 using HeroMessaging.Orchestration;
 using HeroMessaging.Tests.Examples;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -428,7 +427,6 @@ public class OrchestrationWorkflowTests
 
         var servicesCollection = new ServiceCollection();
         servicesCollection.AddSingleton<ISagaRepository<OrderSaga>>(repository);
-        servicesCollection.AddLogging();
         var serviceProvider = servicesCollection.BuildServiceProvider();
 
         // Configure timeout handler with short intervals for testing
@@ -438,7 +436,7 @@ public class OrchestrationWorkflowTests
             DefaultTimeout = TimeSpan.FromSeconds(1)
         };
 
-        var logger = serviceProvider.GetRequiredService<ILogger<SagaTimeoutHandler<OrderSaga>>>();
+        var logger = NullLogger<SagaTimeoutHandler<OrderSaga>>.Instance;
         var timeoutHandler = new SagaTimeoutHandler<OrderSaga>(serviceProvider, options, logger);
 
         var orchestrator = new SagaOrchestrator<OrderSaga>(
