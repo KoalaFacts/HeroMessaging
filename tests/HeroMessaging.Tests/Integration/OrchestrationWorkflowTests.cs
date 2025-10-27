@@ -1,3 +1,5 @@
+using HeroMessaging.Abstractions.Events;
+using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Sagas;
 using HeroMessaging.Orchestration;
 using HeroMessaging.Tests.Examples;
