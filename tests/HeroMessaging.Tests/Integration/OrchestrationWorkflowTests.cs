@@ -7,6 +7,7 @@ using HeroMessaging.Tests.Helpers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Time.Testing;
 using Xunit;
 
 namespace HeroMessaging.Tests.Integration;
@@ -430,8 +431,11 @@ public class OrchestrationWorkflowTests
     [Fact]
     public async Task OrderSaga_TimeoutHandler_MarksStaleOrdersAsTimedOut()
     {
-        // Arrange
-        var repository = new InMemorySagaRepository<OrderSaga>();
+        // Arrange - Use FakeTimeProvider to control time
+        var fakeTime = new FakeTimeProvider();
+        fakeTime.SetUtcNow(DateTimeOffset.Parse("2025-10-27T12:00:00Z"));
+
+        var repository = new InMemorySagaRepository<OrderSaga>(fakeTime);
         var stateMachine = OrderSagaStateMachine.Build();
 
         var servicesCollection = new ServiceCollection();
@@ -455,7 +459,8 @@ public class OrchestrationWorkflowTests
             repository,
             stateMachine,
             serviceProvider,
-            NullLogger<SagaOrchestrator<OrderSaga>>.Instance);
+            NullLogger<SagaOrchestrator<OrderSaga>>.Instance,
+            fakeTime);
 
         var correlationId = Guid.NewGuid();
         var orderId = $"ORDER-{Guid.NewGuid()}";
@@ -468,20 +473,18 @@ public class OrchestrationWorkflowTests
             new List<OrderItem>())
         { CorrelationId = correlationId.ToString() });
 
-        // Manually set UpdatedAt to simulate a stale saga
-        var saga = await repository.FindAsync(correlationId);
-        Assert.NotNull(saga);
-        // Use test helper to set UpdatedAt without triggering automatic timestamp update
-        repository.SetUpdatedAtForTesting(correlationId, DateTime.UtcNow.AddHours(-2));
+        // Advance time by 2 hours to make saga stale
+        fakeTime.Advance(TimeSpan.FromHours(2));
 
         // Start timeout handler and let it run
         using var cts = new CancellationTokenSource();
         var handlerTask = timeoutHandler.StartAsync(cts.Token);
 
         // Poll for the timeout to be processed (with timeout)
-        var pollTimeout = DateTime.UtcNow.AddSeconds(5);
+        var pollStart = fakeTime.GetUtcNow();
+        var pollTimeout = pollStart.AddSeconds(5);
         OrderSaga? timedOutSaga = null;
-        while (DateTime.UtcNow < pollTimeout)
+        while (fakeTime.GetUtcNow() < pollTimeout)
         {
             timedOutSaga = await repository.FindAsync(correlationId);
             if (timedOutSaga?.CurrentState == "TimedOut")
@@ -489,6 +492,7 @@ public class OrchestrationWorkflowTests
                 break;
             }
             await Task.Delay(50);
+            fakeTime.Advance(TimeSpan.FromMilliseconds(50)); // Advance fake time too
         }
 
         // Stop the handler
