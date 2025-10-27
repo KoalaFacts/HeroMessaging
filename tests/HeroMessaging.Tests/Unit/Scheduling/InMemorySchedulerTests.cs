@@ -36,16 +36,20 @@ public class InMemorySchedulerTests : IAsyncLifetime
     {
         // Arrange
         var message = TestMessageBuilder.CreateValidMessage("Test message");
-        var delay = TimeSpan.FromMilliseconds(100);
+        var delay = TimeSpan.FromSeconds(5); // Use longer delay to avoid timing issues
+        var beforeSchedule = DateTimeOffset.UtcNow;
 
         // Act
         var result = await _scheduler!.ScheduleAsync(message, delay);
+        var afterSchedule = DateTimeOffset.UtcNow;
 
         // Assert
         Assert.NotNull(result);
         Assert.True(result.Success);
         Assert.NotEqual(Guid.Empty, result.ScheduleId);
-        Assert.True(result.ScheduledFor > DateTimeOffset.UtcNow);
+        // Verify scheduled time is in the expected range (before + delay to after + delay)
+        Assert.True(result.ScheduledFor >= beforeSchedule.Add(delay));
+        Assert.True(result.ScheduledFor <= afterSchedule.Add(delay));
         Assert.Null(result.ErrorMessage);
     }
 
