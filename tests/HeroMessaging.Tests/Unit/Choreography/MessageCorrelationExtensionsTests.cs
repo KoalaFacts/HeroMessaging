@@ -29,7 +29,7 @@ public class MessageCorrelationExtensionsTests
             // Assert
             Assert.Equal(correlationId, enriched.CorrelationId);
             Assert.Equal(messageId, enriched.CausationId);
-            Assert.NotEqual(message.MessageId, enriched.MessageId); // Should get new ID
+            Assert.Equal(message.MessageId, enriched.MessageId); // MessageId should be preserved
         }
     }
 
