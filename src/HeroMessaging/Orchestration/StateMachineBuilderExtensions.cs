@@ -207,7 +207,7 @@ public class ConditionalWhenConfigurator<TSaga, TEvent>
                 if (_condition(ctx))
                 {
                     ctx.Instance.CurrentState = _thenState.Name;
-                    ctx.Instance.UpdatedAt = DateTime.UtcNow;
+                    // Note: UpdatedAt will be set by repository.UpdateAsync()
                 }
                 return Task.CompletedTask;
             });
@@ -280,7 +280,7 @@ public class ElseConfigurator<TSaga, TEvent>
             if (!_condition(ctx))
             {
                 ctx.Instance.CurrentState = state.Name;
-                ctx.Instance.UpdatedAt = DateTime.UtcNow;
+                // Note: UpdatedAt will be set by repository.UpdateAsync()
             }
             return Task.CompletedTask;
         });

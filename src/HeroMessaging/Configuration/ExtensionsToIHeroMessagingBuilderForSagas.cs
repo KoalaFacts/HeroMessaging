@@ -42,6 +42,9 @@ public static class ExtensionsToIHeroMessagingBuilderForSagas
     {
         var services = builder.Build();
 
+        // Register TimeProvider.System if not already registered
+        services.TryAddSingleton(TimeProvider.System);
+
         // Register state machine definition as singleton
         services.AddSingleton(stateMachineFactory());
 
@@ -81,6 +84,8 @@ public static class ExtensionsToIHeroMessagingBuilderForSagas
         where TSaga : class, ISaga
     {
         var services = builder.Build();
+        // Register TimeProvider.System if not already registered
+        services.TryAddSingleton(TimeProvider.System);
         services.TryAddSingleton<ISagaRepository<TSaga>, InMemorySagaRepository<TSaga>>();
         return builder;
     }

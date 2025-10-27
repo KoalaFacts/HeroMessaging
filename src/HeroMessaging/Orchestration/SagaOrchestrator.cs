@@ -16,17 +16,20 @@ public class SagaOrchestrator<TSaga> where TSaga : class, ISaga, new()
     private readonly StateMachineDefinition<TSaga> _stateMachine;
     private readonly IServiceProvider _services;
     private readonly ILogger<SagaOrchestrator<TSaga>> _logger;
+    private readonly TimeProvider _timeProvider;
 
     public SagaOrchestrator(
         ISagaRepository<TSaga> repository,
         StateMachineDefinition<TSaga> stateMachine,
         IServiceProvider services,
-        ILogger<SagaOrchestrator<TSaga>> logger)
+        ILogger<SagaOrchestrator<TSaga>> logger,
+        TimeProvider? timeProvider = null)
     {
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
         _stateMachine = stateMachine ?? throw new ArgumentNullException(nameof(stateMachine));
         _services = services ?? throw new ArgumentNullException(nameof(services));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     /// <summary>
@@ -51,10 +54,9 @@ public class SagaOrchestrator<TSaga> where TSaga : class, ISaga, new()
             saga = new TSaga
             {
                 CorrelationId = correlationId,
-                CurrentState = _stateMachine.InitialState.Name,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
+                CurrentState = _stateMachine.InitialState.Name
             };
+            // Note: CreatedAt and UpdatedAt will be set by repository.SaveAsync()
 
             _logger.LogInformation("Creating new saga {SagaType} with correlation {CorrelationId}",
                 typeof(TSaga).Name, correlationId);
@@ -96,7 +98,7 @@ public class SagaOrchestrator<TSaga> where TSaga : class, ISaga, new()
         {
             var oldState = saga.CurrentState;
             saga.CurrentState = transition.ToState.Name;
-            saga.UpdatedAt = DateTime.UtcNow;
+            // Note: UpdatedAt will be set by repository.UpdateAsync()
 
             _logger.LogInformation("Saga {CorrelationId} transitioned from {OldState} to {NewState}",
                 correlationId, oldState, saga.CurrentState);
