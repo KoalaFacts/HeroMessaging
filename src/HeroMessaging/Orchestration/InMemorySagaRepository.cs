@@ -159,4 +159,16 @@ public class InMemorySagaRepository<TSaga> : ISagaRepository<TSaga>
     /// Get count of sagas in repository
     /// </summary>
     public int Count => _sagas.Count;
+
+    /// <summary>
+    /// Set UpdatedAt timestamp for testing purposes (bypasses automatic timestamp update)
+    /// WARNING: This is a test helper method and should not be used in production code
+    /// </summary>
+    public void SetUpdatedAtForTesting(Guid correlationId, DateTime updatedAt)
+    {
+        if (_sagas.TryGetValue(correlationId, out var saga))
+        {
+            saga.UpdatedAt = updatedAt;
+        }
+    }
 }

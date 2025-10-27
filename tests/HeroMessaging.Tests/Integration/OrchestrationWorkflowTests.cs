@@ -471,15 +471,25 @@ public class OrchestrationWorkflowTests
         // Manually set UpdatedAt to simulate a stale saga
         var saga = await repository.FindAsync(correlationId);
         Assert.NotNull(saga);
-        saga!.UpdatedAt = DateTime.UtcNow.AddHours(-2); // Make it 2 hours old
-        await repository.UpdateAsync(saga);
+        // Use test helper to set UpdatedAt without triggering automatic timestamp update
+        repository.SetUpdatedAtForTesting(correlationId, DateTime.UtcNow.AddHours(-2));
 
-        // Start timeout handler and let it run one check cycle
+        // Start timeout handler and let it run
         using var cts = new CancellationTokenSource();
         var handlerTask = timeoutHandler.StartAsync(cts.Token);
 
-        // Wait for timeout check to occur
-        await Task.Delay(250);
+        // Poll for the timeout to be processed (with timeout)
+        var pollTimeout = DateTime.UtcNow.AddSeconds(5);
+        OrderSaga? timedOutSaga = null;
+        while (DateTime.UtcNow < pollTimeout)
+        {
+            timedOutSaga = await repository.FindAsync(correlationId);
+            if (timedOutSaga?.CurrentState == "TimedOut")
+            {
+                break;
+            }
+            await Task.Delay(50);
+        }
 
         // Stop the handler
         cts.Cancel();
@@ -493,7 +503,6 @@ public class OrchestrationWorkflowTests
         }
 
         // Assert
-        var timedOutSaga = await repository.FindAsync(correlationId);
         Assert.NotNull(timedOutSaga);
         Assert.Equal("TimedOut", timedOutSaga!.CurrentState);
         Assert.True(timedOutSaga.IsCompleted);
@@ -555,14 +564,14 @@ public class OrchestrationWorkflowTests
                         ctx.Instance.FailureReason = "Simulated failure after registering compensations";
                         // Execute all compensations in LIFO order (Step3, Step2, Step1)
                         await ctx.Compensation.CompensateAsync();
-                        ctx.Instance.CurrentState = failed.Name;
+                        ctx.Instance.TransitionTo(failed.Name);
                     }
                     else
                     {
-                        ctx.Instance.CurrentState = completed.Name;
+                        ctx.Instance.TransitionTo(completed.Name);
                     }
-                })
-                .TransitionTo(processing);
+                });
+                // Don't use .TransitionTo() here - let the Then handler control state
 
         return builder.Build();
     }
