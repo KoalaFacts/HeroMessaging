@@ -26,7 +26,8 @@ public class MessageProcessingPipelineBuilder(IServiceProvider serviceProvider)
     {
         _decorators.Add(processor =>
         {
-            var logger = _serviceProvider.GetRequiredService<ILogger<LoggingDecorator>>();
+            var logger = _serviceProvider.GetService<ILogger<LoggingDecorator>>()
+                ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<LoggingDecorator>.Instance;
             return new LoggingDecorator(processor, logger, successLevel, logPayload);
         });
         return this;
@@ -45,7 +46,8 @@ public class MessageProcessingPipelineBuilder(IServiceProvider serviceProvider)
                 return processor; // Skip if no validator available
             }
 
-            var logger = _serviceProvider.GetRequiredService<ILogger<ValidationDecorator>>();
+            var logger = _serviceProvider.GetService<ILogger<ValidationDecorator>>()
+                ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<ValidationDecorator>.Instance;
             return new ValidationDecorator(processor, validatorToUse, logger);
         });
         return this;
@@ -58,7 +60,8 @@ public class MessageProcessingPipelineBuilder(IServiceProvider serviceProvider)
     {
         _decorators.Add(processor =>
         {
-            var logger = _serviceProvider.GetRequiredService<ILogger<RetryDecorator>>();
+            var logger = _serviceProvider.GetService<ILogger<RetryDecorator>>()
+                ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<RetryDecorator>.Instance;
             return new RetryDecorator(processor, logger, retryPolicy);
         });
         return this;
@@ -77,7 +80,8 @@ public class MessageProcessingPipelineBuilder(IServiceProvider serviceProvider)
                 return processor; // Skip if no error handler available
             }
 
-            var logger = _serviceProvider.GetRequiredService<ILogger<ErrorHandlingDecorator>>();
+            var logger = _serviceProvider.GetService<ILogger<ErrorHandlingDecorator>>()
+                ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<ErrorHandlingDecorator>.Instance;
             return new ErrorHandlingDecorator(processor, errorHandler, logger, maxRetries);
         });
         return this;
@@ -108,7 +112,8 @@ public class MessageProcessingPipelineBuilder(IServiceProvider serviceProvider)
     {
         _decorators.Add(processor =>
         {
-            var logger = _serviceProvider.GetRequiredService<ILogger<CircuitBreakerDecorator>>();
+            var logger = _serviceProvider.GetService<ILogger<CircuitBreakerDecorator>>()
+                ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<CircuitBreakerDecorator>.Instance;
             return new CircuitBreakerDecorator(processor, logger, options);
         });
         return this;
@@ -122,7 +127,8 @@ public class MessageProcessingPipelineBuilder(IServiceProvider serviceProvider)
     {
         _decorators.Add(processor =>
         {
-            var logger = _serviceProvider.GetRequiredService<ILogger<CorrelationContextDecorator>>();
+            var logger = _serviceProvider.GetService<ILogger<CorrelationContextDecorator>>()
+                ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<CorrelationContextDecorator>.Instance;
             return new CorrelationContextDecorator(processor, logger);
         });
         return this;
