@@ -7,7 +7,7 @@ namespace HeroMessaging.Tests.Examples;
 
 /// <summary>
 /// Example saga demonstrating order fulfillment workflow with compensation
-/// Shows state transitions: Created -> PaymentProcessed -> InventoryReserved -> Shipped -> Completed
+/// Shows state transitions: Initial -> AwaitingPayment -> AwaitingInventory -> AwaitingShipment -> Completed
 /// Each step can be compensated if a later step fails
 /// </summary>
 public class OrderSaga : SagaBase
@@ -138,9 +138,7 @@ public static class OrderSagaStateMachine
     // State definitions
     public static readonly State Initial = new("Initial");
     public static readonly State AwaitingPayment = new("AwaitingPayment");
-    public static readonly State PaymentProcessed = new("PaymentProcessed");
     public static readonly State AwaitingInventory = new("AwaitingInventory");
-    public static readonly State InventoryReserved = new("InventoryReserved");
     public static readonly State AwaitingShipment = new("AwaitingShipment");
     public static readonly State Completed = new("Completed");
     public static readonly State Failed = new("Failed");
