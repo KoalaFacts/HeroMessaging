@@ -3,15 +3,25 @@ using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Sagas;
 using HeroMessaging.Orchestration;
 using HeroMessaging.Tests.Examples;
+using HeroMessaging.Tests.Helpers;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace HeroMessaging.Tests.Integration;
 
 [Trait("Category", "Integration")]
 public class OrchestrationWorkflowTests
 {
+    private readonly ITestOutputHelper _output;
+
+    public OrchestrationWorkflowTests(ITestOutputHelper output)
+    {
+        _output = output;
+    }
+
     [Fact]
     public async Task OrderSaga_HappyPath_CompletesSuccessfully()
     {
@@ -427,6 +437,9 @@ public class OrchestrationWorkflowTests
 
         var servicesCollection = new ServiceCollection();
         servicesCollection.AddSingleton<ISagaRepository<OrderSaga>>(repository);
+        servicesCollection.AddLogging(builder => builder
+            .AddXUnit(_output)
+            .SetMinimumLevel(LogLevel.Debug));
         var serviceProvider = servicesCollection.BuildServiceProvider();
 
         // Configure timeout handler with short intervals for testing
@@ -436,7 +449,7 @@ public class OrchestrationWorkflowTests
             DefaultTimeout = TimeSpan.FromSeconds(1)
         };
 
-        var logger = NullLogger<SagaTimeoutHandler<OrderSaga>>.Instance;
+        var logger = serviceProvider.GetRequiredService<ILogger<SagaTimeoutHandler<OrderSaga>>>();
         var timeoutHandler = new SagaTimeoutHandler<OrderSaga>(serviceProvider, options, logger);
 
         var orchestrator = new SagaOrchestrator<OrderSaga>(
