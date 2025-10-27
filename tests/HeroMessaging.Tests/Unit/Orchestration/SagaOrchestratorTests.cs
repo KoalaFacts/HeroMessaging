@@ -223,12 +223,15 @@ public class SagaOrchestratorTests
         // Act
         await orchestrator.ProcessAsync(event1);
         var sagaAfterFirst = await repository.FindAsync(correlationId);
+        var versionAfterFirst = sagaAfterFirst!.Version; // Capture value (saga is a reference)
 
         await orchestrator.ProcessAsync(event2);
         var sagaAfterSecond = await repository.FindAsync(correlationId);
 
         // Assert
-        Assert.Equal(0, sagaAfterFirst!.Version); // New saga starts at 0
+        // NOTE: Can't check sagaAfterFirst.Version here because it's a reference that gets
+        // modified by event2. Captured value before event2 to test properly.
+        Assert.Equal(0, versionAfterFirst); // New saga starts at 0
         Assert.Equal(1, sagaAfterSecond!.Version); // Incremented after update
     }
 

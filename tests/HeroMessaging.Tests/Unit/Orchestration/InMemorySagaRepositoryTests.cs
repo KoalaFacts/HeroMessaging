@@ -155,23 +155,27 @@ public class InMemorySagaRepositoryTests
 
         // First thread updates successfully
         saga1!.Data = "Update 1";
-        await repository.UpdateAsync(saga1); // Succeeds, version becomes 1
+        await repository.UpdateAsync(saga1); // Succeeds, _versions[id] = 1, saga.Version = 1
 
         // Second thread tries to update with stale version 0
-        saga2!.Data = "Update 2";
         // IMPORTANT: In real scenarios, saga1 and saga2 would be different objects fetched
         // from database at different times. But with in-memory dictionary, they're the same
         // reference, so saga2.Version was also incremented to 1 by the first update.
-        // Reset it to simulate the concurrent modification scenario:
-        saga2.Version = 0; // Pretend this thread still thinks it has version 0
+        // Reset version to simulate what the second thread "thinks" it has:
+        saga2!.Version = 0; // Pretend this thread still thinks it has version 0
+        saga2.Data = "Update 2"; // Try to make changes (same object, so this affects everything)
 
-        // Assert - Second update fails due to version mismatch
-        await Assert.ThrowsAsync<SagaConcurrencyException>(
+        // Assert - Second update fails due to version mismatch (saga.Version 0 != tracked 1)
+        var exception = await Assert.ThrowsAsync<SagaConcurrencyException>(
             async () => await repository.UpdateAsync(saga2));
 
-        // Verify first update persisted
-        var retrieved = await repository.FindAsync(correlationId);
-        Assert.Equal("Update 1", retrieved!.Data);
+        Assert.Equal(correlationId, exception.CorrelationId);
+        Assert.Equal(1, exception.ExpectedVersion); // Repository tracked version 1
+        Assert.Equal(0, exception.ActualVersion); // Saga claims version 0
+
+        // Note: Can't verify data remained "Update 1" because all references point to same
+        // object which now has "Update 2" in memory. In real database scenarios, the row
+        // would still have "Update 1" because the UPDATE would fail.
     }
 
     [Fact]
