@@ -171,6 +171,16 @@ public class RabbitMqTransportOptions : TransportOptions
     /// Publisher confirm timeout
     /// </summary>
     public TimeSpan PublisherConfirmTimeout { get; set; } = TimeSpan.FromSeconds(10);
+
+    /// <summary>
+    /// Maximum number of channels per connection (default: 50)
+    /// </summary>
+    public int MaxChannelsPerConnection { get; set; } = 50;
+
+    /// <summary>
+    /// Channel lifetime before expiration and recreation (default: 5 minutes)
+    /// </summary>
+    public TimeSpan ChannelLifetime { get; set; } = TimeSpan.FromMinutes(5);
 }
 
 /// <summary>

@@ -340,18 +340,18 @@ channel.QueueBind(queue, exchange, routingKey, arguments);
 
 ## Implementation Checklist
 
-- [x] Research transport abstractions (completed)
-- [ ] Create HeroMessaging.Transport.RabbitMQ project
-- [ ] Implement connection pool (`RabbitMqConnectionPool`)
-- [ ] Implement channel pool (`RabbitMqChannelPool`)
-- [ ] Implement transport (`RabbitMqTransport : IMessageTransport`)
-- [ ] Implement consumer (`RabbitMqConsumer : ITransportConsumer`)
-- [ ] Implement topology configuration
-- [ ] Add builder extensions (`.WithRabbitMq()`)
-- [ ] Write unit tests (mocked)
-- [ ] Write integration tests (Testcontainers)
-- [ ] Performance benchmarks
-- [ ] Documentation and examples
+- [x] Research transport abstractions
+- [x] Create HeroMessaging.Transport.RabbitMQ project
+- [x] Implement connection pool (`RabbitMqConnectionPool`)
+- [x] Implement channel pool (`RabbitMqChannelPool`)
+- [x] Implement transport (`RabbitMqTransport : IMessageTransport`)
+- [x] Implement consumer (`RabbitMqConsumer : ITransportConsumer`)
+- [x] Implement topology configuration
+- [x] Add builder extensions (`.WithRabbitMq()`)
+- [x] Write unit tests (112 tests with mocking)
+- [x] Write integration tests (31 tests with Testcontainers)
+- [ ] Performance benchmarks (deferred to follow-up PR)
+- [ ] Documentation and examples (deferred to follow-up PR)
 
 ---
 

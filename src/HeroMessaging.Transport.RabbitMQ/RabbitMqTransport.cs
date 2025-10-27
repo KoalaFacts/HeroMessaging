@@ -426,8 +426,8 @@ public sealed class RabbitMqTransport : IMessageTransport
 
         return _channelPools.GetOrAdd(poolKey, _ => new RabbitMqChannelPool(
             connection,
-            maxChannels: 50, // Configurable in future
-            channelLifetime: TimeSpan.FromMinutes(5),
+            maxChannels: _options.MaxChannelsPerConnection,
+            channelLifetime: _options.ChannelLifetime,
             _loggerFactory.CreateLogger<RabbitMqChannelPool>()));
     }
 

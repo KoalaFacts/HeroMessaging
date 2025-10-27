@@ -390,6 +390,28 @@ public class RabbitMqTransportExtensionsTests
         Assert.Equal(10, capturedOptions.PrefetchCount);
         Assert.True(capturedOptions.UsePublisherConfirms);
         Assert.True(capturedOptions.AutoReconnect);
+        Assert.Equal(50, capturedOptions.MaxChannelsPerConnection);
+        Assert.Equal(TimeSpan.FromMinutes(5), capturedOptions.ChannelLifetime);
+    }
+
+    [Fact]
+    public void WithRabbitMq_CustomChannelPoolSettings_AppliesCorrectly()
+    {
+        // Arrange
+        RabbitMqTransportOptions? capturedOptions = null;
+
+        // Act
+        _mockBuilder.Object.WithRabbitMq("testhost", options =>
+        {
+            options.MaxChannelsPerConnection = 100;
+            options.ChannelLifetime = TimeSpan.FromMinutes(10);
+            capturedOptions = options;
+        });
+
+        // Assert
+        Assert.NotNull(capturedOptions);
+        Assert.Equal(100, capturedOptions.MaxChannelsPerConnection);
+        Assert.Equal(TimeSpan.FromMinutes(10), capturedOptions.ChannelLifetime);
     }
 
     [Fact]
