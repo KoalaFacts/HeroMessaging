@@ -3,6 +3,7 @@ using HeroMessaging.Orchestration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Time.Testing;
 using Xunit;
 
 namespace HeroMessaging.Tests.Unit.Orchestration;
@@ -298,44 +299,48 @@ public class SagaTimeoutHandlerTests
     [Fact]
     public async Task FindStaleAsync_FiltersCorrectly()
     {
-        // Arrange
-        var repository = new InMemorySagaRepository<TestSaga>();
+        // Arrange - Use FakeTimeProvider to control time
+        var fakeTime = new FakeTimeProvider();
+        fakeTime.SetUtcNow(DateTimeOffset.Parse("2025-10-27T10:00:00Z")); // Start at 10:00
+        var repository = new InMemorySagaRepository<TestSaga>(fakeTime);
 
-        // Create sagas with different ages
-        var freshSaga = new TestSaga
-        {
-            CorrelationId = Guid.NewGuid(),
-            CurrentState = "Processing",
-            UpdatedAt = DateTime.UtcNow.AddMinutes(-5),
-            CreatedAt = DateTime.UtcNow.AddMinutes(-5)
-        };
-
+        // Create stale saga at 10:00 (will be 2 hours old)
         var staleSaga = new TestSaga
         {
             CorrelationId = Guid.NewGuid(),
-            CurrentState = "Processing",
-            UpdatedAt = DateTime.UtcNow.AddHours(-2),
-            CreatedAt = DateTime.UtcNow.AddHours(-2)
+            CurrentState = "Processing"
         };
+        await repository.SaveAsync(staleSaga);
 
+        // Create completed old saga at 10:00 (will be old but completed, should be filtered out)
         var completedOldSaga = new TestSaga
         {
             CorrelationId = Guid.NewGuid(),
             CurrentState = "Completed",
-            UpdatedAt = DateTime.UtcNow.AddHours(-3),
-            CreatedAt = DateTime.UtcNow.AddHours(-3),
             IsCompleted = true
         };
-
-        await repository.SaveAsync(freshSaga);
-        await repository.SaveAsync(staleSaga);
         await repository.SaveAsync(completedOldSaga);
 
-        // Act
+        // Advance time to 12:00 (2 hours later)
+        fakeTime.Advance(TimeSpan.FromHours(2));
+
+        // Create fresh saga at 12:00 (current time, only 5 minutes will pass)
+        var freshSaga = new TestSaga
+        {
+            CorrelationId = Guid.NewGuid(),
+            CurrentState = "Processing"
+        };
+        await repository.SaveAsync(freshSaga);
+
+        // Advance time by 5 more minutes to 12:05
+        fakeTime.Advance(TimeSpan.FromMinutes(5));
+
+        // Act - Find sagas older than 1 hour
+        // At 12:05: staleSaga is 2h5min old, freshSaga is 5min old, completedOldSaga is completed
         var stale = await repository.FindStaleAsync(TimeSpan.FromHours(1));
         var staleList = stale.ToList();
 
-        // Assert
+        // Assert - Only staleSaga should be stale (>1 hour old and not completed)
         Assert.Single(staleList);
         Assert.Equal(staleSaga.CorrelationId, staleList[0].CorrelationId);
     }
