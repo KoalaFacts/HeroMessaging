@@ -27,8 +27,11 @@ public static class MessageCorrelationExtensions
             return message;
         }
 
+        // IMPORTANT: Preserve the original MessageId when creating the new record
+        // The 'with' expression would otherwise trigger the MessageId initializer and create a new GUID
         return message with
         {
+            MessageId = message.MessageId,  // Preserve original MessageId
             CorrelationId = correlationId,
             CausationId = causationId
         };
@@ -48,8 +51,10 @@ public static class MessageCorrelationExtensions
         string? causationId = null)
         where TMessage : MessageBase
     {
+        // IMPORTANT: Preserve the original MessageId when creating the new record
         return message with
         {
+            MessageId = message.MessageId,  // Preserve original MessageId
             CorrelationId = correlationId,
             CausationId = causationId
         };
