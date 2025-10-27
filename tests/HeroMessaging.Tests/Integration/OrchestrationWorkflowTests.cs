@@ -417,6 +417,77 @@ public class OrchestrationWorkflowTests
         Assert.Single(compensationLog);
     }
 
+    [Fact]
+    public async Task OrderSaga_TimeoutHandler_MarksStaleOrdersAsTimedOut()
+    {
+        // Arrange
+        var repository = new InMemorySagaRepository<OrderSaga>();
+        var stateMachine = OrderSagaStateMachine.Build();
+
+        var servicesCollection = new ServiceCollection();
+        servicesCollection.AddSingleton<ISagaRepository<OrderSaga>>(repository);
+        servicesCollection.AddLogging();
+        var serviceProvider = servicesCollection.BuildServiceProvider();
+
+        // Configure timeout handler with short intervals for testing
+        var options = new SagaTimeoutOptions
+        {
+            CheckInterval = TimeSpan.FromMilliseconds(100),
+            DefaultTimeout = TimeSpan.FromSeconds(1)
+        };
+
+        var logger = serviceProvider.GetRequiredService<ILogger<SagaTimeoutHandler<OrderSaga>>>();
+        var timeoutHandler = new SagaTimeoutHandler<OrderSaga>(serviceProvider, options, logger);
+
+        var orchestrator = new SagaOrchestrator<OrderSaga>(
+            repository,
+            stateMachine,
+            serviceProvider,
+            NullLogger<SagaOrchestrator<OrderSaga>>.Instance);
+
+        var correlationId = Guid.NewGuid();
+        var orderId = $"ORDER-{Guid.NewGuid()}";
+
+        // Act - Create order and leave it in AwaitingPayment state
+        await orchestrator.ProcessAsync(new OrderCreatedEvent(
+            orderId,
+            "CUST-123",
+            99.99m,
+            new List<OrderItem>())
+        { CorrelationId = correlationId.ToString() });
+
+        // Manually set UpdatedAt to simulate a stale saga
+        var saga = await repository.FindAsync(correlationId);
+        Assert.NotNull(saga);
+        saga!.UpdatedAt = DateTime.UtcNow.AddHours(-2); // Make it 2 hours old
+        await repository.UpdateAsync(saga);
+
+        // Start timeout handler and let it run one check cycle
+        using var cts = new CancellationTokenSource();
+        var handlerTask = timeoutHandler.StartAsync(cts.Token);
+
+        // Wait for timeout check to occur
+        await Task.Delay(250);
+
+        // Stop the handler
+        cts.Cancel();
+        try
+        {
+            await handlerTask;
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected
+        }
+
+        // Assert
+        var timedOutSaga = await repository.FindAsync(correlationId);
+        Assert.NotNull(timedOutSaga);
+        Assert.Equal("TimedOut", timedOutSaga!.CurrentState);
+        Assert.True(timedOutSaga.IsCompleted);
+        Assert.Equal(orderId, timedOutSaga.OrderId);
+    }
+
     #region Compensation Testing Sagas
 
     // Test 1: Single-event compensation (proper use of CompensationContext)
