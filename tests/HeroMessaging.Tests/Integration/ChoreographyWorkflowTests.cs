@@ -22,15 +22,15 @@ public class ChoreographyWorkflowTests
     {
         // Arrange - Set up a complete order processing workflow
         var services = new ServiceCollection();
-        var capturedEvents = new List<IMessage>();
+        var capturedEvents = new System.Collections.Concurrent.ConcurrentBag<IMessage>();
 
         services.AddHeroMessaging(builder => builder
             .WithMediator()     // Registers ICommandProcessor and IQueryProcessor
             .WithEventBus()     // Registers IEventBus
             .ScanAssembly(typeof(ChoreographyWorkflowTests).Assembly));
 
-        // Register event tracker
-        services.AddSingleton(capturedEvents);
+        // Register event tracker (use interface to avoid type ambiguity)
+        services.AddSingleton<System.Collections.Concurrent.ConcurrentBag<IMessage>>(capturedEvents);
 
         // Register workflow handlers
         services.AddTransient<IEventHandler<OrderCreatedEvent>, ReserveInventoryHandler>();
@@ -74,9 +74,12 @@ public class ChoreographyWorkflowTests
         var paymentEvent = capturedEvents.OfType<PaymentProcessedEvent>().FirstOrDefault();
         var shippingEvent = capturedEvents.OfType<OrderShippedEvent>().FirstOrDefault();
 
+        // Debug: Show what we actually captured
+        var eventTypes = string.Join(", ", capturedEvents.Select(e => e.GetType().Name));
+
         Assert.NotNull(inventoryEvent);
         Assert.NotNull(paymentEvent);
-        Assert.NotNull(shippingEvent);
+        Assert.True(shippingEvent != null, $"ShippingEvent is null. Captured event types: {eventTypes}. Total count: {capturedEvents.Count}");
 
         // Each event's causation should link back to the previous event
         // Add diagnostic context to failures
@@ -144,11 +147,11 @@ public class ChoreographyWorkflowTests
     private class ReserveInventoryHandler : IEventHandler<OrderCreatedEvent>
     {
         private readonly IHeroMessaging _messaging;
-        private readonly List<IMessage> _capturedEvents;
+        private readonly System.Collections.Concurrent.ConcurrentBag<IMessage> _capturedEvents;
 
         public ReserveInventoryHandler(
             IHeroMessaging messaging,
-            List<IMessage> capturedEvents)
+            System.Collections.Concurrent.ConcurrentBag<IMessage> capturedEvents)
         {
             _messaging = messaging;
             _capturedEvents = capturedEvents;
@@ -174,11 +177,11 @@ public class ChoreographyWorkflowTests
     private class ProcessPaymentHandler : IEventHandler<InventoryReservedEvent>
     {
         private readonly IHeroMessaging _messaging;
-        private readonly List<IMessage> _capturedEvents;
+        private readonly System.Collections.Concurrent.ConcurrentBag<IMessage> _capturedEvents;
 
         public ProcessPaymentHandler(
             IHeroMessaging messaging,
-            List<IMessage> capturedEvents)
+            System.Collections.Concurrent.ConcurrentBag<IMessage> capturedEvents)
         {
             _messaging = messaging;
             _capturedEvents = capturedEvents;
@@ -204,11 +207,11 @@ public class ChoreographyWorkflowTests
     private class ShipOrderHandler : IEventHandler<PaymentProcessedEvent>
     {
         private readonly IHeroMessaging _messaging;
-        private readonly List<IMessage> _capturedEvents;
+        private readonly System.Collections.Concurrent.ConcurrentBag<IMessage> _capturedEvents;
 
         public ShipOrderHandler(
             IHeroMessaging messaging,
-            List<IMessage> capturedEvents)
+            System.Collections.Concurrent.ConcurrentBag<IMessage> capturedEvents)
         {
             _messaging = messaging;
             _capturedEvents = capturedEvents;
