@@ -102,14 +102,13 @@ public class SagaOrchestrator<TSaga> where TSaga : class, ISaga, new()
                 correlationId, oldState, saga.CurrentState);
         }
 
-        // Persist saga
+        // Persist saga (UpdateAsync increments version internally)
         if (isNew)
         {
             await _repository.SaveAsync(saga, cancellationToken);
         }
         else
         {
-            saga.Version++;
             await _repository.UpdateAsync(saga, cancellationToken);
         }
 

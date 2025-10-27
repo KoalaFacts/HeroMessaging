@@ -65,6 +65,7 @@ public class InMemorySagaRepository<TSaga> : ISagaRepository<TSaga>
 
     /// <summary>
     /// Update an existing saga instance with optimistic concurrency control
+    /// Note: This method increments the version internally. Callers should NOT increment version before calling this method.
     /// </summary>
     public Task UpdateAsync(TSaga saga, CancellationToken cancellationToken = default)
     {
@@ -79,21 +80,25 @@ public class InMemorySagaRepository<TSaga> : ISagaRepository<TSaga>
                 $"Saga with correlation ID {saga.CorrelationId} not found. Use SaveAsync to create new sagas.");
         }
 
-        // Optimistic concurrency check
-        if (existing.Version != saga.Version - 1)
+        // Optimistic concurrency check - versions should match (caller should NOT have incremented)
+        if (existing.Version != saga.Version)
         {
             throw new SagaConcurrencyException(
                 saga.CorrelationId,
                 expectedVersion: existing.Version,
-                actualVersion: saga.Version - 1);
+                actualVersion: saga.Version);
         }
+
+        // Increment version for this update
+        saga.Version++;
+        saga.UpdatedAt = DateTime.UtcNow;
 
         if (!_sagas.TryUpdate(saga.CorrelationId, saga, existing))
         {
             throw new SagaConcurrencyException(
                 saga.CorrelationId,
                 expectedVersion: existing.Version,
-                actualVersion: saga.Version);
+                actualVersion: saga.Version - 1);
         }
 
         return Task.CompletedTask;

@@ -154,8 +154,13 @@ public class StateMachineBuilderTests
         var state1 = new State("State1");
         var state2 = new State("State2");
         var testEvent = new Event<TestEvent>(nameof(TestEvent));
+        var initEvent = new Event<TestEvent>("InitEvent");
 
-        // Act
+        // Act - Need Initially() to set initial state
+        builder.Initially()
+            .When(initEvent)
+                .TransitionTo(state1);
+
         builder.During(state1)
             .When(testEvent)
                 .TransitionTo(state2);
@@ -216,7 +221,7 @@ public class StateMachineBuilderTests
 
         // Act & Assert
         var exception = Assert.Throws<InvalidOperationException>(() => builder.Build());
-        Assert.Contains("No initial state", exception.Message);
+        Assert.Contains("Initial state must be configured", exception.Message);
     }
 
     [Fact]
