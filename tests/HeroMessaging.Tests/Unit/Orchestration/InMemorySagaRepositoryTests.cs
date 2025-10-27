@@ -1,0 +1,313 @@
+using HeroMessaging.Abstractions.Sagas;
+using HeroMessaging.Orchestration;
+using Xunit;
+
+namespace HeroMessaging.Tests.Unit.Orchestration;
+
+[Trait("Category", "Unit")]
+public class InMemorySagaRepositoryTests
+{
+    private class TestSaga : SagaBase
+    {
+        public string? Data { get; set; }
+    }
+
+    [Fact]
+    public async Task FindAsync_WhenSagaDoesNotExist_ReturnsNull()
+    {
+        // Arrange
+        var repository = new InMemorySagaRepository<TestSaga>();
+        var correlationId = Guid.NewGuid();
+
+        // Act
+        var result = await repository.FindAsync(correlationId);
+
+        // Assert
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task SaveAsync_NewSaga_SavesSuccessfully()
+    {
+        // Arrange
+        var repository = new InMemorySagaRepository<TestSaga>();
+        var saga = new TestSaga
+        {
+            CorrelationId = Guid.NewGuid(),
+            CurrentState = "Initial",
+            Data = "Test data"
+        };
+
+        // Act
+        await repository.SaveAsync(saga);
+
+        // Assert
+        var retrieved = await repository.FindAsync(saga.CorrelationId);
+        Assert.NotNull(retrieved);
+        Assert.Equal(saga.CorrelationId, retrieved!.CorrelationId);
+        Assert.Equal(saga.Data, retrieved.Data);
+    }
+
+    [Fact]
+    public async Task SaveAsync_DuplicateCorrelationId_ThrowsException()
+    {
+        // Arrange
+        var repository = new InMemorySagaRepository<TestSaga>();
+        var correlationId = Guid.NewGuid();
+        var saga1 = new TestSaga { CorrelationId = correlationId, CurrentState = "Initial" };
+        var saga2 = new TestSaga { CorrelationId = correlationId, CurrentState = "Initial" };
+
+        await repository.SaveAsync(saga1);
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            async () => await repository.SaveAsync(saga2));
+
+        Assert.Contains("already exists", exception.Message);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_ExistingSaga_UpdatesSuccessfully()
+    {
+        // Arrange
+        var repository = new InMemorySagaRepository<TestSaga>();
+        var saga = new TestSaga
+        {
+            CorrelationId = Guid.NewGuid(),
+            CurrentState = "Initial",
+            Data = "Original"
+        };
+        await repository.SaveAsync(saga);
+
+        // Act
+        saga.Data = "Updated";
+        saga.CurrentState = "NewState";
+        saga.Version++;
+        await repository.UpdateAsync(saga);
+
+        // Assert
+        var retrieved = await repository.FindAsync(saga.CorrelationId);
+        Assert.NotNull(retrieved);
+        Assert.Equal("Updated", retrieved!.Data);
+        Assert.Equal("NewState", retrieved.CurrentState);
+        Assert.Equal(1, retrieved.Version);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_NonExistentSaga_ThrowsException()
+    {
+        // Arrange
+        var repository = new InMemorySagaRepository<TestSaga>();
+        var saga = new TestSaga
+        {
+            CorrelationId = Guid.NewGuid(),
+            CurrentState = "Initial"
+        };
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            async () => await repository.UpdateAsync(saga));
+
+        Assert.Contains("not found", exception.Message);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_VersionMismatch_ThrowsConcurrencyException()
+    {
+        // Arrange
+        var repository = new InMemorySagaRepository<TestSaga>();
+        var saga = new TestSaga
+        {
+            CorrelationId = Guid.NewGuid(),
+            CurrentState = "Initial",
+            Version = 0
+        };
+        await repository.SaveAsync(saga);
+
+        // Act - try to update with wrong version
+        saga.Version = 5; // Skip versions
+        var exception = await Assert.ThrowsAsync<SagaConcurrencyException>(
+            async () => await repository.UpdateAsync(saga));
+
+        // Assert
+        Assert.Equal(saga.CorrelationId, exception.CorrelationId);
+        Assert.Equal(0, exception.ExpectedVersion);
+        Assert.Equal(4, exception.ActualVersion);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_OptimisticConcurrency_PreventsConcurrentUpdates()
+    {
+        // Arrange
+        var repository = new InMemorySagaRepository<TestSaga>();
+        var correlationId = Guid.NewGuid();
+        var saga = new TestSaga
+        {
+            CorrelationId = correlationId,
+            CurrentState = "Initial",
+            Version = 0
+        };
+        await repository.SaveAsync(saga);
+
+        // Act - Simulate two concurrent updates
+        var saga1 = await repository.FindAsync(correlationId);
+        var saga2 = await repository.FindAsync(correlationId);
+
+        saga1!.Data = "Update 1";
+        saga1.Version++;
+        await repository.UpdateAsync(saga1); // First update succeeds
+
+        saga2!.Data = "Update 2";
+        saga2.Version++;
+
+        // Assert - Second update fails due to version mismatch
+        await Assert.ThrowsAsync<SagaConcurrencyException>(
+            async () => await repository.UpdateAsync(saga2));
+
+        // Verify first update persisted
+        var retrieved = await repository.FindAsync(correlationId);
+        Assert.Equal("Update 1", retrieved!.Data);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_ExistingSaga_RemovesSaga()
+    {
+        // Arrange
+        var repository = new InMemorySagaRepository<TestSaga>();
+        var saga = new TestSaga
+        {
+            CorrelationId = Guid.NewGuid(),
+            CurrentState = "Initial"
+        };
+        await repository.SaveAsync(saga);
+
+        // Act
+        await repository.DeleteAsync(saga.CorrelationId);
+
+        // Assert
+        var retrieved = await repository.FindAsync(saga.CorrelationId);
+        Assert.Null(retrieved);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_NonExistentSaga_DoesNotThrow()
+    {
+        // Arrange
+        var repository = new InMemorySagaRepository<TestSaga>();
+        var correlationId = Guid.NewGuid();
+
+        // Act & Assert - Should not throw
+        await repository.DeleteAsync(correlationId);
+    }
+
+    [Fact]
+    public async Task FindByStateAsync_ReturnsMatchingSagas()
+    {
+        // Arrange
+        var repository = new InMemorySagaRepository<TestSaga>();
+        await repository.SaveAsync(new TestSaga { CorrelationId = Guid.NewGuid(), CurrentState = "Pending" });
+        await repository.SaveAsync(new TestSaga { CorrelationId = Guid.NewGuid(), CurrentState = "Active" });
+        await repository.SaveAsync(new TestSaga { CorrelationId = Guid.NewGuid(), CurrentState = "Pending" });
+        await repository.SaveAsync(new TestSaga { CorrelationId = Guid.NewGuid(), CurrentState = "Completed" });
+
+        // Act
+        var pendingSagas = await repository.FindByStateAsync("Pending");
+
+        // Assert
+        Assert.Equal(2, pendingSagas.Count());
+        Assert.All(pendingSagas, saga => Assert.Equal("Pending", saga.CurrentState));
+    }
+
+    [Fact]
+    public async Task FindStaleAsync_ReturnsOldSagas()
+    {
+        // Arrange
+        var repository = new InMemorySagaRepository<TestSaga>();
+        var oldTime = DateTime.UtcNow.AddHours(-2);
+        var recentTime = DateTime.UtcNow.AddMinutes(-5);
+
+        var staleSaga = new TestSaga
+        {
+            CorrelationId = Guid.NewGuid(),
+            CurrentState = "Active",
+            CreatedAt = oldTime,
+            UpdatedAt = oldTime
+        };
+
+        var recentSaga = new TestSaga
+        {
+            CorrelationId = Guid.NewGuid(),
+            CurrentState = "Active",
+            CreatedAt = recentTime,
+            UpdatedAt = recentTime
+        };
+
+        var completedSaga = new TestSaga
+        {
+            CorrelationId = Guid.NewGuid(),
+            CurrentState = "Completed",
+            CreatedAt = oldTime,
+            UpdatedAt = oldTime
+        };
+        completedSaga.Complete();
+
+        await repository.SaveAsync(staleSaga);
+        await repository.SaveAsync(recentSaga);
+        await repository.SaveAsync(completedSaga);
+
+        // Act
+        var staleSagas = await repository.FindStaleAsync(TimeSpan.FromHours(1));
+
+        // Assert
+        Assert.Single(staleSagas);
+        Assert.Equal(staleSaga.CorrelationId, staleSagas.First().CorrelationId);
+    }
+
+    [Fact]
+    public void GetAll_ReturnsAllSagas()
+    {
+        // Arrange
+        var repository = new InMemorySagaRepository<TestSaga>();
+        repository.SaveAsync(new TestSaga { CorrelationId = Guid.NewGuid(), CurrentState = "State1" }).Wait();
+        repository.SaveAsync(new TestSaga { CorrelationId = Guid.NewGuid(), CurrentState = "State2" }).Wait();
+        repository.SaveAsync(new TestSaga { CorrelationId = Guid.NewGuid(), CurrentState = "State3" }).Wait();
+
+        // Act
+        var all = repository.GetAll();
+
+        // Assert
+        Assert.Equal(3, all.Count());
+    }
+
+    [Fact]
+    public void Clear_RemovesAllSagas()
+    {
+        // Arrange
+        var repository = new InMemorySagaRepository<TestSaga>();
+        repository.SaveAsync(new TestSaga { CorrelationId = Guid.NewGuid(), CurrentState = "State1" }).Wait();
+        repository.SaveAsync(new TestSaga { CorrelationId = Guid.NewGuid(), CurrentState = "State2" }).Wait();
+
+        // Act
+        repository.Clear();
+
+        // Assert
+        Assert.Equal(0, repository.Count);
+        Assert.Empty(repository.GetAll());
+    }
+
+    [Fact]
+    public void Count_ReturnsCorrectCount()
+    {
+        // Arrange
+        var repository = new InMemorySagaRepository<TestSaga>();
+
+        // Act & Assert
+        Assert.Equal(0, repository.Count);
+
+        repository.SaveAsync(new TestSaga { CorrelationId = Guid.NewGuid(), CurrentState = "State1" }).Wait();
+        Assert.Equal(1, repository.Count);
+
+        repository.SaveAsync(new TestSaga { CorrelationId = Guid.NewGuid(), CurrentState = "State2" }).Wait();
+        Assert.Equal(2, repository.Count);
+    }
+}
