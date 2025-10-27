@@ -20,10 +20,10 @@ public class QueryProcessor : IQueryProcessor, IProcessor
 
     public bool IsRunning { get; private set; } = true;
 
-    public QueryProcessor(IServiceProvider serviceProvider, ILogger<QueryProcessor> logger)
+    public QueryProcessor(IServiceProvider serviceProvider, ILogger<QueryProcessor>? logger = null)
     {
         _serviceProvider = serviceProvider;
-        _logger = logger;
+        _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<QueryProcessor>.Instance;
 
         _processingBlock = new ActionBlock<Func<Task>>(
             async action => await action(),

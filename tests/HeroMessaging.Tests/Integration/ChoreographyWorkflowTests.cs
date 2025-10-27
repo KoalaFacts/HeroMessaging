@@ -6,7 +6,6 @@ using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Choreography;
 using HeroMessaging.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Xunit;
 
 namespace HeroMessaging.Tests.Integration;
@@ -24,8 +23,6 @@ public class ChoreographyWorkflowTests
         // Arrange - Set up a complete order processing workflow
         var services = new ServiceCollection();
         var capturedEvents = new List<IMessage>();
-
-        services.AddLogging(); // Required for CommandProcessor and other components
 
         services.AddHeroMessaging(builder => builder
             .WithMediator()     // Registers ICommandProcessor and IQueryProcessor

@@ -17,10 +17,10 @@ public class EventBusV2 : IEventBus
     private readonly ActionBlock<EventEnvelope> _processingBlock;
     private readonly MessageProcessingPipelineBuilder _pipelineBuilder;
 
-    public EventBusV2(IServiceProvider serviceProvider, ILogger<EventBusV2> logger)
+    public EventBusV2(IServiceProvider serviceProvider, ILogger<EventBusV2>? logger = null)
     {
         _serviceProvider = serviceProvider;
-        _logger = logger;
+        _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<EventBusV2>.Instance;
         _pipelineBuilder = new MessageProcessingPipelineBuilder(serviceProvider);
 
         // Configure default pipeline

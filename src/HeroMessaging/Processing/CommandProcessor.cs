@@ -20,10 +20,10 @@ public class CommandProcessor : ICommandProcessor, IProcessor
 
     public bool IsRunning { get; private set; } = true;
 
-    public CommandProcessor(IServiceProvider serviceProvider, ILogger<CommandProcessor> logger)
+    public CommandProcessor(IServiceProvider serviceProvider, ILogger<CommandProcessor>? logger = null)
     {
         _serviceProvider = serviceProvider;
-        _logger = logger;
+        _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<CommandProcessor>.Instance;
 
         _processingBlock = new ActionBlock<Func<Task>>(
             async action => await action(),
