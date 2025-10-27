@@ -98,7 +98,16 @@ public class ChoreographyWorkflowTests
         }
         catch
         {
-            throw new InvalidOperationException($"Causation chain broken: inventory.MessageId={inventoryEvent.MessageId} != payment.CausationId={paymentEvent.CausationId}");
+            // Detailed diagnostic: show all events with metadata
+            var allEvents = capturedEvents.Select((e, idx) =>
+            {
+                var metaStr = e.Metadata != null && e.Metadata.Count > 0
+                    ? $", Meta: {string.Join(", ", e.Metadata.Select(kv => $"{kv.Key}={kv.Value}"))}"
+                    : "";
+                return $"\n  [{idx}] {e.GetType().Name}: Id={e.MessageId}, Corr={e.CorrelationId}, Cause={e.CausationId}{metaStr}";
+            });
+            var eventDetails = string.Join("", allEvents);
+            throw new InvalidOperationException($"Causation chain broken: inventory.MessageId={inventoryEvent.MessageId} != payment.CausationId={paymentEvent.CausationId}\nAll captured events:{eventDetails}");
         }
 
         try
