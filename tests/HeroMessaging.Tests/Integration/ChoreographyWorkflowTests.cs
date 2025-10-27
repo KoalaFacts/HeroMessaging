@@ -52,11 +52,16 @@ public class ChoreographyWorkflowTests
 
         await messaging.Publish(orderCreatedEvent);
 
-        // Allow async processing to complete
-        await Task.Delay(500);
+        // Allow async processing to complete with polling
+        var timeout = TimeSpan.FromSeconds(5);
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        while (capturedEvents.Count < 3 && stopwatch.Elapsed < timeout)
+        {
+            await Task.Delay(100); // Poll every 100ms
+        }
 
         // Assert - All events in the workflow should have the same CorrelationId
-        Assert.True(capturedEvents.Count >= 3, $"Expected at least 3 events, got {capturedEvents.Count}");
+        Assert.True(capturedEvents.Count >= 3, $"Expected at least 3 events, got {capturedEvents.Count}. Events: [{string.Join(", ", capturedEvents.Select(e => $"{e.GetType().Name}(Id:{e.MessageId}, Corr:{e.CorrelationId}, Cause:{e.CausationId})"))}]");
 
         foreach (var capturedEvent in capturedEvents)
         {
@@ -74,9 +79,33 @@ public class ChoreographyWorkflowTests
         Assert.NotNull(shippingEvent);
 
         // Each event's causation should link back to the previous event
-        Assert.Equal(orderCreatedEvent.MessageId.ToString(), inventoryEvent.CausationId);
-        Assert.Equal(inventoryEvent.MessageId.ToString(), paymentEvent.CausationId);
-        Assert.Equal(paymentEvent.MessageId.ToString(), shippingEvent.CausationId);
+        // Add diagnostic context to failures
+        try
+        {
+            Assert.Equal(orderCreatedEvent.MessageId.ToString(), inventoryEvent.CausationId);
+        }
+        catch
+        {
+            throw new InvalidOperationException($"Causation chain broken: orderCreated.MessageId={orderCreatedEvent.MessageId} != inventory.CausationId={inventoryEvent.CausationId}");
+        }
+
+        try
+        {
+            Assert.Equal(inventoryEvent.MessageId.ToString(), paymentEvent.CausationId);
+        }
+        catch
+        {
+            throw new InvalidOperationException($"Causation chain broken: inventory.MessageId={inventoryEvent.MessageId} != payment.CausationId={paymentEvent.CausationId}");
+        }
+
+        try
+        {
+            Assert.Equal(paymentEvent.MessageId.ToString(), shippingEvent.CausationId);
+        }
+        catch
+        {
+            throw new InvalidOperationException($"Causation chain broken: payment.MessageId={paymentEvent.MessageId} != shipping.CausationId={shippingEvent.CausationId}");
+        }
     }
 
     #region Test Workflow Messages
