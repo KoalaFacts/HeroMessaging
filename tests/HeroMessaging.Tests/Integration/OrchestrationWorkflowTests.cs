@@ -354,4 +354,202 @@ public class OrchestrationWorkflowTests
             orderId, $"TRACK-{orderId}")
         { CorrelationId = correlationId.ToString() });
     }
+
+    [Fact]
+    public async Task OrderSaga_SingleEventCompensation_ExecutesActionsInLIFOOrder()
+    {
+        // Arrange - Test compensation within a single complex event
+        var compensationLog = new System.Collections.Concurrent.ConcurrentBag<(DateTime Time, string Action)>();
+
+        var repository = new InMemorySagaRepository<CompensationTrackingSaga>();
+        var stateMachine = BuildCompensationTrackingStateMachine(compensationLog);
+        var services = new ServiceCollection().BuildServiceProvider();
+        var logger = NullLogger<SagaOrchestrator<CompensationTrackingSaga>>.Instance;
+        var orchestrator = new SagaOrchestrator<CompensationTrackingSaga>(repository, stateMachine, services, logger);
+
+        var correlationId = Guid.NewGuid();
+
+        // Act - Send an event that performs multiple operations, then fails and compensates
+        await orchestrator.ProcessAsync(new ComplexOperationEvent("ComplexOp", shouldFail: true)
+        { CorrelationId = correlationId.ToString() });
+
+        // Assert
+        var saga = await repository.FindAsync(correlationId);
+        Assert.NotNull(saga);
+        Assert.Equal("Failed", saga!.CurrentState);
+
+        // Verify all three compensations executed in LIFO order
+        Assert.Equal(3, compensationLog.Count);
+        var orderedLog = compensationLog.OrderBy(x => x.Time).Select(x => x.Action).ToList();
+        Assert.Equal("CompensateStep3", orderedLog[0]);
+        Assert.Equal("CompensateStep2", orderedLog[1]);
+        Assert.Equal("CompensateStep1", orderedLog[2]);
+    }
+
+    [Fact]
+    public async Task OrderSaga_StateBasedCompensation_ExecutesBasedOnSagaState()
+    {
+        // Arrange - Test compensation based on saga state (proper pattern for cross-event compensation)
+        var compensationLog = new System.Collections.Concurrent.ConcurrentBag<string>();
+
+        var repository = new InMemorySagaRepository<StateBasedCompensationSaga>();
+        var stateMachine = BuildStateBasedCompensationStateMachine(compensationLog);
+        var services = new ServiceCollection().BuildServiceProvider();
+        var logger = NullLogger<SagaOrchestrator<StateBasedCompensationSaga>>.Instance;
+        var orchestrator = new SagaOrchestrator<StateBasedCompensationSaga>(repository, stateMachine, services, logger);
+
+        var correlationId = Guid.NewGuid();
+
+        // Act - Payment succeeds, then inventory fails (should check state and compensate payment)
+        await orchestrator.ProcessAsync(new StateBasedPaymentEvent("TXN-123")
+        { CorrelationId = correlationId.ToString() });
+
+        await orchestrator.ProcessAsync(new StateBasedInventoryFailedEvent("Out of stock")
+        { CorrelationId = correlationId.ToString() });
+
+        // Assert
+        var saga = await repository.FindAsync(correlationId);
+        Assert.NotNull(saga);
+        Assert.Equal("Failed", saga!.CurrentState);
+
+        // Verify payment was compensated based on saga state
+        Assert.Contains("RefundPayment-TXN-123", compensationLog);
+        Assert.Single(compensationLog);
+    }
+
+    #region Compensation Testing Sagas
+
+    // Test 1: Single-event compensation (proper use of CompensationContext)
+    private class CompensationTrackingSaga : SagaBase
+    {
+        public string? OperationData { get; set; }
+        public string? FailureReason { get; set; }
+    }
+
+    private record ComplexOperationEvent(string Data, bool shouldFail) : IEvent, IMessage
+    {
+        public Guid MessageId { get; init; } = Guid.NewGuid();
+        public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+        public string? CorrelationId { get; init; }
+        public string? CausationId { get; init; }
+        public Dictionary<string, object>? Metadata { get; init; }
+    }
+
+    private static StateMachineDefinition<CompensationTrackingSaga> BuildCompensationTrackingStateMachine(
+        System.Collections.Concurrent.ConcurrentBag<(DateTime Time, string Action)> compensationLog)
+    {
+        var builder = new StateMachineBuilder<CompensationTrackingSaga>();
+
+        var initial = new State("Initial");
+        var processing = new State("Processing");
+        var completed = new State("Completed");
+        var failed = new State("Failed");
+
+        var complexOp = new Event<ComplexOperationEvent>(nameof(ComplexOperationEvent));
+
+        builder.Initially()
+            .When(complexOp)
+                .Then(async ctx =>
+                {
+                    // Simulate a complex operation with multiple steps and potential failure
+                    ctx.Instance.OperationData = ctx.Data.Data;
+
+                    // Step 1: Allocate resource
+                    ctx.Compensation.AddCompensation("CompensateStep1",
+                        async ct => compensationLog.Add((DateTime.UtcNow, "CompensateStep1")));
+
+                    // Step 2: Reserve capacity
+                    ctx.Compensation.AddCompensation("CompensateStep2",
+                        async ct => compensationLog.Add((DateTime.UtcNow, "CompensateStep2")));
+
+                    // Step 3: Lock records
+                    ctx.Compensation.AddCompensation("CompensateStep3",
+                        async ct => compensationLog.Add((DateTime.UtcNow, "CompensateStep3")));
+
+                    // Simulate failure after registering compensations
+                    if (ctx.Data.shouldFail)
+                    {
+                        ctx.Instance.FailureReason = "Simulated failure after registering compensations";
+                        // Execute all compensations in LIFO order (Step3, Step2, Step1)
+                        await ctx.Compensation.CompensateAsync();
+                        ctx.Instance.CurrentState = failed.Name;
+                    }
+                    else
+                    {
+                        ctx.Instance.CurrentState = completed.Name;
+                    }
+                })
+                .TransitionTo(processing);
+
+        return builder.Build();
+    }
+
+    // Test 2: State-based compensation (cross-event compensation pattern)
+    private class StateBasedCompensationSaga : SagaBase
+    {
+        public string? PaymentTransactionId { get; set; }
+        public string? FailureReason { get; set; }
+    }
+
+    private record StateBasedPaymentEvent(string TransactionId) : IEvent, IMessage
+    {
+        public Guid MessageId { get; init; } = Guid.NewGuid();
+        public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+        public string? CorrelationId { get; init; }
+        public string? CausationId { get; init; }
+        public Dictionary<string, object>? Metadata { get; init; }
+    }
+
+    private record StateBasedInventoryFailedEvent(string Reason) : IEvent, IMessage
+    {
+        public Guid MessageId { get; init; } = Guid.NewGuid();
+        public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+        public string? CorrelationId { get; init; }
+        public string? CausationId { get; init; }
+        public Dictionary<string, object>? Metadata { get; init; }
+    }
+
+    private static StateMachineDefinition<StateBasedCompensationSaga> BuildStateBasedCompensationStateMachine(
+        System.Collections.Concurrent.ConcurrentBag<string> compensationLog)
+    {
+        var builder = new StateMachineBuilder<StateBasedCompensationSaga>();
+
+        var initial = new State("Initial");
+        var awaitingInventory = new State("AwaitingInventory");
+        var failed = new State("Failed");
+
+        var paymentEvent = new Event<StateBasedPaymentEvent>(nameof(StateBasedPaymentEvent));
+        var inventoryFailedEvent = new Event<StateBasedInventoryFailedEvent>(nameof(StateBasedInventoryFailedEvent));
+
+        // Event 1: Payment succeeds - store transaction ID
+        builder.Initially()
+            .When(paymentEvent)
+                .Then(ctx =>
+                {
+                    ctx.Instance.PaymentTransactionId = ctx.Data.TransactionId;
+                    return Task.CompletedTask;
+                })
+                .TransitionTo(awaitingInventory);
+
+        // Event 2: Inventory fails - compensate based on saga state
+        builder.During(awaitingInventory)
+            .When(inventoryFailedEvent)
+                .Then(async ctx =>
+                {
+                    ctx.Instance.FailureReason = ctx.Data.Reason;
+
+                    // Proper pattern: Check saga state and manually compensate
+                    if (!string.IsNullOrEmpty(ctx.Instance.PaymentTransactionId))
+                    {
+                        // Simulate refunding payment
+                        compensationLog.Add($"RefundPayment-{ctx.Instance.PaymentTransactionId}");
+                        await Task.CompletedTask;
+                    }
+                })
+                .TransitionTo(failed);
+
+        return builder.Build();
+    }
+
+    #endregion
 }
