@@ -245,6 +245,16 @@ public class InMemorySagaRepositoryTests
         };
         await repository.SaveAsync(staleSaga);
 
+        // Create completed saga at 10:00 (will be old but completed, should be filtered out)
+        var completedSaga = new TestSaga
+        {
+            CorrelationId = Guid.NewGuid(),
+            CurrentState = "Completed"
+        };
+        await repository.SaveAsync(completedSaga);
+        completedSaga.Complete();
+        await repository.UpdateAsync(completedSaga);
+
         // Advance time to 12:00 (2 hours later)
         fakeTime.Advance(TimeSpan.FromHours(2));
 
@@ -255,20 +265,6 @@ public class InMemorySagaRepositoryTests
             CurrentState = "Active"
         };
         await repository.SaveAsync(recentSaga);
-
-        // Create completed saga at 10:00 but mark as completed (should be filtered out)
-        fakeTime.SetUtcNow(DateTimeOffset.Parse("2025-10-27T10:00:00Z")); // Back to 10:00
-        var completedSaga = new TestSaga
-        {
-            CorrelationId = Guid.NewGuid(),
-            CurrentState = "Completed"
-        };
-        await repository.SaveAsync(completedSaga);
-        completedSaga.Complete();
-        await repository.UpdateAsync(completedSaga);
-
-        // Set time back to 12:00 for the query
-        fakeTime.SetUtcNow(DateTimeOffset.Parse("2025-10-27T12:00:00Z"));
 
         // Act - Find sagas older than 1 hour (should find saga from 10:00, now 2 hours old)
         var staleSagas = await repository.FindStaleAsync(TimeSpan.FromHours(1));
