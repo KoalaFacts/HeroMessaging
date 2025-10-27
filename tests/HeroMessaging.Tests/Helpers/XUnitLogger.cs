@@ -6,7 +6,7 @@ namespace HeroMessaging.Tests.Helpers;
 /// <summary>
 /// Logger that writes to xUnit test output
 /// </summary>
-public class XUnitLogger<T> : ILogger<T>, IDisposable
+public sealed class XUnitLogger<T> : ILogger<T>, IDisposable
 {
     private readonly ITestOutputHelper _output;
     private readonly string _categoryName;
@@ -62,7 +62,7 @@ public static class XUnitLoggerExtensions
 /// <summary>
 /// Logger provider for xUnit test output
 /// </summary>
-public class XUnitLoggerProvider : ILoggerProvider
+public sealed class XUnitLoggerProvider : ILoggerProvider
 {
     private readonly ITestOutputHelper _output;
 
@@ -82,7 +82,7 @@ public class XUnitLoggerProvider : ILoggerProvider
 /// <summary>
 /// Non-generic logger implementation
 /// </summary>
-internal class XUnitLoggerGeneric : ILogger
+internal sealed class XUnitLoggerGeneric : ILogger
 {
     private readonly ITestOutputHelper _output;
     private readonly string _categoryName;
@@ -120,7 +120,7 @@ internal class XUnitLoggerGeneric : ILogger
         }
     }
 
-    private class NoOpDisposable : IDisposable
+    private sealed class NoOpDisposable : IDisposable
     {
         public void Dispose() { }
     }
