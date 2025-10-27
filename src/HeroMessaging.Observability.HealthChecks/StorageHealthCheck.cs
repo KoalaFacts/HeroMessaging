@@ -4,7 +4,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace HeroMessaging.Observability.HealthChecks;
 
-public class MessageStorageHealthCheck(IMessageStorage storage, string name = "message_storage", TimeProvider timeProvider) : IHealthCheck
+public class MessageStorageHealthCheck(IMessageStorage storage, TimeProvider timeProvider, string name = "message_storage") : IHealthCheck
 {
     private readonly IMessageStorage _storage = storage ?? throw new ArgumentNullException(nameof(storage));
     private readonly string _name = name;

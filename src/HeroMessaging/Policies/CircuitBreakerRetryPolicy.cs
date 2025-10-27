@@ -7,11 +7,11 @@ namespace HeroMessaging.Policies;
 /// Circuit breaker retry policy that stops retrying after too many failures
 /// </summary>
 public class CircuitBreakerRetryPolicy(
+    TimeProvider timeProvider,
     int maxRetries = 3,
     int failureThreshold = 5,
     TimeSpan? openCircuitDuration = null,
-    TimeSpan? baseDelay = null,
-    TimeProvider timeProvider) : IRetryPolicy
+    TimeSpan? baseDelay = null) : IRetryPolicy
 {
     public int MaxRetries { get; } = maxRetries;
     private readonly int _failureThreshold = failureThreshold;

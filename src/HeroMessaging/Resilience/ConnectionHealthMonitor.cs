@@ -9,8 +9,8 @@ namespace HeroMessaging.Resilience;
 /// </summary>
 public class ConnectionHealthMonitor(
     ILogger<ConnectionHealthMonitor> logger,
-    ConnectionHealthOptions? options = null,
-    TimeProvider timeProvider) : BackgroundService
+    TimeProvider timeProvider,
+    ConnectionHealthOptions? options = null) : BackgroundService
 {
     private readonly ILogger<ConnectionHealthMonitor> _logger = logger;
     private readonly ConnectionHealthOptions _options = options ?? new ConnectionHealthOptions();

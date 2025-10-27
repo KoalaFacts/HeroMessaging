@@ -97,8 +97,8 @@ public interface IConnectionResiliencePolicy
 public class DefaultConnectionResiliencePolicy(
     ConnectionResilienceOptions options,
     ILogger<DefaultConnectionResiliencePolicy> logger,
-    ConnectionHealthMonitor? healthMonitor = null,
-    TimeProvider timeProvider) : IConnectionResiliencePolicy
+    TimeProvider timeProvider,
+    ConnectionHealthMonitor? healthMonitor = null) : IConnectionResiliencePolicy
 {
     private readonly ConnectionResilienceOptions _options = options ?? throw new ArgumentNullException(nameof(options));
     private readonly ILogger<DefaultConnectionResiliencePolicy> _logger = logger;

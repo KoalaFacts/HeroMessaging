@@ -13,21 +13,23 @@ public class SqlServerUnitOfWork : IUnitOfWork
     private SqlTransaction? _transaction;
     private readonly List<string> _savepoints = new();
     private bool _disposed;
+    private readonly TimeProvider _timeProvider;
 
     private readonly Lazy<IOutboxStorage> _outboxStorage;
     private readonly Lazy<IInboxStorage> _inboxStorage;
     private readonly Lazy<IQueueStorage> _queueStorage;
     private readonly Lazy<IMessageStorage> _messageStorage;
 
-    public SqlServerUnitOfWork(string connectionString)
+    public SqlServerUnitOfWork(string connectionString, TimeProvider timeProvider)
     {
         _connection = new SqlConnection(connectionString);
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
         // Initialize storage implementations lazily with the shared connection/transaction
-        _outboxStorage = new Lazy<IOutboxStorage>(() => new SqlServerOutboxStorage(_connection, _transaction));
-        _inboxStorage = new Lazy<IInboxStorage>(() => new SqlServerInboxStorage(_connection, _transaction));
-        _queueStorage = new Lazy<IQueueStorage>(() => new SqlServerQueueStorage(_connection, _transaction));
-        _messageStorage = new Lazy<IMessageStorage>(() => new SqlServerMessageStorage(_connection, _transaction));
+        _outboxStorage = new Lazy<IOutboxStorage>(() => new SqlServerOutboxStorage(_connection, _transaction, _timeProvider));
+        _inboxStorage = new Lazy<IInboxStorage>(() => new SqlServerInboxStorage(_connection, _transaction, _timeProvider));
+        _queueStorage = new Lazy<IQueueStorage>(() => new SqlServerQueueStorage(_connection, _transaction, _timeProvider));
+        _messageStorage = new Lazy<IMessageStorage>(() => new SqlServerMessageStorage(_connection, _transaction, _timeProvider));
     }
 
     public IsolationLevel IsolationLevel => _transaction?.IsolationLevel ?? IsolationLevel.Unspecified;
@@ -163,20 +165,21 @@ public class SqlServerUnitOfWork : IUnitOfWork
 /// <summary>
 /// Factory for creating SQL Server unit of work instances
 /// </summary>
-public class SqlServerUnitOfWorkFactory(string connectionString) : IUnitOfWorkFactory
+public class SqlServerUnitOfWorkFactory(string connectionString, TimeProvider timeProvider) : IUnitOfWorkFactory
 {
     private readonly string _connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
+    private readonly TimeProvider _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
     public async Task<IUnitOfWork> CreateAsync(CancellationToken cancellationToken = default)
     {
-        var unitOfWork = new SqlServerUnitOfWork(_connectionString);
+        var unitOfWork = new SqlServerUnitOfWork(_connectionString, _timeProvider);
         await unitOfWork.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
         return unitOfWork;
     }
 
     public async Task<IUnitOfWork> CreateAsync(IsolationLevel isolationLevel, CancellationToken cancellationToken = default)
     {
-        var unitOfWork = new SqlServerUnitOfWork(_connectionString);
+        var unitOfWork = new SqlServerUnitOfWork(_connectionString, _timeProvider);
         await unitOfWork.BeginTransactionAsync(isolationLevel, cancellationToken);
         return unitOfWork;
     }

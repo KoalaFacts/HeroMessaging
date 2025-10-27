@@ -12,8 +12,8 @@ public class ErrorHandlingDecorator(
     IMessageProcessor inner,
     IErrorHandler errorHandler,
     ILogger<ErrorHandlingDecorator> logger,
-    int maxRetries = 3,
-    TimeProvider timeProvider) : MessageProcessorDecorator(inner)
+    TimeProvider timeProvider,
+    int maxRetries = 3) : MessageProcessorDecorator(inner)
 {
     private readonly IErrorHandler _errorHandler = errorHandler;
     private readonly ILogger<ErrorHandlingDecorator> _logger = logger;

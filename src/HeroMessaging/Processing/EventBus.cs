@@ -23,7 +23,7 @@ public class EventBus : IEventBus, IProcessor
 
     public bool IsRunning { get; private set; } = true;
 
-    public EventBus(IServiceProvider serviceProvider, ILogger<EventBus>? logger = null, IErrorHandler? errorHandler = null, TimeProvider timeProvider)
+    public EventBus(IServiceProvider serviceProvider, TimeProvider timeProvider, ILogger<EventBus>? logger = null, IErrorHandler? errorHandler = null)
     {
         _serviceProvider = serviceProvider;
         _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<EventBus>.Instance;

@@ -18,8 +18,8 @@ public class CircuitBreakerDecorator : MessageProcessorDecorator
     public CircuitBreakerDecorator(
         IMessageProcessor inner,
         ILogger<CircuitBreakerDecorator> logger,
-        CircuitBreakerOptions? options = null,
-        TimeProvider timeProvider) : base(inner)
+        TimeProvider timeProvider,
+        CircuitBreakerOptions? options = null) : base(inner)
     {
         _logger = logger;
         _options = options ?? new CircuitBreakerOptions();

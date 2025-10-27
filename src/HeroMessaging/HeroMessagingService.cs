@@ -12,10 +12,10 @@ public class HeroMessagingService(
     ICommandProcessor commandProcessor,
     IQueryProcessor queryProcessor,
     IEventBus eventBus,
+    TimeProvider timeProvider,
     IQueueProcessor? queueProcessor = null,
     IOutboxProcessor? outboxProcessor = null,
-    IInboxProcessor? inboxProcessor = null,
-    TimeProvider timeProvider) : IHeroMessaging
+    IInboxProcessor? inboxProcessor = null) : IHeroMessaging
 {
     private readonly ICommandProcessor _commandProcessor = commandProcessor;
     private readonly IQueryProcessor _queryProcessor = queryProcessor;
