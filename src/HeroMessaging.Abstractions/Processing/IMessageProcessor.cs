@@ -57,7 +57,7 @@ public readonly record struct ProcessingContext
         return this with
         {
             RetryCount = retryCount,
-            FirstFailureTime = firstFailureTime ?? FirstFailureTime ?? DateTime.UtcNow
+            FirstFailureTime = firstFailureTime ?? FirstFailureTime
         };
     }
 

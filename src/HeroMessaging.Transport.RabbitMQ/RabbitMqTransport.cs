@@ -20,6 +20,7 @@ public sealed class RabbitMqTransport : IMessageTransport
     private TransportState _state = TransportState.Disconnected;
     private readonly object _stateLock = new();
     private readonly SemaphoreSlim _connectLock = new(1, 1);
+    private readonly TimeProvider _timeProvider;
 
     /// <inheritdoc/>
     public string Name => _options.Name;
@@ -35,11 +36,13 @@ public sealed class RabbitMqTransport : IMessageTransport
 
     public RabbitMqTransport(
         RabbitMqTransportOptions options,
-        ILoggerFactory loggerFactory)
+        ILoggerFactory loggerFactory,
+        TimeProvider? timeProvider = null)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
         _logger = loggerFactory.CreateLogger<RabbitMqTransport>();
+        _timeProvider = timeProvider ?? TimeProvider.System;
 
         _logger.LogInformation(
             "RabbitMQ transport created. Name: {Name}, Host: {Host}, Port: {Port}, VirtualHost: {VirtualHost}",
@@ -142,7 +145,7 @@ public sealed class RabbitMqTransport : IMessageTransport
             properties.MessageId = envelope.MessageId.ToString();
             properties.CorrelationId = envelope.CorrelationId;
             properties.ContentType = envelope.ContentType ?? "application/octet-stream";
-            properties.Timestamp = new AmqpTimestamp(DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+            properties.Timestamp = new AmqpTimestamp(_timeProvider.GetUtcNow().ToUnixTimeSeconds());
 
             if (envelope.Headers != null)
             {
@@ -197,7 +200,7 @@ public sealed class RabbitMqTransport : IMessageTransport
             properties.MessageId = envelope.MessageId.ToString();
             properties.CorrelationId = envelope.CorrelationId;
             properties.ContentType = envelope.ContentType ?? "application/octet-stream";
-            properties.Timestamp = new AmqpTimestamp(DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+            properties.Timestamp = new AmqpTimestamp(_timeProvider.GetUtcNow().ToUnixTimeSeconds());
 
             if (envelope.Headers != null)
             {

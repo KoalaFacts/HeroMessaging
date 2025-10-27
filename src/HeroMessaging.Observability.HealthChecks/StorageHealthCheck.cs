@@ -4,10 +4,11 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace HeroMessaging.Observability.HealthChecks;
 
-public class MessageStorageHealthCheck(IMessageStorage storage, string name = "message_storage") : IHealthCheck
+public class MessageStorageHealthCheck(IMessageStorage storage, string name = "message_storage", TimeProvider? timeProvider = null) : IHealthCheck
 {
     private readonly IMessageStorage _storage = storage ?? throw new ArgumentNullException(nameof(storage));
     private readonly string _name = name;
+    private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
 
     public async Task<HealthCheckResult> CheckHealthAsync(
         HealthCheckContext context,
@@ -15,7 +16,7 @@ public class MessageStorageHealthCheck(IMessageStorage storage, string name = "m
     {
         try
         {
-            var testMessage = new TestMessage();
+            var testMessage = new TestMessage(_timeProvider);
 
             var messageId = await _storage.Store(testMessage, null, cancellationToken);
             var retrieved = await _storage.Retrieve<TestMessage>(messageId, cancellationToken);
@@ -45,10 +46,15 @@ public class MessageStorageHealthCheck(IMessageStorage storage, string name = "m
     private class TestMessage : IMessage
     {
         public Guid MessageId { get; } = Guid.NewGuid();
-        public DateTime Timestamp { get; } = DateTime.UtcNow;
+        public DateTime Timestamp { get; }
         public string? CorrelationId { get; }
         public string? CausationId { get; }
         public Dictionary<string, object>? Metadata { get; }
+
+        public TestMessage(TimeProvider timeProvider)
+        {
+            Timestamp = timeProvider.GetUtcNow().DateTime;
+        }
     }
 }
 

@@ -194,7 +194,8 @@ public class WhenConfigurator<TSaga, TEvent>
 
             // Mark saga as completed
             context.Instance.IsCompleted = true;
-            context.Instance.UpdatedAt = DateTime.UtcNow;
+            var timeProvider = context.Services.GetService(typeof(TimeProvider)) as TimeProvider ?? TimeProvider.System;
+            context.Instance.UpdatedAt = timeProvider.GetUtcNow().DateTime;
         };
 
         return this;

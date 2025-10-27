@@ -178,6 +178,12 @@ public class HeroMessagingBuilder(IServiceCollection services) : IHeroMessagingB
 
     public IServiceCollection Build()
     {
+        // Register TimeProvider if not already registered
+        if (!_services.Any(s => s.ServiceType == typeof(TimeProvider)))
+        {
+            _services.AddSingleton(TimeProvider.System);
+        }
+
         _services.AddSingleton(_processingOptions);
 
         if (_withMediator)

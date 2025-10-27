@@ -12,11 +12,13 @@ public class ErrorHandlingDecorator(
     IMessageProcessor inner,
     IErrorHandler errorHandler,
     ILogger<ErrorHandlingDecorator> logger,
-    int maxRetries = 3) : MessageProcessorDecorator(inner)
+    int maxRetries = 3,
+    TimeProvider? timeProvider = null) : MessageProcessorDecorator(inner)
 {
     private readonly IErrorHandler _errorHandler = errorHandler;
     private readonly ILogger<ErrorHandlingDecorator> _logger = logger;
     private readonly int _maxRetries = maxRetries;
+    private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
 
     public override async ValueTask<ProcessingResult> ProcessAsync(IMessage message, ProcessingContext context, CancellationToken cancellationToken = default)
     {
@@ -63,8 +65,8 @@ public class ErrorHandlingDecorator(
                     RetryCount = retryCount,
                     MaxRetries = _maxRetries,
                     Component = context.Component,
-                    FirstFailureTime = context.FirstFailureTime ?? DateTime.UtcNow,
-                    LastFailureTime = DateTime.UtcNow,
+                    FirstFailureTime = context.FirstFailureTime ?? _timeProvider.GetUtcNow().DateTime,
+                    LastFailureTime = _timeProvider.GetUtcNow().DateTime,
                     Metadata = context.Metadata.ToDictionary(kvp => kvp.Key, kvp => kvp.Value)
                 };
 

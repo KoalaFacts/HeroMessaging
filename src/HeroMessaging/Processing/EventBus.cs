@@ -19,14 +19,16 @@ public class EventBus : IEventBus, IProcessor
     private long _failedCount;
     private int _registeredHandlers;
     private readonly object _metricsLock = new();
+    private readonly TimeProvider _timeProvider;
 
     public bool IsRunning { get; private set; } = true;
 
-    public EventBus(IServiceProvider serviceProvider, ILogger<EventBus>? logger = null, IErrorHandler? errorHandler = null)
+    public EventBus(IServiceProvider serviceProvider, ILogger<EventBus>? logger = null, IErrorHandler? errorHandler = null, TimeProvider? timeProvider = null)
     {
         _serviceProvider = serviceProvider;
         _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<EventBus>.Instance;
         _errorHandler = errorHandler;
+        _timeProvider = timeProvider ?? TimeProvider.System;
 
         _processingBlock = new ActionBlock<EventEnvelope>(
             ProcessEvent,
@@ -101,8 +103,8 @@ public class EventBus : IEventBus, IProcessor
                         RetryCount = retryCount,
                         MaxRetries = maxRetries,
                         Component = "EventBus",
-                        FirstFailureTime = retryCount == 0 ? DateTime.UtcNow : envelope.FirstFailureTime ?? DateTime.UtcNow,
-                        LastFailureTime = DateTime.UtcNow,
+                        FirstFailureTime = retryCount == 0 ? _timeProvider.GetUtcNow().DateTime : envelope.FirstFailureTime ?? _timeProvider.GetUtcNow().DateTime,
+                        LastFailureTime = _timeProvider.GetUtcNow().DateTime,
                         Metadata = new Dictionary<string, object>
                         {
                             ["EventType"] = envelope.Event.GetType().Name,
@@ -118,7 +120,7 @@ public class EventBus : IEventBus, IProcessor
                             retryCount++;
                             if (result.RetryDelay.HasValue)
                                 await Task.Delay(result.RetryDelay.Value, envelope.CancellationToken);
-                            envelope.FirstFailureTime ??= DateTime.UtcNow;
+                            envelope.FirstFailureTime ??= _timeProvider.GetUtcNow().DateTime;
                             continue;
 
                         case ErrorAction.SendToDeadLetter:
