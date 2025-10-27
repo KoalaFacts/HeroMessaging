@@ -6,7 +6,6 @@ using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Choreography;
 using HeroMessaging.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Xunit;
 
 namespace HeroMessaging.Tests.Integration;
@@ -24,8 +23,6 @@ public class ChoreographyWorkflowTests
         // Arrange - Set up a complete order processing workflow
         var services = new ServiceCollection();
         var capturedEvents = new List<IMessage>();
-
-        services.AddLogging();
 
         services.AddHeroMessaging(builder => builder
             .WithEventBus()
@@ -118,22 +115,17 @@ public class ChoreographyWorkflowTests
     {
         private readonly IHeroMessaging _messaging;
         private readonly List<IMessage> _capturedEvents;
-        private readonly ILogger<ReserveInventoryHandler> _logger;
 
         public ReserveInventoryHandler(
             IHeroMessaging messaging,
-            List<IMessage> capturedEvents,
-            ILogger<ReserveInventoryHandler> logger)
+            List<IMessage> capturedEvents)
         {
             _messaging = messaging;
             _capturedEvents = capturedEvents;
-            _logger = logger;
         }
 
         public async Task Handle(OrderCreatedEvent @event, CancellationToken cancellationToken)
         {
-            _logger.LogInformation("Reserving inventory for order {OrderId}", @event.OrderId);
-
             // Simulate inventory reservation
             await Task.Delay(10, cancellationToken);
 
@@ -153,22 +145,17 @@ public class ChoreographyWorkflowTests
     {
         private readonly IHeroMessaging _messaging;
         private readonly List<IMessage> _capturedEvents;
-        private readonly ILogger<ProcessPaymentHandler> _logger;
 
         public ProcessPaymentHandler(
             IHeroMessaging messaging,
-            List<IMessage> capturedEvents,
-            ILogger<ProcessPaymentHandler> logger)
+            List<IMessage> capturedEvents)
         {
             _messaging = messaging;
             _capturedEvents = capturedEvents;
-            _logger = logger;
         }
 
         public async Task Handle(InventoryReservedEvent @event, CancellationToken cancellationToken)
         {
-            _logger.LogInformation("Processing payment for order {OrderId}", @event.OrderId);
-
             // Simulate payment processing
             await Task.Delay(10, cancellationToken);
 
@@ -188,22 +175,17 @@ public class ChoreographyWorkflowTests
     {
         private readonly IHeroMessaging _messaging;
         private readonly List<IMessage> _capturedEvents;
-        private readonly ILogger<ShipOrderHandler> _logger;
 
         public ShipOrderHandler(
             IHeroMessaging messaging,
-            List<IMessage> capturedEvents,
-            ILogger<ShipOrderHandler> logger)
+            List<IMessage> capturedEvents)
         {
             _messaging = messaging;
             _capturedEvents = capturedEvents;
-            _logger = logger;
         }
 
         public async Task Handle(PaymentProcessedEvent @event, CancellationToken cancellationToken)
         {
-            _logger.LogInformation("Shipping order {OrderId}", @event.OrderId);
-
             // Simulate shipping
             await Task.Delay(10, cancellationToken);
 
