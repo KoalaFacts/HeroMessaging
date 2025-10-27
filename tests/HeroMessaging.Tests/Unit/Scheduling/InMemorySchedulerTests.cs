@@ -89,8 +89,13 @@ public class InMemorySchedulerTests : IAsyncLifetime
         // Act
         var result = await _scheduler!.ScheduleAsync(message, delay);
 
-        // Wait for async delivery to complete (Timer fires, Task.Run executes, delivery completes)
-        await Task.Delay(500);
+        // Wait for async delivery with polling (more reliable on slow CI platforms)
+        var timeout = TimeSpan.FromSeconds(3);
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        while (_deliveryHandler!.DeliveredMessages.Count == 0 && stopwatch.Elapsed < timeout)
+        {
+            await Task.Delay(50); // Poll every 50ms
+        }
 
         // Assert
         Assert.True(result.Success);
