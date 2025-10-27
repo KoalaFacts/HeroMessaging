@@ -8,20 +8,27 @@ namespace HeroMessaging.Storage;
 public class InMemoryQueueStorage : IQueueStorage
 {
     private readonly ConcurrentDictionary<string, Queue> _queues = new();
+    private readonly TimeProvider _timeProvider;
+
+    public InMemoryQueueStorage(TimeProvider? timeProvider = null)
+    {
+        _timeProvider = timeProvider ?? TimeProvider.System;
+    }
 
     public Task<QueueEntry> Enqueue(string queueName, IMessage message, EnqueueOptions? options = null, CancellationToken cancellationToken = default)
     {
         var queue = _queues.GetOrAdd(queueName, _ => new Queue());
+        var now = _timeProvider.GetUtcNow().DateTime;
 
         var entry = new QueueEntry
         {
             Id = Guid.NewGuid().ToString(),
             Message = message,
             Options = options ?? new EnqueueOptions(),
-            EnqueuedAt = DateTime.UtcNow,
+            EnqueuedAt = now,
             VisibleAt = options?.Delay.HasValue == true
-                ? DateTime.UtcNow.Add(options.Delay.Value)
-                : DateTime.UtcNow
+                ? now.Add(options.Delay.Value)
+                : now
         };
 
         queue.Entries[entry.Id] = entry;
@@ -35,7 +42,7 @@ public class InMemoryQueueStorage : IQueueStorage
             return Task.FromResult<QueueEntry?>(null);
         }
 
-        var now = DateTime.UtcNow;
+        var now = _timeProvider.GetUtcNow().DateTime;
         var entry = queue.Entries.Values
             .Where(e => e.VisibleAt <= now && e.DequeueCount < (queue.Options?.MaxDequeueCount ?? 10))
             .OrderByDescending(e => e.Options.Priority)
@@ -58,7 +65,7 @@ public class InMemoryQueueStorage : IQueueStorage
             return Task.FromResult(Enumerable.Empty<QueueEntry>());
         }
 
-        var now = DateTime.UtcNow;
+        var now = _timeProvider.GetUtcNow().DateTime;
         var entries = queue.Entries.Values
             .Where(e => e.VisibleAt <= now)
             .OrderByDescending(e => e.Options.Priority)
@@ -86,7 +93,7 @@ public class InMemoryQueueStorage : IQueueStorage
             {
                 if (requeue)
                 {
-                    entry.VisibleAt = DateTime.UtcNow;
+                    entry.VisibleAt = _timeProvider.GetUtcNow().DateTime;
                     entry.DequeueCount = 0;
                     return Task.FromResult(true);
                 }
@@ -104,7 +111,7 @@ public class InMemoryQueueStorage : IQueueStorage
     {
         if (_queues.TryGetValue(queueName, out var queue))
         {
-            var count = queue.Entries.Values.Count(e => e.VisibleAt <= DateTime.UtcNow);
+            var count = queue.Entries.Values.Count(e => e.VisibleAt <= _timeProvider.GetUtcNow().DateTime);
             return Task.FromResult((long)count);
         }
 

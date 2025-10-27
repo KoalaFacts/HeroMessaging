@@ -7,18 +7,25 @@ namespace HeroMessaging.Storage;
 public class InMemoryMessageStorage : IMessageStorage
 {
     private readonly ConcurrentDictionary<string, StoredMessage> _messages = new();
+    private readonly TimeProvider _timeProvider;
+
+    public InMemoryMessageStorage(TimeProvider? timeProvider = null)
+    {
+        _timeProvider = timeProvider ?? TimeProvider.System;
+    }
 
     public Task<string> Store(IMessage message, MessageStorageOptions? options = null, CancellationToken cancellationToken = default)
     {
         var id = Guid.NewGuid().ToString();
+        var now = _timeProvider.GetUtcNow().DateTime;
         var stored = new StoredMessage
         {
             Id = id,
             Message = message,
-            StoredAt = DateTime.UtcNow,
+            StoredAt = now,
             Collection = options?.Collection,
             Metadata = options?.Metadata,
-            ExpiresAt = options?.Ttl.HasValue == true ? DateTime.UtcNow.Add(options.Ttl.Value) : null
+            ExpiresAt = options?.Ttl.HasValue == true ? now.Add(options.Ttl.Value) : null
         };
 
         _messages[id] = stored;
@@ -29,7 +36,7 @@ public class InMemoryMessageStorage : IMessageStorage
     {
         if (_messages.TryGetValue(messageId, out var stored))
         {
-            if (stored.ExpiresAt.HasValue && stored.ExpiresAt < DateTime.UtcNow)
+            if (stored.ExpiresAt.HasValue && stored.ExpiresAt < _timeProvider.GetUtcNow().DateTime)
             {
                 _messages.TryRemove(messageId, out _);
                 return Task.FromResult<T?>(default);
@@ -114,7 +121,7 @@ public class InMemoryMessageStorage : IMessageStorage
         if (_messages.TryGetValue(messageId, out var stored))
         {
             stored.Message = message;
-            stored.UpdatedAt = DateTime.UtcNow;
+            stored.UpdatedAt = _timeProvider.GetUtcNow().DateTime;
             return Task.FromResult(true);
         }
 

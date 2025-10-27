@@ -8,6 +8,12 @@ namespace HeroMessaging.Storage;
 public class InMemoryOutboxStorage : IOutboxStorage
 {
     private readonly ConcurrentDictionary<string, OutboxEntry> _entries = new();
+    private readonly TimeProvider _timeProvider;
+
+    public InMemoryOutboxStorage(TimeProvider? timeProvider = null)
+    {
+        _timeProvider = timeProvider ?? TimeProvider.System;
+    }
 
     public Task<OutboxEntry> Add(IMessage message, OutboxOptions options, CancellationToken cancellationToken = default)
     {
@@ -17,7 +23,7 @@ public class InMemoryOutboxStorage : IOutboxStorage
             Message = message,
             Options = options,
             Status = OutboxStatus.Pending,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = _timeProvider.GetUtcNow().DateTime
         };
 
         _entries[entry.Id] = entry;
@@ -45,7 +51,7 @@ public class InMemoryOutboxStorage : IOutboxStorage
             pending = pending.Where(e => e.Status == OutboxStatus.Pending);
         }
 
-        pending = pending.Where(e => e.NextRetryAt == null || e.NextRetryAt <= DateTime.UtcNow);
+        pending = pending.Where(e => e.NextRetryAt == null || e.NextRetryAt <= _timeProvider.GetUtcNow().DateTime);
 
         if (query.OlderThan.HasValue)
         {
@@ -69,7 +75,7 @@ public class InMemoryOutboxStorage : IOutboxStorage
     {
         var pending = _entries.Values
             .Where(e => e.Status == OutboxStatus.Pending &&
-                       (e.NextRetryAt == null || e.NextRetryAt <= DateTime.UtcNow))
+                       (e.NextRetryAt == null || e.NextRetryAt <= _timeProvider.GetUtcNow().DateTime))
             .OrderBy(e => e.Options.Priority)
             .ThenBy(e => e.CreatedAt)
             .Take(limit);
@@ -82,7 +88,7 @@ public class InMemoryOutboxStorage : IOutboxStorage
         if (_entries.TryGetValue(entryId, out var entry))
         {
             entry.Status = OutboxStatus.Processed;
-            entry.ProcessedAt = DateTime.UtcNow;
+            entry.ProcessedAt = _timeProvider.GetUtcNow().DateTime;
             return Task.FromResult(true);
         }
 

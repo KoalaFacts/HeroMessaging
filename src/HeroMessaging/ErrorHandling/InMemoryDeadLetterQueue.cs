@@ -5,10 +5,11 @@ using System.Collections.Concurrent;
 
 namespace HeroMessaging.ErrorHandling;
 
-public class InMemoryDeadLetterQueue(ILogger<InMemoryDeadLetterQueue> logger) : IDeadLetterQueue
+public class InMemoryDeadLetterQueue(ILogger<InMemoryDeadLetterQueue> logger, TimeProvider? timeProvider = null) : IDeadLetterQueue
 {
     private readonly ConcurrentDictionary<string, object> _deadLetters = new();
     private readonly ILogger<InMemoryDeadLetterQueue> _logger = logger;
+    private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
 
     public Task<string> SendToDeadLetter<T>(T message, DeadLetterContext context, CancellationToken cancellationToken = default) where T : IMessage
     {
@@ -17,7 +18,7 @@ public class InMemoryDeadLetterQueue(ILogger<InMemoryDeadLetterQueue> logger) : 
             Id = Guid.NewGuid().ToString(),
             Message = message,
             Context = context,
-            CreatedAt = DateTime.UtcNow,
+            CreatedAt = _timeProvider.GetUtcNow().DateTime,
             Status = DeadLetterStatus.Active
         };
 
@@ -47,7 +48,7 @@ public class InMemoryDeadLetterQueue(ILogger<InMemoryDeadLetterQueue> logger) : 
             if (entry is DeadLetterEntry<T> typedEntry)
             {
                 typedEntry.Status = DeadLetterStatus.Retried;
-                typedEntry.RetriedAt = DateTime.UtcNow;
+                typedEntry.RetriedAt = _timeProvider.GetUtcNow().DateTime;
 
                 _logger.LogInformation("Dead letter entry {DeadLetterId} marked for retry", deadLetterId);
                 return Task.FromResult(true);
@@ -64,7 +65,7 @@ public class InMemoryDeadLetterQueue(ILogger<InMemoryDeadLetterQueue> logger) : 
             if (entry is DeadLetterEntry<IMessage> typedEntry)
             {
                 typedEntry.Status = DeadLetterStatus.Discarded;
-                typedEntry.DiscardedAt = DateTime.UtcNow;
+                typedEntry.DiscardedAt = _timeProvider.GetUtcNow().DateTime;
 
                 _logger.LogInformation("Dead letter entry {DeadLetterId} discarded", deadLetterId);
                 return Task.FromResult(true);

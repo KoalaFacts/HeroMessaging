@@ -8,6 +8,12 @@ namespace HeroMessaging.Storage;
 public class InMemoryInboxStorage : IInboxStorage
 {
     private readonly ConcurrentDictionary<string, InboxEntry> _entries = new();
+    private readonly TimeProvider _timeProvider;
+
+    public InMemoryInboxStorage(TimeProvider? timeProvider = null)
+    {
+        _timeProvider = timeProvider ?? TimeProvider.System;
+    }
 
     public Task<InboxEntry?> Add(IMessage message, InboxOptions options, CancellationToken cancellationToken = default)
     {
@@ -26,7 +32,7 @@ public class InMemoryInboxStorage : IInboxStorage
             Message = message,
             Options = options,
             Status = InboxStatus.Pending,
-            ReceivedAt = DateTime.UtcNow
+            ReceivedAt = _timeProvider.GetUtcNow().DateTime
         };
 
         _entries[messageId] = entry;
@@ -39,7 +45,7 @@ public class InMemoryInboxStorage : IInboxStorage
         {
             if (window.HasValue)
             {
-                var cutoff = DateTime.UtcNow.Subtract(window.Value);
+                var cutoff = _timeProvider.GetUtcNow().DateTime.Subtract(window.Value);
                 return Task.FromResult(entry.ReceivedAt >= cutoff);
             }
 
@@ -60,7 +66,7 @@ public class InMemoryInboxStorage : IInboxStorage
         if (_entries.TryGetValue(messageId, out var entry))
         {
             entry.Status = InboxStatus.Processed;
-            entry.ProcessedAt = DateTime.UtcNow;
+            entry.ProcessedAt = _timeProvider.GetUtcNow().DateTime;
             return Task.FromResult(true);
         }
 
@@ -136,7 +142,7 @@ public class InMemoryInboxStorage : IInboxStorage
 
     public Task CleanupOldEntries(TimeSpan olderThan, CancellationToken cancellationToken = default)
     {
-        var cutoff = DateTime.UtcNow.Subtract(olderThan);
+        var cutoff = _timeProvider.GetUtcNow().DateTime.Subtract(olderThan);
         var toRemove = _entries
             .Where(kvp => kvp.Value.ReceivedAt < cutoff &&
                          kvp.Value.Status == InboxStatus.Processed)
