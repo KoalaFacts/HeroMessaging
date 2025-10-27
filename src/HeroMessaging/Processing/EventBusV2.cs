@@ -40,6 +40,7 @@ public class EventBusV2 : IEventBus
         _pipelineBuilder
             .UseMetrics()           // Outermost - collect metrics for everything
             .UseLogging()           // Log the entire process
+            .UseCorrelation()       // Track correlation/causation for choreography
             .UseValidation()        // Validate before processing
             .UseErrorHandling()     // Handle errors with dead letter queue
             .UseRetry();            // Innermost - retry the actual processing

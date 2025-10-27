@@ -13,6 +13,7 @@ public readonly record struct TransportEnvelope
     {
         MessageId = Guid.NewGuid().ToString();
         CorrelationId = null;
+        CausationId = null;
         ConversationId = null;
         MessageType = string.Empty;
         Body = Array.Empty<byte>();
@@ -27,10 +28,12 @@ public readonly record struct TransportEnvelope
         string messageType,
         ReadOnlyMemory<byte> body,
         string? messageId = null,
-        string? correlationId = null)
+        string? correlationId = null,
+        string? causationId = null)
     {
         MessageId = messageId ?? Guid.NewGuid().ToString();
         CorrelationId = correlationId;
+        CausationId = causationId;
         ConversationId = null;
         MessageType = messageType;
         Body = body;
@@ -47,9 +50,16 @@ public readonly record struct TransportEnvelope
     public string MessageId { get; init; }
 
     /// <summary>
-    /// Correlation identifier for request/response patterns
+    /// Correlation identifier for linking related messages in a workflow
+    /// All messages in the same workflow/saga should share the same CorrelationId
     /// </summary>
     public string? CorrelationId { get; init; }
+
+    /// <summary>
+    /// Causation identifier indicating which message directly caused this message
+    /// Forms a chain of causality for distributed tracing
+    /// </summary>
+    public string? CausationId { get; init; }
 
     /// <summary>
     /// Conversation identifier for tracking related messages
@@ -192,8 +202,9 @@ public static class TransportEnvelopeExtensions
         this ReadOnlyMemory<byte> body,
         string messageType,
         string? messageId = null,
-        string? correlationId = null)
+        string? correlationId = null,
+        string? causationId = null)
     {
-        return new TransportEnvelope(messageType, body, messageId, correlationId);
+        return new TransportEnvelope(messageType, body, messageId, correlationId, causationId);
     }
 }

@@ -115,6 +115,20 @@ public class MessageProcessingPipelineBuilder(IServiceProvider serviceProvider)
     }
 
     /// <summary>
+    /// Add correlation context tracking to the pipeline
+    /// Enables choreography pattern by automatically propagating correlation and causation IDs
+    /// </summary>
+    public MessageProcessingPipelineBuilder UseCorrelation()
+    {
+        _decorators.Add(processor =>
+        {
+            var logger = _serviceProvider.GetRequiredService<ILogger<CorrelationContextDecorator>>();
+            return new CorrelationContextDecorator(processor, logger);
+        });
+        return this;
+    }
+
+    /// <summary>
     /// Add a custom decorator to the pipeline
     /// </summary>
     public MessageProcessingPipelineBuilder Use(Func<IMessageProcessor, IMessageProcessor> decorator)

@@ -1,43 +1,44 @@
 namespace HeroMessaging.Abstractions.Messages;
 
 /// <summary>
-/// Base interface for all messages in the HeroMessaging system
+/// Base record for implementing messages with correlation tracking
+/// Provides a convenient way to create messages without implementing all properties manually
 /// </summary>
-public interface IMessage
+public abstract record MessageBase : IMessage
 {
     /// <summary>
     /// Unique identifier for this message
     /// </summary>
-    Guid MessageId { get; }
+    public Guid MessageId { get; init; } = Guid.NewGuid();
 
     /// <summary>
     /// When this message was created
     /// </summary>
-    DateTime Timestamp { get; }
+    public DateTime Timestamp { get; init; } = DateTime.UtcNow;
 
     /// <summary>
     /// Correlation identifier for linking related messages in a workflow
     /// All messages in the same workflow/saga should share the same CorrelationId
     /// </summary>
-    string? CorrelationId { get; }
+    public string? CorrelationId { get; init; }
 
     /// <summary>
     /// Causation identifier indicating which message directly caused this message
     /// Forms a chain of causality: Message A (causes) → Message B (causes) → Message C
     /// Used for distributed tracing and debugging workflows
     /// </summary>
-    string? CausationId { get; }
+    public string? CausationId { get; init; }
 
     /// <summary>
     /// Additional metadata for extensibility
     /// </summary>
-    Dictionary<string, object>? Metadata { get; }
+    public Dictionary<string, object>? Metadata { get; init; }
 }
 
 /// <summary>
-/// Message that expects a response
+/// Base record for implementing messages that expect a response
 /// </summary>
 /// <typeparam name="TResponse">Type of the expected response</typeparam>
-public interface IMessage<TResponse> : IMessage
+public abstract record MessageBase<TResponse> : MessageBase, IMessage<TResponse>
 {
 }
