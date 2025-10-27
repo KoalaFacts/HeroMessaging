@@ -2,6 +2,7 @@ using HeroMessaging.Abstractions.Events;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Sagas;
 using HeroMessaging.Orchestration;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace HeroMessaging.Tests.Unit.Orchestration;

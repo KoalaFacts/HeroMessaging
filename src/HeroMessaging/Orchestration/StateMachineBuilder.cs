@@ -128,11 +128,13 @@ public class WhenConfigurator<TSaga, TEvent>
     where TEvent : IEvent
 {
     private readonly StateMachineBuilder<TSaga> _builder;
+    private readonly State _fromState;
     private readonly StateTransition<TSaga, TEvent> _transition;
 
     internal WhenConfigurator(StateMachineBuilder<TSaga> builder, State fromState, Event<TEvent> @event)
     {
         _builder = builder;
+        _fromState = fromState;
         _transition = new StateTransition<TSaga, TEvent>(fromState, @event);
         _builder.AddTransition(fromState, _transition);
     }
@@ -197,6 +199,16 @@ public class WhenConfigurator<TSaga, TEvent>
 
         return this;
     }
+
+    /// <summary>
+    /// Define what happens when another event occurs in the same state
+    /// Allows chaining multiple event handlers for the same state
+    /// </summary>
+    public WhenConfigurator<TSaga, TNewEvent> When<TNewEvent>(Event<TNewEvent> @event)
+        where TNewEvent : IEvent
+    {
+        return new WhenConfigurator<TSaga, TNewEvent>(_builder, _fromState, @event);
+    }
 }
 
 /// <summary>
@@ -206,7 +218,13 @@ public class StateMachineDefinition<TSaga> where TSaga : class, ISaga
 {
     public State InitialState { get; }
     public IReadOnlyCollection<State> FinalStates { get; }
-    internal Dictionary<string, List<object>> Transitions { get; }
+
+    /// <summary>
+    /// Dictionary of state transitions keyed by state name
+    /// Internal for orchestrator use, exposed for testing
+    /// </summary>
+    public Dictionary<string, List<object>> Transitions { get; }
+
     internal List<Func<TSaga, IServiceProvider, Task>> InitialActions { get; }
 
     internal StateMachineDefinition(

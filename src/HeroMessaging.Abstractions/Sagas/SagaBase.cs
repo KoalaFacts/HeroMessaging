@@ -39,7 +39,7 @@ public abstract class SagaBase : ISaga
     /// <summary>
     /// Mark the saga as complete
     /// </summary>
-    protected void Complete()
+    public void Complete()
     {
         IsCompleted = true;
         UpdatedAt = DateTime.UtcNow;
@@ -48,7 +48,7 @@ public abstract class SagaBase : ISaga
     /// <summary>
     /// Transition to a new state
     /// </summary>
-    protected void TransitionTo(string newState)
+    public void TransitionTo(string newState)
     {
         CurrentState = newState;
         UpdatedAt = DateTime.UtcNow;
