@@ -159,14 +159,11 @@ public class InMemorySagaRepositoryTests
 
         // Second thread tries to update with stale version 0
         saga2!.Data = "Update 2";
-        // saga2 still has version 0 (or 1 if same reference), but we need to simulate
-        // that it was fetched before the first update
-        // With in-memory refs this is tricky - reset version to simulate staleness
-        if (saga1 == saga2) // Same reference due to in-memory storage
-        {
-            // Create scenario: pretend saga2 was fetched earlier
-            saga2.Version = 0; // Simulate it still thinks version is 0
-        }
+        // IMPORTANT: In real scenarios, saga1 and saga2 would be different objects fetched
+        // from database at different times. But with in-memory dictionary, they're the same
+        // reference, so saga2.Version was also incremented to 1 by the first update.
+        // Reset it to simulate the concurrent modification scenario:
+        saga2.Version = 0; // Pretend this thread still thinks it has version 0
 
         // Assert - Second update fails due to version mismatch
         await Assert.ThrowsAsync<SagaConcurrencyException>(

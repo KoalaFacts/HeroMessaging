@@ -6,12 +6,14 @@ namespace HeroMessaging.Orchestration;
 /// <summary>
 /// In-memory saga repository for development and testing
 /// Thread-safe implementation using ConcurrentDictionary
+/// Tracks versions separately to support proper optimistic concurrency with reference types
 /// </summary>
 /// <typeparam name="TSaga">Type of saga being stored</typeparam>
 public class InMemorySagaRepository<TSaga> : ISagaRepository<TSaga>
     where TSaga : class, ISaga
 {
     private readonly ConcurrentDictionary<Guid, TSaga> _sagas = new();
+    private readonly ConcurrentDictionary<Guid, int> _versions = new();
 
     /// <summary>
     /// Find a saga by correlation ID
@@ -60,6 +62,9 @@ public class InMemorySagaRepository<TSaga> : ISagaRepository<TSaga>
                 $"Failed to save saga with correlation ID {saga.CorrelationId}");
         }
 
+        // Track initial version separately
+        _versions[saga.CorrelationId] = saga.Version;
+
         return Task.CompletedTask;
     }
 
@@ -74,18 +79,23 @@ public class InMemorySagaRepository<TSaga> : ISagaRepository<TSaga>
         if (saga == null)
             throw new ArgumentNullException(nameof(saga));
 
-        if (!_sagas.TryGetValue(saga.CorrelationId, out var existing))
+        if (!_sagas.ContainsKey(saga.CorrelationId))
         {
             throw new InvalidOperationException(
                 $"Saga with correlation ID {saga.CorrelationId} not found. Use SaveAsync to create new sagas.");
         }
 
-        // Optimistic concurrency check - versions should match (caller should NOT have incremented)
-        if (existing.Version != saga.Version)
+        // Optimistic concurrency check using tracked version
+        if (!_versions.TryGetValue(saga.CorrelationId, out var expectedVersion))
+        {
+            throw new InvalidOperationException($"Version tracking lost for saga {saga.CorrelationId}");
+        }
+
+        if (saga.Version != expectedVersion)
         {
             throw new SagaConcurrencyException(
                 saga.CorrelationId,
-                expectedVersion: existing.Version,
+                expectedVersion: expectedVersion,
                 actualVersion: saga.Version);
         }
 
@@ -93,13 +103,9 @@ public class InMemorySagaRepository<TSaga> : ISagaRepository<TSaga>
         saga.Version++;
         saga.UpdatedAt = DateTime.UtcNow;
 
-        if (!_sagas.TryUpdate(saga.CorrelationId, saga, existing))
-        {
-            throw new SagaConcurrencyException(
-                saga.CorrelationId,
-                expectedVersion: existing.Version,
-                actualVersion: saga.Version - 1);
-        }
+        // Update both saga and tracked version
+        _sagas[saga.CorrelationId] = saga;
+        _versions[saga.CorrelationId] = saga.Version;
 
         return Task.CompletedTask;
     }
@@ -112,6 +118,7 @@ public class InMemorySagaRepository<TSaga> : ISagaRepository<TSaga>
         cancellationToken.ThrowIfCancellationRequested();
 
         _sagas.TryRemove(correlationId, out _);
+        _versions.TryRemove(correlationId, out _);
         return Task.CompletedTask;
     }
 
@@ -145,6 +152,7 @@ public class InMemorySagaRepository<TSaga> : ISagaRepository<TSaga>
     public void Clear()
     {
         _sagas.Clear();
+        _versions.Clear();
     }
 
     /// <summary>
