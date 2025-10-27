@@ -25,7 +25,8 @@ public class ChoreographyWorkflowTests
         var capturedEvents = new List<IMessage>();
 
         services.AddHeroMessaging(builder => builder
-            .WithEventBus()
+            .WithMediator()     // Registers ICommandProcessor and IQueryProcessor
+            .WithEventBus()     // Registers IEventBus
             .ScanAssembly(typeof(ChoreographyWorkflowTests).Assembly));
 
         // Register event tracker
