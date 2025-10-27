@@ -325,4 +325,198 @@ public class RabbitMqTransportExtensionsTests
     }
 
     #endregion
+
+    #region Edge Cases and Validation Tests
+
+    [Fact]
+    public void WithRabbitMq_WithEmptyHost_StillRegisters()
+    {
+        // Act
+        _mockBuilder.Object.WithRabbitMq("");
+
+        // Assert
+        var serviceDescriptor = _services.FirstOrDefault(sd => sd.ServiceType == typeof(IMessageTransport));
+        Assert.NotNull(serviceDescriptor);
+    }
+
+    [Fact]
+    public void WithRabbitMq_WithNullConfigure_DoesNotThrow()
+    {
+        // Act & Assert - should not throw
+        _mockBuilder.Object.WithRabbitMq("localhost", configure: null);
+    }
+
+    [Fact]
+    public void WithRabbitMqSsl_WithNullConfigure_DoesNotThrow()
+    {
+        // Act & Assert - should not throw
+        _mockBuilder.Object.WithRabbitMqSsl("localhost", "user", "pass", configure: null);
+    }
+
+    [Fact]
+    public void WithRabbitMq_ConfigureCalledOnce()
+    {
+        // Arrange
+        int callCount = 0;
+
+        // Act
+        _mockBuilder.Object.WithRabbitMq("localhost", options =>
+        {
+            callCount++;
+        });
+
+        // Assert
+        Assert.Equal(1, callCount);
+    }
+
+    [Fact]
+    public void WithRabbitMq_DefaultOptions_HaveExpectedValues()
+    {
+        // Arrange
+        RabbitMqTransportOptions? capturedOptions = null;
+
+        // Act
+        _mockBuilder.Object.WithRabbitMq("testhost", options =>
+        {
+            capturedOptions = options;
+        });
+
+        // Assert
+        Assert.NotNull(capturedOptions);
+        Assert.Equal("RabbitMQ", capturedOptions.Name);
+        Assert.Equal("testhost", capturedOptions.Host);
+        Assert.Equal("/", capturedOptions.VirtualHost);
+        Assert.Equal(5672, capturedOptions.Port);
+        Assert.Equal(10, capturedOptions.PrefetchCount);
+        Assert.True(capturedOptions.UsePublisherConfirms);
+        Assert.True(capturedOptions.AutoReconnect);
+    }
+
+    [Fact]
+    public void WithRabbitMqSsl_DefaultSslPort_Is5671()
+    {
+        // Arrange
+        RabbitMqTransportOptions? capturedOptions = null;
+
+        // Act
+        _mockBuilder.Object.WithRabbitMqSsl("localhost", "user", "pass", options =>
+        {
+            capturedOptions = options;
+        });
+
+        // Assert
+        Assert.Equal(5671, capturedOptions!.Port);
+    }
+
+    [Fact]
+    public void WithRabbitMqTopology_ComplexTopology_CreatesAllElements()
+    {
+        // Act
+        _mockBuilder.Object.WithRabbitMqTopology(topology =>
+        {
+            // Multiple exchanges
+            topology.Exchange("orders", ExchangeType.Topic);
+            topology.Exchange("events", ExchangeType.Fanout);
+            topology.Exchange("dlx", ExchangeType.Direct);
+
+            // Multiple queues
+            topology.Queue("orders-processing");
+            topology.Queue("orders-failed");
+            topology.Queue("events-all");
+
+            // Multiple bindings
+            topology.Bind("orders", "orders-processing", "order.#");
+            topology.Bind("events", "events-all");
+            topology.Bind("dlx", "orders-failed", "failed");
+        });
+
+        // Assert
+        var provider = _services.BuildServiceProvider();
+        var capturedTopology = provider.GetService<TransportTopology>();
+
+        Assert.NotNull(capturedTopology);
+        Assert.Equal(3, capturedTopology.Exchanges.Count);
+        Assert.Equal(3, capturedTopology.Queues.Count);
+        Assert.Equal(3, capturedTopology.Bindings.Count);
+    }
+
+    [Fact]
+    public void WithRabbitMqTopology_QueueConfiguration_AppliesCorrectly()
+    {
+        // Act
+        _mockBuilder.Object.WithRabbitMqTopology(topology =>
+        {
+            topology.Queue("dlq", q =>
+            {
+                q.Durable = true;
+                q.Exclusive = false;
+                q.AutoDelete = false;
+                q.MaxLength = 1000;
+                q.MessageTtl = TimeSpan.FromHours(1);
+                q.DeadLetterExchange = "dlx-final";
+                q.DeadLetterRoutingKey = "failed";
+                q.MaxPriority = 10;
+            });
+        });
+
+        // Assert
+        var provider = _services.BuildServiceProvider();
+        var topology = provider.GetService<TransportTopology>();
+        var queue = topology!.Queues.First();
+
+        Assert.True(queue.Durable);
+        Assert.False(queue.Exclusive);
+        Assert.False(queue.AutoDelete);
+        Assert.Equal(1000, queue.MaxLength);
+        Assert.Equal(TimeSpan.FromHours(1), queue.MessageTtl);
+        Assert.Equal("dlx-final", queue.DeadLetterExchange);
+        Assert.Equal("failed", queue.DeadLetterRoutingKey);
+        Assert.Equal((byte)10, queue.MaxPriority);
+    }
+
+    [Fact]
+    public void WithRabbitMqTopology_ExchangeConfiguration_AppliesCorrectly()
+    {
+        // Act
+        _mockBuilder.Object.WithRabbitMqTopology(topology =>
+        {
+            topology.Exchange("custom", ExchangeType.Headers, ex =>
+            {
+                ex.Durable = false;
+                ex.AutoDelete = true;
+                ex.Internal = true;
+                ex.Arguments = new Dictionary<string, object>
+                {
+                    ["x-delayed-type"] = "direct"
+                };
+            });
+        });
+
+        // Assert
+        var provider = _services.BuildServiceProvider();
+        var topology = provider.GetService<TransportTopology>();
+        var exchange = topology!.Exchanges.First();
+
+        Assert.Equal("custom", exchange.Name);
+        Assert.Equal(ExchangeType.Headers, exchange.Type);
+        Assert.False(exchange.Durable);
+        Assert.True(exchange.AutoDelete);
+        Assert.True(exchange.Internal);
+        Assert.NotNull(exchange.Arguments);
+        Assert.Equal("direct", exchange.Arguments["x-delayed-type"]);
+    }
+
+    [Fact]
+    public void WithRabbitMq_MultipleRegistrations_OnlyLastIsActive()
+    {
+        // Act - register twice
+        _mockBuilder.Object.WithRabbitMq("host1");
+        _mockBuilder.Object.WithRabbitMq("host2");
+
+        // Assert - should have 2 registrations
+        var descriptors = _services.Where(sd => sd.ServiceType == typeof(IMessageTransport)).ToList();
+        Assert.Equal(2, descriptors.Count);
+    }
+
+    #endregion
 }

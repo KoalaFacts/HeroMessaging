@@ -188,6 +188,46 @@ public class RabbitMqTransportTests : IAsyncLifetime
         Assert.Equal(_options.VirtualHost, health.Data["VirtualHost"]);
     }
 
+    [Fact]
+    public async Task GetHealthAsync_IncludesConsumerCount()
+    {
+        // Act
+        var health = await _transport!.GetHealthAsync();
+
+        // Assert
+        Assert.Equal(0, health.ActiveConsumers);
+        Assert.Equal(0, health.Data["ConsumerCount"]);
+    }
+
+    [Fact]
+    public async Task GetHealthAsync_IncludesConnectionDetails()
+    {
+        // Act
+        var health = await _transport!.GetHealthAsync();
+
+        // Assert
+        Assert.True(health.Data.ContainsKey("Host"));
+        Assert.True(health.Data.ContainsKey("Port"));
+        Assert.True(health.Data.ContainsKey("VirtualHost"));
+        Assert.Equal(_options!.Host, health.Data["Host"]);
+        Assert.Equal(_options.Port, health.Data["Port"]);
+        Assert.Equal(_options.VirtualHost, health.Data["VirtualHost"]);
+    }
+
+    [Fact]
+    public async Task GetHealthAsync_HasTimestamp()
+    {
+        // Arrange
+        var before = DateTime.UtcNow;
+
+        // Act
+        var health = await _transport!.GetHealthAsync();
+
+        // Assert
+        var after = DateTime.UtcNow;
+        Assert.InRange(health.Timestamp, before, after);
+    }
+
     #endregion
 
     #region StateChanged Event Tests
