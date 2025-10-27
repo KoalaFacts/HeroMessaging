@@ -46,6 +46,8 @@ public class MessageStorageHealthCheck(IMessageStorage storage, string name = "m
     {
         public Guid MessageId { get; } = Guid.NewGuid();
         public DateTime Timestamp { get; } = DateTime.UtcNow;
+        public string? CorrelationId { get; }
+        public string? CausationId { get; }
         public Dictionary<string, object>? Metadata { get; }
     }
 }

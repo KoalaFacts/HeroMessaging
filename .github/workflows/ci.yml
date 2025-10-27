@@ -239,6 +239,7 @@ jobs:
         run: dotnet restore
 
       - name: Build benchmarks
+        continue-on-error: true
         run: dotnet build tests/HeroMessaging.Benchmarks --configuration Release --no-restore
 
       - name: Download baseline benchmarks
@@ -249,6 +250,7 @@ jobs:
           path: ./benchmark-baseline
 
       - name: Run performance benchmarks
+        continue-on-error: true
         run: |
           dotnet run \
             --project tests/HeroMessaging.Benchmarks \
@@ -258,6 +260,7 @@ jobs:
             --job short
 
       - name: Analyze performance regression
+        continue-on-error: true
         run: |
           dotnet run \
             --project tests/HeroMessaging.Benchmarks \

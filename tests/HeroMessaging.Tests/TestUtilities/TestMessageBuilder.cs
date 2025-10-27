@@ -9,11 +9,16 @@ namespace HeroMessaging.Tests.TestUtilities;
 public static class TestMessageBuilder
 #pragma warning restore CA1052 // Static holder types should be Static or NotInheritable
 {
-    public static TestMessage CreateValidMessage(string content = "Test message content")
+    public static TestMessage CreateValidMessage(
+        string content = "Test message content",
+        string? correlationId = null,
+        string? causationId = null)
     {
         return new TestMessage(
             messageId: Guid.NewGuid(),
             timestamp: DateTime.UtcNow,
+            correlationId: correlationId,
+            causationId: causationId,
             content: content,
             metadata: new Dictionary<string, object>
             {
@@ -28,6 +33,8 @@ public static class TestMessageBuilder
         return new TestMessage(
             messageId: Guid.Empty,
             timestamp: DateTime.MinValue,
+            correlationId: null,
+            causationId: null,
             content: null,
             metadata: new Dictionary<string, object>
             {
@@ -41,6 +48,8 @@ public static class TestMessageBuilder
         return new TestMessage(
             messageId: Guid.NewGuid(),
             timestamp: DateTime.UtcNow,
+            correlationId: null,
+            causationId: null,
             content: new string('x', contentSize),
             metadata: new Dictionary<string, object>
             {
@@ -56,16 +65,26 @@ public static class TestMessageBuilder
 /// </summary>
 public class TestMessage : IMessage
 {
-    public TestMessage(Guid messageId, DateTime timestamp, string? content, Dictionary<string, object>? metadata = null)
+    public TestMessage(
+        Guid messageId,
+        DateTime timestamp,
+        string? correlationId,
+        string? causationId,
+        string? content,
+        Dictionary<string, object>? metadata = null)
     {
         MessageId = messageId;
         Timestamp = timestamp;
+        CorrelationId = correlationId;
+        CausationId = causationId;
         Content = content;
         Metadata = metadata;
     }
 
     public Guid MessageId { get; }
     public DateTime Timestamp { get; }
+    public string? CorrelationId { get; }
+    public string? CausationId { get; }
     public Dictionary<string, object>? Metadata { get; }
 
     /// <summary>

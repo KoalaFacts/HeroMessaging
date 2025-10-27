@@ -17,10 +17,10 @@ public class EventBusV2 : IEventBus
     private readonly ActionBlock<EventEnvelope> _processingBlock;
     private readonly MessageProcessingPipelineBuilder _pipelineBuilder;
 
-    public EventBusV2(IServiceProvider serviceProvider, ILogger<EventBusV2> logger)
+    public EventBusV2(IServiceProvider serviceProvider, ILogger<EventBusV2>? logger = null)
     {
         _serviceProvider = serviceProvider;
-        _logger = logger;
+        _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<EventBusV2>.Instance;
         _pipelineBuilder = new MessageProcessingPipelineBuilder(serviceProvider);
 
         // Configure default pipeline
@@ -40,6 +40,7 @@ public class EventBusV2 : IEventBus
         _pipelineBuilder
             .UseMetrics()           // Outermost - collect metrics for everything
             .UseLogging()           // Log the entire process
+            .UseCorrelation()       // Track correlation/causation for choreography
             .UseValidation()        // Validate before processing
             .UseErrorHandling()     // Handle errors with dead letter queue
             .UseRetry();            // Innermost - retry the actual processing
