@@ -14,6 +14,16 @@ public class InMemorySagaRepository<TSaga> : ISagaRepository<TSaga>
 {
     private readonly ConcurrentDictionary<Guid, TSaga> _sagas = new();
     private readonly ConcurrentDictionary<Guid, int> _versions = new();
+    private readonly TimeProvider _timeProvider;
+
+    /// <summary>
+    /// Constructor with optional TimeProvider for testability
+    /// </summary>
+    /// <param name="timeProvider">TimeProvider instance (defaults to system time)</param>
+    public InMemorySagaRepository(TimeProvider? timeProvider = null)
+    {
+        _timeProvider = timeProvider ?? TimeProvider.System;
+    }
 
     /// <summary>
     /// Find a saga by correlation ID
@@ -42,6 +52,7 @@ public class InMemorySagaRepository<TSaga> : ISagaRepository<TSaga>
 
     /// <summary>
     /// Save a new saga instance
+    /// Sets CreatedAt and UpdatedAt timestamps automatically
     /// </summary>
     public Task SaveAsync(TSaga saga, CancellationToken cancellationToken = default)
     {
@@ -55,6 +66,11 @@ public class InMemorySagaRepository<TSaga> : ISagaRepository<TSaga>
             throw new InvalidOperationException(
                 $"Saga with correlation ID {saga.CorrelationId} already exists. Use UpdateAsync to modify existing sagas.");
         }
+
+        // Set timestamps for new saga
+        var now = _timeProvider.GetUtcNow().DateTime;
+        saga.CreatedAt = now;
+        saga.UpdatedAt = now;
 
         if (!_sagas.TryAdd(saga.CorrelationId, saga))
         {
@@ -99,9 +115,9 @@ public class InMemorySagaRepository<TSaga> : ISagaRepository<TSaga>
                 actualVersion: saga.Version);
         }
 
-        // Increment version for this update
+        // Increment version and update timestamp for this update
         saga.Version++;
-        saga.UpdatedAt = DateTime.UtcNow;
+        saga.UpdatedAt = _timeProvider.GetUtcNow().DateTime;
 
         // Update both saga and tracked version
         _sagas[saga.CorrelationId] = saga;
@@ -130,7 +146,7 @@ public class InMemorySagaRepository<TSaga> : ISagaRepository<TSaga>
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var cutoffTime = DateTime.UtcNow - olderThan;
+        var cutoffTime = _timeProvider.GetUtcNow().DateTime - olderThan;
         var staleSagas = _sagas.Values
             .Where(s => !s.IsCompleted && s.UpdatedAt < cutoffTime)
             .ToList();

@@ -42,6 +42,9 @@ public static class ExtensionsToIHeroMessagingBuilderForSagas
     {
         var services = builder.Build();
 
+        // Register TimeProvider.System if not already registered
+        services.TryAddSingleton(TimeProvider.System);
+
         // Register state machine definition as singleton
         services.AddSingleton(stateMachineFactory());
 
@@ -81,6 +84,8 @@ public static class ExtensionsToIHeroMessagingBuilderForSagas
         where TSaga : class, ISaga
     {
         var services = builder.Build();
+        // Register TimeProvider.System if not already registered
+        services.TryAddSingleton(TimeProvider.System);
         services.TryAddSingleton<ISagaRepository<TSaga>, InMemorySagaRepository<TSaga>>();
         return builder;
     }
@@ -126,9 +131,15 @@ public interface ISagaBuilder
     ISagaBuilder UseInMemoryRepositories();
 
     /// <summary>
-    /// Configure saga timeout handling
+    /// Configure saga timeout handling (global settings)
     /// </summary>
     ISagaBuilder WithTimeoutHandling(TimeSpan checkInterval, TimeSpan defaultTimeout);
+
+    /// <summary>
+    /// Enable timeout handling for a specific saga type
+    /// </summary>
+    ISagaBuilder WithTimeoutHandling<TSaga>(TimeSpan checkInterval, TimeSpan defaultTimeout)
+        where TSaga : class, ISaga;
 }
 
 /// <summary>
@@ -171,32 +182,34 @@ internal class SagaBuilder : ISagaBuilder
 
     public ISagaBuilder WithTimeoutHandling(TimeSpan checkInterval, TimeSpan defaultTimeout)
     {
-        // Register saga timeout handler service
+        // Register saga timeout handler options
         _services.AddSingleton(new SagaTimeoutOptions
         {
             CheckInterval = checkInterval,
-            DefaultTimeout = defaultTimeout
+            DefaultTimeout = defaultTimeout,
+            Enabled = true
         });
-
-        // TODO: Implement SagaTimeoutHandler as a hosted service
-        // services.AddHostedService<SagaTimeoutHandler>();
 
         return this;
     }
-}
-
-/// <summary>
-/// Options for saga timeout handling
-/// </summary>
-public class SagaTimeoutOptions
-{
-    /// <summary>
-    /// Interval at which to check for stale sagas
-    /// </summary>
-    public TimeSpan CheckInterval { get; set; } = TimeSpan.FromMinutes(1);
 
     /// <summary>
-    /// Default timeout for sagas that don't specify their own
+    /// Enable timeout handling for a specific saga type
     /// </summary>
-    public TimeSpan DefaultTimeout { get; set; } = TimeSpan.FromHours(24);
+    public ISagaBuilder WithTimeoutHandling<TSaga>(TimeSpan checkInterval, TimeSpan defaultTimeout)
+        where TSaga : class, ISaga
+    {
+        // Register saga-specific timeout options
+        _services.AddSingleton(new SagaTimeoutOptions
+        {
+            CheckInterval = checkInterval,
+            DefaultTimeout = defaultTimeout,
+            Enabled = true
+        });
+
+        // Register the timeout handler as a hosted service for this saga type
+        _services.AddHostedService<SagaTimeoutHandler<TSaga>>();
+
+        return this;
+    }
 }

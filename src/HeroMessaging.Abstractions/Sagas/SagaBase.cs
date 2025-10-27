@@ -18,13 +18,15 @@ public abstract class SagaBase : ISaga
 
     /// <summary>
     /// When this saga instance was created
+    /// Set by the saga repository during SaveAsync
     /// </summary>
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; }
 
     /// <summary>
     /// When this saga instance was last updated
+    /// Set by the saga repository during UpdateAsync
     /// </summary>
-    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; }
 
     /// <summary>
     /// Whether this saga has completed (successfully or failed)
@@ -38,19 +40,19 @@ public abstract class SagaBase : ISaga
 
     /// <summary>
     /// Mark the saga as complete
+    /// UpdatedAt will be set by the saga repository during persistence
     /// </summary>
     public void Complete()
     {
         IsCompleted = true;
-        UpdatedAt = DateTime.UtcNow;
     }
 
     /// <summary>
     /// Transition to a new state
+    /// UpdatedAt will be set by the saga repository during persistence
     /// </summary>
     public void TransitionTo(string newState)
     {
         CurrentState = newState;
-        UpdatedAt = DateTime.UtcNow;
     }
 }

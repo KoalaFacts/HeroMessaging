@@ -537,6 +537,56 @@ services.AddLogging(logging =>
 });
 ```
 
+### TimeProvider Integration
+
+HeroMessaging uses `TimeProvider` for all time-related operations in saga orchestration, enabling deterministic testing and controllable time progression.
+
+**Production Usage (Automatic):**
+```csharp
+// TimeProvider.System is automatically registered - no configuration needed
+builder.AddSaga<OrderSaga>(OrderSagaStateMachine.Build);
+builder.UseInMemorySagaRepository<OrderSaga>();
+```
+
+**Testing with FakeTimeProvider:**
+```csharp
+using Microsoft.Extensions.Time.Testing;
+
+// Create fake time provider
+var fakeTime = new FakeTimeProvider();
+fakeTime.SetUtcNow(DateTimeOffset.Parse("2025-10-27T10:00:00Z"));
+
+// Inject into components
+var repository = new InMemorySagaRepository<OrderSaga>(fakeTime);
+var orchestrator = new SagaOrchestrator<OrderSaga>(
+    repository,
+    stateMachine,
+    services,
+    logger,
+    fakeTime);
+
+// Create saga at 10:00
+await orchestrator.ProcessAsync(orderCreated);
+
+// Advance time by 2 hours
+fakeTime.Advance(TimeSpan.FromHours(2));
+
+// Verify timeout detection
+var staleSagas = await repository.FindStaleAsync(TimeSpan.FromHours(1));
+```
+
+**Benefits:**
+- **Deterministic Tests**: Full control over time progression in tests
+- **No Flaky Tests**: Eliminate timing-dependent test failures
+- **Framework Support**: Works across netstandard2.0, net6.0, net7.0, net8.0, net9.0
+- **Zero Overhead**: .NET 8+ has built-in TimeProvider, older versions use polyfill
+
+**Time-Controlled Operations:**
+- Saga CreatedAt/UpdatedAt timestamps
+- Stale saga detection (FindStaleAsync)
+- Timeout monitoring (SagaTimeoutHandler)
+- State transition tracking
+
 ## Comparison with Choreography
 
 | Aspect | Orchestration | Choreography |
