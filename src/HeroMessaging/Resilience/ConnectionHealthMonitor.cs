@@ -9,11 +9,13 @@ namespace HeroMessaging.Resilience;
 /// </summary>
 public class ConnectionHealthMonitor(
     ILogger<ConnectionHealthMonitor> logger,
-    ConnectionHealthOptions? options = null) : BackgroundService
+    ConnectionHealthOptions? options = null,
+    TimeProvider? timeProvider = null) : BackgroundService
 {
     private readonly ILogger<ConnectionHealthMonitor> _logger = logger;
     private readonly ConnectionHealthOptions _options = options ?? new ConnectionHealthOptions();
     private readonly ConcurrentDictionary<string, ConnectionHealthMetrics> _metrics = new();
+    private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
 
 
     /// <summary>
@@ -21,7 +23,7 @@ public class ConnectionHealthMonitor(
     /// </summary>
     public ConnectionHealthMetrics GetMetrics(string operationName)
     {
-        return _metrics.GetOrAdd(operationName, _ => new ConnectionHealthMetrics());
+        return _metrics.GetOrAdd(operationName, _ => new ConnectionHealthMetrics(_timeProvider));
     }
 
     /// <summary>
@@ -77,7 +79,7 @@ public class ConnectionHealthMonitor(
         return new ConnectionHealthReport
         {
             OverallStatus = GetOverallHealth(),
-            Timestamp = DateTime.UtcNow,
+            Timestamp = _timeProvider.GetUtcNow().DateTime,
             OperationMetrics = _metrics.ToDictionary(
                 kvp => kvp.Key,
                 kvp => new OperationHealthData
@@ -128,7 +130,7 @@ public class ConnectionHealthMonitor(
 
     private void CleanupOldMetrics()
     {
-        var cutoff = DateTime.UtcNow - _options.MetricsRetention;
+        var cutoff = _timeProvider.GetUtcNow().DateTime - _options.MetricsRetention;
 
         foreach (var metrics in _metrics.Values)
         {
@@ -143,12 +145,18 @@ public class ConnectionHealthMonitor(
 public class ConnectionHealthMetrics
 {
     private readonly ConcurrentQueue<OperationResult> _recentResults = new();
+    private readonly TimeProvider _timeProvider;
     private long _totalRequests;
     private long _successfulRequests;
     private long _failedRequests;
     private DateTime _lastFailureTime;
     private string _lastFailureReason = string.Empty;
     private bool _circuitBreakerOpen;
+
+    public ConnectionHealthMetrics(TimeProvider? timeProvider = null)
+    {
+        _timeProvider = timeProvider ?? TimeProvider.System;
+    }
 
     public long TotalRequests => _totalRequests;
     public long SuccessfulRequests => _successfulRequests;
@@ -178,7 +186,7 @@ public class ConnectionHealthMetrics
         {
             Success = true,
             Duration = duration,
-            Timestamp = DateTime.UtcNow
+            Timestamp = _timeProvider.GetUtcNow().DateTime
         });
 
         _circuitBreakerOpen = false;
@@ -189,14 +197,15 @@ public class ConnectionHealthMetrics
         Interlocked.Increment(ref _totalRequests);
         Interlocked.Increment(ref _failedRequests);
 
-        _lastFailureTime = DateTime.UtcNow;
+        var now = _timeProvider.GetUtcNow().DateTime;
+        _lastFailureTime = now;
         _lastFailureReason = exception.Message;
 
         _recentResults.Enqueue(new OperationResult
         {
             Success = false,
             Duration = duration,
-            Timestamp = DateTime.UtcNow,
+            Timestamp = now,
             Exception = exception
         });
     }
