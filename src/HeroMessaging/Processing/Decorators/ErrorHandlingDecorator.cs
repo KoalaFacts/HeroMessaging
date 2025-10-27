@@ -13,12 +13,12 @@ public class ErrorHandlingDecorator(
     IErrorHandler errorHandler,
     ILogger<ErrorHandlingDecorator> logger,
     int maxRetries = 3,
-    TimeProvider? timeProvider = null) : MessageProcessorDecorator(inner)
+    TimeProvider timeProvider) : MessageProcessorDecorator(inner)
 {
     private readonly IErrorHandler _errorHandler = errorHandler;
     private readonly ILogger<ErrorHandlingDecorator> _logger = logger;
     private readonly int _maxRetries = maxRetries;
-    private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
+    private readonly TimeProvider _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
     public override async ValueTask<ProcessingResult> ProcessAsync(IMessage message, ProcessingContext context, CancellationToken cancellationToken = default)
     {

@@ -11,14 +11,14 @@ public class CircuitBreakerRetryPolicy(
     int failureThreshold = 5,
     TimeSpan? openCircuitDuration = null,
     TimeSpan? baseDelay = null,
-    TimeProvider? timeProvider = null) : IRetryPolicy
+    TimeProvider timeProvider) : IRetryPolicy
 {
     public int MaxRetries { get; } = maxRetries;
     private readonly int _failureThreshold = failureThreshold;
     private readonly TimeSpan _openCircuitDuration = openCircuitDuration ?? TimeSpan.FromMinutes(1);
     private readonly TimeSpan _baseDelay = baseDelay ?? TimeSpan.FromSeconds(1);
     private readonly ConcurrentDictionary<string, CircuitState> _circuits = new();
-    private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
+    private readonly TimeProvider _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
 
     public bool ShouldRetry(Exception? exception, int attemptNumber)

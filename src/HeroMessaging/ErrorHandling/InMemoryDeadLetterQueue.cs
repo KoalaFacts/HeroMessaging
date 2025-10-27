@@ -5,11 +5,11 @@ using System.Collections.Concurrent;
 
 namespace HeroMessaging.ErrorHandling;
 
-public class InMemoryDeadLetterQueue(ILogger<InMemoryDeadLetterQueue> logger, TimeProvider? timeProvider = null) : IDeadLetterQueue
+public class InMemoryDeadLetterQueue(ILogger<InMemoryDeadLetterQueue> logger, TimeProvider timeProvider) : IDeadLetterQueue
 {
     private readonly ConcurrentDictionary<string, object> _deadLetters = new();
     private readonly ILogger<InMemoryDeadLetterQueue> _logger = logger;
-    private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
+    private readonly TimeProvider _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
     public Task<string> SendToDeadLetter<T>(T message, DeadLetterContext context, CancellationToken cancellationToken = default) where T : IMessage
     {

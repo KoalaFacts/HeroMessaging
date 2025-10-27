@@ -19,12 +19,12 @@ public class SqlServerMessageStorage : IMessageStorage
     private readonly SqlTransaction? _sharedTransaction;
     private readonly TimeProvider _timeProvider;
 
-    public SqlServerMessageStorage(SqlServerStorageOptions options, TimeProvider? timeProvider = null)
+    public SqlServerMessageStorage(SqlServerStorageOptions options, TimeProvider timeProvider)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _connectionString = options.ConnectionString;
         _tableName = _options.GetFullTableName(_options.MessagesTableName);
-        _timeProvider = timeProvider ?? TimeProvider.System;
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
         _jsonOptions = new JsonSerializerOptions
         {
@@ -38,7 +38,7 @@ public class SqlServerMessageStorage : IMessageStorage
     /// <summary>
     /// Constructor for transaction-aware operations with shared connection and transaction
     /// </summary>
-    public SqlServerMessageStorage(SqlConnection connection, SqlTransaction? transaction, TimeProvider? timeProvider = null)
+    public SqlServerMessageStorage(SqlConnection connection, SqlTransaction? transaction, TimeProvider timeProvider)
     {
         _sharedConnection = connection ?? throw new ArgumentNullException(nameof(connection));
         _sharedTransaction = transaction;
@@ -47,7 +47,7 @@ public class SqlServerMessageStorage : IMessageStorage
         _options = new SqlServerStorageOptions { ConnectionString = connection.ConnectionString };
         _connectionString = connection.ConnectionString;
         _tableName = _options.GetFullTableName(_options.MessagesTableName);
-        _timeProvider = timeProvider ?? TimeProvider.System;
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
         _jsonOptions = new JsonSerializerOptions
         {

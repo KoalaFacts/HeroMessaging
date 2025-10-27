@@ -23,12 +23,12 @@ public class EventBus : IEventBus, IProcessor
 
     public bool IsRunning { get; private set; } = true;
 
-    public EventBus(IServiceProvider serviceProvider, ILogger<EventBus>? logger = null, IErrorHandler? errorHandler = null, TimeProvider? timeProvider = null)
+    public EventBus(IServiceProvider serviceProvider, ILogger<EventBus>? logger = null, IErrorHandler? errorHandler = null, TimeProvider timeProvider)
     {
         _serviceProvider = serviceProvider;
         _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<EventBus>.Instance;
         _errorHandler = errorHandler;
-        _timeProvider = timeProvider ?? TimeProvider.System;
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
         _processingBlock = new ActionBlock<EventEnvelope>(
             ProcessEvent,

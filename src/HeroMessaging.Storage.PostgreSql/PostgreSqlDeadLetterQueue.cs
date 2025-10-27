@@ -16,11 +16,11 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
     private readonly string _tableName;
     private readonly TimeProvider _timeProvider;
 
-    public PostgreSqlDeadLetterQueue(PostgreSqlStorageOptions options, TimeProvider? timeProvider = null)
+    public PostgreSqlDeadLetterQueue(PostgreSqlStorageOptions options, TimeProvider timeProvider)
     {
         _options = options;
         _tableName = _options.GetFullTableName(_options.DeadLetterTableName);
-        _timeProvider = timeProvider ?? TimeProvider.System;
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,

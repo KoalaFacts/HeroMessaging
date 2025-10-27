@@ -9,9 +9,9 @@ public class InMemoryMessageStorage : IMessageStorage
     private readonly ConcurrentDictionary<string, StoredMessage> _messages = new();
     private readonly TimeProvider _timeProvider;
 
-    public InMemoryMessageStorage(TimeProvider? timeProvider = null)
+    public InMemoryMessageStorage(TimeProvider timeProvider)
     {
-        _timeProvider = timeProvider ?? TimeProvider.System;
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
 
     public Task<string> Store(IMessage message, MessageStorageOptions? options = null, CancellationToken cancellationToken = default)

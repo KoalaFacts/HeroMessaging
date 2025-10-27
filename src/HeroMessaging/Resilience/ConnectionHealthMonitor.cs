@@ -10,12 +10,12 @@ namespace HeroMessaging.Resilience;
 public class ConnectionHealthMonitor(
     ILogger<ConnectionHealthMonitor> logger,
     ConnectionHealthOptions? options = null,
-    TimeProvider? timeProvider = null) : BackgroundService
+    TimeProvider timeProvider) : BackgroundService
 {
     private readonly ILogger<ConnectionHealthMonitor> _logger = logger;
     private readonly ConnectionHealthOptions _options = options ?? new ConnectionHealthOptions();
     private readonly ConcurrentDictionary<string, ConnectionHealthMetrics> _metrics = new();
-    private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
+    private readonly TimeProvider _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
 
     /// <summary>
@@ -153,9 +153,9 @@ public class ConnectionHealthMetrics
     private string _lastFailureReason = string.Empty;
     private bool _circuitBreakerOpen;
 
-    public ConnectionHealthMetrics(TimeProvider? timeProvider = null)
+    public ConnectionHealthMetrics(TimeProvider timeProvider)
     {
-        _timeProvider = timeProvider ?? TimeProvider.System;
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
 
     public long TotalRequests => _totalRequests;

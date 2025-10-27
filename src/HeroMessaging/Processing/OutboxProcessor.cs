@@ -24,12 +24,12 @@ public class OutboxProcessor : IOutboxProcessor
         IOutboxStorage outboxStorage,
         IServiceProvider serviceProvider,
         ILogger<OutboxProcessor> logger,
-        TimeProvider? timeProvider = null)
+        TimeProvider timeProvider)
     {
         _outboxStorage = outboxStorage;
         _serviceProvider = serviceProvider;
         _logger = logger;
-        _timeProvider = timeProvider ?? TimeProvider.System;
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
         _processingBlock = new ActionBlock<OutboxEntry>(
             ProcessOutboxEntry,

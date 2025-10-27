@@ -17,12 +17,12 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
     private readonly string _tableName;
     private readonly TimeProvider _timeProvider;
 
-    public SqlServerDeadLetterQueue(SqlServerStorageOptions options, TimeProvider? timeProvider = null)
+    public SqlServerDeadLetterQueue(SqlServerStorageOptions options, TimeProvider timeProvider)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _connectionString = options.ConnectionString;
         _tableName = _options.GetFullTableName(_options.DeadLetterTableName);
-        _timeProvider = timeProvider ?? TimeProvider.System;
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,

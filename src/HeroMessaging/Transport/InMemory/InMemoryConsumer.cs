@@ -36,14 +36,14 @@ internal class InMemoryConsumer : ITransportConsumer
         Func<TransportEnvelope, MessageContext, CancellationToken, Task> handler,
         ConsumerOptions options,
         InMemoryTransport transport,
-        TimeProvider? timeProvider = null)
+        TimeProvider timeProvider)
     {
         ConsumerId = consumerId ?? throw new ArgumentNullException(nameof(consumerId));
         Source = source;
         _handler = handler ?? throw new ArgumentNullException(nameof(handler));
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _transport = transport ?? throw new ArgumentNullException(nameof(transport));
-        _timeProvider = timeProvider ?? TimeProvider.System;
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
         _concurrencyLimiter = new SemaphoreSlim(options.ConcurrentMessageLimit, options.ConcurrentMessageLimit);
 

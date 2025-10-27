@@ -19,11 +19,11 @@ public class CircuitBreakerDecorator : MessageProcessorDecorator
         IMessageProcessor inner,
         ILogger<CircuitBreakerDecorator> logger,
         CircuitBreakerOptions? options = null,
-        TimeProvider? timeProvider = null) : base(inner)
+        TimeProvider timeProvider) : base(inner)
     {
         _logger = logger;
         _options = options ?? new CircuitBreakerOptions();
-        _state = new CircuitBreakerState(_options, timeProvider ?? TimeProvider.System);
+        _state = new CircuitBreakerState(_options, timeProvider ?? throw new ArgumentNullException(nameof(timeProvider)));
     }
 
     public override async ValueTask<ProcessingResult> ProcessAsync(

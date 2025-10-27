@@ -10,9 +10,9 @@ public class InMemoryOutboxStorage : IOutboxStorage
     private readonly ConcurrentDictionary<string, OutboxEntry> _entries = new();
     private readonly TimeProvider _timeProvider;
 
-    public InMemoryOutboxStorage(TimeProvider? timeProvider = null)
+    public InMemoryOutboxStorage(TimeProvider timeProvider)
     {
-        _timeProvider = timeProvider ?? TimeProvider.System;
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
 
     public Task<OutboxEntry> Add(IMessage message, OutboxOptions options, CancellationToken cancellationToken = default)

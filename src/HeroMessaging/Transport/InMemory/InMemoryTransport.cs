@@ -32,10 +32,10 @@ public class InMemoryTransport : IMessageTransport
     /// <inheritdoc/>
     public event EventHandler<TransportErrorEventArgs>? Error;
 
-    public InMemoryTransport(InMemoryTransportOptions options, TimeProvider? timeProvider = null)
+    public InMemoryTransport(InMemoryTransportOptions options, TimeProvider timeProvider)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
-        _timeProvider = timeProvider ?? TimeProvider.System;
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
 
     /// <inheritdoc/>

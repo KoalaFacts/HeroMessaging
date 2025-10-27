@@ -5,11 +5,11 @@ using Microsoft.Extensions.Logging;
 
 namespace HeroMessaging.ErrorHandling;
 
-public class DefaultErrorHandler(ILogger<DefaultErrorHandler> logger, IDeadLetterQueue deadLetterQueue, TimeProvider? timeProvider = null) : IErrorHandler
+public class DefaultErrorHandler(ILogger<DefaultErrorHandler> logger, IDeadLetterQueue deadLetterQueue, TimeProvider timeProvider) : IErrorHandler
 {
     private readonly ILogger<DefaultErrorHandler> _logger = logger;
     private readonly IDeadLetterQueue _deadLetterQueue = deadLetterQueue;
-    private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
+    private readonly TimeProvider _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
     public async Task<ErrorHandlingResult> HandleError<T>(T message, Exception error, ErrorContext context, CancellationToken cancellationToken = default) where T : IMessage
     {

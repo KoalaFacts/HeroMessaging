@@ -10,9 +10,9 @@ public class InMemoryQueueStorage : IQueueStorage
     private readonly ConcurrentDictionary<string, Queue> _queues = new();
     private readonly TimeProvider _timeProvider;
 
-    public InMemoryQueueStorage(TimeProvider? timeProvider = null)
+    public InMemoryQueueStorage(TimeProvider timeProvider)
     {
-        _timeProvider = timeProvider ?? TimeProvider.System;
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
 
     public Task<QueueEntry> Enqueue(string queueName, IMessage message, EnqueueOptions? options = null, CancellationToken cancellationToken = default)

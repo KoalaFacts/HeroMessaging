@@ -10,9 +10,9 @@ public class InMemoryInboxStorage : IInboxStorage
     private readonly ConcurrentDictionary<string, InboxEntry> _entries = new();
     private readonly TimeProvider _timeProvider;
 
-    public InMemoryInboxStorage(TimeProvider? timeProvider = null)
+    public InMemoryInboxStorage(TimeProvider timeProvider)
     {
-        _timeProvider = timeProvider ?? TimeProvider.System;
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
 
     public Task<InboxEntry?> Add(IMessage message, InboxOptions options, CancellationToken cancellationToken = default)

@@ -37,12 +37,12 @@ public sealed class RabbitMqTransport : IMessageTransport
     public RabbitMqTransport(
         RabbitMqTransportOptions options,
         ILoggerFactory loggerFactory,
-        TimeProvider? timeProvider = null)
+        TimeProvider timeProvider)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
         _logger = loggerFactory.CreateLogger<RabbitMqTransport>();
-        _timeProvider = timeProvider ?? TimeProvider.System;
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
         _logger.LogInformation(
             "RabbitMQ transport created. Name: {Name}, Host: {Host}, Port: {Port}, VirtualHost: {VirtualHost}",

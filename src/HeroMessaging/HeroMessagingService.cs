@@ -15,7 +15,7 @@ public class HeroMessagingService(
     IQueueProcessor? queueProcessor = null,
     IOutboxProcessor? outboxProcessor = null,
     IInboxProcessor? inboxProcessor = null,
-    TimeProvider? timeProvider = null) : IHeroMessaging
+    TimeProvider timeProvider) : IHeroMessaging
 {
     private readonly ICommandProcessor _commandProcessor = commandProcessor;
     private readonly IQueryProcessor _queryProcessor = queryProcessor;
@@ -23,7 +23,7 @@ public class HeroMessagingService(
     private readonly IQueueProcessor? _queueProcessor = queueProcessor;
     private readonly IOutboxProcessor? _outboxProcessor = outboxProcessor;
     private readonly IInboxProcessor? _inboxProcessor = inboxProcessor;
-    private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
+    private readonly TimeProvider _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
     private readonly MessagingMetrics _metrics = new();
 

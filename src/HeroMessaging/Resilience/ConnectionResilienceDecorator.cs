@@ -98,13 +98,13 @@ public class DefaultConnectionResiliencePolicy(
     ConnectionResilienceOptions options,
     ILogger<DefaultConnectionResiliencePolicy> logger,
     ConnectionHealthMonitor? healthMonitor = null,
-    TimeProvider? timeProvider = null) : IConnectionResiliencePolicy
+    TimeProvider timeProvider) : IConnectionResiliencePolicy
 {
     private readonly ConnectionResilienceOptions _options = options ?? throw new ArgumentNullException(nameof(options));
     private readonly ILogger<DefaultConnectionResiliencePolicy> _logger = logger;
     private readonly ConnectionCircuitBreaker _circuitBreaker = new ConnectionCircuitBreaker(options.CircuitBreakerOptions, logger);
     private readonly ConnectionHealthMonitor? _healthMonitor = healthMonitor;
-    private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
+    private readonly TimeProvider _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
     public async Task ExecuteAsync(Func<Task> operation, string operationName, CancellationToken cancellationToken = default)
     {
