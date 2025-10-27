@@ -206,7 +206,8 @@ public class ConditionalWhenConfigurator<TSaga, TEvent>
             {
                 if (_condition(ctx))
                 {
-                    ctx.Instance.TransitionTo(_thenState.Name);
+                    ctx.Instance.CurrentState = _thenState.Name;
+                    ctx.Instance.UpdatedAt = DateTime.UtcNow;
                 }
                 return Task.CompletedTask;
             });
@@ -278,7 +279,8 @@ public class ElseConfigurator<TSaga, TEvent>
         {
             if (!_condition(ctx))
             {
-                ctx.Instance.TransitionTo(state.Name);
+                ctx.Instance.CurrentState = state.Name;
+                ctx.Instance.UpdatedAt = DateTime.UtcNow;
             }
             return Task.CompletedTask;
         });
