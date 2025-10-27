@@ -19,6 +19,11 @@ public class EnhancedBuilderTests
         // Arrange
         var builder = new StateMachineBuilder<TestSaga>();
 
+        // Configure initial state first
+        builder.Initially()
+            .When(new Event<TestEvent>("StartEvent"))
+            .TransitionTo(new State("TestState"));
+
         // Act - Use InState instead of During(new State(...))
         builder.InState("TestState")
             .When(new Event<TestEvent>("TestEvent"))
