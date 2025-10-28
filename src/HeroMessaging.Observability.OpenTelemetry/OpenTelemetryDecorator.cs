@@ -10,6 +10,8 @@ namespace HeroMessaging.Observability.OpenTelemetry;
 /// </summary>
 public class OpenTelemetryDecorator(IMessageProcessor inner) : MessageProcessorDecorator(inner)
 {
+    private readonly IMessageProcessor _innerProcessor = inner ?? throw new ArgumentNullException(nameof(inner));
+
     public override async ValueTask<ProcessingResult> ProcessAsync(IMessage message, ProcessingContext context, CancellationToken cancellationToken = default)
     {
         var messageType = message.GetType().Name;
@@ -26,7 +28,7 @@ public class OpenTelemetryDecorator(IMessageProcessor inner) : MessageProcessorD
 
         try
         {
-            var result = await _inner.ProcessAsync(message, context, cancellationToken);
+            var result = await _innerProcessor.ProcessAsync(message, context, cancellationToken);
             stopwatch.Stop();
 
             // Record processing duration metric
