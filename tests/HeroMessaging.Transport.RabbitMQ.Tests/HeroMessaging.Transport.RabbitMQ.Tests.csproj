@@ -28,6 +28,7 @@
 	<ItemGroup>
 		<ProjectReference Include="..\..\src\HeroMessaging.Transport.RabbitMQ\HeroMessaging.Transport.RabbitMQ.csproj" />
 		<ProjectReference Include="..\..\src\HeroMessaging.Abstractions\HeroMessaging.Abstractions.csproj" />
+		<ProjectReference Include="..\..\src\HeroMessaging.Observability.OpenTelemetry\HeroMessaging.Observability.OpenTelemetry.csproj" />
 		<ProjectReference Include="..\HeroMessaging.Tests\HeroMessaging.Tests.csproj" />
 	</ItemGroup>
 

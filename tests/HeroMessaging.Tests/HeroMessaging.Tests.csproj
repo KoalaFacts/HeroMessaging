@@ -31,6 +31,7 @@
 	<ItemGroup>
 		<ProjectReference Include="..\..\src\HeroMessaging\HeroMessaging.csproj" />
 		<ProjectReference Include="..\..\src\HeroMessaging.Abstractions\HeroMessaging.Abstractions.csproj" />
+		<ProjectReference Include="..\..\src\HeroMessaging.Observability.OpenTelemetry\HeroMessaging.Observability.OpenTelemetry.csproj" />
 		<ProjectReference Include="..\..\src\HeroMessaging.Storage.SqlServer\HeroMessaging.Storage.SqlServer.csproj" />
 		<ProjectReference Include="..\..\src\HeroMessaging.Storage.PostgreSql\HeroMessaging.Storage.PostgreSql.csproj" />
 	</ItemGroup>
