@@ -27,9 +27,9 @@ public static class ServiceCollectionExtensions
         var services = builder as IServiceCollection ?? throw new InvalidOperationException("Builder must implement IServiceCollection");
 
         services.AddSingleton(options);
-        services.AddSingleton<IMessageStorage>(new SqlServerMessageStorage(options));
-        services.AddSingleton<IOutboxStorage>(new SqlServerOutboxStorage(options));
-        services.AddSingleton<IDeadLetterQueue>(new SqlServerDeadLetterQueue(options));
+        services.AddSingleton<IMessageStorage>(sp => new SqlServerMessageStorage(options, sp.GetRequiredService<TimeProvider>()));
+        services.AddSingleton<IOutboxStorage>(sp => new SqlServerOutboxStorage(options, sp.GetRequiredService<TimeProvider>()));
+        services.AddSingleton<IDeadLetterQueue>(sp => new SqlServerDeadLetterQueue(options, sp.GetRequiredService<TimeProvider>()));
 
         return builder;
     }
@@ -50,7 +50,7 @@ public static class ServiceCollectionExtensions
     public static IHeroMessagingBuilder UseSqlServerMessageStorage(this IHeroMessagingBuilder builder, SqlServerStorageOptions options)
     {
         var services = builder as IServiceCollection ?? throw new InvalidOperationException("Builder must implement IServiceCollection");
-        services.AddSingleton<IMessageStorage>(new SqlServerMessageStorage(options));
+        services.AddSingleton<IMessageStorage>(sp => new SqlServerMessageStorage(options, sp.GetRequiredService<TimeProvider>()));
         return builder;
     }
 
@@ -60,7 +60,7 @@ public static class ServiceCollectionExtensions
     public static IHeroMessagingBuilder UseSqlServerOutbox(this IHeroMessagingBuilder builder, SqlServerStorageOptions options)
     {
         var services = builder as IServiceCollection ?? throw new InvalidOperationException("Builder must implement IServiceCollection");
-        services.AddSingleton<IOutboxStorage>(new SqlServerOutboxStorage(options));
+        services.AddSingleton<IOutboxStorage>(sp => new SqlServerOutboxStorage(options, sp.GetRequiredService<TimeProvider>()));
         return builder;
     }
 
@@ -70,7 +70,7 @@ public static class ServiceCollectionExtensions
     public static IHeroMessagingBuilder UseSqlServerDeadLetterQueue(this IHeroMessagingBuilder builder, SqlServerStorageOptions options)
     {
         var services = builder as IServiceCollection ?? throw new InvalidOperationException("Builder must implement IServiceCollection");
-        services.AddSingleton<IDeadLetterQueue>(new SqlServerDeadLetterQueue(options));
+        services.AddSingleton<IDeadLetterQueue>(sp => new SqlServerDeadLetterQueue(options, sp.GetRequiredService<TimeProvider>()));
         return builder;
     }
 }

@@ -9,17 +9,20 @@ public class SqlServerQueueStorage : IQueueStorage
     private readonly SqlConnection? _sharedConnection;
     private readonly SqlTransaction? _sharedTransaction;
     private readonly string _connectionString;
+    private readonly TimeProvider _timeProvider;
 
-    public SqlServerQueueStorage(string connectionString)
+    public SqlServerQueueStorage(string connectionString, TimeProvider timeProvider)
     {
         _connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
 
-    public SqlServerQueueStorage(SqlConnection connection, SqlTransaction? transaction)
+    public SqlServerQueueStorage(SqlConnection connection, SqlTransaction? transaction, TimeProvider timeProvider)
     {
         _sharedConnection = connection ?? throw new ArgumentNullException(nameof(connection));
         _sharedTransaction = transaction;
         _connectionString = connection.ConnectionString;
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
 
     public Task<QueueEntry> Enqueue(string queueName, IMessage message, Abstractions.EnqueueOptions? options = null, CancellationToken cancellationToken = default)

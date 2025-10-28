@@ -17,12 +17,12 @@ public class InMemorySagaRepository<TSaga> : ISagaRepository<TSaga>
     private readonly TimeProvider _timeProvider;
 
     /// <summary>
-    /// Constructor with optional TimeProvider for testability
+    /// Constructor with required TimeProvider for testability
     /// </summary>
-    /// <param name="timeProvider">TimeProvider instance (defaults to system time)</param>
-    public InMemorySagaRepository(TimeProvider? timeProvider = null)
+    /// <param name="timeProvider">TimeProvider instance for time-based operations</param>
+    public InMemorySagaRepository(TimeProvider timeProvider)
     {
-        _timeProvider = timeProvider ?? TimeProvider.System;
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
 
     /// <summary>

@@ -14,11 +14,13 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
     private readonly PostgreSqlStorageOptions _options;
     private readonly JsonSerializerOptions _jsonOptions;
     private readonly string _tableName;
+    private readonly TimeProvider _timeProvider;
 
-    public PostgreSqlDeadLetterQueue(PostgreSqlStorageOptions options)
+    public PostgreSqlDeadLetterQueue(PostgreSqlStorageOptions options, TimeProvider timeProvider)
     {
         _options = options;
         _tableName = _options.GetFullTableName(_options.DeadLetterTableName);
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
@@ -100,7 +102,7 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         command.Parameters.AddWithValue("@retry_count", context.RetryCount);
         command.Parameters.AddWithValue("@failure_time", context.FailureTime);
         command.Parameters.AddWithValue("@status", (int)DeadLetterStatus.Active);
-        command.Parameters.AddWithValue("@created_at", DateTime.UtcNow);
+        command.Parameters.AddWithValue("@created_at", _timeProvider.GetUtcNow().DateTime);
         command.Parameters.AddWithValue("@exception_message", context.Exception?.Message ?? (object)DBNull.Value);
         command.Parameters.AddWithValue("@metadata", NpgsqlDbType.Jsonb,
             context.Metadata.Any() ? JsonSerializer.Serialize(context.Metadata, _jsonOptions) : (object)DBNull.Value);
@@ -190,7 +192,7 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         };
 
         command.Parameters.AddWithValue("@status", (int)DeadLetterStatus.Retried);
-        command.Parameters.AddWithValue("@retried_at", DateTime.UtcNow);
+        command.Parameters.AddWithValue("@retried_at", _timeProvider.GetUtcNow().DateTime);
         command.Parameters.AddWithValue("@id", deadLetterId);
         command.Parameters.AddWithValue("@active_status", (int)DeadLetterStatus.Active);
 
@@ -215,7 +217,7 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         };
 
         command.Parameters.AddWithValue("@status", (int)DeadLetterStatus.Discarded);
-        command.Parameters.AddWithValue("@discarded_at", DateTime.UtcNow);
+        command.Parameters.AddWithValue("@discarded_at", _timeProvider.GetUtcNow().DateTime);
         command.Parameters.AddWithValue("@id", deadLetterId);
         command.Parameters.AddWithValue("@active_status", (int)DeadLetterStatus.Active);
 

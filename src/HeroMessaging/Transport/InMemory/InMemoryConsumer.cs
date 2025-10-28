@@ -16,6 +16,7 @@ internal class InMemoryConsumer : ITransportConsumer
     private readonly CancellationTokenSource _cts = new();
     private Task? _processingTask;
     private bool _isActive;
+    private readonly TimeProvider _timeProvider;
 
     private readonly ConsumerMetrics _metrics = new();
     private readonly SemaphoreSlim _concurrencyLimiter;
@@ -34,13 +35,15 @@ internal class InMemoryConsumer : ITransportConsumer
         TransportAddress source,
         Func<TransportEnvelope, MessageContext, CancellationToken, Task> handler,
         ConsumerOptions options,
-        InMemoryTransport transport)
+        InMemoryTransport transport,
+        TimeProvider timeProvider)
     {
         ConsumerId = consumerId ?? throw new ArgumentNullException(nameof(consumerId));
         Source = source;
         _handler = handler ?? throw new ArgumentNullException(nameof(handler));
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _transport = transport ?? throw new ArgumentNullException(nameof(transport));
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
         _concurrencyLimiter = new SemaphoreSlim(options.ConcurrentMessageLimit, options.ConcurrentMessageLimit);
 
@@ -134,7 +137,7 @@ internal class InMemoryConsumer : ITransportConsumer
         await _concurrencyLimiter.WaitAsync(cancellationToken);
         _metrics.CurrentlyProcessing++;
 
-        var startTime = DateTime.UtcNow;
+        var startTime = _timeProvider.GetUtcNow().DateTime;
         _metrics.MessagesReceived++;
         _metrics.LastMessageReceived = startTime;
 
@@ -178,10 +181,10 @@ internal class InMemoryConsumer : ITransportConsumer
             }
 
             _metrics.RecordSuccess();
-            _metrics.LastMessageProcessed = DateTime.UtcNow;
+            _metrics.LastMessageProcessed = _timeProvider.GetUtcNow().DateTime;
 
             // Update average processing duration
-            var duration = DateTime.UtcNow - startTime;
+            var duration = _timeProvider.GetUtcNow().DateTime - startTime;
             UpdateAverageProcessingDuration(duration);
         }
         catch (Exception ex)

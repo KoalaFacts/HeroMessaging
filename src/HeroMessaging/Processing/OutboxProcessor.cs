@@ -18,15 +18,18 @@ public class OutboxProcessor : IOutboxProcessor
     private readonly ActionBlock<OutboxEntry> _processingBlock;
     private CancellationTokenSource? _cancellationTokenSource;
     private Task? _pollingTask;
+    private readonly TimeProvider _timeProvider;
 
     public OutboxProcessor(
         IOutboxStorage outboxStorage,
         IServiceProvider serviceProvider,
-        ILogger<OutboxProcessor> logger)
+        ILogger<OutboxProcessor> logger,
+        TimeProvider timeProvider)
     {
         _outboxStorage = outboxStorage;
         _serviceProvider = serviceProvider;
         _logger = logger;
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
         _processingBlock = new ActionBlock<OutboxEntry>(
             ProcessOutboxEntry,
@@ -153,7 +156,7 @@ public class OutboxProcessor : IOutboxProcessor
             else
             {
                 var delay = entry.Options.RetryDelay ?? TimeSpan.FromSeconds(Math.Pow(2, entry.RetryCount));
-                var nextRetry = DateTime.UtcNow.Add(delay);
+                var nextRetry = _timeProvider.GetUtcNow().DateTime.Add(delay);
 
                 await _outboxStorage.UpdateRetryCount(entry.Id, entry.RetryCount, nextRetry);
 

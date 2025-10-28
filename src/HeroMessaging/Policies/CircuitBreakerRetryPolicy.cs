@@ -7,6 +7,7 @@ namespace HeroMessaging.Policies;
 /// Circuit breaker retry policy that stops retrying after too many failures
 /// </summary>
 public class CircuitBreakerRetryPolicy(
+    TimeProvider timeProvider,
     int maxRetries = 3,
     int failureThreshold = 5,
     TimeSpan? openCircuitDuration = null,
@@ -17,6 +18,7 @@ public class CircuitBreakerRetryPolicy(
     private readonly TimeSpan _openCircuitDuration = openCircuitDuration ?? TimeSpan.FromMinutes(1);
     private readonly TimeSpan _baseDelay = baseDelay ?? TimeSpan.FromSeconds(1);
     private readonly ConcurrentDictionary<string, CircuitState> _circuits = new();
+    private readonly TimeProvider _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
 
     public bool ShouldRetry(Exception? exception, int attemptNumber)
@@ -25,12 +27,12 @@ public class CircuitBreakerRetryPolicy(
         if (exception == null) return false;
 
         var circuitKey = GetCircuitKey(exception);
-        var state = _circuits.GetOrAdd(circuitKey, _ => new CircuitState());
+        var state = _circuits.GetOrAdd(circuitKey, _ => new CircuitState(_timeProvider));
 
         // Check if circuit is open
         if (state.IsOpen)
         {
-            if (DateTime.UtcNow - state.OpenedAt > _openCircuitDuration)
+            if (_timeProvider.GetUtcNow().DateTime - state.OpenedAt > _openCircuitDuration)
             {
                 // Try to close the circuit
                 state.Reset();
@@ -66,12 +68,13 @@ public class CircuitBreakerRetryPolicy(
         return $"{exception.GetType().Name}:{exception.Message?.GetHashCode()}";
     }
 
-    private class CircuitState
+    private class CircuitState(TimeProvider timeProvider)
     {
         private int _failureCount;
         private DateTime _openedAt;
         private bool _isOpen;
         private readonly object _lock = new();
+        private readonly TimeProvider _timeProvider = timeProvider;
 
         public int FailureCount => _failureCount;
         public DateTime OpenedAt => _openedAt;
@@ -90,7 +93,7 @@ public class CircuitBreakerRetryPolicy(
             lock (_lock)
             {
                 _isOpen = true;
-                _openedAt = DateTime.UtcNow;
+                _openedAt = _timeProvider.GetUtcNow().DateTime;
             }
         }
 

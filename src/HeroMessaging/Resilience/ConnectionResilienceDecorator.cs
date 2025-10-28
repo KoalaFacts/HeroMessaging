@@ -97,12 +97,14 @@ public interface IConnectionResiliencePolicy
 public class DefaultConnectionResiliencePolicy(
     ConnectionResilienceOptions options,
     ILogger<DefaultConnectionResiliencePolicy> logger,
+    TimeProvider timeProvider,
     ConnectionHealthMonitor? healthMonitor = null) : IConnectionResiliencePolicy
 {
     private readonly ConnectionResilienceOptions _options = options ?? throw new ArgumentNullException(nameof(options));
     private readonly ILogger<DefaultConnectionResiliencePolicy> _logger = logger;
     private readonly ConnectionCircuitBreaker _circuitBreaker = new ConnectionCircuitBreaker(options.CircuitBreakerOptions, logger);
     private readonly ConnectionHealthMonitor? _healthMonitor = healthMonitor;
+    private readonly TimeProvider _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
     public async Task ExecuteAsync(Func<Task> operation, string operationName, CancellationToken cancellationToken = default)
     {
@@ -122,24 +124,24 @@ public class DefaultConnectionResiliencePolicy(
     {
         var retryCount = 0;
         var maxRetries = _options.MaxRetries;
-        var startTime = DateTime.UtcNow;
+        var startTime = _timeProvider.GetUtcNow().DateTime;
 
         while (true)
         {
             // Check circuit breaker
             if (!await _circuitBreaker.CanExecuteAsync())
             {
-                var duration = DateTime.UtcNow - startTime;
+                var duration = _timeProvider.GetUtcNow().DateTime - startTime;
                 _healthMonitor?.RecordFailure(operationName,
                     new ConnectionResilienceException("Circuit breaker is open"), duration);
                 throw new ConnectionResilienceException($"Circuit breaker is open for operation: {operationName}");
             }
 
-            var operationStartTime = DateTime.UtcNow;
+            var operationStartTime = _timeProvider.GetUtcNow().DateTime;
             try
             {
                 var result = await operation();
-                var operationDuration = DateTime.UtcNow - operationStartTime;
+                var operationDuration = _timeProvider.GetUtcNow().DateTime - operationStartTime;
 
                 // Record success in circuit breaker and health monitor
                 _circuitBreaker.RecordSuccess();
@@ -156,7 +158,7 @@ public class DefaultConnectionResiliencePolicy(
             catch (Exception ex) when (IsTransientException(ex) && retryCount < maxRetries)
             {
                 retryCount++;
-                var operationDuration = DateTime.UtcNow - operationStartTime;
+                var operationDuration = _timeProvider.GetUtcNow().DateTime - operationStartTime;
                 var delay = CalculateDelay(retryCount);
 
                 _logger.LogWarning(ex, "Transient error in operation {OperationName}. Retry {RetryCount}/{MaxRetries} after {DelayMs}ms",
@@ -170,7 +172,7 @@ public class DefaultConnectionResiliencePolicy(
             catch (Exception ex)
             {
                 // Non-transient exception or max retries exceeded
-                var operationDuration = DateTime.UtcNow - operationStartTime;
+                var operationDuration = _timeProvider.GetUtcNow().DateTime - operationStartTime;
 
                 _circuitBreaker.RecordFailure();
                 _healthMonitor?.RecordFailure(operationName, ex, operationDuration);

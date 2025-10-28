@@ -15,12 +15,14 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
     private readonly string _connectionString;
     private readonly JsonSerializerOptions _jsonOptions;
     private readonly string _tableName;
+    private readonly TimeProvider _timeProvider;
 
-    public SqlServerDeadLetterQueue(SqlServerStorageOptions options)
+    public SqlServerDeadLetterQueue(SqlServerStorageOptions options, TimeProvider timeProvider)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _connectionString = options.ConnectionString;
         _tableName = _options.GetFullTableName(_options.DeadLetterTableName);
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
@@ -93,7 +95,7 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
         command.Parameters.Add("@RetryCount", SqlDbType.Int).Value = context.RetryCount;
         command.Parameters.Add("@FailureTime", SqlDbType.DateTime2).Value = context.FailureTime;
         command.Parameters.Add("@Status", SqlDbType.Int).Value = (int)DeadLetterStatus.Active;
-        command.Parameters.Add("@CreatedAt", SqlDbType.DateTime2).Value = DateTime.UtcNow;
+        command.Parameters.Add("@CreatedAt", SqlDbType.DateTime2).Value = _timeProvider.GetUtcNow().DateTime;
         command.Parameters.Add("@ExceptionMessage", SqlDbType.NVarChar, -1).Value = (object?)context.Exception?.Message ?? DBNull.Value;
         command.Parameters.Add("@Metadata", SqlDbType.NVarChar, -1).Value =
             context.Metadata.Any() ? JsonSerializer.Serialize(context.Metadata, _jsonOptions) : (object)DBNull.Value;
@@ -175,7 +177,7 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
 
         using var command = new SqlCommand(sql, connection);
         command.Parameters.Add("@Status", SqlDbType.Int).Value = (int)DeadLetterStatus.Retried;
-        command.Parameters.Add("@RetriedAt", SqlDbType.DateTime2).Value = DateTime.UtcNow;
+        command.Parameters.Add("@RetriedAt", SqlDbType.DateTime2).Value = _timeProvider.GetUtcNow().DateTime;
         command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = deadLetterId;
         command.Parameters.Add("@ActiveStatus", SqlDbType.Int).Value = (int)DeadLetterStatus.Active;
 
@@ -196,7 +198,7 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
 
         using var command = new SqlCommand(sql, connection);
         command.Parameters.Add("@Status", SqlDbType.Int).Value = (int)DeadLetterStatus.Discarded;
-        command.Parameters.Add("@DiscardedAt", SqlDbType.DateTime2).Value = DateTime.UtcNow;
+        command.Parameters.Add("@DiscardedAt", SqlDbType.DateTime2).Value = _timeProvider.GetUtcNow().DateTime;
         command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = deadLetterId;
         command.Parameters.Add("@ActiveStatus", SqlDbType.Int).Value = (int)DeadLetterStatus.Active;
 

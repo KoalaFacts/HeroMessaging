@@ -18,6 +18,7 @@ public class InMemoryTransport : IMessageTransport
     private TransportState _state = TransportState.Disconnected;
     private readonly object _stateLock = new();
     private readonly SemaphoreSlim _connectLock = new(1, 1);
+    private readonly TimeProvider _timeProvider;
 
     /// <inheritdoc/>
     public string Name => _options.Name;
@@ -31,9 +32,10 @@ public class InMemoryTransport : IMessageTransport
     /// <inheritdoc/>
     public event EventHandler<TransportErrorEventArgs>? Error;
 
-    public InMemoryTransport(InMemoryTransportOptions options)
+    public InMemoryTransport(InMemoryTransportOptions options, TimeProvider timeProvider)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
 
     /// <inheritdoc/>
@@ -147,7 +149,8 @@ public class InMemoryTransport : IMessageTransport
             source,
             handler,
             options,
-            this);
+            this,
+            _timeProvider);
 
         if (!_consumers.TryAdd(consumerId, consumer))
         {
@@ -203,7 +206,7 @@ public class InMemoryTransport : IMessageTransport
             Status = _state == TransportState.Connected ? HealthStatus.Healthy : HealthStatus.Unhealthy,
             State = _state,
             StatusMessage = _state == TransportState.Connected ? "In-memory transport is healthy" : $"Transport state: {_state}",
-            Timestamp = DateTime.UtcNow,
+            Timestamp = _timeProvider.GetUtcNow().DateTime,
             Duration = TimeSpan.Zero,
             ActiveConnections = 1,
             ActiveConsumers = _consumers.Count,

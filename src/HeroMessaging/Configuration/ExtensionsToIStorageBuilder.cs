@@ -16,17 +16,9 @@ public static class ExtensionsToIStorageBuilder
         string connectionString,
         Action<StorageOptions>? configure = null)
     {
-        var options = new StorageOptions();
-        configure?.Invoke(options);
-
-        // These would use the actual SQL Server implementations when available
-        // For now, using in-memory storage as placeholders
-        builder.UseMessageStorage(new InMemoryMessageStorage());
-        builder.UseOutboxStorage(new InMemoryOutboxStorage());
-        builder.UseInboxStorage(new InMemoryInboxStorage());
-        builder.UseQueueStorage(new InMemoryQueueStorage());
-
-        return builder;
+        throw new NotImplementedException(
+            "SQL Server storage is not yet implemented. " +
+            "Please use the HeroMessaging.Storage.SqlServer package and call UseSqlServer on IHeroMessagingBuilder instead.");
     }
 
     /// <summary>
@@ -37,16 +29,8 @@ public static class ExtensionsToIStorageBuilder
         string connectionString,
         Action<StorageOptions>? configure = null)
     {
-        var options = new StorageOptions();
-        configure?.Invoke(options);
-
-        // These would use the actual PostgreSQL implementations when available
-        // For now, using in-memory storage as placeholders
-        builder.UseMessageStorage(new InMemoryMessageStorage());
-        builder.UseOutboxStorage(new InMemoryOutboxStorage());
-        builder.UseInboxStorage(new InMemoryInboxStorage());
-        builder.UseQueueStorage(new InMemoryQueueStorage());
-
-        return builder;
+        throw new NotImplementedException(
+            "PostgreSQL storage is not yet implemented. " +
+            "Please use the HeroMessaging.Storage.PostgreSQL package and call UsePostgreSql on IHeroMessagingBuilder instead.");
     }
 }

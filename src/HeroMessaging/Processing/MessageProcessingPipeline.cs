@@ -82,7 +82,8 @@ public class MessageProcessingPipelineBuilder(IServiceProvider serviceProvider)
 
             var logger = _serviceProvider.GetService<ILogger<ErrorHandlingDecorator>>()
                 ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<ErrorHandlingDecorator>.Instance;
-            return new ErrorHandlingDecorator(processor, errorHandler, logger, maxRetries);
+            var timeProvider = _serviceProvider.GetRequiredService<TimeProvider>();
+            return new ErrorHandlingDecorator(processor, errorHandler, logger, timeProvider, maxRetries);
         });
         return this;
     }
@@ -114,7 +115,8 @@ public class MessageProcessingPipelineBuilder(IServiceProvider serviceProvider)
         {
             var logger = _serviceProvider.GetService<ILogger<CircuitBreakerDecorator>>()
                 ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<CircuitBreakerDecorator>.Instance;
-            return new CircuitBreakerDecorator(processor, logger, options);
+            var timeProvider = _serviceProvider.GetRequiredService<TimeProvider>();
+            return new CircuitBreakerDecorator(processor, logger, timeProvider, options);
         });
         return this;
     }

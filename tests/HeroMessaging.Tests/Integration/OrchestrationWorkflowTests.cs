@@ -26,11 +26,11 @@ public class OrchestrationWorkflowTests
     public async Task OrderSaga_HappyPath_CompletesSuccessfully()
     {
         // Arrange
-        var repository = new InMemorySagaRepository<OrderSaga>();
+        var repository = new InMemorySagaRepository<OrderSaga>(TimeProvider.System);
         var stateMachine = OrderSagaStateMachine.Build();
-        var services = new ServiceCollection().BuildServiceProvider();
+        var services = new ServiceCollection().AddSingleton(TimeProvider.System).BuildServiceProvider();
         var logger = NullLogger<SagaOrchestrator<OrderSaga>>.Instance;
-        var orchestrator = new SagaOrchestrator<OrderSaga>(repository, stateMachine, services, logger);
+        var orchestrator = new SagaOrchestrator<OrderSaga>(repository, stateMachine, services, logger, TimeProvider.System);
 
         var correlationId = Guid.NewGuid();
         var orderId = $"ORDER-{Guid.NewGuid()}";
@@ -93,11 +93,11 @@ public class OrchestrationWorkflowTests
     public async Task OrderSaga_PaymentFailed_TransitionsToFailed()
     {
         // Arrange
-        var repository = new InMemorySagaRepository<OrderSaga>();
+        var repository = new InMemorySagaRepository<OrderSaga>(TimeProvider.System);
         var stateMachine = OrderSagaStateMachine.Build();
-        var services = new ServiceCollection().BuildServiceProvider();
+        var services = new ServiceCollection().AddSingleton(TimeProvider.System).BuildServiceProvider();
         var logger = NullLogger<SagaOrchestrator<OrderSaga>>.Instance;
-        var orchestrator = new SagaOrchestrator<OrderSaga>(repository, stateMachine, services, logger);
+        var orchestrator = new SagaOrchestrator<OrderSaga>(repository, stateMachine, services, logger, TimeProvider.System);
 
         var correlationId = Guid.NewGuid();
         var orderId = $"ORDER-{Guid.NewGuid()}";
@@ -133,11 +133,11 @@ public class OrchestrationWorkflowTests
     public async Task OrderSaga_InventoryFailed_TransitionsToFailedWithCompensation()
     {
         // Arrange
-        var repository = new InMemorySagaRepository<OrderSaga>();
+        var repository = new InMemorySagaRepository<OrderSaga>(TimeProvider.System);
         var stateMachine = OrderSagaStateMachine.Build();
-        var services = new ServiceCollection().BuildServiceProvider();
+        var services = new ServiceCollection().AddSingleton(TimeProvider.System).BuildServiceProvider();
         var logger = NullLogger<SagaOrchestrator<OrderSaga>>.Instance;
-        var orchestrator = new SagaOrchestrator<OrderSaga>(repository, stateMachine, services, logger);
+        var orchestrator = new SagaOrchestrator<OrderSaga>(repository, stateMachine, services, logger, TimeProvider.System);
 
         var correlationId = Guid.NewGuid();
         var orderId = $"ORDER-{Guid.NewGuid()}";
@@ -168,11 +168,11 @@ public class OrchestrationWorkflowTests
     public async Task OrderSaga_ShipmentFailed_TransitionsToFailedWithFullCompensation()
     {
         // Arrange
-        var repository = new InMemorySagaRepository<OrderSaga>();
+        var repository = new InMemorySagaRepository<OrderSaga>(TimeProvider.System);
         var stateMachine = OrderSagaStateMachine.Build();
-        var services = new ServiceCollection().BuildServiceProvider();
+        var services = new ServiceCollection().AddSingleton(TimeProvider.System).BuildServiceProvider();
         var logger = NullLogger<SagaOrchestrator<OrderSaga>>.Instance;
-        var orchestrator = new SagaOrchestrator<OrderSaga>(repository, stateMachine, services, logger);
+        var orchestrator = new SagaOrchestrator<OrderSaga>(repository, stateMachine, services, logger, TimeProvider.System);
 
         var correlationId = Guid.NewGuid();
         var orderId = $"ORDER-{Guid.NewGuid()}";
@@ -208,11 +208,11 @@ public class OrchestrationWorkflowTests
     public async Task OrderSaga_CancelledDuringPayment_TransitionsToCancelled()
     {
         // Arrange
-        var repository = new InMemorySagaRepository<OrderSaga>();
+        var repository = new InMemorySagaRepository<OrderSaga>(TimeProvider.System);
         var stateMachine = OrderSagaStateMachine.Build();
-        var services = new ServiceCollection().BuildServiceProvider();
+        var services = new ServiceCollection().AddSingleton(TimeProvider.System).BuildServiceProvider();
         var logger = NullLogger<SagaOrchestrator<OrderSaga>>.Instance;
-        var orchestrator = new SagaOrchestrator<OrderSaga>(repository, stateMachine, services, logger);
+        var orchestrator = new SagaOrchestrator<OrderSaga>(repository, stateMachine, services, logger, TimeProvider.System);
 
         var correlationId = Guid.NewGuid();
         var orderId = $"ORDER-{Guid.NewGuid()}";
@@ -238,11 +238,11 @@ public class OrchestrationWorkflowTests
     public async Task OrderSaga_CancelledAfterPayment_CompensatesPayment()
     {
         // Arrange
-        var repository = new InMemorySagaRepository<OrderSaga>();
+        var repository = new InMemorySagaRepository<OrderSaga>(TimeProvider.System);
         var stateMachine = OrderSagaStateMachine.Build();
-        var services = new ServiceCollection().BuildServiceProvider();
+        var services = new ServiceCollection().AddSingleton(TimeProvider.System).BuildServiceProvider();
         var logger = NullLogger<SagaOrchestrator<OrderSaga>>.Instance;
-        var orchestrator = new SagaOrchestrator<OrderSaga>(repository, stateMachine, services, logger);
+        var orchestrator = new SagaOrchestrator<OrderSaga>(repository, stateMachine, services, logger, TimeProvider.System);
 
         var correlationId = Guid.NewGuid();
         var orderId = $"ORDER-{Guid.NewGuid()}";
@@ -272,11 +272,11 @@ public class OrchestrationWorkflowTests
     public async Task OrderSaga_MultipleInstancesConcurrently_ProcessIndependently()
     {
         // Arrange
-        var repository = new InMemorySagaRepository<OrderSaga>();
+        var repository = new InMemorySagaRepository<OrderSaga>(TimeProvider.System);
         var stateMachine = OrderSagaStateMachine.Build();
-        var services = new ServiceCollection().BuildServiceProvider();
+        var services = new ServiceCollection().AddSingleton(TimeProvider.System).BuildServiceProvider();
         var logger = NullLogger<SagaOrchestrator<OrderSaga>>.Instance;
-        var orchestrator = new SagaOrchestrator<OrderSaga>(repository, stateMachine, services, logger);
+        var orchestrator = new SagaOrchestrator<OrderSaga>(repository, stateMachine, services, logger, TimeProvider.System);
 
         var correlation1 = Guid.NewGuid();
         var correlation2 = Guid.NewGuid();
@@ -314,11 +314,11 @@ public class OrchestrationWorkflowTests
     public async Task OrderSaga_StateTransitions_UpdateTimestamps()
     {
         // Arrange
-        var repository = new InMemorySagaRepository<OrderSaga>();
+        var repository = new InMemorySagaRepository<OrderSaga>(TimeProvider.System);
         var stateMachine = OrderSagaStateMachine.Build();
-        var services = new ServiceCollection().BuildServiceProvider();
+        var services = new ServiceCollection().AddSingleton(TimeProvider.System).BuildServiceProvider();
         var logger = NullLogger<SagaOrchestrator<OrderSaga>>.Instance;
-        var orchestrator = new SagaOrchestrator<OrderSaga>(repository, stateMachine, services, logger);
+        var orchestrator = new SagaOrchestrator<OrderSaga>(repository, stateMachine, services, logger, TimeProvider.System);
 
         var correlationId = Guid.NewGuid();
         var orderId = "ORDER-123";
@@ -372,11 +372,11 @@ public class OrchestrationWorkflowTests
         // Arrange - Test compensation within a single complex event
         var compensationLog = new System.Collections.Concurrent.ConcurrentBag<(DateTime Time, string Action)>();
 
-        var repository = new InMemorySagaRepository<CompensationTrackingSaga>();
+        var repository = new InMemorySagaRepository<CompensationTrackingSaga>(TimeProvider.System);
         var stateMachine = BuildCompensationTrackingStateMachine(compensationLog);
-        var services = new ServiceCollection().BuildServiceProvider();
+        var services = new ServiceCollection().AddSingleton(TimeProvider.System).BuildServiceProvider();
         var logger = NullLogger<SagaOrchestrator<CompensationTrackingSaga>>.Instance;
-        var orchestrator = new SagaOrchestrator<CompensationTrackingSaga>(repository, stateMachine, services, logger);
+        var orchestrator = new SagaOrchestrator<CompensationTrackingSaga>(repository, stateMachine, services, logger, TimeProvider.System);
 
         var correlationId = Guid.NewGuid();
 
@@ -403,11 +403,11 @@ public class OrchestrationWorkflowTests
         // Arrange - Test compensation based on saga state (proper pattern for cross-event compensation)
         var compensationLog = new System.Collections.Concurrent.ConcurrentBag<string>();
 
-        var repository = new InMemorySagaRepository<StateBasedCompensationSaga>();
+        var repository = new InMemorySagaRepository<StateBasedCompensationSaga>(TimeProvider.System);
         var stateMachine = BuildStateBasedCompensationStateMachine(compensationLog);
-        var services = new ServiceCollection().BuildServiceProvider();
+        var services = new ServiceCollection().AddSingleton(TimeProvider.System).BuildServiceProvider();
         var logger = NullLogger<SagaOrchestrator<StateBasedCompensationSaga>>.Instance;
-        var orchestrator = new SagaOrchestrator<StateBasedCompensationSaga>(repository, stateMachine, services, logger);
+        var orchestrator = new SagaOrchestrator<StateBasedCompensationSaga>(repository, stateMachine, services, logger, TimeProvider.System);
 
         var correlationId = Guid.NewGuid();
 
@@ -439,6 +439,7 @@ public class OrchestrationWorkflowTests
         var stateMachine = OrderSagaStateMachine.Build();
 
         var servicesCollection = new ServiceCollection();
+        servicesCollection.AddSingleton<TimeProvider>(fakeTime);
         servicesCollection.AddSingleton<ISagaRepository<OrderSaga>>(repository);
         servicesCollection.AddLogging(builder => builder
             .AddXUnit(_output)

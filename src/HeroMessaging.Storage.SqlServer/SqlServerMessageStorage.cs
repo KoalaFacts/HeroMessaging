@@ -17,12 +17,14 @@ public class SqlServerMessageStorage : IMessageStorage
     private readonly string _tableName;
     private readonly SqlConnection? _sharedConnection;
     private readonly SqlTransaction? _sharedTransaction;
+    private readonly TimeProvider _timeProvider;
 
-    public SqlServerMessageStorage(SqlServerStorageOptions options)
+    public SqlServerMessageStorage(SqlServerStorageOptions options, TimeProvider timeProvider)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _connectionString = options.ConnectionString;
         _tableName = _options.GetFullTableName(_options.MessagesTableName);
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
         _jsonOptions = new JsonSerializerOptions
         {
@@ -36,7 +38,7 @@ public class SqlServerMessageStorage : IMessageStorage
     /// <summary>
     /// Constructor for transaction-aware operations with shared connection and transaction
     /// </summary>
-    public SqlServerMessageStorage(SqlConnection connection, SqlTransaction? transaction)
+    public SqlServerMessageStorage(SqlConnection connection, SqlTransaction? transaction, TimeProvider timeProvider)
     {
         _sharedConnection = connection ?? throw new ArgumentNullException(nameof(connection));
         _sharedTransaction = transaction;
@@ -45,6 +47,7 @@ public class SqlServerMessageStorage : IMessageStorage
         _options = new SqlServerStorageOptions { ConnectionString = connection.ConnectionString };
         _connectionString = connection.ConnectionString;
         _tableName = _options.GetFullTableName(_options.MessagesTableName);
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
         _jsonOptions = new JsonSerializerOptions
         {
@@ -107,7 +110,7 @@ public class SqlServerMessageStorage : IMessageStorage
 
         var messageId = Guid.NewGuid().ToString();
         var expiresAt = options?.Ttl != null
-            ? DateTime.UtcNow.Add(options.Ttl.Value)
+            ? _timeProvider.GetUtcNow().DateTime.Add(options.Ttl.Value)
             : (DateTime?)null;
 
         var sql = $"""
@@ -126,7 +129,7 @@ public class SqlServerMessageStorage : IMessageStorage
             ? JsonSerializer.Serialize(options.Metadata, _jsonOptions)
             : DBNull.Value;
         command.Parameters.Add("@ExpiresAt", SqlDbType.DateTime2).Value = (object?)expiresAt ?? DBNull.Value;
-        command.Parameters.Add("@CreatedAt", SqlDbType.DateTime2).Value = DateTime.UtcNow;
+        command.Parameters.Add("@CreatedAt", SqlDbType.DateTime2).Value = _timeProvider.GetUtcNow().DateTime;
 
         await command.ExecuteNonQueryAsync(cancellationToken);
         return messageId;

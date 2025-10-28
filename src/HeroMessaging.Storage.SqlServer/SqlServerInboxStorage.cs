@@ -9,17 +9,20 @@ public class SqlServerInboxStorage : IInboxStorage
     private readonly SqlConnection? _sharedConnection;
     private readonly SqlTransaction? _sharedTransaction;
     private readonly string _connectionString;
+    private readonly TimeProvider _timeProvider;
 
-    public SqlServerInboxStorage(string connectionString)
+    public SqlServerInboxStorage(string connectionString, TimeProvider timeProvider)
     {
         _connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
 
-    public SqlServerInboxStorage(SqlConnection connection, SqlTransaction? transaction)
+    public SqlServerInboxStorage(SqlConnection connection, SqlTransaction? transaction, TimeProvider timeProvider)
     {
         _sharedConnection = connection ?? throw new ArgumentNullException(nameof(connection));
         _sharedTransaction = transaction;
         _connectionString = connection.ConnectionString;
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
 
     public Task<InboxEntry?> Add(IMessage message, Abstractions.InboxOptions options, CancellationToken cancellationToken = default)

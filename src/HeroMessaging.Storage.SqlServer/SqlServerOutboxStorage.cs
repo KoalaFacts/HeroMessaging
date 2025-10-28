@@ -17,11 +17,13 @@ public class SqlServerOutboxStorage : IOutboxStorage
     private readonly string _tableName;
     private readonly SqlConnection? _sharedConnection;
     private readonly SqlTransaction? _sharedTransaction;
+    private readonly TimeProvider _timeProvider;
 
-    public SqlServerOutboxStorage(SqlServerStorageOptions options)
+    public SqlServerOutboxStorage(SqlServerStorageOptions options, TimeProvider timeProvider)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _tableName = _options.GetFullTableName(_options.OutboxTableName);
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
@@ -37,7 +39,7 @@ public class SqlServerOutboxStorage : IOutboxStorage
     /// <summary>
     /// Constructor for transaction-aware operations with shared connection and transaction
     /// </summary>
-    public SqlServerOutboxStorage(SqlConnection connection, SqlTransaction? transaction)
+    public SqlServerOutboxStorage(SqlConnection connection, SqlTransaction? transaction, TimeProvider timeProvider)
     {
         _sharedConnection = connection ?? throw new ArgumentNullException(nameof(connection));
         _sharedTransaction = transaction;
@@ -45,6 +47,7 @@ public class SqlServerOutboxStorage : IOutboxStorage
         // Use default options when using shared connection
         _options = new SqlServerStorageOptions { ConnectionString = connection.ConnectionString };
         _tableName = _options.GetFullTableName(_options.OutboxTableName);
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
@@ -55,13 +58,14 @@ public class SqlServerOutboxStorage : IOutboxStorage
     /// <summary>
     /// Constructor with connection string for transaction-aware operations
     /// </summary>
-    public SqlServerOutboxStorage(string connectionString)
+    public SqlServerOutboxStorage(string connectionString, TimeProvider timeProvider)
     {
         if (string.IsNullOrEmpty(connectionString))
             throw new ArgumentException("Connection string cannot be null or empty", nameof(connectionString));
 
         _options = new SqlServerStorageOptions { ConnectionString = connectionString };
         _tableName = _options.GetFullTableName(_options.OutboxTableName);
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
@@ -129,7 +133,7 @@ public class SqlServerOutboxStorage : IOutboxStorage
             Options = options,
             Status = OutboxStatus.Pending,
             RetryCount = 0,
-            CreatedAt = DateTime.UtcNow,
+            CreatedAt = _timeProvider.GetUtcNow().DateTime,
             NextRetryAt = null
         };
 
@@ -204,7 +208,7 @@ public class SqlServerOutboxStorage : IOutboxStorage
 
         using var command = new SqlCommand(sql, connection, transaction);
         command.Parameters.AddWithValue("@Limit", query.Limit);
-        command.Parameters.AddWithValue("@Now", DateTime.UtcNow);
+        command.Parameters.AddWithValue("@Now", _timeProvider.GetUtcNow().DateTime);
 
         if (query.Status.HasValue)
         {
@@ -257,7 +261,7 @@ public class SqlServerOutboxStorage : IOutboxStorage
             selectCommand.CommandTimeout = _options.CommandTimeout;
             selectCommand.Parameters.Add("@Limit", SqlDbType.Int).Value = limit;
             selectCommand.Parameters.Add("@PendingStatus", SqlDbType.Int).Value = (int)OutboxStatus.Pending;
-            selectCommand.Parameters.Add("@Now", SqlDbType.DateTime2).Value = DateTime.UtcNow;
+            selectCommand.Parameters.Add("@Now", SqlDbType.DateTime2).Value = _timeProvider.GetUtcNow().DateTime;
 
             using var reader = await selectCommand.ExecuteReaderAsync(cancellationToken);
             while (await reader.ReadAsync(cancellationToken))
@@ -328,7 +332,7 @@ public class SqlServerOutboxStorage : IOutboxStorage
         using var command = new SqlCommand(sql, connection);
         command.CommandTimeout = _options.CommandTimeout;
         command.Parameters.Add("@Status", SqlDbType.Int).Value = (int)OutboxStatus.Processed;
-        command.Parameters.Add("@ProcessedAt", SqlDbType.DateTime2).Value = DateTime.UtcNow;
+        command.Parameters.Add("@ProcessedAt", SqlDbType.DateTime2).Value = _timeProvider.GetUtcNow().DateTime;
         command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = entryId;
 
         var result = await command.ExecuteNonQueryAsync(cancellationToken);

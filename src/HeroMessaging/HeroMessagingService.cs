@@ -12,6 +12,7 @@ public class HeroMessagingService(
     ICommandProcessor commandProcessor,
     IQueryProcessor queryProcessor,
     IEventBus eventBus,
+    TimeProvider timeProvider,
     IQueueProcessor? queueProcessor = null,
     IOutboxProcessor? outboxProcessor = null,
     IInboxProcessor? inboxProcessor = null) : IHeroMessaging
@@ -22,6 +23,7 @@ public class HeroMessagingService(
     private readonly IQueueProcessor? _queueProcessor = queueProcessor;
     private readonly IOutboxProcessor? _outboxProcessor = outboxProcessor;
     private readonly IInboxProcessor? _inboxProcessor = inboxProcessor;
+    private readonly TimeProvider _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
     private readonly MessagingMetrics _metrics = new();
 
@@ -99,17 +101,18 @@ public class HeroMessagingService(
 
     public MessagingHealth GetHealth()
     {
+        var now = _timeProvider.GetUtcNow().DateTime;
         return new MessagingHealth
         {
             IsHealthy = true,
             Components = new Dictionary<string, ComponentHealth>
             {
-                ["CommandProcessor"] = new ComponentHealth { IsHealthy = true, Status = "Operational", LastChecked = DateTime.UtcNow },
-                ["QueryProcessor"] = new ComponentHealth { IsHealthy = true, Status = "Operational", LastChecked = DateTime.UtcNow },
-                ["EventBus"] = new ComponentHealth { IsHealthy = true, Status = "Operational", LastChecked = DateTime.UtcNow },
-                ["QueueProcessor"] = new ComponentHealth { IsHealthy = _queueProcessor != null, Status = _queueProcessor != null ? "Operational" : "Not Configured", LastChecked = DateTime.UtcNow },
-                ["OutboxProcessor"] = new ComponentHealth { IsHealthy = _outboxProcessor != null, Status = _outboxProcessor != null ? "Operational" : "Not Configured", LastChecked = DateTime.UtcNow },
-                ["InboxProcessor"] = new ComponentHealth { IsHealthy = _inboxProcessor != null, Status = _inboxProcessor != null ? "Operational" : "Not Configured", LastChecked = DateTime.UtcNow }
+                ["CommandProcessor"] = new ComponentHealth { IsHealthy = true, Status = "Operational", LastChecked = now },
+                ["QueryProcessor"] = new ComponentHealth { IsHealthy = true, Status = "Operational", LastChecked = now },
+                ["EventBus"] = new ComponentHealth { IsHealthy = true, Status = "Operational", LastChecked = now },
+                ["QueueProcessor"] = new ComponentHealth { IsHealthy = _queueProcessor != null, Status = _queueProcessor != null ? "Operational" : "Not Configured", LastChecked = now },
+                ["OutboxProcessor"] = new ComponentHealth { IsHealthy = _outboxProcessor != null, Status = _outboxProcessor != null ? "Operational" : "Not Configured", LastChecked = now },
+                ["InboxProcessor"] = new ComponentHealth { IsHealthy = _inboxProcessor != null, Status = _inboxProcessor != null ? "Operational" : "Not Configured", LastChecked = now }
             }
         };
     }
