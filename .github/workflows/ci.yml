@@ -140,10 +140,11 @@ jobs:
         ports:
           - 1433:1433
         options: >-
-          --health-cmd "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P YourStrong@Passw0rd -Q 'SELECT 1' || exit 1"
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P YourStrong@Passw0rd -Q 'SELECT 1' -C -N"
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 5
+          --health-retries 10
+          --health-start-period 30s
 
     env:
       # PostgreSQL connection string for tests
@@ -178,19 +179,26 @@ jobs:
         run: |
           echo "Waiting for PostgreSQL..."
           for i in {1..30}; do
-            pg_isready -h localhost -p 5432 -U postgres && break
+            pg_isready -h localhost -p 5432 -U postgres && echo "PostgreSQL is ready!" && break
             echo "Waiting for PostgreSQL to be ready... ($i/30)"
             sleep 2
           done
 
           echo "Waiting for SQL Server..."
+          # Install SQL Server command-line tools
+          curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
+          curl https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list
+          sudo apt-get update
+          sudo ACCEPT_EULA=Y apt-get install -y mssql-tools18 unixodbc-dev
+
+          # Test SQL Server connectivity
           for i in {1..30}; do
-            /opt/mssql-tools/bin/sqlcmd -S localhost,1433 -U sa -P 'YourStrong@Passw0rd' -Q 'SELECT 1' && break
+            /opt/mssql-tools18/bin/sqlcmd -S localhost,1433 -U sa -P 'YourStrong@Passw0rd' -Q 'SELECT 1' -C && echo "SQL Server is ready!" && break
             echo "Waiting for SQL Server to be ready... ($i/30)"
-            sleep 2
+            sleep 3
           done
 
-          echo "Databases are ready!"
+          echo "All databases are ready!"
 
       - name: Run integration tests
         shell: bash
