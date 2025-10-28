@@ -153,8 +153,6 @@ internal class InMemoryConsumer : ITransportConsumer
 
         try
         {
-            _instrumentation.AddEvent(activity, "receive.start");
-
             // Extract trace context from message headers
             var parentContext = _instrumentation.ExtractTraceContext(envelope);
 
@@ -166,6 +164,7 @@ internal class InMemoryConsumer : ITransportConsumer
                 ConsumerId,
                 parentContext);
 
+            _instrumentation.AddEvent(activity, "receive.start");
             _instrumentation.AddEvent(activity, "handler.start");
 
             var context = new MessageContext(_transport.Name, Source)
