@@ -31,6 +31,11 @@ public class PostgreSqlStorageOptions
     public string DeadLetterTableName { get; set; } = "dead_letter_queue";
 
     /// <summary>
+    /// Table name for saga storage (default: sagas)
+    /// </summary>
+    public string SagasTableName { get; set; } = "sagas";
+
+    /// <summary>
     /// Whether to create tables automatically if they don't exist (default: true)
     /// </summary>
     public bool AutoCreateTables { get; set; } = true;
