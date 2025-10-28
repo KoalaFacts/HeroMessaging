@@ -1,0 +1,11 @@
+# BenchmarkDotNet artifacts
+BenchmarkDotNet.Artifacts/
+BenchmarkDotNet.Artifacts.*
+
+# Benchmark results
+*.html
+*.csv
+*.md.bak
+
+# Keep baseline results for comparison
+!baseline/

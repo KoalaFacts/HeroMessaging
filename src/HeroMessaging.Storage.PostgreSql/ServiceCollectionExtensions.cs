@@ -28,8 +28,8 @@ public static class ServiceCollectionExtensions
         var services = builder as IServiceCollection ?? throw new InvalidOperationException("Builder must implement IServiceCollection");
 
         services.AddSingleton(options);
-        services.AddSingleton<IMessageStorage>(sp => new PostgreSqlMessageStorage(options.ConnectionString));
-        services.AddSingleton<IOutboxStorage>(sp => new PostgreSqlOutboxStorage(options.ConnectionString));
+        services.AddSingleton<IMessageStorage>(sp => new PostgreSqlMessageStorage(options, sp.GetRequiredService<TimeProvider>()));
+        services.AddSingleton<IOutboxStorage>(sp => new PostgreSqlOutboxStorage(options, sp.GetRequiredService<TimeProvider>()));
         services.AddSingleton<IDeadLetterQueue>(sp => new PostgreSqlDeadLetterQueue(options, sp.GetRequiredService<TimeProvider>()));
 
         return builder;
@@ -51,7 +51,7 @@ public static class ServiceCollectionExtensions
     public static IHeroMessagingBuilder UsePostgreSqlMessageStorage(this IHeroMessagingBuilder builder, PostgreSqlStorageOptions options)
     {
         var services = builder as IServiceCollection ?? throw new InvalidOperationException("Builder must implement IServiceCollection");
-        services.AddSingleton<IMessageStorage>(sp => new PostgreSqlMessageStorage(options.ConnectionString));
+        services.AddSingleton<IMessageStorage>(sp => new PostgreSqlMessageStorage(options, sp.GetRequiredService<TimeProvider>()));
         return builder;
     }
 
@@ -61,7 +61,7 @@ public static class ServiceCollectionExtensions
     public static IHeroMessagingBuilder UsePostgreSqlOutbox(this IHeroMessagingBuilder builder, PostgreSqlStorageOptions options)
     {
         var services = builder as IServiceCollection ?? throw new InvalidOperationException("Builder must implement IServiceCollection");
-        services.AddSingleton<IOutboxStorage>(sp => new PostgreSqlOutboxStorage(options.ConnectionString));
+        services.AddSingleton<IOutboxStorage>(sp => new PostgreSqlOutboxStorage(options, sp.GetRequiredService<TimeProvider>()));
         return builder;
     }
 
