@@ -14,7 +14,7 @@ namespace HeroMessaging.Transport.RabbitMQ.Tests.Integration;
 /// Tests end-to-end distributed tracing and metrics collection
 /// </summary>
 [Trait("Category", "Integration")]
-public class RabbitMqTransportInstrumentationIntegrationTests : IDisposable
+public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposable
 {
     private readonly ActivityListener _activityListener;
     private readonly List<Activity> _activities;

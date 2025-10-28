@@ -13,7 +13,7 @@ namespace HeroMessaging.Tests.Transport.InMemory;
 /// Tests end-to-end distributed tracing and metrics collection in memory
 /// </summary>
 [Trait("Category", "Integration")]
-public class InMemoryTransportInstrumentationIntegrationTests : IDisposable
+public sealed class InMemoryTransportInstrumentationIntegrationTests : IDisposable
 {
     private readonly ActivityListener _activityListener;
     private readonly List<Activity> _activities;
@@ -450,7 +450,7 @@ public class InMemoryTransportInstrumentationIntegrationTests : IDisposable
             Assert.Equal(ActivityStatusCode.Error, failedSendActivity.Status);
 
             var failureMetrics = _longMeasurements["heromessaging_transport_operations_total"]
-                .Where(m => m.Tags.Any(t => t.Key == "status" && t.Value?.ToString() == "failure")).ToList();
+                .Where(m => m.Tags.ToArray().Any(t => t.Key == "status" && t.Value?.ToString() == "failure")).ToList();
             Assert.NotEmpty(failureMetrics);
         }
         finally
