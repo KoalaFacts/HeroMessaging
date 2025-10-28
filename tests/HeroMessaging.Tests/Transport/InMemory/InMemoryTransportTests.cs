@@ -22,7 +22,7 @@ public class InMemoryTransportTests : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
-        _transport = new InMemoryTransport(_options);
+        _transport = new InMemoryTransport(_options, TimeProvider.System);
         await _transport!.ConnectAsync(TestContext.Current.CancellationToken);
     }
 
@@ -38,7 +38,7 @@ public class InMemoryTransportTests : IAsyncLifetime
     public void Constructor_WithNullOptions_ThrowsArgumentNullException()
     {
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => new InMemoryTransport(null!));
+        Assert.Throws<ArgumentNullException>(() => new InMemoryTransport(null!, TimeProvider.System));
     }
 
     [Fact]
@@ -52,7 +52,7 @@ public class InMemoryTransportTests : IAsyncLifetime
     public async Task ConnectAsync_ChangesStateToConnected()
     {
         // Arrange
-        var transport = new InMemoryTransport(_options);
+        var transport = new InMemoryTransport(_options, TimeProvider.System);
 
         // Act
         await transport.ConnectAsync(TestContext.Current.CancellationToken);
@@ -67,7 +67,7 @@ public class InMemoryTransportTests : IAsyncLifetime
     public async Task ConnectAsync_RaisesStateChangedEvent()
     {
         // Arrange
-        var transport = new InMemoryTransport(_options);
+        var transport = new InMemoryTransport(_options, TimeProvider.System);
         TransportStateChangedEventArgs? eventArgs = null;
         transport.StateChanged += (sender, args) => eventArgs = args;
 
@@ -126,7 +126,7 @@ public class InMemoryTransportTests : IAsyncLifetime
     public async Task SendAsync_WhenNotConnected_ThrowsInvalidOperationException()
     {
         // Arrange
-        var transport = new InMemoryTransport(_options);
+        var transport = new InMemoryTransport(_options, TimeProvider.System);
         var destination = TransportAddress.Queue("test-queue");
         var envelope = new TransportEnvelope("TestMessage", new byte[] { 1, 2, 3 }.AsMemory());
 
