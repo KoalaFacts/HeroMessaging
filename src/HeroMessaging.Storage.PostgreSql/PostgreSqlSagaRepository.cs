@@ -176,6 +176,7 @@ public class PostgreSqlSagaRepository<TSaga> : ISagaRepository<TSaga>
 
     /// <summary>
     /// Finds saga instances by their current state
+    /// Returns up to 1000 results to prevent memory exhaustion
     /// </summary>
     /// <param name="state">The state to search for</param>
     /// <param name="cancellationToken">Token to cancel the operation</param>
@@ -184,24 +185,8 @@ public class PostgreSqlSagaRepository<TSaga> : ISagaRepository<TSaga>
     /// <exception cref="PostgresException">Thrown when a database error occurs</exception>
     public async Task<IEnumerable<TSaga>> FindByStateAsync(string state, CancellationToken cancellationToken = default)
     {
-        return await FindByStateAsync(state, 1000, cancellationToken);
-    }
-
-    /// <summary>
-    /// Finds saga instances by their current state with a result limit
-    /// </summary>
-    /// <param name="state">The state to search for</param>
-    /// <param name="maxResults">Maximum number of results to return</param>
-    /// <param name="cancellationToken">Token to cancel the operation</param>
-    /// <returns>Collection of saga instances in the specified state</returns>
-    /// <exception cref="ArgumentException">Thrown when state is null or empty, or maxResults is less than 1</exception>
-    /// <exception cref="PostgresException">Thrown when a database error occurs</exception>
-    private async Task<IEnumerable<TSaga>> FindByStateAsync(string state, int maxResults, CancellationToken cancellationToken = default)
-    {
         if (string.IsNullOrWhiteSpace(state))
             throw new ArgumentException("State cannot be empty", nameof(state));
-        if (maxResults < 1)
-            throw new ArgumentException("MaxResults must be at least 1", nameof(maxResults));
 
         await EnsureInitializedAsync(cancellationToken);
 
@@ -213,14 +198,13 @@ public class PostgreSqlSagaRepository<TSaga> : ISagaRepository<TSaga>
             FROM {_tableName}
             WHERE current_state = @State AND saga_type = @SagaType
             ORDER BY updated_at DESC
-            LIMIT @MaxResults
+            LIMIT 1000
             """;
 
         using var command = new NpgsqlCommand(sql, connection);
         command.CommandTimeout = _options.CommandTimeout;
         command.Parameters.AddWithValue("@State", state);
         command.Parameters.AddWithValue("@SagaType", _sagaTypeName);
-        command.Parameters.AddWithValue("@MaxResults", maxResults);
 
         var sagas = new List<TSaga>();
         using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -418,6 +402,7 @@ public class PostgreSqlSagaRepository<TSaga> : ISagaRepository<TSaga>
     /// Finds saga instances that have not been updated within the specified timespan
     /// Only returns incomplete sagas (is_completed = false)
     /// Useful for detecting stuck or timed-out sagas
+    /// Returns up to 1000 results to prevent memory exhaustion
     /// </summary>
     /// <param name="olderThan">Find sagas last updated before this duration ago</param>
     /// <param name="cancellationToken">Token to cancel the operation</param>
@@ -425,17 +410,6 @@ public class PostgreSqlSagaRepository<TSaga> : ISagaRepository<TSaga>
     /// <exception cref="PostgresException">Thrown when a database error occurs</exception>
     public async Task<IEnumerable<TSaga>> FindStaleAsync(TimeSpan olderThan, CancellationToken cancellationToken = default)
     {
-        return await FindStaleAsync(olderThan, 1000, cancellationToken);
-    }
-
-    /// <summary>
-    /// Finds stale saga instances with a result limit
-    /// </summary>
-    private async Task<IEnumerable<TSaga>> FindStaleAsync(TimeSpan olderThan, int maxResults, CancellationToken cancellationToken = default)
-    {
-        if (maxResults < 1)
-            throw new ArgumentException("MaxResults must be at least 1", nameof(maxResults));
-
         await EnsureInitializedAsync(cancellationToken);
 
         using var connection = new NpgsqlConnection(_connectionString);
@@ -450,14 +424,13 @@ public class PostgreSqlSagaRepository<TSaga> : ISagaRepository<TSaga>
               AND is_completed = FALSE
               AND updated_at < @CutoffTime
             ORDER BY updated_at ASC
-            LIMIT @MaxResults
+            LIMIT 1000
             """;
 
         using var command = new NpgsqlCommand(sql, connection);
         command.CommandTimeout = _options.CommandTimeout;
         command.Parameters.AddWithValue("@SagaType", _sagaTypeName);
         command.Parameters.AddWithValue("@CutoffTime", cutoffTime);
-        command.Parameters.AddWithValue("@MaxResults", maxResults);
 
         var sagas = new List<TSaga>();
         using var reader = await command.ExecuteReaderAsync(cancellationToken);

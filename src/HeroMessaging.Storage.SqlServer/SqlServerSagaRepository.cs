@@ -182,33 +182,17 @@ public class SqlServerSagaRepository<TSaga> : ISagaRepository<TSaga>
 
     /// <summary>
     /// Finds saga instances by their current state
+    /// Returns up to 1000 results to prevent memory exhaustion
     /// </summary>
     /// <param name="state">The state to search for</param>
     /// <param name="cancellationToken">Token to cancel the operation</param>
-    /// <param name="maxResults">Maximum number of results to return (default 1000)</param>
-    /// <returns>Collection of saga instances in the specified state</returns>
+    /// <returns>Collection of saga instances in the specified state (limited to 1000 results)</returns>
     /// <exception cref="ArgumentException">Thrown when state is null or empty</exception>
     /// <exception cref="SqlException">Thrown when a database error occurs</exception>
     public async Task<IEnumerable<TSaga>> FindByStateAsync(string state, CancellationToken cancellationToken = default)
     {
-        return await FindByStateAsync(state, 1000, cancellationToken);
-    }
-
-    /// <summary>
-    /// Finds saga instances by their current state with a result limit
-    /// </summary>
-    /// <param name="state">The state to search for</param>
-    /// <param name="maxResults">Maximum number of results to return</param>
-    /// <param name="cancellationToken">Token to cancel the operation</param>
-    /// <returns>Collection of saga instances in the specified state</returns>
-    /// <exception cref="ArgumentException">Thrown when state is null or empty, or maxResults is less than 1</exception>
-    /// <exception cref="SqlException">Thrown when a database error occurs</exception>
-    private async Task<IEnumerable<TSaga>> FindByStateAsync(string state, int maxResults, CancellationToken cancellationToken = default)
-    {
         if (string.IsNullOrWhiteSpace(state))
             throw new ArgumentException("State cannot be empty", nameof(state));
-        if (maxResults < 1)
-            throw new ArgumentException("MaxResults must be at least 1", nameof(maxResults));
 
         await EnsureInitializedAsync(cancellationToken);
 
@@ -216,7 +200,7 @@ public class SqlServerSagaRepository<TSaga> : ISagaRepository<TSaga>
         await connection.OpenAsync(cancellationToken);
 
         var sql = $"""
-            SELECT TOP (@MaxResults) SagaData
+            SELECT TOP (1000) SagaData
             FROM {_tableName}
             WHERE CurrentState = @State AND SagaType = @SagaType
             ORDER BY UpdatedAt DESC
@@ -226,7 +210,6 @@ public class SqlServerSagaRepository<TSaga> : ISagaRepository<TSaga>
         command.CommandTimeout = _options.CommandTimeout;
         command.Parameters.Add("@State", SqlDbType.NVarChar, 100).Value = state;
         command.Parameters.Add("@SagaType", SqlDbType.NVarChar, 500).Value = _sagaTypeName;
-        command.Parameters.Add("@MaxResults", SqlDbType.Int).Value = maxResults;
 
         var sagas = new List<TSaga>();
         using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -418,25 +401,14 @@ public class SqlServerSagaRepository<TSaga> : ISagaRepository<TSaga>
     /// Finds saga instances that have not been updated within the specified timespan
     /// Only returns incomplete sagas (IsCompleted = false)
     /// Useful for detecting stuck or timed-out sagas
+    /// Returns up to 1000 results to prevent memory exhaustion
     /// </summary>
     /// <param name="olderThan">Find sagas last updated before this duration ago</param>
     /// <param name="cancellationToken">Token to cancel the operation</param>
-    /// <param name="maxResults">Maximum number of results to return (default 1000)</param>
-    /// <returns>Collection of stale saga instances, ordered by UpdatedAt ascending (oldest first)</returns>
+    /// <returns>Collection of stale saga instances (limited to 1000 results), ordered by UpdatedAt ascending (oldest first)</returns>
     /// <exception cref="SqlException">Thrown when a database error occurs</exception>
     public async Task<IEnumerable<TSaga>> FindStaleAsync(TimeSpan olderThan, CancellationToken cancellationToken = default)
     {
-        return await FindStaleAsync(olderThan, 1000, cancellationToken);
-    }
-
-    /// <summary>
-    /// Finds stale saga instances with a result limit
-    /// </summary>
-    private async Task<IEnumerable<TSaga>> FindStaleAsync(TimeSpan olderThan, int maxResults, CancellationToken cancellationToken = default)
-    {
-        if (maxResults < 1)
-            throw new ArgumentException("MaxResults must be at least 1", nameof(maxResults));
-
         await EnsureInitializedAsync(cancellationToken);
 
         using var connection = new SqlConnection(_connectionString);
@@ -445,7 +417,7 @@ public class SqlServerSagaRepository<TSaga> : ISagaRepository<TSaga>
         var cutoffTime = _timeProvider.GetUtcNow().DateTime - olderThan;
 
         var sql = $"""
-            SELECT TOP (@MaxResults) SagaData
+            SELECT TOP (1000) SagaData
             FROM {_tableName}
             WHERE SagaType = @SagaType
               AND IsCompleted = 0
@@ -457,7 +429,6 @@ public class SqlServerSagaRepository<TSaga> : ISagaRepository<TSaga>
         command.CommandTimeout = _options.CommandTimeout;
         command.Parameters.Add("@SagaType", SqlDbType.NVarChar, 500).Value = _sagaTypeName;
         command.Parameters.Add("@CutoffTime", SqlDbType.DateTime2).Value = cutoffTime;
-        command.Parameters.Add("@MaxResults", SqlDbType.Int).Value = maxResults;
 
         var sagas = new List<TSaga>();
         using var reader = await command.ExecuteReaderAsync(cancellationToken);
