@@ -58,7 +58,7 @@ public sealed class InMemoryTransportInstrumentationIntegrationTests : IDisposab
             {
                 _longMeasurements[instrument.Name] = new List<Measurement<long>>();
             }
-            _longMeasurements[instrument.Name].Add(measurement);
+            _longMeasurements[instrument.Name].Add(new Measurement<long>(measurement, tags));
         });
 
         _meterListener.SetMeasurementEventCallback<double>((instrument, measurement, tags, state) =>
@@ -67,7 +67,7 @@ public sealed class InMemoryTransportInstrumentationIntegrationTests : IDisposab
             {
                 _doubleMeasurements[instrument.Name] = new List<Measurement<double>>();
             }
-            _doubleMeasurements[instrument.Name].Add(measurement);
+            _doubleMeasurements[instrument.Name].Add(new Measurement<double>(measurement, tags));
         });
 
         _meterListener.Start();
