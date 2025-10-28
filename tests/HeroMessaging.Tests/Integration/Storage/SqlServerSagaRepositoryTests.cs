@@ -8,7 +8,11 @@ namespace HeroMessaging.Tests.Integration.Storage;
 [Trait("Category", "Integration")]
 public class SqlServerSagaRepositoryTests : IAsyncLifetime
 {
-    private const string ConnectionString = "Server=(localdb)\\mssqllocaldb;Database=HeroMessagingTests;Trusted_Connection=True;TrustServerCertificate=True;";
+    // Use CI connection string if available, otherwise fall back to LocalDB for local development
+    private static readonly string ConnectionString =
+        Environment.GetEnvironmentVariable("SqlServer__ConnectionString")
+        ?? "Server=(localdb)\\mssqllocaldb;Database=HeroMessagingTests;Trusted_Connection=True;TrustServerCertificate=True;";
+
     private SqlServerStorageOptions? _options;
     private bool _skipTests;
 

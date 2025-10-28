@@ -8,7 +8,11 @@ namespace HeroMessaging.Tests.Integration.Storage;
 [Trait("Category", "Integration")]
 public class PostgreSqlSagaRepositoryTests : IAsyncLifetime
 {
-    private const string ConnectionString = "Host=localhost;Database=heromessaging_tests;Username=postgres;Password=postgres";
+    // Use CI connection string if available, otherwise fall back to localhost for local development
+    private static readonly string ConnectionString =
+        Environment.GetEnvironmentVariable("PostgreSql__ConnectionString")
+        ?? "Host=localhost;Database=heromessaging_tests;Username=postgres;Password=postgres";
+
     private PostgreSqlStorageOptions? _options;
     private bool _skipTests;
 
