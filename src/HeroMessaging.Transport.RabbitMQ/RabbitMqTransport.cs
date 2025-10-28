@@ -66,7 +66,8 @@ public sealed class RabbitMqTransport : IMessageTransport
             // Create connection pool
             _connectionPool = new RabbitMqConnectionPool(
                 _options,
-                _loggerFactory.CreateLogger<RabbitMqConnectionPool>());
+                _loggerFactory.CreateLogger<RabbitMqConnectionPool>(),
+                _timeProvider);
 
             // Test connection by acquiring one
             var connection = await _connectionPool.GetConnectionAsync(cancellationToken);
@@ -382,7 +383,7 @@ public sealed class RabbitMqTransport : IMessageTransport
             Status = isHealthy ? HealthStatus.Healthy : HealthStatus.Unhealthy,
             State = _state,
             StatusMessage = isHealthy ? "RabbitMQ transport is healthy" : $"Transport state: {_state}",
-            Timestamp = DateTime.UtcNow,
+            Timestamp = _timeProvider.GetUtcNow().DateTime,
             Duration = TimeSpan.Zero,
             ActiveConsumers = _consumers.Count,
             Data = new Dictionary<string, object>
@@ -431,7 +432,8 @@ public sealed class RabbitMqTransport : IMessageTransport
             connection,
             maxChannels: _options.MaxChannelsPerConnection,
             channelLifetime: _options.ChannelLifetime,
-            _loggerFactory.CreateLogger<RabbitMqChannelPool>()));
+            _loggerFactory.CreateLogger<RabbitMqChannelPool>(),
+            _timeProvider));
     }
 
     private void EnsureConnected()

@@ -16,6 +16,7 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
     private readonly SemaphoreSlim _createChannelLock = new(1, 1);
     private readonly int _maxChannels;
     private readonly TimeSpan _channelLifetime;
+    private readonly TimeProvider _timeProvider;
     private int _channelCount;
     private bool _disposed;
 
@@ -23,10 +24,12 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
         IConnection connection,
         int maxChannels,
         TimeSpan channelLifetime,
-        ILogger<RabbitMqChannelPool> logger)
+        ILogger<RabbitMqChannelPool> logger,
+        TimeProvider timeProvider)
     {
         _connection = connection ?? throw new ArgumentNullException(nameof(connection));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         _maxChannels = maxChannels;
         _channelLifetime = channelLifetime;
 
@@ -91,7 +94,7 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
             return;
         }
 
-        var pooledChannel = new PooledChannel(channel, _channelLifetime);
+        var pooledChannel = new PooledChannel(channel, _channelLifetime, _timeProvider);
         _channels.Add(pooledChannel);
 
         _logger.LogTrace("Channel {ChannelNumber} returned to pool", channel.ChannelNumber);
@@ -199,18 +202,20 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
     private sealed class PooledChannel : IDisposable
     {
         private readonly TimeSpan _lifetime;
+        private readonly TimeProvider _timeProvider;
         private readonly DateTime _created;
         private bool _disposed;
 
         public IModel Channel { get; }
         public bool IsHealthy => Channel.IsOpen && !_disposed;
-        public bool IsExpired => (DateTime.UtcNow - _created) > _lifetime;
+        public bool IsExpired => (_timeProvider.GetUtcNow().DateTime - _created) > _lifetime;
 
-        public PooledChannel(IModel channel, TimeSpan lifetime)
+        public PooledChannel(IModel channel, TimeSpan lifetime, TimeProvider timeProvider)
         {
             Channel = channel;
             _lifetime = lifetime;
-            _created = DateTime.UtcNow;
+            _timeProvider = timeProvider;
+            _created = _timeProvider.GetUtcNow().DateTime;
         }
 
         public void Dispose()

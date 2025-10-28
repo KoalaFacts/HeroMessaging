@@ -102,9 +102,9 @@ public class DefaultConnectionResiliencePolicy(
 {
     private readonly ConnectionResilienceOptions _options = options ?? throw new ArgumentNullException(nameof(options));
     private readonly ILogger<DefaultConnectionResiliencePolicy> _logger = logger;
-    private readonly ConnectionCircuitBreaker _circuitBreaker = new ConnectionCircuitBreaker(options.CircuitBreakerOptions, logger);
-    private readonly ConnectionHealthMonitor? _healthMonitor = healthMonitor;
     private readonly TimeProvider _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+    private readonly ConnectionCircuitBreaker _circuitBreaker = new ConnectionCircuitBreaker(options.CircuitBreakerOptions, logger, timeProvider);
+    private readonly ConnectionHealthMonitor? _healthMonitor = healthMonitor;
 
     public async Task ExecuteAsync(Func<Task> operation, string operationName, CancellationToken cancellationToken = default)
     {
@@ -243,10 +243,11 @@ public class DefaultConnectionResiliencePolicy(
 /// <summary>
 /// Connection-specific circuit breaker
 /// </summary>
-internal class ConnectionCircuitBreaker(CircuitBreakerOptions options, ILogger logger)
+internal class ConnectionCircuitBreaker(CircuitBreakerOptions options, ILogger logger, TimeProvider timeProvider)
 {
     private readonly CircuitBreakerOptions _options = options;
     private readonly ILogger _logger = logger;
+    private readonly TimeProvider _timeProvider = timeProvider;
     private ConnectionCircuitState _state = ConnectionCircuitState.Closed;
     private DateTime _lastFailureTime;
     private int _failureCount;
@@ -261,7 +262,7 @@ internal class ConnectionCircuitBreaker(CircuitBreakerOptions options, ILogger l
             return _state switch
             {
                 ConnectionCircuitState.Closed => true,
-                ConnectionCircuitState.Open => DateTime.UtcNow - _lastFailureTime >= _options.BreakDuration,
+                ConnectionCircuitState.Open => _timeProvider.GetUtcNow().DateTime - _lastFailureTime >= _options.BreakDuration,
                 ConnectionCircuitState.HalfOpen => true,
                 _ => false
             };
@@ -290,7 +291,7 @@ internal class ConnectionCircuitBreaker(CircuitBreakerOptions options, ILogger l
         lock (_lock)
         {
             _failureCount++;
-            _lastFailureTime = DateTime.UtcNow;
+            _lastFailureTime = _timeProvider.GetUtcNow().DateTime;
 
             switch (_state)
             {

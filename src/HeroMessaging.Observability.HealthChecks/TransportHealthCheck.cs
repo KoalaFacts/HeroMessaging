@@ -54,9 +54,29 @@ public class TransportHealthCheck(IMessageTransport transport, string? name = nu
         };
 
         var data = CreateHealthData(transportHealth);
-        var description = $"{transportHealth.TransportName}: {transportHealth.StatusMessage}";
+
+        // Handle null or empty status message
+        var statusMessage = string.IsNullOrWhiteSpace(transportHealth.StatusMessage)
+            ? GetDefaultStatusMessage(status)
+            : transportHealth.StatusMessage;
+
+        var description = $"{transportHealth.TransportName}: {statusMessage}";
 
         return new HealthCheckResult(status, description, null, data);
+    }
+
+    /// <summary>
+    /// Get default status message based on health status
+    /// </summary>
+    private static string GetDefaultStatusMessage(Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus status)
+    {
+        return status switch
+        {
+            Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Healthy => "Transport is healthy",
+            Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Degraded => "Transport is degraded",
+            Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Unhealthy => "Transport is unhealthy",
+            _ => "Unknown status"
+        };
     }
 
     /// <summary>

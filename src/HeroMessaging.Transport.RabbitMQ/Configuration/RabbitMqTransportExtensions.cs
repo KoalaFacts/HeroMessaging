@@ -29,7 +29,8 @@ public static class RabbitMqTransportExtensions
         builder.Services.AddSingleton<IMessageTransport>(sp =>
         {
             var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
-            return new RabbitMqTransport(options, loggerFactory);
+            var timeProvider = sp.GetRequiredService<TimeProvider>();
+            return new RabbitMqTransport(options, loggerFactory, timeProvider);
         });
 
         return builder;

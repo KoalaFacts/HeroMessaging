@@ -224,4 +224,70 @@ public class TransportHealthCheckTests
         Assert.Equal(Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Unhealthy, result.Status);
         Assert.Contains("check failed", result.Description);
     }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task CheckHealthAsync_WithNullStatusMessage_UsesDefaultMessage()
+    {
+        // Arrange
+        var mockTransport = new Mock<IMessageTransport>();
+        var transportHealth = new TransportHealth
+        {
+            TransportName = "TestTransport",
+            Status = HealthStatus.Healthy,
+            State = TransportState.Connected,
+            StatusMessage = null,  // Null status message
+            ActiveConnections = 1,
+            ActiveConsumers = 0
+        };
+
+        mockTransport.Setup(t => t.GetHealthAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(transportHealth);
+        mockTransport.Setup(t => t.Name).Returns("TestTransport");
+
+        var healthCheck = new TransportHealthCheck(mockTransport.Object);
+        var context = new HealthCheckContext();
+
+        // Act
+        var result = await healthCheck.CheckHealthAsync(context, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Healthy, result.Status);
+        Assert.NotNull(result.Description);
+        Assert.Contains("TestTransport", result.Description);
+        Assert.DoesNotContain(":", result.Description.Trim().TrimEnd());  // Should not end with just ":"
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task CheckHealthAsync_WithEmptyStatusMessage_UsesDefaultMessage()
+    {
+        // Arrange
+        var mockTransport = new Mock<IMessageTransport>();
+        var transportHealth = new TransportHealth
+        {
+            TransportName = "TestTransport",
+            Status = HealthStatus.Degraded,
+            State = TransportState.Reconnecting,
+            StatusMessage = "",  // Empty status message
+            ActiveConnections = 0,
+            ActiveConsumers = 0
+        };
+
+        mockTransport.Setup(t => t.GetHealthAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(transportHealth);
+        mockTransport.Setup(t => t.Name).Returns("TestTransport");
+
+        var healthCheck = new TransportHealthCheck(mockTransport.Object);
+        var context = new HealthCheckContext();
+
+        // Act
+        var result = await healthCheck.CheckHealthAsync(context, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Degraded, result.Status);
+        Assert.NotNull(result.Description);
+        Assert.Contains("TestTransport", result.Description);
+        Assert.DoesNotContain(": ", result.Description.TrimEnd());  // Should not have hanging ": "
+    }
 }
