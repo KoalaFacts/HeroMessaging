@@ -23,13 +23,13 @@ public class SagaOrchestrator<TSaga> where TSaga : class, ISaga, new()
         StateMachineDefinition<TSaga> stateMachine,
         IServiceProvider services,
         ILogger<SagaOrchestrator<TSaga>> logger,
-        TimeProvider? timeProvider = null)
+        TimeProvider timeProvider)
     {
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
         _stateMachine = stateMachine ?? throw new ArgumentNullException(nameof(stateMachine));
         _services = services ?? throw new ArgumentNullException(nameof(services));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _timeProvider = timeProvider ?? TimeProvider.System;
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
 
     /// <summary>
