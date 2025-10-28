@@ -137,7 +137,11 @@ public static class TraceContextPropagator
             return false;
         }
 
-        if (!ActivityTraceId.TryCreateFromString(parts[1].AsSpan(), out traceId))
+        try
+        {
+            traceId = ActivityTraceId.CreateFromString(parts[1].AsSpan());
+        }
+        catch
         {
             return false;
         }
@@ -148,7 +152,11 @@ public static class TraceContextPropagator
             return false;
         }
 
-        if (!ActivitySpanId.TryCreateFromString(parts[2].AsSpan(), out spanId))
+        try
+        {
+            spanId = ActivitySpanId.CreateFromString(parts[2].AsSpan());
+        }
+        catch
         {
             return false;
         }
