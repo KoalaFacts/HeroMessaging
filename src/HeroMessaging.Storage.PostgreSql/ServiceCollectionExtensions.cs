@@ -1,4 +1,5 @@
 using HeroMessaging.Abstractions.Configuration;
+using HeroMessaging.Abstractions.ErrorHandling;
 using HeroMessaging.Abstractions.Sagas;
 using HeroMessaging.Abstractions.Storage;
 using Microsoft.Extensions.DependencyInjection;
@@ -29,7 +30,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton(options);
         services.AddSingleton<IMessageStorage>(sp => new PostgreSqlMessageStorage(options.ConnectionString));
         services.AddSingleton<IOutboxStorage>(sp => new PostgreSqlOutboxStorage(options.ConnectionString));
-        services.AddSingleton<IDeadLetterQueue>(sp => new PostgreSqlDeadLetterQueue(options.ConnectionString));
+        services.AddSingleton<IDeadLetterQueue>(sp => new PostgreSqlDeadLetterQueue(options, sp.GetRequiredService<TimeProvider>()));
 
         return builder;
     }
@@ -70,7 +71,7 @@ public static class ServiceCollectionExtensions
     public static IHeroMessagingBuilder UsePostgreSqlDeadLetterQueue(this IHeroMessagingBuilder builder, PostgreSqlStorageOptions options)
     {
         var services = builder as IServiceCollection ?? throw new InvalidOperationException("Builder must implement IServiceCollection");
-        services.AddSingleton<IDeadLetterQueue>(sp => new PostgreSqlDeadLetterQueue(options.ConnectionString));
+        services.AddSingleton<IDeadLetterQueue>(sp => new PostgreSqlDeadLetterQueue(options, sp.GetRequiredService<TimeProvider>()));
         return builder;
     }
 
