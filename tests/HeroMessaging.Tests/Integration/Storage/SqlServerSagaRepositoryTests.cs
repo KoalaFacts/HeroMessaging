@@ -49,7 +49,7 @@ public class SqlServerSagaRepositoryTests : IAsyncLifetime
 
     private SqlServerSagaRepository<TestSaga> CreateRepository(TimeProvider? timeProvider = null)
     {
-        Skip.If(_skipTests || _options == null, "SQL Server not available for integration tests");
+        Assert.SkipWhen(_skipTests || _options == null, "SQL Server not available for integration tests");
         return new SqlServerSagaRepository<TestSaga>(_options!, timeProvider ?? TimeProvider.System);
     }
 
