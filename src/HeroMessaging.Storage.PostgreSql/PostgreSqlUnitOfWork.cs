@@ -12,6 +12,7 @@ public class PostgreSqlUnitOfWork : IUnitOfWork
     private readonly NpgsqlConnection _connection;
     private NpgsqlTransaction? _transaction;
     private readonly List<string> _savepoints = new();
+    private readonly TimeProvider _timeProvider;
     private bool _disposed;
 
     private readonly Lazy<IOutboxStorage> _outboxStorage;
@@ -19,15 +20,16 @@ public class PostgreSqlUnitOfWork : IUnitOfWork
     private readonly Lazy<IQueueStorage> _queueStorage;
     private readonly Lazy<IMessageStorage> _messageStorage;
 
-    public PostgreSqlUnitOfWork(string connectionString)
+    public PostgreSqlUnitOfWork(string connectionString, TimeProvider? timeProvider = null)
     {
         _connection = new NpgsqlConnection(connectionString);
+        _timeProvider = timeProvider ?? TimeProvider.System;
 
         // Initialize storage implementations lazily with the shared connection/transaction
-        _outboxStorage = new Lazy<IOutboxStorage>(() => new PostgreSqlOutboxStorage(_connection, _transaction));
-        _inboxStorage = new Lazy<IInboxStorage>(() => new PostgreSqlInboxStorage(_connection, _transaction));
-        _queueStorage = new Lazy<IQueueStorage>(() => new PostgreSqlQueueStorage(_connection, _transaction));
-        _messageStorage = new Lazy<IMessageStorage>(() => new PostgreSqlMessageStorage(_connection, _transaction));
+        _outboxStorage = new Lazy<IOutboxStorage>(() => new PostgreSqlOutboxStorage(_connection, _transaction, _timeProvider));
+        _inboxStorage = new Lazy<IInboxStorage>(() => new PostgreSqlInboxStorage(_connection, _transaction, _timeProvider));
+        _queueStorage = new Lazy<IQueueStorage>(() => new PostgreSqlQueueStorage(_connection, _transaction, _timeProvider));
+        _messageStorage = new Lazy<IMessageStorage>(() => new PostgreSqlMessageStorage(_connection, _transaction, _timeProvider));
     }
 
     public IsolationLevel IsolationLevel => _transaction?.IsolationLevel ?? IsolationLevel.Unspecified;

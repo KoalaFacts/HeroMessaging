@@ -108,13 +108,49 @@ jobs:
           flags: unit-tests
           fail_ci_if_error: false
 
-  # Integration tests with mock dependencies (faster, runs on .NET 9 only)
+  # Integration tests with real database services
   integration-tests:
     name: Integration Tests (.NET 9)
     needs: unit-tests
     if: always() && (github.event.inputs.run_integration_tests != 'false')
     runs-on: ubuntu-latest
     timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: heromessaging_tests
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: Y
+          SA_PASSWORD: YourStrong@Passw0rd
+          MSSQL_PID: Developer
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P YourStrong@Passw0rd -Q 'SELECT 1' -C -N"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+          --health-start-period 30s
+
+    env:
+      # PostgreSQL connection string for tests
+      PostgreSql__ConnectionString: "Host=localhost;Database=heromessaging_tests;Username=postgres;Password=postgres"
+      # SQL Server connection string for tests (using SA account for CI)
+      SqlServer__ConnectionString: "Server=localhost,1433;Database=HeroMessagingTests;User Id=sa;Password=YourStrong@Passw0rd;TrustServerCertificate=True;Encrypt=False;"
 
     steps:
       - name: Checkout code
@@ -138,6 +174,49 @@ jobs:
 
       - name: Build solution
         run: dotnet build --configuration Release --no-restore
+
+      - name: Wait for databases to be ready
+        run: |
+          echo "Waiting for PostgreSQL..."
+          for i in {1..30}; do
+            pg_isready -h localhost -p 5432 -U postgres && echo "PostgreSQL is ready!" && break
+            echo "Waiting for PostgreSQL to be ready... ($i/30)"
+            sleep 2
+          done
+
+          echo "Waiting for SQL Server..."
+          # Install SQL Server command-line tools
+          curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
+          curl https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list
+          sudo apt-get update
+          sudo ACCEPT_EULA=Y apt-get install -y mssql-tools18 unixodbc-dev
+
+          # Test SQL Server connectivity
+          for i in {1..30}; do
+            /opt/mssql-tools18/bin/sqlcmd -S localhost,1433 -U sa -P 'YourStrong@Passw0rd' -Q 'SELECT 1' -C && echo "SQL Server is ready!" && break
+            echo "Waiting for SQL Server to be ready... ($i/30)"
+            sleep 3
+          done
+
+          echo "All databases are ready!"
+
+      - name: Create test databases
+        run: |
+          echo "Creating SQL Server test database..."
+          /opt/mssql-tools18/bin/sqlcmd -S localhost,1433 -U sa -P 'YourStrong@Passw0rd' -C -Q "
+            IF NOT EXISTS (SELECT name FROM sys.databases WHERE name = 'HeroMessagingTests')
+            BEGIN
+              CREATE DATABASE HeroMessagingTests;
+              PRINT 'Database HeroMessagingTests created successfully';
+            END
+            ELSE
+            BEGIN
+              PRINT 'Database HeroMessagingTests already exists';
+            END
+          "
+
+          echo "PostgreSQL test database already created during service initialization"
+          echo "All test databases are ready!"
 
       - name: Run integration tests
         shell: bash

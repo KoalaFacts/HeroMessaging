@@ -137,6 +137,30 @@ public class MessageProcessingPipelineBuilder(IServiceProvider serviceProvider)
     }
 
     /// <summary>
+    /// Add OpenTelemetry instrumentation to the pipeline
+    /// </summary>
+    public MessageProcessingPipelineBuilder UseOpenTelemetry()
+    {
+        _decorators.Add(processor =>
+        {
+            // Check if OpenTelemetry decorator type is available
+            var openTelemetryDecoratorType = Type.GetType(
+                "HeroMessaging.Observability.OpenTelemetry.OpenTelemetryDecorator, HeroMessaging.Observability.OpenTelemetry");
+
+            if (openTelemetryDecoratorType == null)
+            {
+                // OpenTelemetry package not available, skip this decorator
+                return processor;
+            }
+
+            // Create instance using reflection
+            var decorator = Activator.CreateInstance(openTelemetryDecoratorType, processor);
+            return (IMessageProcessor)(decorator ?? processor);
+        });
+        return this;
+    }
+
+    /// <summary>
     /// Add a custom decorator to the pipeline
     /// </summary>
     public MessageProcessingPipelineBuilder Use(Func<IMessageProcessor, IMessageProcessor> decorator)
