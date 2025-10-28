@@ -49,12 +49,8 @@ public class PostgreSqlSagaRepositoryTests : IAsyncLifetime
 
     private PostgreSqlSagaRepository<TestSaga> CreateRepository(TimeProvider? timeProvider = null)
     {
-        if (_skipTests || _options == null)
-        {
-            throw new SkipException("PostgreSQL not available for integration tests");
-        }
-
-        return new PostgreSqlSagaRepository<TestSaga>(_options, timeProvider ?? TimeProvider.System);
+        Skip.If(_skipTests || _options == null, "PostgreSQL not available for integration tests");
+        return new PostgreSqlSagaRepository<TestSaga>(_options!, timeProvider ?? TimeProvider.System);
     }
 
     [Fact]
