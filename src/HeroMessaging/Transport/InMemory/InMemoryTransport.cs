@@ -1,5 +1,7 @@
+using HeroMessaging.Abstractions.Observability;
 using HeroMessaging.Abstractions.Transport;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Threading.Channels;
 
 namespace HeroMessaging.Transport.InMemory;
@@ -12,6 +14,7 @@ public class InMemoryTransport : IMessageTransport
 {
     private static readonly Random _random = new Random();
     private readonly InMemoryTransportOptions _options;
+    private readonly ITransportInstrumentation _instrumentation;
     private readonly ConcurrentDictionary<string, InMemoryQueue> _queues = new();
     private readonly ConcurrentDictionary<string, InMemoryTopic> _topics = new();
     private readonly ConcurrentDictionary<string, InMemoryConsumer> _consumers = new();
@@ -32,10 +35,14 @@ public class InMemoryTransport : IMessageTransport
     /// <inheritdoc/>
     public event EventHandler<TransportErrorEventArgs>? Error;
 
-    public InMemoryTransport(InMemoryTransportOptions options, TimeProvider timeProvider)
+    public InMemoryTransport(
+        InMemoryTransportOptions options,
+        TimeProvider timeProvider,
+        ITransportInstrumentation? instrumentation = null)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+        _instrumentation = instrumentation ?? NoOpTransportInstrumentation.Instance;
     }
 
     /// <inheritdoc/>
@@ -96,20 +103,47 @@ public class InMemoryTransport : IMessageTransport
     {
         EnsureConnected();
 
-        // Simulate network delay if configured
-        if (_options.SimulateNetworkDelay)
+        // Start send activity for distributed tracing
+        using var activity = _instrumentation.StartSendActivity(envelope, destination.Name, Name);
+        var startTime = Stopwatch.GetTimestamp();
+
+        try
         {
-            var delay = _random.Next(
-                (int)_options.SimulatedDelayMin.TotalMilliseconds,
-                (int)_options.SimulatedDelayMax.TotalMilliseconds);
-            await Task.Delay(delay, cancellationToken);
+            // Inject trace context into envelope headers
+            envelope = _instrumentation.InjectTraceContext(envelope, activity);
+
+            _instrumentation.AddEvent(activity, "send.start");
+
+            // Simulate network delay if configured
+            if (_options.SimulateNetworkDelay)
+            {
+                var delay = _random.Next(
+                    (int)_options.SimulatedDelayMin.TotalMilliseconds,
+                    (int)_options.SimulatedDelayMax.TotalMilliseconds);
+                await Task.Delay(delay, cancellationToken);
+            }
+
+            var queue = _queues.GetOrAdd(destination.Name, _ => new InMemoryQueue(_options.MaxQueueLength, _options.DropWhenFull));
+
+            if (!await queue.EnqueueAsync(envelope, cancellationToken))
+            {
+                _instrumentation.AddEvent(activity, "queue.full");
+                throw new InvalidOperationException($"Queue '{destination.Name}' is full and DropWhenFull is false");
+            }
+
+            _instrumentation.AddEvent(activity, "send.complete");
+
+            // Record successful operation
+            var durationMs = Stopwatch.GetElapsedTime(startTime).TotalMilliseconds;
+            _instrumentation.RecordSendDuration(Name, destination.Name, envelope.MessageType, durationMs);
+            _instrumentation.RecordOperation(Name, "send", "success");
         }
-
-        var queue = _queues.GetOrAdd(destination.Name, _ => new InMemoryQueue(_options.MaxQueueLength, _options.DropWhenFull));
-
-        if (!await queue.EnqueueAsync(envelope, cancellationToken))
+        catch (Exception ex)
         {
-            OnError(new InvalidOperationException($"Queue '{destination.Name}' is full and DropWhenFull is false"));
+            // Record error
+            _instrumentation.RecordError(activity, ex);
+            _instrumentation.RecordOperation(Name, "send", "failure");
+            throw;
         }
     }
 
@@ -118,18 +152,44 @@ public class InMemoryTransport : IMessageTransport
     {
         EnsureConnected();
 
-        // Simulate network delay if configured
-        if (_options.SimulateNetworkDelay)
+        // Start publish activity for distributed tracing
+        using var activity = _instrumentation.StartPublishActivity(envelope, topic.Name, Name);
+        var startTime = Stopwatch.GetTimestamp();
+
+        try
         {
-            var delay = _random.Next(
-                (int)_options.SimulatedDelayMin.TotalMilliseconds,
-                (int)_options.SimulatedDelayMax.TotalMilliseconds);
-            await Task.Delay(delay, cancellationToken);
+            // Inject trace context into envelope headers
+            envelope = _instrumentation.InjectTraceContext(envelope, activity);
+
+            _instrumentation.AddEvent(activity, "publish.start");
+
+            // Simulate network delay if configured
+            if (_options.SimulateNetworkDelay)
+            {
+                var delay = _random.Next(
+                    (int)_options.SimulatedDelayMin.TotalMilliseconds,
+                    (int)_options.SimulatedDelayMax.TotalMilliseconds);
+                await Task.Delay(delay, cancellationToken);
+            }
+
+            var inMemoryTopic = _topics.GetOrAdd(topic.Name, _ => new InMemoryTopic());
+
+            await inMemoryTopic.PublishAsync(envelope, cancellationToken);
+
+            _instrumentation.AddEvent(activity, "publish.complete");
+
+            // Record successful operation
+            var durationMs = Stopwatch.GetElapsedTime(startTime).TotalMilliseconds;
+            _instrumentation.RecordSendDuration(Name, topic.Name, envelope.MessageType, durationMs);
+            _instrumentation.RecordOperation(Name, "publish", "success");
         }
-
-        var inMemoryTopic = _topics.GetOrAdd(topic.Name, _ => new InMemoryTopic());
-
-        await inMemoryTopic.PublishAsync(envelope, cancellationToken);
+        catch (Exception ex)
+        {
+            // Record error
+            _instrumentation.RecordError(activity, ex);
+            _instrumentation.RecordOperation(Name, "publish", "failure");
+            throw;
+        }
     }
 
     /// <inheritdoc/>
@@ -150,7 +210,8 @@ public class InMemoryTransport : IMessageTransport
             handler,
             options,
             this,
-            _timeProvider);
+            _timeProvider,
+            _instrumentation);
 
         if (!_consumers.TryAdd(consumerId, consumer))
         {

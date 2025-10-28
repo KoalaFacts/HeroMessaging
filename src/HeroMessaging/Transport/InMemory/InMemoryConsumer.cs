@@ -1,4 +1,6 @@
+using HeroMessaging.Abstractions.Observability;
 using HeroMessaging.Abstractions.Transport;
+using System.Diagnostics;
 using System.Threading.Channels;
 
 namespace HeroMessaging.Transport.InMemory;
@@ -12,6 +14,7 @@ internal class InMemoryConsumer : ITransportConsumer
     private readonly Func<TransportEnvelope, MessageContext, CancellationToken, Task> _handler;
     private readonly ConsumerOptions _options;
     private readonly InMemoryTransport _transport;
+    private readonly ITransportInstrumentation _instrumentation;
     private readonly Channel<TransportEnvelope> _messageChannel;
     private readonly CancellationTokenSource _cts = new();
     private Task? _processingTask;
@@ -36,7 +39,8 @@ internal class InMemoryConsumer : ITransportConsumer
         Func<TransportEnvelope, MessageContext, CancellationToken, Task> handler,
         ConsumerOptions options,
         InMemoryTransport transport,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        ITransportInstrumentation? instrumentation = null)
     {
         ConsumerId = consumerId ?? throw new ArgumentNullException(nameof(consumerId));
         Source = source;
@@ -44,6 +48,7 @@ internal class InMemoryConsumer : ITransportConsumer
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _transport = transport ?? throw new ArgumentNullException(nameof(transport));
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+        _instrumentation = instrumentation ?? NoOpTransportInstrumentation.Instance;
 
         _concurrencyLimiter = new SemaphoreSlim(options.ConcurrentMessageLimit, options.ConcurrentMessageLimit);
 
@@ -137,42 +142,73 @@ internal class InMemoryConsumer : ITransportConsumer
         await _concurrencyLimiter.WaitAsync(cancellationToken);
         _metrics.CurrentlyProcessing++;
 
-        var startTime = _timeProvider.GetUtcNow().DateTime;
+        var startTime = Stopwatch.GetTimestamp();
         _metrics.MessagesReceived++;
-        _metrics.LastMessageReceived = startTime;
+        _metrics.LastMessageReceived = _timeProvider.GetUtcNow().DateTime;
+
+        Activity? activity = null;
 
         // Track whether user manually handled message lifecycle
         bool messageHandled = false;
 
         try
         {
+            _instrumentation.AddEvent(activity, "receive.start");
+
+            // Extract trace context from message headers
+            var parentContext = _instrumentation.ExtractTraceContext(envelope);
+
+            // Start receive activity with extracted parent context
+            activity = _instrumentation.StartReceiveActivity(
+                envelope,
+                Source.Name,
+                _transport.Name,
+                ConsumerId,
+                parentContext);
+
+            _instrumentation.AddEvent(activity, "handler.start");
+
             var context = new MessageContext(_transport.Name, Source)
             {
                 Acknowledge = async (ct) =>
                 {
                     messageHandled = true;
                     _metrics.MessagesAcknowledged++;
+                    _instrumentation.AddEvent(activity, "acknowledge");
                     await Task.CompletedTask;
                 },
                 Reject = async (requeue, ct) =>
                 {
                     messageHandled = true;
                     _metrics.MessagesRejected++;
+                    _instrumentation.AddEvent(activity, requeue ? "reject.requeue" : "reject.drop");
                     if (requeue)
                     {
                         await DeliverMessageAsync(envelope, ct);
                     }
                 },
+                Defer = async (delay, ct) =>
+                {
+                    messageHandled = true;
+                    _instrumentation.AddEvent(activity, "defer");
+                    await Task.CompletedTask;
+                },
                 DeadLetter = async (reason, ct) =>
                 {
                     messageHandled = true;
                     _metrics.MessagesDeadLettered++;
+                    _instrumentation.AddEvent(activity, "deadletter", new[]
+                    {
+                        new KeyValuePair<string, object?>("reason", reason ?? "unknown")
+                    });
                     await Task.CompletedTask;
                 }
             };
 
             // Invoke user handler
             await _handler(envelope, context, cancellationToken);
+
+            _instrumentation.AddEvent(activity, "handler.complete");
 
             // Auto-acknowledge if configured and user didn't manually handle the message
             if (_options.AutoAcknowledge && !messageHandled)
@@ -183,13 +219,22 @@ internal class InMemoryConsumer : ITransportConsumer
             _metrics.RecordSuccess();
             _metrics.LastMessageProcessed = _timeProvider.GetUtcNow().DateTime;
 
+            // Record successful operation
+            var durationMs = Stopwatch.GetElapsedTime(startTime).TotalMilliseconds;
+            _instrumentation.RecordReceiveDuration(_transport.Name, Source.Name, envelope.MessageType, durationMs);
+            _instrumentation.RecordOperation(_transport.Name, "receive", "success");
+
             // Update average processing duration
-            var duration = _timeProvider.GetUtcNow().DateTime - startTime;
+            var duration = _timeProvider.GetUtcNow().DateTime - _metrics.LastMessageReceived;
             UpdateAverageProcessingDuration(duration);
         }
         catch (Exception ex)
         {
             _metrics.RecordFailure(ex.Message);
+
+            // Record error
+            _instrumentation.RecordError(activity, ex);
+            _instrumentation.RecordOperation(_transport.Name, "receive", "failure");
 
             // Retry logic
             var retryCount = envelope.DeliveryCount;
@@ -209,6 +254,7 @@ internal class InMemoryConsumer : ITransportConsumer
         }
         finally
         {
+            activity?.Dispose();
             _metrics.CurrentlyProcessing--;
             _concurrencyLimiter.Release();
         }
