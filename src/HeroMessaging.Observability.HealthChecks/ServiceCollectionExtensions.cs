@@ -98,14 +98,26 @@ public static class ServiceCollectionExtensions
         this IHealthChecksBuilder builder,
         HeroMessagingHealthCheckOptions options)
     {
+        // Register a health check that will enumerate all transports at runtime
         builder.Add(new HealthCheckRegistration(
             "hero_messaging_transport",
             sp =>
             {
-                var transport = sp.GetService<IMessageTransport>();
-                return transport != null
-                    ? new TransportHealthCheck(transport)
-                    : new AlwaysHealthyCheck("Transport not registered");
+                var transports = sp.GetServices<IMessageTransport>().ToList();
+
+                if (transports.Count == 0)
+                {
+                    return new AlwaysHealthyCheck("No transports registered");
+                }
+
+                if (transports.Count == 1)
+                {
+                    // Single transport - use simple health check
+                    return new TransportHealthCheck(transports[0]);
+                }
+
+                // Multiple transports - use composite health check
+                return new MultipleTransportHealthCheck(transports);
             },
             options.FailureStatus,
             options.Tags));
