@@ -1,3 +1,4 @@
+using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Storage;
 using Microsoft.Data.SqlClient;

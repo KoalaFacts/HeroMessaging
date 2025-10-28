@@ -1,3 +1,4 @@
+using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Storage;
 using Microsoft.Data.SqlClient;
@@ -103,7 +104,7 @@ public class SqlServerInboxStorage : IInboxStorage
         await command.ExecuteNonQueryAsync();
     }
 
-    public async Task<InboxEntry?> Add(IMessage message, Abstractions.InboxOptions options, CancellationToken cancellationToken = default)
+    public async Task<InboxEntry?> Add(IMessage message, InboxOptions options, CancellationToken cancellationToken = default)
     {
         var connection = _sharedConnection ?? new SqlConnection(_connectionString);
         var transaction = _sharedTransaction;
@@ -241,7 +242,7 @@ public class SqlServerInboxStorage : IInboxStorage
                 {
                     Id = messageId,
                     Message = message!,
-                    Options = new Abstractions.InboxOptions
+                    Options = new InboxOptions
                     {
                         Source = source,
                         RequireIdempotency = requireIdempotency,
