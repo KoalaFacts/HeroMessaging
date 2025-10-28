@@ -26,11 +26,13 @@
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
 		<PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.0" />
 		<PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" Version="9.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="9.0.0" />
 	</ItemGroup>
 
 	<ItemGroup>
 		<ProjectReference Include="..\..\src\HeroMessaging\HeroMessaging.csproj" />
 		<ProjectReference Include="..\..\src\HeroMessaging.Abstractions\HeroMessaging.Abstractions.csproj" />
+		<ProjectReference Include="..\..\src\HeroMessaging.Observability.HealthChecks\HeroMessaging.Observability.HealthChecks.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>

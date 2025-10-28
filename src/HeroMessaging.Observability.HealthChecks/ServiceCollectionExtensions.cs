@@ -1,4 +1,5 @@
 using HeroMessaging.Abstractions.Storage;
+using HeroMessaging.Abstractions.Transport;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
@@ -16,6 +17,11 @@ public static class ServiceCollectionExtensions
         if (options.CheckStorage)
         {
             builder.AddStorageHealthChecks(options);
+        }
+
+        if (options.CheckTransport)
+        {
+            builder.AddTransportHealthChecks(options);
         }
 
         return builder;
@@ -88,6 +94,25 @@ public static class ServiceCollectionExtensions
         return builder;
     }
 
+    private static IHealthChecksBuilder AddTransportHealthChecks(
+        this IHealthChecksBuilder builder,
+        HeroMessagingHealthCheckOptions options)
+    {
+        builder.Add(new HealthCheckRegistration(
+            "hero_messaging_transport",
+            sp =>
+            {
+                var transport = sp.GetService<IMessageTransport>();
+                return transport != null
+                    ? new TransportHealthCheck(transport)
+                    : new AlwaysHealthyCheck("Transport not registered");
+            },
+            options.FailureStatus,
+            options.Tags));
+
+        return builder;
+    }
+
     public static IHealthChecksBuilder AddCompositeHealthCheck(
         this IHealthChecksBuilder builder,
         string name,
@@ -122,6 +147,7 @@ public class HeroMessagingHealthCheckOptions
     public bool CheckOutboxStorage { get; set; } = true;
     public bool CheckInboxStorage { get; set; } = true;
     public bool CheckQueueStorage { get; set; } = true;
+    public bool CheckTransport { get; set; } = true;
     public HealthStatus? FailureStatus { get; set; } = HealthStatus.Unhealthy;
     public IReadOnlyCollection<string>? Tags { get; set; }
 }
