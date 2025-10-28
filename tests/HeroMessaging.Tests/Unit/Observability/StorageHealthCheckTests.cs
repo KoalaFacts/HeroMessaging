@@ -344,7 +344,7 @@ public class StorageHealthCheckTests
     {
         // Arrange
         var mockStorage = new Mock<IQueueStorage>();
-        var queueDepth = 42;
+        var queueDepth = 42L;
 
         mockStorage
             .Setup(s => s.GetQueueDepth(It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -375,7 +375,7 @@ public class StorageHealthCheckTests
         // Arrange
         var mockStorage = new Mock<IQueueStorage>();
         var customQueueName = "my_custom_queue";
-        var queueDepth = 10;
+        var queueDepth = 10L;
 
         mockStorage
             .Setup(s => s.GetQueueDepth(customQueueName, It.IsAny<CancellationToken>()))
@@ -437,7 +437,7 @@ public class StorageHealthCheckTests
 
         mockStorage
             .Setup(s => s.GetQueueDepth(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(5);
+            .ReturnsAsync(5L);
 
         var healthCheck = new QueueStorageHealthCheck(mockStorage.Object, customName);
 
