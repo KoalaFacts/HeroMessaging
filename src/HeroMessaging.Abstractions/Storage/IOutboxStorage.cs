@@ -28,7 +28,7 @@ public class OutboxEntry
     public Abstractions.OutboxOptions Options { get; set; } = new();
     public OutboxStatus Status { get; set; } = OutboxStatus.Pending;
     public int RetryCount { get; set; }
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; } = TimeProvider.System.GetUtcNow().DateTime;
     public DateTime? ProcessedAt { get; set; }
     public DateTime? NextRetryAt { get; set; }
     public string? LastError { get; set; }

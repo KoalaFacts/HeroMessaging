@@ -23,7 +23,7 @@ public class DeadLetterContext
     public Exception? Exception { get; set; }
     public string Component { get; set; } = string.Empty;
     public int RetryCount { get; set; }
-    public DateTime FailureTime { get; set; } = DateTime.UtcNow;
+    public DateTime FailureTime { get; set; } = TimeProvider.System.GetUtcNow().DateTime;
     public Dictionary<string, object> Metadata { get; set; } = new();
 }
 
@@ -32,7 +32,7 @@ public class DeadLetterEntry<T> where T : IMessage
     public string Id { get; set; } = Guid.NewGuid().ToString();
     public T Message { get; set; } = default!;
     public DeadLetterContext Context { get; set; } = new();
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; } = TimeProvider.System.GetUtcNow().DateTime;
     public DeadLetterStatus Status { get; set; } = DeadLetterStatus.Active;
     public DateTime? RetriedAt { get; set; }
     public DateTime? DiscardedAt { get; set; }

@@ -30,7 +30,7 @@ public class TransportStateChangedEventArgs(TransportState previousState, Transp
     public TransportState PreviousState { get; } = previousState;
     public TransportState CurrentState { get; } = currentState;
     public string? Reason { get; } = reason;
-    public DateTime OccurredAt { get; } = DateTime.UtcNow;
+    public DateTime OccurredAt { get; } = TimeProvider.System.GetUtcNow().DateTime;
 }
 
 /// <summary>
@@ -40,7 +40,7 @@ public class TransportErrorEventArgs(Exception exception, string? context = null
 {
     public Exception Exception { get; } = exception;
     public string? Context { get; } = context;
-    public DateTime OccurredAt { get; } = DateTime.UtcNow;
+    public DateTime OccurredAt { get; } = TimeProvider.System.GetUtcNow().DateTime;
 }
 
 /// <summary>

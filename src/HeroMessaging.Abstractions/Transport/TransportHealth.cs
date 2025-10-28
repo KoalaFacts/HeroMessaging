@@ -26,9 +26,10 @@ public class TransportHealth
     public string? StatusMessage { get; set; }
 
     /// <summary>
-    /// When the health check was performed
+    /// When the health check was performed.
+    /// Defaults to system time when not explicitly set.
     /// </summary>
-    public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+    public DateTime Timestamp { get; set; } = TimeProvider.System.GetUtcNow().DateTime;
 
     /// <summary>
     /// Duration of the health check
@@ -73,15 +74,16 @@ public class TransportHealth
     /// <summary>
     /// Create a healthy status
     /// </summary>
-    public static TransportHealth Healthy(string transportName, TransportState state = TransportState.Connected)
+    public static TransportHealth Healthy(string transportName, TransportState state = TransportState.Connected, TimeProvider? timeProvider = null)
     {
+        var now = (timeProvider ?? TimeProvider.System).GetUtcNow().DateTime;
         return new TransportHealth
         {
             TransportName = transportName,
             Status = HealthStatus.Healthy,
             State = state,
             StatusMessage = "Transport is healthy",
-            Timestamp = DateTime.UtcNow,
+            Timestamp = now,
             Duration = TimeSpan.Zero,
             ActiveConnections = 0,
             ActiveConsumers = 0
@@ -91,15 +93,16 @@ public class TransportHealth
     /// <summary>
     /// Create a degraded status
     /// </summary>
-    public static TransportHealth Degraded(string transportName, string reason, TransportState state = TransportState.Connected)
+    public static TransportHealth Degraded(string transportName, string reason, TransportState state = TransportState.Connected, TimeProvider? timeProvider = null)
     {
+        var now = (timeProvider ?? TimeProvider.System).GetUtcNow().DateTime;
         return new TransportHealth
         {
             TransportName = transportName,
             Status = HealthStatus.Degraded,
             State = state,
             StatusMessage = reason,
-            Timestamp = DateTime.UtcNow,
+            Timestamp = now,
             Duration = TimeSpan.Zero,
             ActiveConnections = 0,
             ActiveConsumers = 0
@@ -109,15 +112,16 @@ public class TransportHealth
     /// <summary>
     /// Create an unhealthy status
     /// </summary>
-    public static TransportHealth Unhealthy(string transportName, string reason, TransportState state = TransportState.Disconnected)
+    public static TransportHealth Unhealthy(string transportName, string reason, TransportState state = TransportState.Disconnected, TimeProvider? timeProvider = null)
     {
+        var now = (timeProvider ?? TimeProvider.System).GetUtcNow().DateTime;
         return new TransportHealth
         {
             TransportName = transportName,
             Status = HealthStatus.Unhealthy,
             State = state,
             StatusMessage = reason,
-            Timestamp = DateTime.UtcNow,
+            Timestamp = now,
             Duration = TimeSpan.Zero,
             ActiveConnections = 0,
             ActiveConsumers = 0
@@ -127,8 +131,9 @@ public class TransportHealth
     /// <summary>
     /// Create from exception
     /// </summary>
-    public static TransportHealth FromException(string transportName, Exception exception)
+    public static TransportHealth FromException(string transportName, Exception exception, TimeProvider? timeProvider = null)
     {
+        var now = (timeProvider ?? TimeProvider.System).GetUtcNow().DateTime;
         return new TransportHealth
         {
             TransportName = transportName,
@@ -136,8 +141,8 @@ public class TransportHealth
             State = TransportState.Faulted,
             StatusMessage = exception.Message,
             LastError = exception.ToString(),
-            LastErrorTime = DateTime.UtcNow,
-            Timestamp = DateTime.UtcNow,
+            LastErrorTime = now,
+            Timestamp = now,
             Duration = TimeSpan.Zero,
             ActiveConnections = 0,
             ActiveConsumers = 0
