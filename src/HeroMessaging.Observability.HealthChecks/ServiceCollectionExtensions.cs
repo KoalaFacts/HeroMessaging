@@ -160,6 +160,6 @@ public class HeroMessagingHealthCheckOptions
     public bool CheckInboxStorage { get; set; } = true;
     public bool CheckQueueStorage { get; set; } = true;
     public bool CheckTransport { get; set; } = true;
-    public HealthStatus? FailureStatus { get; set; } = HealthStatus.Unhealthy;
+    public Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus? FailureStatus { get; set; } = Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Unhealthy;
     public IReadOnlyCollection<string>? Tags { get; set; }
 }
