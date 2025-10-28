@@ -1,5 +1,6 @@
 using HeroMessaging.Abstractions.Configuration;
 using HeroMessaging.Abstractions.ErrorHandling;
+using HeroMessaging.Abstractions.Sagas;
 using HeroMessaging.Abstractions.Storage;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -71,6 +72,32 @@ public static class ServiceCollectionExtensions
     {
         var services = builder as IServiceCollection ?? throw new InvalidOperationException("Builder must implement IServiceCollection");
         services.AddSingleton<IDeadLetterQueue>(sp => new SqlServerDeadLetterQueue(options, sp.GetRequiredService<TimeProvider>()));
+        return builder;
+    }
+
+    /// <summary>
+    /// Use SQL Server for saga repository
+    /// </summary>
+    public static IHeroMessagingBuilder UseSqlServerSagaRepository<TSaga>(this IHeroMessagingBuilder builder, SqlServerStorageOptions options)
+        where TSaga : class, ISaga
+    {
+        var services = builder as IServiceCollection ?? throw new InvalidOperationException("Builder must implement IServiceCollection");
+        services.AddSingleton<ISagaRepository<TSaga>>(sp => new SqlServerSagaRepository<TSaga>(options, sp.GetRequiredService<TimeProvider>()));
+        return builder;
+    }
+
+    /// <summary>
+    /// Use SQL Server for saga repository with default options from builder
+    /// </summary>
+    public static IHeroMessagingBuilder UseSqlServerSagaRepository<TSaga>(this IHeroMessagingBuilder builder)
+        where TSaga : class, ISaga
+    {
+        var services = builder as IServiceCollection ?? throw new InvalidOperationException("Builder must implement IServiceCollection");
+        services.AddSingleton<ISagaRepository<TSaga>>(sp =>
+        {
+            var options = sp.GetRequiredService<SqlServerStorageOptions>();
+            return new SqlServerSagaRepository<TSaga>(options, sp.GetRequiredService<TimeProvider>());
+        });
         return builder;
     }
 }

@@ -31,6 +31,11 @@ public class SqlServerStorageOptions
     public string DeadLetterTableName { get; set; } = "DeadLetterQueue";
 
     /// <summary>
+    /// Table name for saga storage (default: Sagas)
+    /// </summary>
+    public string SagasTableName { get; set; } = "Sagas";
+
+    /// <summary>
     /// Whether to create tables automatically if they don't exist (default: true)
     /// </summary>
     public bool AutoCreateTables { get; set; } = true;
