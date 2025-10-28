@@ -67,6 +67,37 @@ public class StorageHealthCheckTests
 
             return Task.FromResult(messageId == _lastStoredId);
         }
+
+        // Other interface methods - not used by MessageStorageHealthCheck but required by interface
+        public Task<IEnumerable<T>> Query<T>(MessageQuery query, CancellationToken cancellationToken = default) where T : IMessage
+            => Task.FromResult(Enumerable.Empty<T>());
+
+        public Task<bool> Update(string messageId, IMessage message, CancellationToken cancellationToken = default)
+            => Task.FromResult(false);
+
+        public Task<bool> Exists(string messageId, CancellationToken cancellationToken = default)
+            => Task.FromResult(false);
+
+        public Task<long> Count(MessageQuery? query = null, CancellationToken cancellationToken = default)
+            => Task.FromResult(0L);
+
+        public Task Clear(CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public Task StoreAsync(IMessage message, IStorageTransaction? transaction = null, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public Task<IMessage?> RetrieveAsync(Guid messageId, IStorageTransaction? transaction = null, CancellationToken cancellationToken = default)
+            => Task.FromResult<IMessage?>(null);
+
+        public Task<List<IMessage>> QueryAsync(MessageQuery query, CancellationToken cancellationToken = default)
+            => Task.FromResult(new List<IMessage>());
+
+        public Task DeleteAsync(Guid messageId, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public Task<IStorageTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IStorageTransaction>(null!);
     }
 
     #endregion
