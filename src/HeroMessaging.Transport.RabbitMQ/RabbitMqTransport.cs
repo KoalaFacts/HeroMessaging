@@ -1,8 +1,10 @@
+using HeroMessaging.Abstractions.Observability;
 using HeroMessaging.Abstractions.Transport;
 using HeroMessaging.Transport.RabbitMQ.Connection;
 using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 
 namespace HeroMessaging.Transport.RabbitMQ;
 
@@ -14,6 +16,7 @@ public sealed class RabbitMqTransport : IMessageTransport
     private readonly RabbitMqTransportOptions _options;
     private readonly ILogger<RabbitMqTransport> _logger;
     private readonly ILoggerFactory _loggerFactory;
+    private readonly ITransportInstrumentation _instrumentation;
     private RabbitMqConnectionPool? _connectionPool;
     private readonly ConcurrentDictionary<string, RabbitMqChannelPool> _channelPools = new();
     private readonly ConcurrentDictionary<string, RabbitMqConsumer> _consumers = new();
@@ -37,12 +40,14 @@ public sealed class RabbitMqTransport : IMessageTransport
     public RabbitMqTransport(
         RabbitMqTransportOptions options,
         ILoggerFactory loggerFactory,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        ITransportInstrumentation? instrumentation = null)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
         _logger = loggerFactory.CreateLogger<RabbitMqTransport>();
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+        _instrumentation = instrumentation ?? NoOpTransportInstrumentation.Instance;
 
         _logger.LogInformation(
             "RabbitMQ transport created. Name: {Name}, Host: {Host}, Port: {Port}, VirtualHost: {VirtualHost}",
@@ -129,51 +134,89 @@ public sealed class RabbitMqTransport : IMessageTransport
     {
         EnsureConnected();
 
-        var channelPool = await GetOrCreateChannelPoolAsync(cancellationToken);
+        // Start send activity for distributed tracing
+        using var activity = _instrumentation.StartSendActivity(envelope, destination.Name, Name);
+        var startTime = Stopwatch.GetTimestamp();
 
-        await channelPool.ExecuteAsync(async channel =>
+        try
         {
-            // Enable publisher confirms if configured
-            if (_options.UsePublisherConfirms)
+            // Inject trace context into envelope headers
+            envelope = _instrumentation.InjectTraceContext(envelope, activity);
+
+            var channelPool = await GetOrCreateChannelPoolAsync(cancellationToken);
+
+            await channelPool.ExecuteAsync(async channel =>
             {
-                channel.ConfirmSelect();
-            }
-
-            // Build message properties
-            var properties = channel.CreateBasicProperties();
-            properties.Persistent = true; // Durable messages
-            properties.MessageId = envelope.MessageId.ToString();
-            properties.CorrelationId = envelope.CorrelationId;
-            properties.ContentType = envelope.ContentType ?? "application/octet-stream";
-            properties.Timestamp = new AmqpTimestamp(_timeProvider.GetUtcNow().ToUnixTimeSeconds());
-
-            if (envelope.Headers != null)
-            {
-                properties.Headers = new Dictionary<string, object>(envelope.Headers);
-            }
-
-            // Send to default exchange with queue name as routing key (direct routing)
-            channel.BasicPublish(
-                exchange: "",
-                routingKey: destination.Name,
-                basicProperties: properties,
-                body: envelope.Body);
-
-            // Wait for confirm if enabled
-            if (_options.UsePublisherConfirms)
-            {
-                var confirmed = channel.WaitForConfirms(_options.PublisherConfirmTimeout);
-                if (!confirmed)
+                // Enable publisher confirms if configured
+                if (_options.UsePublisherConfirms)
                 {
-                    throw new TimeoutException(
-                        $"Publisher confirm timed out after {_options.PublisherConfirmTimeout} for message {envelope.MessageId}");
+                    channel.ConfirmSelect();
                 }
-            }
 
-            _logger.LogDebug("Sent message {MessageId} to queue {Queue}", envelope.MessageId, destination.Name);
+                _instrumentation.AddEvent(activity, "serialization.start");
 
-            await Task.CompletedTask; // Keep async signature
-        }, cancellationToken);
+                // Build message properties
+                var properties = channel.CreateBasicProperties();
+                properties.Persistent = true; // Durable messages
+                properties.MessageId = envelope.MessageId;
+                properties.CorrelationId = envelope.CorrelationId;
+                properties.ContentType = envelope.ContentType ?? "application/octet-stream";
+                properties.Timestamp = new AmqpTimestamp(_timeProvider.GetUtcNow().ToUnixTimeSeconds());
+
+                // Copy headers including trace context
+                if (envelope.Headers.Count > 0)
+                {
+                    properties.Headers = new Dictionary<string, object>(envelope.Headers);
+                }
+
+                _instrumentation.AddEvent(activity, "serialization.complete", new[]
+                {
+                    new KeyValuePair<string, object?>("size_bytes", envelope.Body.Length)
+                });
+
+                _instrumentation.AddEvent(activity, "publish.start");
+
+                // Send to default exchange with queue name as routing key (direct routing)
+                channel.BasicPublish(
+                    exchange: "",
+                    routingKey: destination.Name,
+                    basicProperties: properties,
+                    body: envelope.Body);
+
+                // Wait for confirm if enabled
+                if (_options.UsePublisherConfirms)
+                {
+                    var confirmed = channel.WaitForConfirms(_options.PublisherConfirmTimeout);
+                    if (!confirmed)
+                    {
+                        _instrumentation.AddEvent(activity, "publish.timeout");
+                        throw new TimeoutException(
+                            $"Publisher confirm timed out after {_options.PublisherConfirmTimeout} for message {envelope.MessageId}");
+                    }
+                    _instrumentation.AddEvent(activity, "publish.confirmed");
+                }
+
+                _instrumentation.AddEvent(activity, "publish.complete");
+
+                _logger.LogDebug("Sent message {MessageId} to queue {Queue}", envelope.MessageId, destination.Name);
+
+                await Task.CompletedTask; // Keep async signature
+            }, cancellationToken);
+
+            // Record successful operation
+            var durationMs = Stopwatch.GetElapsedTime(startTime).TotalMilliseconds;
+            _instrumentation.RecordSendDuration(Name, destination.Name, envelope.MessageType, durationMs);
+            _instrumentation.RecordOperation(Name, "send", "success");
+        }
+        catch (Exception ex)
+        {
+            // Record error
+            _instrumentation.RecordError(activity, ex);
+            _instrumentation.RecordOperation(Name, "send", "failure");
+
+            _logger.LogError(ex, "Failed to send message {MessageId} to queue {Queue}", envelope.MessageId, destination.Name);
+            throw;
+        }
     }
 
     /// <inheritdoc/>
@@ -184,51 +227,89 @@ public sealed class RabbitMqTransport : IMessageTransport
     {
         EnsureConnected();
 
-        var channelPool = await GetOrCreateChannelPoolAsync(cancellationToken);
+        // Start publish activity for distributed tracing
+        using var activity = _instrumentation.StartPublishActivity(envelope, topic.Name, Name);
+        var startTime = Stopwatch.GetTimestamp();
 
-        await channelPool.ExecuteAsync(async channel =>
+        try
         {
-            // Enable publisher confirms if configured
-            if (_options.UsePublisherConfirms)
+            // Inject trace context into envelope headers
+            envelope = _instrumentation.InjectTraceContext(envelope, activity);
+
+            var channelPool = await GetOrCreateChannelPoolAsync(cancellationToken);
+
+            await channelPool.ExecuteAsync(async channel =>
             {
-                channel.ConfirmSelect();
-            }
-
-            // Build message properties
-            var properties = channel.CreateBasicProperties();
-            properties.Persistent = true;
-            properties.MessageId = envelope.MessageId.ToString();
-            properties.CorrelationId = envelope.CorrelationId;
-            properties.ContentType = envelope.ContentType ?? "application/octet-stream";
-            properties.Timestamp = new AmqpTimestamp(_timeProvider.GetUtcNow().ToUnixTimeSeconds());
-
-            if (envelope.Headers != null)
-            {
-                properties.Headers = new Dictionary<string, object>(envelope.Headers);
-            }
-
-            // Publish to topic exchange (use topic name as exchange)
-            channel.BasicPublish(
-                exchange: topic.Name,
-                routingKey: envelope.RoutingKey ?? "#", // Broadcast by default
-                basicProperties: properties,
-                body: envelope.Body);
-
-            // Wait for confirm if enabled
-            if (_options.UsePublisherConfirms)
-            {
-                var confirmed = channel.WaitForConfirms(_options.PublisherConfirmTimeout);
-                if (!confirmed)
+                // Enable publisher confirms if configured
+                if (_options.UsePublisherConfirms)
                 {
-                    throw new TimeoutException(
-                        $"Publisher confirm timed out after {_options.PublisherConfirmTimeout} for message {envelope.MessageId}");
+                    channel.ConfirmSelect();
                 }
-            }
 
-            _logger.LogDebug("Published message {MessageId} to exchange {Exchange}", envelope.MessageId, topic.Name);
+                _instrumentation.AddEvent(activity, "serialization.start");
 
-            await Task.CompletedTask; // Keep async signature
-        }, cancellationToken);
+                // Build message properties
+                var properties = channel.CreateBasicProperties();
+                properties.Persistent = true;
+                properties.MessageId = envelope.MessageId;
+                properties.CorrelationId = envelope.CorrelationId;
+                properties.ContentType = envelope.ContentType ?? "application/octet-stream";
+                properties.Timestamp = new AmqpTimestamp(_timeProvider.GetUtcNow().ToUnixTimeSeconds());
+
+                // Copy headers including trace context
+                if (envelope.Headers.Count > 0)
+                {
+                    properties.Headers = new Dictionary<string, object>(envelope.Headers);
+                }
+
+                _instrumentation.AddEvent(activity, "serialization.complete", new[]
+                {
+                    new KeyValuePair<string, object?>("size_bytes", envelope.Body.Length)
+                });
+
+                _instrumentation.AddEvent(activity, "publish.start");
+
+                // Publish to topic exchange (use topic name as exchange)
+                channel.BasicPublish(
+                    exchange: topic.Name,
+                    routingKey: envelope.RoutingKey ?? "#", // Broadcast by default
+                    basicProperties: properties,
+                    body: envelope.Body);
+
+                // Wait for confirm if enabled
+                if (_options.UsePublisherConfirms)
+                {
+                    var confirmed = channel.WaitForConfirms(_options.PublisherConfirmTimeout);
+                    if (!confirmed)
+                    {
+                        _instrumentation.AddEvent(activity, "publish.timeout");
+                        throw new TimeoutException(
+                            $"Publisher confirm timed out after {_options.PublisherConfirmTimeout} for message {envelope.MessageId}");
+                    }
+                    _instrumentation.AddEvent(activity, "publish.confirmed");
+                }
+
+                _instrumentation.AddEvent(activity, "publish.complete");
+
+                _logger.LogDebug("Published message {MessageId} to exchange {Exchange}", envelope.MessageId, topic.Name);
+
+                await Task.CompletedTask; // Keep async signature
+            }, cancellationToken);
+
+            // Record successful operation
+            var durationMs = Stopwatch.GetElapsedTime(startTime).TotalMilliseconds;
+            _instrumentation.RecordSendDuration(Name, topic.Name, envelope.MessageType, durationMs);
+            _instrumentation.RecordOperation(Name, "publish", "success");
+        }
+        catch (Exception ex)
+        {
+            // Record error
+            _instrumentation.RecordError(activity, ex);
+            _instrumentation.RecordOperation(Name, "publish", "failure");
+
+            _logger.LogError(ex, "Failed to publish message {MessageId} to exchange {Exchange}", envelope.MessageId, topic.Name);
+            throw;
+        }
     }
 
     /// <inheritdoc/>
@@ -258,7 +339,8 @@ public sealed class RabbitMqTransport : IMessageTransport
             handler,
             options,
             this,
-            _loggerFactory.CreateLogger<RabbitMqConsumer>());
+            _loggerFactory.CreateLogger<RabbitMqConsumer>(),
+            _instrumentation);
 
         if (!_consumers.TryAdd(consumerId, consumer))
         {
