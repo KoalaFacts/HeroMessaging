@@ -23,6 +23,9 @@
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 			<PrivateAssets>all</PrivateAssets>
 		</PackageReference>
+		<PackageReference Include="OpenTelemetry" Version="1.12.0" />
+		<PackageReference Include="OpenTelemetry.Api" Version="1.12.0" />
+		<PackageReference Include="System.Diagnostics.DiagnosticSource" Version="9.0.9" />
 	</ItemGroup>
 
 	<ItemGroup>
