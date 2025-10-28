@@ -20,11 +20,11 @@ public static class ExtensionsToIStorageBuilder
         configure?.Invoke(options);
 
         // These would use the actual SQL Server implementations when available
-        // For now, using in-memory storage as placeholders
-        builder.UseMessageStorage(new InMemoryMessageStorage());
-        builder.UseOutboxStorage(new InMemoryOutboxStorage());
-        builder.UseInboxStorage(new InMemoryInboxStorage());
-        builder.UseQueueStorage(new InMemoryQueueStorage());
+        // For now, using in-memory storage as placeholders with System TimeProvider
+        builder.UseMessageStorage(new InMemoryMessageStorage(TimeProvider.System));
+        builder.UseOutboxStorage(new InMemoryOutboxStorage(TimeProvider.System));
+        builder.UseInboxStorage(new InMemoryInboxStorage(TimeProvider.System));
+        builder.UseQueueStorage(new InMemoryQueueStorage(TimeProvider.System));
 
         return builder;
     }
@@ -41,11 +41,11 @@ public static class ExtensionsToIStorageBuilder
         configure?.Invoke(options);
 
         // These would use the actual PostgreSQL implementations when available
-        // For now, using in-memory storage as placeholders
-        builder.UseMessageStorage(new InMemoryMessageStorage());
-        builder.UseOutboxStorage(new InMemoryOutboxStorage());
-        builder.UseInboxStorage(new InMemoryInboxStorage());
-        builder.UseQueueStorage(new InMemoryQueueStorage());
+        // For now, using in-memory storage as placeholders with System TimeProvider
+        builder.UseMessageStorage(new InMemoryMessageStorage(TimeProvider.System));
+        builder.UseOutboxStorage(new InMemoryOutboxStorage(TimeProvider.System));
+        builder.UseInboxStorage(new InMemoryInboxStorage(TimeProvider.System));
+        builder.UseQueueStorage(new InMemoryQueueStorage(TimeProvider.System));
 
         return builder;
     }

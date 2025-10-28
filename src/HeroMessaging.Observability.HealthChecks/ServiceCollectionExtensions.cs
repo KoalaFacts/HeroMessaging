@@ -33,7 +33,7 @@ public static class ServiceCollectionExtensions
                 {
                     var storage = sp.GetService<IMessageStorage>();
                     return storage != null
-                        ? new MessageStorageHealthCheck(storage)
+                        ? new MessageStorageHealthCheck(storage, sp.GetRequiredService<TimeProvider>())
                         : new AlwaysHealthyCheck("Message storage not registered");
                 },
                 options.FailureStatus,

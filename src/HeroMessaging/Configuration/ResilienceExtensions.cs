@@ -33,7 +33,8 @@ public static class ResilienceExtensions
         services.TryAddSingleton<IConnectionResiliencePolicy>(serviceProvider =>
             new DefaultConnectionResiliencePolicy(
                 options,
-                serviceProvider.GetRequiredService<ILogger<DefaultConnectionResiliencePolicy>>()));
+                serviceProvider.GetRequiredService<ILogger<DefaultConnectionResiliencePolicy>>(),
+                serviceProvider.GetRequiredService<TimeProvider>()));
 
         // Decorate UnitOfWorkFactory with resilience
         services.Decorate<IUnitOfWorkFactory>((inner, serviceProvider) =>
@@ -140,7 +141,8 @@ public static class ResilienceExtensions
         services.TryAddSingleton<IConnectionResiliencePolicy>(serviceProvider =>
             new DefaultConnectionResiliencePolicy(
                 options,
-                serviceProvider.GetRequiredService<ILogger<DefaultConnectionResiliencePolicy>>()));
+                serviceProvider.GetRequiredService<ILogger<DefaultConnectionResiliencePolicy>>(),
+                serviceProvider.GetRequiredService<TimeProvider>()));
 
         // Decorate UnitOfWorkFactory with resilience (for transactional operations)
         services.Decorate<IUnitOfWorkFactory>((inner, serviceProvider) =>

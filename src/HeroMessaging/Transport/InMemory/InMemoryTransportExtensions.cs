@@ -19,7 +19,8 @@ public static class InMemoryTransportExtensions
         configure?.Invoke(options);
 
         services.AddSingleton(options);
-        services.AddSingleton<IMessageTransport, InMemoryTransport>();
+        services.AddSingleton<IMessageTransport>(sp =>
+            new InMemoryTransport(options, sp.GetRequiredService<TimeProvider>()));
 
         return services;
     }
@@ -36,7 +37,8 @@ public static class InMemoryTransportExtensions
         configure?.Invoke(options);
 
         services.AddSingleton(options);
-        services.AddSingleton<IMessageTransport>(sp => new InMemoryTransport(options));
+        services.AddSingleton<IMessageTransport>(sp =>
+            new InMemoryTransport(options, sp.GetRequiredService<TimeProvider>()));
 
         return services;
     }
