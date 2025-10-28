@@ -266,7 +266,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
             Interlocked.Increment(ref _messagesProcessed);
 
             // Record successful operation
-            var durationMs = Stopwatch.GetElapsedTime(startTime).TotalMilliseconds;
+            var durationMs = GetElapsedMilliseconds(startTime);
             _instrumentation.RecordReceiveDuration(_transport.Name, Source.Name, envelope.MessageType, durationMs);
             _instrumentation.RecordOperation(_transport.Name, "receive", "success");
 
@@ -299,5 +299,14 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
             ConsumerId, e.ReplyCode, e.ReplyText);
 
         _isActive = false;
+    }
+
+    /// <summary>
+    /// Calculate elapsed milliseconds from timestamp (compatible with netstandard2.0)
+    /// </summary>
+    private static double GetElapsedMilliseconds(long startTimestamp)
+    {
+        var elapsedTicks = Stopwatch.GetTimestamp() - startTimestamp;
+        return (elapsedTicks * 1000.0) / Stopwatch.Frequency;
     }
 }

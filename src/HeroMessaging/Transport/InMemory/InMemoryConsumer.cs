@@ -220,13 +220,13 @@ internal class InMemoryConsumer : ITransportConsumer
             _metrics.LastMessageProcessed = _timeProvider.GetUtcNow().DateTime;
 
             // Record successful operation
-            var durationMs = Stopwatch.GetElapsedTime(startTime).TotalMilliseconds;
+            var durationMs = GetElapsedMilliseconds(startTime);
             _instrumentation.RecordReceiveDuration(_transport.Name, Source.Name, envelope.MessageType, durationMs);
             _instrumentation.RecordOperation(_transport.Name, "receive", "success");
 
             // Update average processing duration
             var duration = _timeProvider.GetUtcNow().DateTime - _metrics.LastMessageReceived;
-            UpdateAverageProcessingDuration(duration);
+            UpdateAverageProcessingDuration(duration ?? TimeSpan.Zero);
         }
         catch (Exception ex)
         {
@@ -274,5 +274,14 @@ internal class InMemoryConsumer : ITransportConsumer
             var newAvg = ((currentAvg * (total - 1)) + duration.TotalMilliseconds) / total;
             _metrics.AverageProcessingDuration = TimeSpan.FromMilliseconds(newAvg);
         }
+    }
+
+    /// <summary>
+    /// Calculate elapsed milliseconds from timestamp (compatible with netstandard2.0)
+    /// </summary>
+    private static double GetElapsedMilliseconds(long startTimestamp)
+    {
+        var elapsedTicks = Stopwatch.GetTimestamp() - startTimestamp;
+        return (elapsedTicks * 1000.0) / Stopwatch.Frequency;
     }
 }

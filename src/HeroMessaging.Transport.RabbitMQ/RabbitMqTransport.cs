@@ -204,7 +204,7 @@ public sealed class RabbitMqTransport : IMessageTransport
             }, cancellationToken);
 
             // Record successful operation
-            var durationMs = Stopwatch.GetElapsedTime(startTime).TotalMilliseconds;
+            var durationMs = GetElapsedMilliseconds(startTime);
             _instrumentation.RecordSendDuration(Name, destination.Name, envelope.MessageType, durationMs);
             _instrumentation.RecordOperation(Name, "send", "success");
         }
@@ -297,7 +297,7 @@ public sealed class RabbitMqTransport : IMessageTransport
             }, cancellationToken);
 
             // Record successful operation
-            var durationMs = Stopwatch.GetElapsedTime(startTime).TotalMilliseconds;
+            var durationMs = GetElapsedMilliseconds(startTime);
             _instrumentation.RecordSendDuration(Name, topic.Name, envelope.MessageType, durationMs);
             _instrumentation.RecordOperation(Name, "publish", "success");
         }
@@ -542,5 +542,14 @@ public sealed class RabbitMqTransport : IMessageTransport
     private void OnError(Exception exception, string? context = null)
     {
         Error?.Invoke(this, new TransportErrorEventArgs(exception, context));
+    }
+
+    /// <summary>
+    /// Calculate elapsed milliseconds from timestamp (compatible with netstandard2.0)
+    /// </summary>
+    private static double GetElapsedMilliseconds(long startTimestamp)
+    {
+        var elapsedTicks = Stopwatch.GetTimestamp() - startTimestamp;
+        return (elapsedTicks * 1000.0) / Stopwatch.Frequency;
     }
 }
