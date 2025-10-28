@@ -123,14 +123,18 @@ public class TestSaga : ISaga
 
 public class TestSagaStartEvent : IEvent, IMessage
 {
-    public string CorrelationId { get; set; } = string.Empty;
-    public string MessageId { get; set; } = Guid.NewGuid().ToString();
+    public string? CorrelationId { get; set; } = string.Empty;
+    public Guid MessageId { get; set; } = Guid.NewGuid();
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+    public string? CausationId { get; set; }
+    public Dictionary<string, object>? Metadata { get; set; }
 }
 
 public class TestSagaCompleteEvent : IEvent, IMessage
 {
-    public string CorrelationId { get; set; } = string.Empty;
-    public string MessageId { get; set; } = Guid.NewGuid().ToString();
+    public string? CorrelationId { get; set; } = string.Empty;
+    public Guid MessageId { get; set; } = Guid.NewGuid();
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+    public string? CausationId { get; set; }
+    public Dictionary<string, object>? Metadata { get; set; }
 }

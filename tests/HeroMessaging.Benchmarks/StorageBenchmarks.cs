@@ -22,12 +22,13 @@ public class StorageBenchmarks
     [GlobalSetup]
     public void Setup()
     {
-        _messageStorage = new InMemoryMessageStorage();
+        var timeProvider = TimeProvider.System;
+        _messageStorage = new InMemoryMessageStorage(timeProvider);
         _outboxStorage = new InMemoryOutboxStorage();
         _inboxStorage = new InMemoryInboxStorage();
         _testMessage = new TestMessage
         {
-            MessageId = Guid.NewGuid().ToString(),
+            MessageId = Guid.NewGuid(),
             CorrelationId = Guid.NewGuid().ToString(),
             Timestamp = DateTime.UtcNow
         };
@@ -48,7 +49,7 @@ public class StorageBenchmarks
     [Benchmark(Description = "Retrieve message by ID")]
     public async Task Storage_RetrieveMessage()
     {
-        var id = Guid.NewGuid().ToString();
+        var id = Guid.NewGuid();
         var message = new TestMessage
         {
             MessageId = id,
@@ -56,7 +57,7 @@ public class StorageBenchmarks
             Timestamp = DateTime.UtcNow
         };
         await _messageStorage.StoreAsync(message);
-        await _messageStorage.GetAsync(id);
+        await _messageStorage.RetrieveAsync(id);
     }
 
     /// <summary>
@@ -99,7 +100,7 @@ public class StorageBenchmarks
         {
             var message = new TestMessage
             {
-                MessageId = Guid.NewGuid().ToString(),
+                MessageId = Guid.NewGuid(),
                 CorrelationId = Guid.NewGuid().ToString(),
                 Timestamp = DateTime.UtcNow
             };
@@ -111,7 +112,9 @@ public class StorageBenchmarks
 // Test message for benchmarking
 public class TestMessage : IMessage
 {
-    public string MessageId { get; set; } = string.Empty;
-    public string CorrelationId { get; set; } = string.Empty;
+    public Guid MessageId { get; set; } = Guid.NewGuid();
+    public string? CorrelationId { get; set; } = string.Empty;
     public DateTime Timestamp { get; set; }
+    public string? CausationId { get; set; }
+    public Dictionary<string, object>? Metadata { get; set; }
 }
