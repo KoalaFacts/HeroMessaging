@@ -200,6 +200,24 @@ jobs:
 
           echo "All databases are ready!"
 
+      - name: Create test databases
+        run: |
+          echo "Creating SQL Server test database..."
+          /opt/mssql-tools18/bin/sqlcmd -S localhost,1433 -U sa -P 'YourStrong@Passw0rd' -C -Q "
+            IF NOT EXISTS (SELECT name FROM sys.databases WHERE name = 'HeroMessagingTests')
+            BEGIN
+              CREATE DATABASE HeroMessagingTests;
+              PRINT 'Database HeroMessagingTests created successfully';
+            END
+            ELSE
+            BEGIN
+              PRINT 'Database HeroMessagingTests already exists';
+            END
+          "
+
+          echo "PostgreSQL test database already created during service initialization"
+          echo "All test databases are ready!"
+
       - name: Run integration tests
         shell: bash
         run: |
