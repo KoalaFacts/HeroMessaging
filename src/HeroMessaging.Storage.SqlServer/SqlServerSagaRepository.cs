@@ -11,7 +11,7 @@ namespace HeroMessaging.Storage.SqlServer;
 /// Supports optimistic concurrency control via versioning
 /// </summary>
 /// <typeparam name="TSaga">Type of saga to persist</typeparam>
-public class SqlServerSagaRepository<TSaga> : ISagaRepository<TSaga>
+public class SqlServerSagaRepository<TSaga> : ISagaRepository<TSaga>, IDisposable
     where TSaga : class, ISaga
 {
     private static readonly JsonSerializerOptions SharedJsonOptions = new()
@@ -27,6 +27,7 @@ public class SqlServerSagaRepository<TSaga> : ISagaRepository<TSaga>
     private readonly string _sagaTypeName;
     private Task? _initializationTask;
     private readonly SemaphoreSlim _initLock = new(1, 1);
+    private bool _disposed;
 
     /// <summary>
     /// Initializes a new instance of the SqlServerSagaRepository
@@ -443,5 +444,31 @@ public class SqlServerSagaRepository<TSaga> : ISagaRepository<TSaga>
         }
 
         return sagas;
+    }
+
+    /// <summary>
+    /// Releases resources used by the repository
+    /// </summary>
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Releases unmanaged and optionally managed resources
+    /// </summary>
+    /// <param name="disposing">True to release both managed and unmanaged resources; false to release only unmanaged resources</param>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (_disposed)
+            return;
+
+        if (disposing)
+        {
+            _initLock.Dispose();
+        }
+
+        _disposed = true;
     }
 }
