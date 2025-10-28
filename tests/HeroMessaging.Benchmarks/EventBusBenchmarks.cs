@@ -90,6 +90,11 @@ public record TestEvent : IEvent
 {
     public int Id { get; init; }
     public string Name { get; init; } = string.Empty;
+    public Guid MessageId { get; init; } = Guid.NewGuid();
+    public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+    public string? CorrelationId { get; init; }
+    public string? CausationId { get; init; }
+    public Dictionary<string, object>? Metadata { get; init; }
 }
 
 public class TestEventHandler : IEventHandler<TestEvent>

@@ -67,6 +67,11 @@ public class QueryProcessorBenchmarks
 public record TestQuery : IQuery<string>
 {
     public int Id { get; init; }
+    public Guid MessageId { get; init; } = Guid.NewGuid();
+    public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+    public string? CorrelationId { get; init; }
+    public string? CausationId { get; init; }
+    public Dictionary<string, object>? Metadata { get; init; }
 }
 
 public class TestQueryHandler : IQueryHandler<TestQuery, string>

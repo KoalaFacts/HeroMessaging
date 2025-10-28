@@ -119,6 +119,7 @@ public class TestSaga : ISaga
     public int Version { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+    public bool IsCompleted { get; set; }
 }
 
 public class TestSagaStartEvent : IEvent, IMessage
