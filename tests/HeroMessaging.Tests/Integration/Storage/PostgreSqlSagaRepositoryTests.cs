@@ -18,7 +18,7 @@ public class PostgreSqlSagaRepositoryTests : IAsyncLifetime
         public int Counter { get; set; }
     }
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         try
         {
@@ -38,11 +38,13 @@ public class PostgreSqlSagaRepositoryTests : IAsyncLifetime
         {
             _skipTests = true;
         }
+
+        await ValueTask.CompletedTask;
     }
 
-    public Task DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        return Task.CompletedTask;
+        return ValueTask.CompletedTask;
     }
 
     private PostgreSqlSagaRepository<TestSaga> CreateRepository(TimeProvider? timeProvider = null)
