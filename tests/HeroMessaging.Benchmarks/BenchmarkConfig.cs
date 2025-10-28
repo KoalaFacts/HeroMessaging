@@ -55,7 +55,7 @@ public class QuickBenchmarkConfig : ManualConfig
 {
     public QuickBenchmarkConfig()
     {
-        AddJob(Job.ShortRun.WithRuntime(BenchmarkDotNet.Jobs.CoreRuntime.Core80));
+        AddJob(Job.ShortRun);
         AddDiagnoser(MemoryDiagnoser.Default);
         AddExporter(MarkdownExporter.GitHub);
         AddLogger(ConsoleLogger.Default);

@@ -34,20 +34,29 @@ public class SagaOrchestrationBenchmarks
         var timeProvider = TimeProvider.System;
         _repository = new InMemorySagaRepository<TestSaga>(timeProvider);
 
-        var stateMachine = new StateMachineBuilder<TestSaga>()
-            .WithState("Initial")
-            .WithState("Started")
-            .WithState("Completed")
-            .WithInitialState("Initial")
-            .AddTransition("Initial", "Started", new TestSagaStartEvent(), (context) =>
-            {
-                return Task.CompletedTask;
-            })
-            .AddTransition("Started", "Completed", new TestSagaCompleteEvent(), (context) =>
-            {
-                return Task.CompletedTask;
-            })
-            .Build();
+        // Define states
+        var started = new State("Started");
+        var completed = new State("Completed");
+
+        // Define events
+        var startEvent = new Event<TestSagaStartEvent>(nameof(TestSagaStartEvent));
+        var completeEvent = new Event<TestSagaCompleteEvent>(nameof(TestSagaCompleteEvent));
+
+        // Build state machine
+        var builder = new StateMachineBuilder<TestSaga>();
+
+        builder.Initially()
+            .When(startEvent)
+                .Then(ctx => Task.CompletedTask)
+                .TransitionTo(started);
+
+        builder.During(started)
+            .When(completeEvent)
+                .Then(ctx => Task.CompletedTask)
+                .TransitionTo(completed)
+                .Finalize();
+
+        var stateMachine = builder.Build();
 
         _orchestrator = new SagaOrchestrator<TestSaga>(
             _repository,

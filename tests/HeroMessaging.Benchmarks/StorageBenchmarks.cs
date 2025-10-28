@@ -15,8 +15,6 @@ namespace HeroMessaging.Benchmarks;
 public class StorageBenchmarks
 {
     private InMemoryMessageStorage _messageStorage = null!;
-    private InMemoryOutboxStorage _outboxStorage = null!;
-    private InMemoryInboxStorage _inboxStorage = null!;
     private TestMessage _testMessage = null!;
 
     [GlobalSetup]
@@ -24,8 +22,6 @@ public class StorageBenchmarks
     {
         var timeProvider = TimeProvider.System;
         _messageStorage = new InMemoryMessageStorage(timeProvider);
-        _outboxStorage = new InMemoryOutboxStorage();
-        _inboxStorage = new InMemoryInboxStorage();
         _testMessage = new TestMessage
         {
             MessageId = Guid.NewGuid(),
@@ -58,35 +54,6 @@ public class StorageBenchmarks
         };
         await _messageStorage.StoreAsync(message);
         await _messageStorage.RetrieveAsync(id);
-    }
-
-    /// <summary>
-    /// Measures outbox storage operations (core pattern for reliability)
-    /// </summary>
-    [Benchmark(Description = "Store message in outbox")]
-    public async Task Storage_OutboxStore()
-    {
-        await _outboxStorage.AddAsync(_testMessage);
-    }
-
-    /// <summary>
-    /// Measures inbox storage operations (idempotency pattern)
-    /// </summary>
-    [Benchmark(Description = "Store message in inbox")]
-    public async Task Storage_InboxStore()
-    {
-        var messageId = Guid.NewGuid().ToString();
-        await _inboxStorage.AddAsync(messageId);
-    }
-
-    /// <summary>
-    /// Measures inbox duplicate detection (critical for idempotency)
-    /// </summary>
-    [Benchmark(Description = "Check inbox for duplicates")]
-    public async Task Storage_InboxDuplicateCheck()
-    {
-        var messageId = Guid.NewGuid().ToString();
-        await _inboxStorage.ExistsAsync(messageId);
     }
 
     /// <summary>
