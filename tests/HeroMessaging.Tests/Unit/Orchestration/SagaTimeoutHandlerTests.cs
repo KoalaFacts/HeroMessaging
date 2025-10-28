@@ -20,7 +20,7 @@ public class SagaTimeoutHandlerTests
     public async Task TimeoutHandler_FindsStaleSagas_AndMarksThemAsTimedOut()
     {
         // Arrange
-        var repository = new InMemorySagaRepository<TestSaga>();
+        var repository = new InMemorySagaRepository<TestSaga>(TimeProvider.System);
         var services = new ServiceCollection();
         services.AddSingleton<ISagaRepository<TestSaga>>(repository);
         var serviceProvider = services.BuildServiceProvider();
@@ -87,7 +87,7 @@ public class SagaTimeoutHandlerTests
     public async Task TimeoutHandler_IgnoresCompletedSagas()
     {
         // Arrange
-        var repository = new InMemorySagaRepository<TestSaga>();
+        var repository = new InMemorySagaRepository<TestSaga>(TimeProvider.System);
         var services = new ServiceCollection();
         services.AddSingleton<ISagaRepository<TestSaga>>(repository);
         var serviceProvider = services.BuildServiceProvider();
@@ -140,7 +140,7 @@ public class SagaTimeoutHandlerTests
     public async Task TimeoutHandler_IgnoresRecentSagas()
     {
         // Arrange
-        var repository = new InMemorySagaRepository<TestSaga>();
+        var repository = new InMemorySagaRepository<TestSaga>(TimeProvider.System);
         var services = new ServiceCollection();
         services.AddSingleton<ISagaRepository<TestSaga>>(repository);
         var serviceProvider = services.BuildServiceProvider();
@@ -193,7 +193,7 @@ public class SagaTimeoutHandlerTests
     public async Task TimeoutHandler_HandlesMultipleStaleSagas()
     {
         // Arrange
-        var repository = new InMemorySagaRepository<TestSaga>();
+        var repository = new InMemorySagaRepository<TestSaga>(TimeProvider.System);
         var services = new ServiceCollection();
         services.AddSingleton<ISagaRepository<TestSaga>>(repository);
         var serviceProvider = services.BuildServiceProvider();

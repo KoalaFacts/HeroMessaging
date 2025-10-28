@@ -17,7 +17,7 @@ public class InMemorySagaRepositoryTests
     public async Task FindAsync_WhenSagaDoesNotExist_ReturnsNull()
     {
         // Arrange
-        var repository = new InMemorySagaRepository<TestSaga>();
+        var repository = new InMemorySagaRepository<TestSaga>(TimeProvider.System);
         var correlationId = Guid.NewGuid();
 
         // Act
@@ -31,7 +31,7 @@ public class InMemorySagaRepositoryTests
     public async Task SaveAsync_NewSaga_SavesSuccessfully()
     {
         // Arrange
-        var repository = new InMemorySagaRepository<TestSaga>();
+        var repository = new InMemorySagaRepository<TestSaga>(TimeProvider.System);
         var saga = new TestSaga
         {
             CorrelationId = Guid.NewGuid(),
@@ -53,7 +53,7 @@ public class InMemorySagaRepositoryTests
     public async Task SaveAsync_DuplicateCorrelationId_ThrowsException()
     {
         // Arrange
-        var repository = new InMemorySagaRepository<TestSaga>();
+        var repository = new InMemorySagaRepository<TestSaga>(TimeProvider.System);
         var correlationId = Guid.NewGuid();
         var saga1 = new TestSaga { CorrelationId = correlationId, CurrentState = "Initial" };
         var saga2 = new TestSaga { CorrelationId = correlationId, CurrentState = "Initial" };
@@ -71,7 +71,7 @@ public class InMemorySagaRepositoryTests
     public async Task UpdateAsync_ExistingSaga_UpdatesSuccessfully()
     {
         // Arrange
-        var repository = new InMemorySagaRepository<TestSaga>();
+        var repository = new InMemorySagaRepository<TestSaga>(TimeProvider.System);
         var saga = new TestSaga
         {
             CorrelationId = Guid.NewGuid(),
@@ -97,7 +97,7 @@ public class InMemorySagaRepositoryTests
     public async Task UpdateAsync_NonExistentSaga_ThrowsException()
     {
         // Arrange
-        var repository = new InMemorySagaRepository<TestSaga>();
+        var repository = new InMemorySagaRepository<TestSaga>(TimeProvider.System);
         var saga = new TestSaga
         {
             CorrelationId = Guid.NewGuid(),
@@ -115,7 +115,7 @@ public class InMemorySagaRepositoryTests
     public async Task UpdateAsync_VersionMismatch_ThrowsConcurrencyException()
     {
         // Arrange
-        var repository = new InMemorySagaRepository<TestSaga>();
+        var repository = new InMemorySagaRepository<TestSaga>(TimeProvider.System);
         var saga = new TestSaga
         {
             CorrelationId = Guid.NewGuid(),
@@ -139,7 +139,7 @@ public class InMemorySagaRepositoryTests
     public async Task UpdateAsync_OptimisticConcurrency_PreventsConcurrentUpdates()
     {
         // Arrange
-        var repository = new InMemorySagaRepository<TestSaga>();
+        var repository = new InMemorySagaRepository<TestSaga>(TimeProvider.System);
         var correlationId = Guid.NewGuid();
         var saga = new TestSaga
         {
@@ -183,7 +183,7 @@ public class InMemorySagaRepositoryTests
     public async Task DeleteAsync_ExistingSaga_RemovesSaga()
     {
         // Arrange
-        var repository = new InMemorySagaRepository<TestSaga>();
+        var repository = new InMemorySagaRepository<TestSaga>(TimeProvider.System);
         var saga = new TestSaga
         {
             CorrelationId = Guid.NewGuid(),
@@ -203,7 +203,7 @@ public class InMemorySagaRepositoryTests
     public async Task DeleteAsync_NonExistentSaga_DoesNotThrow()
     {
         // Arrange
-        var repository = new InMemorySagaRepository<TestSaga>();
+        var repository = new InMemorySagaRepository<TestSaga>(TimeProvider.System);
         var correlationId = Guid.NewGuid();
 
         // Act & Assert - Should not throw
@@ -214,7 +214,7 @@ public class InMemorySagaRepositoryTests
     public async Task FindByStateAsync_ReturnsMatchingSagas()
     {
         // Arrange
-        var repository = new InMemorySagaRepository<TestSaga>();
+        var repository = new InMemorySagaRepository<TestSaga>(TimeProvider.System);
         await repository.SaveAsync(new TestSaga { CorrelationId = Guid.NewGuid(), CurrentState = "Pending" });
         await repository.SaveAsync(new TestSaga { CorrelationId = Guid.NewGuid(), CurrentState = "Active" });
         await repository.SaveAsync(new TestSaga { CorrelationId = Guid.NewGuid(), CurrentState = "Pending" });
@@ -278,7 +278,7 @@ public class InMemorySagaRepositoryTests
     public void GetAll_ReturnsAllSagas()
     {
         // Arrange
-        var repository = new InMemorySagaRepository<TestSaga>();
+        var repository = new InMemorySagaRepository<TestSaga>(TimeProvider.System);
         repository.SaveAsync(new TestSaga { CorrelationId = Guid.NewGuid(), CurrentState = "State1" }).Wait();
         repository.SaveAsync(new TestSaga { CorrelationId = Guid.NewGuid(), CurrentState = "State2" }).Wait();
         repository.SaveAsync(new TestSaga { CorrelationId = Guid.NewGuid(), CurrentState = "State3" }).Wait();
@@ -294,7 +294,7 @@ public class InMemorySagaRepositoryTests
     public void Clear_RemovesAllSagas()
     {
         // Arrange
-        var repository = new InMemorySagaRepository<TestSaga>();
+        var repository = new InMemorySagaRepository<TestSaga>(TimeProvider.System);
         repository.SaveAsync(new TestSaga { CorrelationId = Guid.NewGuid(), CurrentState = "State1" }).Wait();
         repository.SaveAsync(new TestSaga { CorrelationId = Guid.NewGuid(), CurrentState = "State2" }).Wait();
 
@@ -310,7 +310,7 @@ public class InMemorySagaRepositoryTests
     public void Count_ReturnsCorrectCount()
     {
         // Arrange
-        var repository = new InMemorySagaRepository<TestSaga>();
+        var repository = new InMemorySagaRepository<TestSaga>(TimeProvider.System);
 
         // Act & Assert
         Assert.Equal(0, repository.Count);

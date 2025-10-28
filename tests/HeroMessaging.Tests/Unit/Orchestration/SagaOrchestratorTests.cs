@@ -75,11 +75,11 @@ public class SagaOrchestratorTests
     public async Task ProcessAsync_WithNoCorrelationId_LogsWarningAndReturns()
     {
         // Arrange
-        var repository = new InMemorySagaRepository<TestSaga>();
+        var repository = new InMemorySagaRepository<TestSaga>(TimeProvider.System);
         var stateMachine = CreateTestStateMachine();
         var services = new ServiceCollection().BuildServiceProvider();
         var logger = NullLogger<SagaOrchestrator<TestSaga>>.Instance;
-        var orchestrator = new SagaOrchestrator<TestSaga>(repository, stateMachine, services, logger);
+        var orchestrator = new SagaOrchestrator<TestSaga>(repository, stateMachine, services, logger, TimeProvider.System);
 
         var eventWithoutCorrelation = new TestEvent("test");
 
@@ -94,11 +94,11 @@ public class SagaOrchestratorTests
     public async Task ProcessAsync_NewSaga_CreatesAndSavesSaga()
     {
         // Arrange
-        var repository = new InMemorySagaRepository<TestSaga>();
+        var repository = new InMemorySagaRepository<TestSaga>(TimeProvider.System);
         var stateMachine = CreateTestStateMachine();
         var services = new ServiceCollection().BuildServiceProvider();
         var logger = NullLogger<SagaOrchestrator<TestSaga>>.Instance;
-        var orchestrator = new SagaOrchestrator<TestSaga>(repository, stateMachine, services, logger);
+        var orchestrator = new SagaOrchestrator<TestSaga>(repository, stateMachine, services, logger, TimeProvider.System);
 
         var correlationId = Guid.NewGuid();
         var testEvent = new TestEvent("test data") { CorrelationId = correlationId.ToString() };
@@ -119,11 +119,11 @@ public class SagaOrchestratorTests
     public async Task ProcessAsync_ExistingSaga_UpdatesSaga()
     {
         // Arrange
-        var repository = new InMemorySagaRepository<TestSaga>();
+        var repository = new InMemorySagaRepository<TestSaga>(TimeProvider.System);
         var stateMachine = CreateTestStateMachine();
         var services = new ServiceCollection().BuildServiceProvider();
         var logger = NullLogger<SagaOrchestrator<TestSaga>>.Instance;
-        var orchestrator = new SagaOrchestrator<TestSaga>(repository, stateMachine, services, logger);
+        var orchestrator = new SagaOrchestrator<TestSaga>(repository, stateMachine, services, logger, TimeProvider.System);
 
         var correlationId = Guid.NewGuid();
 
@@ -148,11 +148,11 @@ public class SagaOrchestratorTests
     public async Task ProcessAsync_NoTransitionForEvent_DoesNothing()
     {
         // Arrange
-        var repository = new InMemorySagaRepository<TestSaga>();
+        var repository = new InMemorySagaRepository<TestSaga>(TimeProvider.System);
         var stateMachine = CreateTestStateMachine();
         var services = new ServiceCollection().BuildServiceProvider();
         var logger = NullLogger<SagaOrchestrator<TestSaga>>.Instance;
-        var orchestrator = new SagaOrchestrator<TestSaga>(repository, stateMachine, services, logger);
+        var orchestrator = new SagaOrchestrator<TestSaga>(repository, stateMachine, services, logger, TimeProvider.System);
 
         var correlationId = Guid.NewGuid();
 
@@ -178,7 +178,7 @@ public class SagaOrchestratorTests
     public async Task ProcessAsync_ExecutesTransitionAction()
     {
         // Arrange
-        var repository = new InMemorySagaRepository<TestSaga>();
+        var repository = new InMemorySagaRepository<TestSaga>(TimeProvider.System);
         var actionExecuted = false;
 
         var builder = new StateMachineBuilder<TestSaga>();
@@ -194,7 +194,7 @@ public class SagaOrchestratorTests
         var stateMachine = builder.Build();
         var services = new ServiceCollection().BuildServiceProvider();
         var logger = NullLogger<SagaOrchestrator<TestSaga>>.Instance;
-        var orchestrator = new SagaOrchestrator<TestSaga>(repository, stateMachine, services, logger);
+        var orchestrator = new SagaOrchestrator<TestSaga>(repository, stateMachine, services, logger, TimeProvider.System);
 
         var correlationId = Guid.NewGuid();
         var testEvent = new TestEvent("data") { CorrelationId = correlationId.ToString() };
@@ -210,11 +210,11 @@ public class SagaOrchestratorTests
     public async Task ProcessAsync_IncrementsVersion()
     {
         // Arrange
-        var repository = new InMemorySagaRepository<TestSaga>();
+        var repository = new InMemorySagaRepository<TestSaga>(TimeProvider.System);
         var stateMachine = CreateTestStateMachine();
         var services = new ServiceCollection().BuildServiceProvider();
         var logger = NullLogger<SagaOrchestrator<TestSaga>>.Instance;
-        var orchestrator = new SagaOrchestrator<TestSaga>(repository, stateMachine, services, logger);
+        var orchestrator = new SagaOrchestrator<TestSaga>(repository, stateMachine, services, logger, TimeProvider.System);
 
         var correlationId = Guid.NewGuid();
         var event1 = new TestEvent("first") { CorrelationId = correlationId.ToString() };
@@ -239,11 +239,11 @@ public class SagaOrchestratorTests
     public async Task ProcessAsync_WithIMessageEvent_ExtractsCorrelationId()
     {
         // Arrange
-        var repository = new InMemorySagaRepository<TestSaga>();
+        var repository = new InMemorySagaRepository<TestSaga>(TimeProvider.System);
         var stateMachine = CreateTestStateMachine();
         var services = new ServiceCollection().BuildServiceProvider();
         var logger = NullLogger<SagaOrchestrator<TestSaga>>.Instance;
-        var orchestrator = new SagaOrchestrator<TestSaga>(repository, stateMachine, services, logger);
+        var orchestrator = new SagaOrchestrator<TestSaga>(repository, stateMachine, services, logger, TimeProvider.System);
 
         var correlationId = Guid.NewGuid();
         var testEvent = new TestEvent("data") { CorrelationId = correlationId.ToString() };
@@ -260,11 +260,11 @@ public class SagaOrchestratorTests
     public async Task ProcessAsync_FinalizeState_MarksAsCompleted()
     {
         // Arrange
-        var repository = new InMemorySagaRepository<TestSaga>();
+        var repository = new InMemorySagaRepository<TestSaga>(TimeProvider.System);
         var stateMachine = CreateTestStateMachine();
         var services = new ServiceCollection().BuildServiceProvider();
         var logger = NullLogger<SagaOrchestrator<TestSaga>>.Instance;
-        var orchestrator = new SagaOrchestrator<TestSaga>(repository, stateMachine, services, logger);
+        var orchestrator = new SagaOrchestrator<TestSaga>(repository, stateMachine, services, logger, TimeProvider.System);
 
         var correlationId = Guid.NewGuid();
         var event1 = new TestEvent("first") { CorrelationId = correlationId.ToString() };
@@ -284,11 +284,11 @@ public class SagaOrchestratorTests
     public async Task ProcessAsync_SetsTimestamps()
     {
         // Arrange
-        var repository = new InMemorySagaRepository<TestSaga>();
+        var repository = new InMemorySagaRepository<TestSaga>(TimeProvider.System);
         var stateMachine = CreateTestStateMachine();
         var services = new ServiceCollection().BuildServiceProvider();
         var logger = NullLogger<SagaOrchestrator<TestSaga>>.Instance;
-        var orchestrator = new SagaOrchestrator<TestSaga>(repository, stateMachine, services, logger);
+        var orchestrator = new SagaOrchestrator<TestSaga>(repository, stateMachine, services, logger, TimeProvider.System);
 
         var correlationId = Guid.NewGuid();
         var testEvent = new TestEvent("data") { CorrelationId = correlationId.ToString() };
