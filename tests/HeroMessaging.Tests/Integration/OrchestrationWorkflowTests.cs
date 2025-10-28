@@ -28,7 +28,7 @@ public class OrchestrationWorkflowTests
         // Arrange
         var repository = new InMemorySagaRepository<OrderSaga>(TimeProvider.System);
         var stateMachine = OrderSagaStateMachine.Build();
-        var services = new ServiceCollection().BuildServiceProvider();
+        var services = new ServiceCollection().AddSingleton(TimeProvider.System).BuildServiceProvider();
         var logger = NullLogger<SagaOrchestrator<OrderSaga>>.Instance;
         var orchestrator = new SagaOrchestrator<OrderSaga>(repository, stateMachine, services, logger, TimeProvider.System);
 
@@ -95,7 +95,7 @@ public class OrchestrationWorkflowTests
         // Arrange
         var repository = new InMemorySagaRepository<OrderSaga>(TimeProvider.System);
         var stateMachine = OrderSagaStateMachine.Build();
-        var services = new ServiceCollection().BuildServiceProvider();
+        var services = new ServiceCollection().AddSingleton(TimeProvider.System).BuildServiceProvider();
         var logger = NullLogger<SagaOrchestrator<OrderSaga>>.Instance;
         var orchestrator = new SagaOrchestrator<OrderSaga>(repository, stateMachine, services, logger, TimeProvider.System);
 
@@ -135,7 +135,7 @@ public class OrchestrationWorkflowTests
         // Arrange
         var repository = new InMemorySagaRepository<OrderSaga>(TimeProvider.System);
         var stateMachine = OrderSagaStateMachine.Build();
-        var services = new ServiceCollection().BuildServiceProvider();
+        var services = new ServiceCollection().AddSingleton(TimeProvider.System).BuildServiceProvider();
         var logger = NullLogger<SagaOrchestrator<OrderSaga>>.Instance;
         var orchestrator = new SagaOrchestrator<OrderSaga>(repository, stateMachine, services, logger, TimeProvider.System);
 
@@ -170,7 +170,7 @@ public class OrchestrationWorkflowTests
         // Arrange
         var repository = new InMemorySagaRepository<OrderSaga>(TimeProvider.System);
         var stateMachine = OrderSagaStateMachine.Build();
-        var services = new ServiceCollection().BuildServiceProvider();
+        var services = new ServiceCollection().AddSingleton(TimeProvider.System).BuildServiceProvider();
         var logger = NullLogger<SagaOrchestrator<OrderSaga>>.Instance;
         var orchestrator = new SagaOrchestrator<OrderSaga>(repository, stateMachine, services, logger, TimeProvider.System);
 
@@ -210,7 +210,7 @@ public class OrchestrationWorkflowTests
         // Arrange
         var repository = new InMemorySagaRepository<OrderSaga>(TimeProvider.System);
         var stateMachine = OrderSagaStateMachine.Build();
-        var services = new ServiceCollection().BuildServiceProvider();
+        var services = new ServiceCollection().AddSingleton(TimeProvider.System).BuildServiceProvider();
         var logger = NullLogger<SagaOrchestrator<OrderSaga>>.Instance;
         var orchestrator = new SagaOrchestrator<OrderSaga>(repository, stateMachine, services, logger, TimeProvider.System);
 
@@ -240,7 +240,7 @@ public class OrchestrationWorkflowTests
         // Arrange
         var repository = new InMemorySagaRepository<OrderSaga>(TimeProvider.System);
         var stateMachine = OrderSagaStateMachine.Build();
-        var services = new ServiceCollection().BuildServiceProvider();
+        var services = new ServiceCollection().AddSingleton(TimeProvider.System).BuildServiceProvider();
         var logger = NullLogger<SagaOrchestrator<OrderSaga>>.Instance;
         var orchestrator = new SagaOrchestrator<OrderSaga>(repository, stateMachine, services, logger, TimeProvider.System);
 
@@ -274,7 +274,7 @@ public class OrchestrationWorkflowTests
         // Arrange
         var repository = new InMemorySagaRepository<OrderSaga>(TimeProvider.System);
         var stateMachine = OrderSagaStateMachine.Build();
-        var services = new ServiceCollection().BuildServiceProvider();
+        var services = new ServiceCollection().AddSingleton(TimeProvider.System).BuildServiceProvider();
         var logger = NullLogger<SagaOrchestrator<OrderSaga>>.Instance;
         var orchestrator = new SagaOrchestrator<OrderSaga>(repository, stateMachine, services, logger, TimeProvider.System);
 
@@ -316,7 +316,7 @@ public class OrchestrationWorkflowTests
         // Arrange
         var repository = new InMemorySagaRepository<OrderSaga>(TimeProvider.System);
         var stateMachine = OrderSagaStateMachine.Build();
-        var services = new ServiceCollection().BuildServiceProvider();
+        var services = new ServiceCollection().AddSingleton(TimeProvider.System).BuildServiceProvider();
         var logger = NullLogger<SagaOrchestrator<OrderSaga>>.Instance;
         var orchestrator = new SagaOrchestrator<OrderSaga>(repository, stateMachine, services, logger, TimeProvider.System);
 
@@ -374,7 +374,7 @@ public class OrchestrationWorkflowTests
 
         var repository = new InMemorySagaRepository<CompensationTrackingSaga>(TimeProvider.System);
         var stateMachine = BuildCompensationTrackingStateMachine(compensationLog);
-        var services = new ServiceCollection().BuildServiceProvider();
+        var services = new ServiceCollection().AddSingleton(TimeProvider.System).BuildServiceProvider();
         var logger = NullLogger<SagaOrchestrator<CompensationTrackingSaga>>.Instance;
         var orchestrator = new SagaOrchestrator<CompensationTrackingSaga>(repository, stateMachine, services, logger, TimeProvider.System);
 
@@ -405,7 +405,7 @@ public class OrchestrationWorkflowTests
 
         var repository = new InMemorySagaRepository<StateBasedCompensationSaga>(TimeProvider.System);
         var stateMachine = BuildStateBasedCompensationStateMachine(compensationLog);
-        var services = new ServiceCollection().BuildServiceProvider();
+        var services = new ServiceCollection().AddSingleton(TimeProvider.System).BuildServiceProvider();
         var logger = NullLogger<SagaOrchestrator<StateBasedCompensationSaga>>.Instance;
         var orchestrator = new SagaOrchestrator<StateBasedCompensationSaga>(repository, stateMachine, services, logger, TimeProvider.System);
 
@@ -439,6 +439,7 @@ public class OrchestrationWorkflowTests
         var stateMachine = OrderSagaStateMachine.Build();
 
         var servicesCollection = new ServiceCollection();
+        servicesCollection.AddSingleton<TimeProvider>(fakeTime);
         servicesCollection.AddSingleton<ISagaRepository<OrderSaga>>(repository);
         servicesCollection.AddLogging(builder => builder
             .AddXUnit(_output)

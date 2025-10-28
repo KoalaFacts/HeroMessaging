@@ -77,7 +77,7 @@ public class SagaOrchestratorTests
         // Arrange
         var repository = new InMemorySagaRepository<TestSaga>(TimeProvider.System);
         var stateMachine = CreateTestStateMachine();
-        var services = new ServiceCollection().BuildServiceProvider();
+        var services = new ServiceCollection().AddSingleton(TimeProvider.System).BuildServiceProvider();
         var logger = NullLogger<SagaOrchestrator<TestSaga>>.Instance;
         var orchestrator = new SagaOrchestrator<TestSaga>(repository, stateMachine, services, logger, TimeProvider.System);
 
@@ -96,7 +96,7 @@ public class SagaOrchestratorTests
         // Arrange
         var repository = new InMemorySagaRepository<TestSaga>(TimeProvider.System);
         var stateMachine = CreateTestStateMachine();
-        var services = new ServiceCollection().BuildServiceProvider();
+        var services = new ServiceCollection().AddSingleton(TimeProvider.System).BuildServiceProvider();
         var logger = NullLogger<SagaOrchestrator<TestSaga>>.Instance;
         var orchestrator = new SagaOrchestrator<TestSaga>(repository, stateMachine, services, logger, TimeProvider.System);
 
@@ -121,7 +121,7 @@ public class SagaOrchestratorTests
         // Arrange
         var repository = new InMemorySagaRepository<TestSaga>(TimeProvider.System);
         var stateMachine = CreateTestStateMachine();
-        var services = new ServiceCollection().BuildServiceProvider();
+        var services = new ServiceCollection().AddSingleton(TimeProvider.System).BuildServiceProvider();
         var logger = NullLogger<SagaOrchestrator<TestSaga>>.Instance;
         var orchestrator = new SagaOrchestrator<TestSaga>(repository, stateMachine, services, logger, TimeProvider.System);
 
@@ -150,7 +150,7 @@ public class SagaOrchestratorTests
         // Arrange
         var repository = new InMemorySagaRepository<TestSaga>(TimeProvider.System);
         var stateMachine = CreateTestStateMachine();
-        var services = new ServiceCollection().BuildServiceProvider();
+        var services = new ServiceCollection().AddSingleton(TimeProvider.System).BuildServiceProvider();
         var logger = NullLogger<SagaOrchestrator<TestSaga>>.Instance;
         var orchestrator = new SagaOrchestrator<TestSaga>(repository, stateMachine, services, logger, TimeProvider.System);
 
@@ -192,7 +192,7 @@ public class SagaOrchestratorTests
                 .TransitionTo(Processing);
 
         var stateMachine = builder.Build();
-        var services = new ServiceCollection().BuildServiceProvider();
+        var services = new ServiceCollection().AddSingleton(TimeProvider.System).BuildServiceProvider();
         var logger = NullLogger<SagaOrchestrator<TestSaga>>.Instance;
         var orchestrator = new SagaOrchestrator<TestSaga>(repository, stateMachine, services, logger, TimeProvider.System);
 
@@ -212,7 +212,7 @@ public class SagaOrchestratorTests
         // Arrange
         var repository = new InMemorySagaRepository<TestSaga>(TimeProvider.System);
         var stateMachine = CreateTestStateMachine();
-        var services = new ServiceCollection().BuildServiceProvider();
+        var services = new ServiceCollection().AddSingleton(TimeProvider.System).BuildServiceProvider();
         var logger = NullLogger<SagaOrchestrator<TestSaga>>.Instance;
         var orchestrator = new SagaOrchestrator<TestSaga>(repository, stateMachine, services, logger, TimeProvider.System);
 
@@ -241,7 +241,7 @@ public class SagaOrchestratorTests
         // Arrange
         var repository = new InMemorySagaRepository<TestSaga>(TimeProvider.System);
         var stateMachine = CreateTestStateMachine();
-        var services = new ServiceCollection().BuildServiceProvider();
+        var services = new ServiceCollection().AddSingleton(TimeProvider.System).BuildServiceProvider();
         var logger = NullLogger<SagaOrchestrator<TestSaga>>.Instance;
         var orchestrator = new SagaOrchestrator<TestSaga>(repository, stateMachine, services, logger, TimeProvider.System);
 
@@ -262,7 +262,7 @@ public class SagaOrchestratorTests
         // Arrange
         var repository = new InMemorySagaRepository<TestSaga>(TimeProvider.System);
         var stateMachine = CreateTestStateMachine();
-        var services = new ServiceCollection().BuildServiceProvider();
+        var services = new ServiceCollection().AddSingleton(TimeProvider.System).BuildServiceProvider();
         var logger = NullLogger<SagaOrchestrator<TestSaga>>.Instance;
         var orchestrator = new SagaOrchestrator<TestSaga>(repository, stateMachine, services, logger, TimeProvider.System);
 
@@ -286,7 +286,7 @@ public class SagaOrchestratorTests
         // Arrange
         var repository = new InMemorySagaRepository<TestSaga>(TimeProvider.System);
         var stateMachine = CreateTestStateMachine();
-        var services = new ServiceCollection().BuildServiceProvider();
+        var services = new ServiceCollection().AddSingleton(TimeProvider.System).BuildServiceProvider();
         var logger = NullLogger<SagaOrchestrator<TestSaga>>.Instance;
         var orchestrator = new SagaOrchestrator<TestSaga>(repository, stateMachine, services, logger, TimeProvider.System);
 
