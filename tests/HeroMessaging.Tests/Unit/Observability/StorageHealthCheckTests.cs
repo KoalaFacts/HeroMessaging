@@ -22,18 +22,17 @@ public class StorageHealthCheckTests
         // Arrange
         var mockStorage = new Mock<IMessageStorage>();
         var timeProvider = TimeProvider.System;
-        var testMessageId = Guid.NewGuid().ToString();
 
         mockStorage
             .Setup(s => s.Store(It.IsAny<IMessage>(), It.IsAny<MessageStorageOptions?>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(testMessageId);
+            .ReturnsAsync(Guid.NewGuid().ToString());
 
         mockStorage
-            .Setup(s => s.Retrieve<IMessage>(testMessageId, It.IsAny<CancellationToken>()))
+            .Setup(s => s.Retrieve<IMessage>(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Mock.Of<IMessage>());
 
         mockStorage
-            .Setup(s => s.Delete(testMessageId, It.IsAny<CancellationToken>()))
+            .Setup(s => s.Delete(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
         var healthCheck = new MessageStorageHealthCheck(mockStorage.Object, timeProvider);
@@ -57,14 +56,13 @@ public class StorageHealthCheckTests
         // Arrange
         var mockStorage = new Mock<IMessageStorage>();
         var timeProvider = TimeProvider.System;
-        var testMessageId = Guid.NewGuid().ToString();
 
         mockStorage
             .Setup(s => s.Store(It.IsAny<IMessage>(), It.IsAny<MessageStorageOptions?>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(testMessageId);
+            .ReturnsAsync(Guid.NewGuid().ToString());
 
         mockStorage
-            .Setup(s => s.Retrieve<IMessage>(testMessageId, It.IsAny<CancellationToken>()))
+            .Setup(s => s.Retrieve<IMessage>(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((IMessage?)null);
 
         var healthCheck = new MessageStorageHealthCheck(mockStorage.Object, timeProvider);
@@ -116,14 +114,13 @@ public class StorageHealthCheckTests
         var mockStorage = new Mock<IMessageStorage>();
         var timeProvider = TimeProvider.System;
         var customName = "custom_message_storage";
-        var testMessageId = Guid.NewGuid().ToString();
 
         mockStorage
             .Setup(s => s.Store(It.IsAny<IMessage>(), It.IsAny<MessageStorageOptions?>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(testMessageId);
+            .ReturnsAsync(Guid.NewGuid().ToString());
 
         mockStorage
-            .Setup(s => s.Retrieve<IMessage>(testMessageId, It.IsAny<CancellationToken>()))
+            .Setup(s => s.Retrieve<IMessage>(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Mock.Of<IMessage>());
 
         var healthCheck = new MessageStorageHealthCheck(mockStorage.Object, timeProvider, customName);

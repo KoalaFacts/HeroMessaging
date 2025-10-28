@@ -207,10 +207,11 @@ public class HealthCheckExtensionsTests
 
     [Fact]
     [Trait("Category", "Unit")]
-    public void AddCompositeHealthCheck_WithMultipleCheckNames_RegistersCompositeCheck()
+    public async Task AddCompositeHealthCheck_WithMultipleCheckNames_RegistersCompositeCheck()
     {
         // Arrange
         var services = new ServiceCollection();
+        services.AddLogging();
         var healthChecksBuilder = services.AddHealthChecks();
         var checkNames = new[] { "check1", "check2", "check3" };
         var compositeName = "composite_check";
@@ -219,14 +220,14 @@ public class HealthCheckExtensionsTests
         healthChecksBuilder.AddCompositeHealthCheck(compositeName, checkNames);
 
         // Assert
-        var registrations = services
-            .Where(s => s.ServiceType == typeof(HealthCheckRegistration))
-            .Select(s => s.ImplementationInstance as HealthCheckRegistration)
-            .Where(r => r != null)
-            .ToList();
+        var serviceProvider = services.BuildServiceProvider();
+        var healthCheckService = serviceProvider.GetRequiredService<HealthCheckService>();
 
-        var compositeReg = registrations.FirstOrDefault(r => r!.Name == compositeName);
-        Assert.NotNull(compositeReg);
+        var result = await healthCheckService.CheckHealthAsync();
+
+        Assert.NotNull(result);
+        Assert.Contains(result.Entries, e => e.Key == compositeName);
+        Assert.Equal(HealthStatus.Healthy, result.Entries[compositeName].Status);
     }
 
     [Fact]
