@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\HeroMessaging.Abstractions\HeroMessaging.Abstractions.csproj" />
+    <ProjectReference Include="..\HeroMessaging\HeroMessaging.csproj" />
   </ItemGroup>
 
   <ItemGroup>

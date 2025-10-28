@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
 		<TargetFrameworks>net8.0;net9.0</TargetFrameworks>
@@ -22,17 +22,17 @@
 			<PrivateAssets>all</PrivateAssets>
 		</PackageReference>
 		<PackageReference Include="Moq" Version="4.20.72" />
-		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
 		<PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.0" />
 		<PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" Version="9.0.0" />
+		<PackageReference Include="OpenTelemetry" Version="1.12.0" />
+		<PackageReference Include="OpenTelemetry.Api" Version="1.12.0" />
 	</ItemGroup>
 
 	<ItemGroup>
 		<ProjectReference Include="..\..\src\HeroMessaging\HeroMessaging.csproj" />
 		<ProjectReference Include="..\..\src\HeroMessaging.Abstractions\HeroMessaging.Abstractions.csproj" />
-		<ProjectReference Include="..\..\src\HeroMessaging.Storage.SqlServer\HeroMessaging.Storage.SqlServer.csproj" />
-		<ProjectReference Include="..\..\src\HeroMessaging.Storage.PostgreSql\HeroMessaging.Storage.PostgreSql.csproj" />
+		<ProjectReference Include="..\..\src\HeroMessaging.Observability.OpenTelemetry\HeroMessaging.Observability.OpenTelemetry.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>
