@@ -55,7 +55,11 @@ public class StorageHealthCheckTests
 
             // Default: return a mock IMessage if it's the last stored ID
             if (messageId == _lastStoredId)
-                return Task.FromResult(Mock.Of<T>());
+            {
+                // Cast Mock.Of<IMessage>() to T since Mock.Of<T>() requires class constraint
+                var mockMessage = Mock.Of<IMessage>();
+                return Task.FromResult((T?)mockMessage);
+            }
 
             return Task.FromResult<T?>(default);
         }
