@@ -508,7 +508,7 @@ public class SqlServerMessageStorage : IMessageStorage
 /// <summary>
 /// SQL Server implementation of storage transaction
 /// </summary>
-public class SqlServerStorageTransaction : IStorageTransaction
+public sealed class SqlServerStorageTransaction : IStorageTransaction
 {
     private bool _disposed;
 
@@ -545,6 +545,7 @@ public class SqlServerStorageTransaction : IStorageTransaction
         Transaction?.Dispose();
         Connection?.Dispose();
         _disposed = true;
+        GC.SuppressFinalize(this);
     }
 }
 

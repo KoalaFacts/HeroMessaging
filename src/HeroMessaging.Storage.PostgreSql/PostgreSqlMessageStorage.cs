@@ -625,7 +625,7 @@ public class PostgreSqlMessageStorage : IMessageStorage
 /// <summary>
 /// PostgreSQL implementation of storage transaction
 /// </summary>
-public class PostgreSqlStorageTransaction : IStorageTransaction
+public sealed class PostgreSqlStorageTransaction : IStorageTransaction
 {
     private bool _disposed;
 
@@ -662,5 +662,6 @@ public class PostgreSqlStorageTransaction : IStorageTransaction
         Transaction?.Dispose();
         Connection?.Dispose();
         _disposed = true;
+        GC.SuppressFinalize(this);
     }
 }
