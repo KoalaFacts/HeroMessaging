@@ -1,6 +1,7 @@
 using HeroMessaging.Abstractions.Sagas;
 using HeroMessaging.Storage.SqlServer;
 using Microsoft.Extensions.Time.Testing;
+using Testcontainers.MsSql;
 using Xunit;
 
 namespace HeroMessaging.Tests.Integration.Storage;
@@ -8,9 +9,8 @@ namespace HeroMessaging.Tests.Integration.Storage;
 [Trait("Category", "Integration")]
 public class SqlServerSagaRepositoryTests : IAsyncLifetime
 {
-    private const string ConnectionString = "Server=(localdb)\\mssqllocaldb;Database=HeroMessagingTests;Trusted_Connection=True;TrustServerCertificate=True;";
+    private MsSqlContainer? _sqlContainer;
     private SqlServerStorageOptions? _options;
-    private bool _skipTests;
 
     private class TestSaga : SagaBase
     {
@@ -20,37 +20,40 @@ public class SqlServerSagaRepositoryTests : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
-        try
-        {
-            _options = new SqlServerStorageOptions
-            {
-                ConnectionString = ConnectionString,
-                Schema = "test",
-                SagasTableName = $"Sagas_{Guid.NewGuid():N}",
-                AutoCreateTables = true
-            };
+        // Create and start SQL Server container
+        _sqlContainer = new MsSqlBuilder()
+            .WithImage("mcr.microsoft.com/mssql/server:2022-latest")
+            .WithPassword("YourStrong@Passw0rd")
+            .Build();
 
-            // Try to create a repository to verify database connectivity
-            var testRepo = new SqlServerSagaRepository<TestSaga>(_options, TimeProvider.System);
-            _skipTests = false;
-        }
-        catch
-        {
-            _skipTests = true;
-        }
+        await _sqlContainer.StartAsync();
 
-        await ValueTask.CompletedTask;
+        // Create storage options with container connection string
+        _options = new SqlServerStorageOptions
+        {
+            ConnectionString = _sqlContainer.GetConnectionString(),
+            Schema = "test",
+            SagasTableName = $"Sagas_{Guid.NewGuid():N}",
+            AutoCreateTables = true
+        };
     }
 
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
-        return ValueTask.CompletedTask;
+        if (_sqlContainer != null)
+        {
+            await _sqlContainer.StopAsync();
+            await _sqlContainer.DisposeAsync();
+        }
     }
 
     private SqlServerSagaRepository<TestSaga> CreateRepository(TimeProvider? timeProvider = null)
     {
-        Assert.SkipWhen(_skipTests || _options == null, "SQL Server not available for integration tests");
-        return new SqlServerSagaRepository<TestSaga>(_options!, timeProvider ?? TimeProvider.System);
+        if (_options == null)
+        {
+            throw new InvalidOperationException("Test not initialized");
+        }
+        return new SqlServerSagaRepository<TestSaga>(_options, timeProvider ?? TimeProvider.System);
     }
 
     [Fact]
