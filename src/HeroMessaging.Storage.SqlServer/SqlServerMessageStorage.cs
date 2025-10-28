@@ -328,29 +328,223 @@ public class SqlServerMessageStorage : IMessageStorage
     }
 
     // New interface methods for compatibility with test infrastructure
-    public Task StoreAsync(IMessage message, IStorageTransaction? transaction = null, CancellationToken cancellationToken = default)
+    public async Task StoreAsync(IMessage message, IStorageTransaction? transaction = null, CancellationToken cancellationToken = default)
     {
-        throw new NotImplementedException("SQL Server async storage implementation pending");
+        SqlConnection? connection = null;
+        SqlTransaction? sqlTransaction = null;
+
+        if (transaction is SqlServerStorageTransaction sqlServerTransaction)
+        {
+            connection = sqlServerTransaction.Connection;
+            sqlTransaction = sqlServerTransaction.Transaction;
+        }
+
+        if (connection == null)
+        {
+            connection = new SqlConnection(_connectionString);
+            await connection.OpenAsync(cancellationToken);
+        }
+
+        try
+        {
+            var messageId = message.MessageId.ToString();
+            var sql = $"""
+                INSERT INTO {_tableName} (Id, MessageType, Payload, Timestamp, CorrelationId, CreatedAt)
+                VALUES (@Id, @MessageType, @Payload, @Timestamp, @CorrelationId, @CreatedAt)
+                """;
+
+            using var command = new SqlCommand(sql, connection, sqlTransaction);
+            command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = messageId;
+            command.Parameters.Add("@MessageType", SqlDbType.NVarChar, 500).Value = message.GetType().FullName ?? "Unknown";
+            command.Parameters.Add("@Payload", SqlDbType.NVarChar, -1).Value = JsonSerializer.Serialize(message, _jsonOptions);
+            command.Parameters.Add("@Timestamp", SqlDbType.DateTime2).Value = message.Timestamp;
+            command.Parameters.Add("@CorrelationId", SqlDbType.NVarChar, 100).Value = (object?)message.CorrelationId ?? DBNull.Value;
+            command.Parameters.Add("@CreatedAt", SqlDbType.DateTime2).Value = _timeProvider.GetUtcNow().DateTime;
+
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+        finally
+        {
+            if (transaction == null && connection != null)
+            {
+                await connection.DisposeAsync();
+            }
+        }
     }
 
-    public Task<IMessage?> RetrieveAsync(Guid messageId, IStorageTransaction? transaction = null, CancellationToken cancellationToken = default)
+    public async Task<IMessage?> RetrieveAsync(Guid messageId, IStorageTransaction? transaction = null, CancellationToken cancellationToken = default)
     {
-        throw new NotImplementedException("SQL Server async storage implementation pending");
+        SqlConnection? connection = null;
+        SqlTransaction? sqlTransaction = null;
+
+        if (transaction is SqlServerStorageTransaction sqlServerTransaction)
+        {
+            connection = sqlServerTransaction.Connection;
+            sqlTransaction = sqlServerTransaction.Transaction;
+        }
+
+        if (connection == null)
+        {
+            connection = new SqlConnection(_connectionString);
+            await connection.OpenAsync(cancellationToken);
+        }
+
+        try
+        {
+            var sql = $"""
+                SELECT Payload FROM {_tableName}
+                WHERE Id = @Id
+                AND (ExpiresAt IS NULL OR ExpiresAt > GETUTCDATE())
+                """;
+
+            using var command = new SqlCommand(sql, connection, sqlTransaction);
+            command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = messageId.ToString();
+
+            using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            if (await reader.ReadAsync(cancellationToken))
+            {
+                var payload = reader.GetString(0);
+                return JsonSerializer.Deserialize<IMessage>(payload, _jsonOptions);
+            }
+
+            return null;
+        }
+        finally
+        {
+            if (transaction == null && connection != null)
+            {
+                await connection.DisposeAsync();
+            }
+        }
     }
 
-    public Task<List<IMessage>> QueryAsync(MessageQuery query, CancellationToken cancellationToken = default)
+    public async Task<List<IMessage>> QueryAsync(MessageQuery query, CancellationToken cancellationToken = default)
     {
-        throw new NotImplementedException("SQL Server async storage implementation pending");
+        using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        var whereClauses = new List<string> { "(ExpiresAt IS NULL OR ExpiresAt > GETUTCDATE())" };
+        var parameters = new List<SqlParameter>();
+
+        if (!string.IsNullOrEmpty(query.Collection))
+        {
+            whereClauses.Add("Collection = @Collection");
+            parameters.Add(new SqlParameter("@Collection", SqlDbType.NVarChar, 100) { Value = query.Collection });
+        }
+
+        if (query.FromTimestamp.HasValue)
+        {
+            whereClauses.Add("Timestamp >= @FromTimestamp");
+            parameters.Add(new SqlParameter("@FromTimestamp", SqlDbType.DateTime2) { Value = query.FromTimestamp.Value });
+        }
+
+        if (query.ToTimestamp.HasValue)
+        {
+            whereClauses.Add("Timestamp <= @ToTimestamp");
+            parameters.Add(new SqlParameter("@ToTimestamp", SqlDbType.DateTime2) { Value = query.ToTimestamp.Value });
+        }
+
+        var whereClause = string.Join(" AND ", whereClauses);
+        var orderBy = query.OrderBy ?? "Timestamp";
+        var orderDirection = query.Ascending ? "ASC" : "DESC";
+        var limit = query.Limit ?? query.MaxResults;
+        var offset = query.Offset ?? 0;
+
+        var sql = $"""
+            SELECT Payload FROM {_tableName}
+            WHERE {whereClause}
+            ORDER BY {orderBy} {orderDirection}
+            OFFSET @Offset ROWS
+            FETCH NEXT @Limit ROWS ONLY
+            """;
+
+        using var command = new SqlCommand(sql, connection);
+        command.Parameters.Add("@Offset", SqlDbType.Int).Value = offset;
+        command.Parameters.Add("@Limit", SqlDbType.Int).Value = limit;
+
+        foreach (var param in parameters)
+        {
+            command.Parameters.Add(param);
+        }
+
+        var messages = new List<IMessage>();
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            var payload = reader.GetString(0);
+            var message = JsonSerializer.Deserialize<IMessage>(payload, _jsonOptions);
+            if (message != null)
+            {
+                messages.Add(message);
+            }
+        }
+
+        return messages;
     }
 
-    public Task DeleteAsync(Guid messageId, CancellationToken cancellationToken = default)
+    public async Task DeleteAsync(Guid messageId, CancellationToken cancellationToken = default)
     {
-        throw new NotImplementedException("SQL Server async storage implementation pending");
+        using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        var sql = $"DELETE FROM {_tableName} WHERE Id = @Id";
+
+        using var command = new SqlCommand(sql, connection);
+        command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = messageId.ToString();
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    public Task<IStorageTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
+    public async Task<IStorageTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
     {
-        throw new NotImplementedException("SQL Server async storage implementation pending");
+        var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken);
+        var transaction = connection.BeginTransaction(IsolationLevel.ReadCommitted);
+
+        return new SqlServerStorageTransaction(connection, transaction);
+    }
+}
+
+/// <summary>
+/// SQL Server implementation of storage transaction
+/// </summary>
+public class SqlServerStorageTransaction : IStorageTransaction
+{
+    private bool _disposed;
+
+    public SqlConnection Connection { get; }
+    public SqlTransaction Transaction { get; }
+
+    public SqlServerStorageTransaction(SqlConnection connection, SqlTransaction transaction)
+    {
+        Connection = connection ?? throw new ArgumentNullException(nameof(connection));
+        Transaction = transaction ?? throw new ArgumentNullException(nameof(transaction));
+    }
+
+    public async Task CommitAsync(CancellationToken cancellationToken = default)
+    {
+        if (_disposed)
+            throw new ObjectDisposedException(nameof(SqlServerStorageTransaction));
+
+        await Transaction.CommitAsync(cancellationToken);
+    }
+
+    public async Task RollbackAsync(CancellationToken cancellationToken = default)
+    {
+        if (_disposed)
+            throw new ObjectDisposedException(nameof(SqlServerStorageTransaction));
+
+        await Transaction.RollbackAsync(cancellationToken);
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+            return;
+
+        Transaction?.Dispose();
+        Connection?.Dispose();
+        _disposed = true;
     }
 }
 
