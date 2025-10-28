@@ -25,6 +25,7 @@ public class StorageHealthCheckTests
         private readonly Func<string, CancellationToken, Task<IMessage?>>? _retrieveFunc;
         private readonly Func<string, CancellationToken, Task<bool>>? _deleteFunc;
         private string? _lastStoredId;
+        private IMessage? _lastStoredMessage;
 
         public FakeMessageStorage(
             Func<IMessage, MessageStorageOptions?, CancellationToken, Task<string>>? storeFunc = null,
@@ -41,6 +42,8 @@ public class StorageHealthCheckTests
             if (_storeFunc != null)
                 return _storeFunc(message, options, cancellationToken);
 
+            // Store the actual message instance so we can return it later
+            _lastStoredMessage = message;
             _lastStoredId = Guid.NewGuid().ToString();
             return Task.FromResult(_lastStoredId);
         }
@@ -53,13 +56,9 @@ public class StorageHealthCheckTests
                 return Task.FromResult((T?)result);
             }
 
-            // Default: return a mock IMessage if it's the last stored ID
-            if (messageId == _lastStoredId)
-            {
-                // Cast Mock.Of<IMessage>() to T since Mock.Of<T>() requires class constraint
-                var mockMessage = Mock.Of<IMessage>();
-                return Task.FromResult((T?)mockMessage);
-            }
+            // Return the actual stored message if ID matches and type is compatible
+            if (messageId == _lastStoredId && _lastStoredMessage is T typedMessage)
+                return Task.FromResult<T?>(typedMessage);
 
             return Task.FromResult<T?>(default);
         }
