@@ -142,7 +142,7 @@ internal class InMemoryConsumer : ITransportConsumer
         await _concurrencyLimiter.WaitAsync(cancellationToken);
         _metrics.CurrentlyProcessing++;
 
-        var startTime = Stopwatch.GetTimestamp();
+        var startTime = _timeProvider.GetTimestamp();
         _metrics.MessagesReceived++;
         _metrics.LastMessageReceived = _timeProvider.GetUtcNow().DateTime;
 
@@ -220,7 +220,7 @@ internal class InMemoryConsumer : ITransportConsumer
             _metrics.LastMessageProcessed = _timeProvider.GetUtcNow().DateTime;
 
             // Record successful operation
-            var durationMs = GetElapsedMilliseconds(startTime);
+            var durationMs = _timeProvider.GetElapsedTime(startTime).TotalMilliseconds;
             _instrumentation.RecordReceiveDuration(_transport.Name, Source.Name, envelope.MessageType, durationMs);
             _instrumentation.RecordOperation(_transport.Name, "receive", "success");
 
@@ -274,14 +274,5 @@ internal class InMemoryConsumer : ITransportConsumer
             var newAvg = ((currentAvg * (total - 1)) + duration.TotalMilliseconds) / total;
             _metrics.AverageProcessingDuration = TimeSpan.FromMilliseconds(newAvg);
         }
-    }
-
-    /// <summary>
-    /// Calculate elapsed milliseconds from timestamp (compatible with netstandard2.0)
-    /// </summary>
-    private static double GetElapsedMilliseconds(long startTimestamp)
-    {
-        var elapsedTicks = Stopwatch.GetTimestamp() - startTimestamp;
-        return (elapsedTicks * 1000.0) / Stopwatch.Frequency;
     }
 }

@@ -105,7 +105,7 @@ public class InMemoryTransport : IMessageTransport
 
         // Start send activity for distributed tracing
         using var activity = _instrumentation.StartSendActivity(envelope, destination.Name, Name);
-        var startTime = Stopwatch.GetTimestamp();
+        var startTime = _timeProvider.GetTimestamp();
 
         try
         {
@@ -134,7 +134,7 @@ public class InMemoryTransport : IMessageTransport
             _instrumentation.AddEvent(activity, "send.complete");
 
             // Record successful operation
-            var durationMs = GetElapsedMilliseconds(startTime);
+            var durationMs = _timeProvider.GetElapsedTime(startTime).TotalMilliseconds;
             _instrumentation.RecordSendDuration(Name, destination.Name, envelope.MessageType, durationMs);
             _instrumentation.RecordOperation(Name, "send", "success");
         }
@@ -154,7 +154,7 @@ public class InMemoryTransport : IMessageTransport
 
         // Start publish activity for distributed tracing
         using var activity = _instrumentation.StartPublishActivity(envelope, topic.Name, Name);
-        var startTime = Stopwatch.GetTimestamp();
+        var startTime = _timeProvider.GetTimestamp();
 
         try
         {
@@ -179,7 +179,7 @@ public class InMemoryTransport : IMessageTransport
             _instrumentation.AddEvent(activity, "publish.complete");
 
             // Record successful operation
-            var durationMs = GetElapsedMilliseconds(startTime);
+            var durationMs = _timeProvider.GetElapsedTime(startTime).TotalMilliseconds;
             _instrumentation.RecordSendDuration(Name, topic.Name, envelope.MessageType, durationMs);
             _instrumentation.RecordOperation(Name, "publish", "success");
         }
@@ -321,14 +321,5 @@ public class InMemoryTransport : IMessageTransport
     private void OnError(Exception exception, string? context = null)
     {
         Error?.Invoke(this, new TransportErrorEventArgs(exception, context));
-    }
-
-    /// <summary>
-    /// Calculate elapsed milliseconds from timestamp (compatible with netstandard2.0)
-    /// </summary>
-    private static double GetElapsedMilliseconds(long startTimestamp)
-    {
-        var elapsedTicks = Stopwatch.GetTimestamp() - startTimestamp;
-        return (elapsedTicks * 1000.0) / Stopwatch.Frequency;
     }
 }
