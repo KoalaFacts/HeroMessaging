@@ -16,12 +16,15 @@ namespace HeroMessaging.Benchmarks;
 public class EventBusBenchmarks
 {
     private IServiceProvider _serviceProvider = null!;
+    private IServiceProvider _multiHandlerServiceProvider = null!;
     private EventBus _eventBus = null!;
+    private EventBus _multiHandlerEventBus = null!;
     private TestEvent _testEvent = null!;
 
     [GlobalSetup]
     public void Setup()
     {
+        // Setup for single handler benchmarks
         var services = new ServiceCollection();
         services.AddLogging(builder => builder.SetMinimumLevel(LogLevel.Warning));
         services.AddSingleton<IEventHandler<TestEvent>, TestEventHandler>();
@@ -30,6 +33,19 @@ public class EventBusBenchmarks
         _serviceProvider = services.BuildServiceProvider();
         var timeProvider = _serviceProvider.GetRequiredService<TimeProvider>();
         _eventBus = new EventBus(_serviceProvider, timeProvider);
+
+        // Setup for multiple handler benchmark
+        var multiServices = new ServiceCollection();
+        multiServices.AddLogging(builder => builder.SetMinimumLevel(LogLevel.Warning));
+        multiServices.AddSingleton<IEventHandler<TestEvent>, TestEventHandler>();
+        multiServices.AddSingleton<IEventHandler<TestEvent>, TestEventHandler2>();
+        multiServices.AddSingleton<IEventHandler<TestEvent>, TestEventHandler3>();
+        multiServices.AddSingleton<TimeProvider>(TimeProvider.System);
+
+        _multiHandlerServiceProvider = multiServices.BuildServiceProvider();
+        var multiTimeProvider = _multiHandlerServiceProvider.GetRequiredService<TimeProvider>();
+        _multiHandlerEventBus = new EventBus(_multiHandlerServiceProvider, multiTimeProvider);
+
         _testEvent = new TestEvent { Id = 1, Name = "TestEvent" };
     }
 
@@ -39,6 +55,10 @@ public class EventBusBenchmarks
         if (_serviceProvider is IDisposable disposable)
         {
             disposable.Dispose();
+        }
+        if (_multiHandlerServiceProvider is IDisposable multiDisposable)
+        {
+            multiDisposable.Dispose();
         }
     }
 
@@ -70,18 +90,7 @@ public class EventBusBenchmarks
     [Benchmark(Description = "Publish event with multiple handlers")]
     public async Task PublishEvent_MultipleHandlers()
     {
-        var services = new ServiceCollection();
-        services.AddLogging(builder => builder.SetMinimumLevel(LogLevel.Warning));
-        services.AddSingleton<IEventHandler<TestEvent>, TestEventHandler>();
-        services.AddSingleton<IEventHandler<TestEvent>, TestEventHandler2>();
-        services.AddSingleton<IEventHandler<TestEvent>, TestEventHandler3>();
-        services.AddSingleton<TimeProvider>(TimeProvider.System);
-
-        using var provider = services.BuildServiceProvider();
-        var timeProvider = provider.GetRequiredService<TimeProvider>();
-        var eventBus = new EventBus(provider, timeProvider);
-
-        await eventBus.Publish(_testEvent);
+        await _multiHandlerEventBus.Publish(_testEvent);
     }
 }
 

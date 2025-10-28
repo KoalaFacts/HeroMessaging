@@ -1,7 +1,6 @@
 using HeroMessaging.Abstractions.Commands;
 using HeroMessaging.Abstractions.Handlers;
 using HeroMessaging.Processing;
-using BenchmarkDotNet.Diagnostics.Windows.Configs;
 
 namespace HeroMessaging.Benchmarks;
 
@@ -26,6 +25,7 @@ public class CommandProcessorBenchmarks
         var services = new ServiceCollection();
         services.AddLogging(builder => builder.SetMinimumLevel(LogLevel.Warning));
         services.AddSingleton<ICommandHandler<TestCommand>, TestCommandHandler>();
+        services.AddSingleton<ICommandHandler<TestCommandWithResponse, int>, TestCommandWithResponseHandler>();
 
         _serviceProvider = services.BuildServiceProvider();
         _processor = new CommandProcessor(_serviceProvider);
