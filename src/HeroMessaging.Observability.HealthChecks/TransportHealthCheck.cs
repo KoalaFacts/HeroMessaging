@@ -56,11 +56,18 @@ public class TransportHealthCheck(IMessageTransport transport, string? name = nu
         var data = CreateHealthData(transportHealth);
 
         // Handle null or empty status message
-        var statusMessage = string.IsNullOrWhiteSpace(transportHealth.StatusMessage)
-            ? GetDefaultStatusMessage(status)
-            : transportHealth.StatusMessage;
-
-        var description = $"{transportHealth.TransportName}: {statusMessage}";
+        // When status message is provided, use "Name: Message" format
+        // When status message is null/empty, use "Name DefaultMessage" format (no colon)
+        string description;
+        if (string.IsNullOrWhiteSpace(transportHealth.StatusMessage))
+        {
+            var defaultMessage = GetDefaultStatusMessage(status);
+            description = $"{transportHealth.TransportName} {defaultMessage}";
+        }
+        else
+        {
+            description = $"{transportHealth.TransportName}: {transportHealth.StatusMessage}";
+        }
 
         return new HealthCheckResult(status, description, null, data);
     }

@@ -107,7 +107,7 @@ public static class ServiceCollectionExtensions
 
                 if (transports.Count == 0)
                 {
-                    return new AlwaysHealthyCheck("No transports registered");
+                    return new AlwaysHealthyCheck("Transport not registered");
                 }
 
                 if (transports.Count == 1)
@@ -159,7 +159,7 @@ public class HeroMessagingHealthCheckOptions
     public bool CheckOutboxStorage { get; set; } = true;
     public bool CheckInboxStorage { get; set; } = true;
     public bool CheckQueueStorage { get; set; } = true;
-    public bool CheckTransport { get; set; } = true;
+    public bool CheckTransport { get; set; } = false;
     public Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus? FailureStatus { get; set; } = Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Unhealthy;
     public IReadOnlyCollection<string>? Tags { get; set; }
 }
