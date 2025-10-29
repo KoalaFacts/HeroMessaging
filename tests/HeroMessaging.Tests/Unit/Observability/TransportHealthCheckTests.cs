@@ -4,6 +4,8 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Moq;
 using Xunit;
 
+using TransportHealthStatus = HeroMessaging.Abstractions.Transport.HealthStatus;
+
 namespace HeroMessaging.Tests.Unit.Observability;
 
 /// <summary>
@@ -21,7 +23,7 @@ public class TransportHealthCheckTests
         var transportHealth = new TransportHealth
         {
             TransportName = "TestTransport",
-            Status = HealthStatus.Healthy,
+            Status = TransportHealthStatus.Healthy,
             State = TransportState.Connected,
             StatusMessage = "All systems operational",
             ActiveConnections = 5,
@@ -62,7 +64,7 @@ public class TransportHealthCheckTests
         var transportHealth = new TransportHealth
         {
             TransportName = "TestTransport",
-            Status = HealthStatus.Degraded,
+            Status = TransportHealthStatus.Degraded,
             State = TransportState.Reconnecting,
             StatusMessage = "Connection pool is degraded",
             ActiveConnections = 2,
@@ -97,7 +99,7 @@ public class TransportHealthCheckTests
         var transportHealth = new TransportHealth
         {
             TransportName = "TestTransport",
-            Status = HealthStatus.Unhealthy,
+            Status = TransportHealthStatus.Unhealthy,
             State = TransportState.Faulted,
             StatusMessage = "Connection failed",
             LastError = "Network error",
@@ -170,7 +172,7 @@ public class TransportHealthCheckTests
         var transportHealth = new TransportHealth
         {
             TransportName = "TestTransport",
-            Status = HealthStatus.Healthy,
+            Status = TransportHealthStatus.Healthy,
             State = TransportState.Connected,
             StatusMessage = "Healthy",
             Data = customData
@@ -234,7 +236,7 @@ public class TransportHealthCheckTests
         var transportHealth = new TransportHealth
         {
             TransportName = "TestTransport",
-            Status = HealthStatus.Healthy,
+            Status = TransportHealthStatus.Healthy,
             State = TransportState.Connected,
             StatusMessage = null,  // Null status message
             ActiveConnections = 1,
@@ -267,7 +269,7 @@ public class TransportHealthCheckTests
         var transportHealth = new TransportHealth
         {
             TransportName = "TestTransport",
-            Status = HealthStatus.Degraded,
+            Status = TransportHealthStatus.Degraded,
             State = TransportState.Reconnecting,
             StatusMessage = "",  // Empty status message
             ActiveConnections = 0,

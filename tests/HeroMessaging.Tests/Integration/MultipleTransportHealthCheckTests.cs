@@ -5,6 +5,8 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Moq;
 using Xunit;
 
+using TransportHealthStatus = HeroMessaging.Abstractions.Transport.HealthStatus;
+
 namespace HeroMessaging.Tests.Integration;
 
 /// <summary>
@@ -27,7 +29,7 @@ public class MultipleTransportHealthCheckTests : IAsyncDisposable
         var transport1Health = new TransportHealth
         {
             TransportName = "RabbitMQ",
-            Status = HealthStatus.Healthy,
+            Status = TransportHealthStatus.Healthy,
             State = TransportState.Connected,
             StatusMessage = "RabbitMQ is healthy",
             ActiveConnections = 5,
@@ -41,7 +43,7 @@ public class MultipleTransportHealthCheckTests : IAsyncDisposable
         var transport2Health = new TransportHealth
         {
             TransportName = "InMemory",
-            Status = HealthStatus.Healthy,
+            Status = TransportHealthStatus.Healthy,
             State = TransportState.Connected,
             StatusMessage = "InMemory is healthy",
             ActiveConnections = 1,
@@ -100,7 +102,7 @@ public class MultipleTransportHealthCheckTests : IAsyncDisposable
         var transport1Health = new TransportHealth
         {
             TransportName = "RabbitMQ",
-            Status = HealthStatus.Healthy,
+            Status = TransportHealthStatus.Healthy,
             State = TransportState.Connected,
             StatusMessage = "RabbitMQ is healthy"
         };
@@ -113,7 +115,7 @@ public class MultipleTransportHealthCheckTests : IAsyncDisposable
         var transport2Health = new TransportHealth
         {
             TransportName = "InMemory",
-            Status = HealthStatus.Degraded,
+            Status = TransportHealthStatus.Degraded,
             State = TransportState.Reconnecting,
             StatusMessage = "InMemory is degraded"
         };
@@ -159,7 +161,7 @@ public class MultipleTransportHealthCheckTests : IAsyncDisposable
         var transport1Health = new TransportHealth
         {
             TransportName = "RabbitMQ",
-            Status = HealthStatus.Healthy,
+            Status = TransportHealthStatus.Healthy,
             State = TransportState.Connected,
             StatusMessage = "Healthy"
         };
@@ -172,7 +174,7 @@ public class MultipleTransportHealthCheckTests : IAsyncDisposable
         var transport2Health = new TransportHealth
         {
             TransportName = "InMemory",
-            Status = HealthStatus.Unhealthy,
+            Status = TransportHealthStatus.Unhealthy,
             State = TransportState.Faulted,
             StatusMessage = "Connection failed",
             LastError = "Network error"
@@ -220,7 +222,7 @@ public class MultipleTransportHealthCheckTests : IAsyncDisposable
             .ReturnsAsync(new TransportHealth
             {
                 TransportName = "Transport1",
-                Status = HealthStatus.Healthy,
+                Status = TransportHealthStatus.Healthy,
                 State = TransportState.Connected,
                 StatusMessage = "Healthy"
             });
@@ -231,7 +233,7 @@ public class MultipleTransportHealthCheckTests : IAsyncDisposable
             .ReturnsAsync(new TransportHealth
             {
                 TransportName = "Transport2",
-                Status = HealthStatus.Healthy,
+                Status = TransportHealthStatus.Healthy,
                 State = TransportState.Connected,
                 StatusMessage = "Healthy"
             });
