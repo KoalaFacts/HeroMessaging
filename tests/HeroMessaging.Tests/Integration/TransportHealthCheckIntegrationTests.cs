@@ -22,6 +22,7 @@ public class TransportHealthCheckIntegrationTests : IAsyncDisposable
     {
         // Arrange
         var services = new ServiceCollection();
+        services.AddLogging();
 
         var mockTransport = new Mock<IMessageTransport>();
         var transportHealth = new TransportHealth
@@ -72,6 +73,7 @@ public class TransportHealthCheckIntegrationTests : IAsyncDisposable
     {
         // Arrange
         var services = new ServiceCollection();
+        services.AddLogging();
 
         var mockTransport = new Mock<IMessageTransport>();
         var transportHealth = new TransportHealth
@@ -122,6 +124,7 @@ public class TransportHealthCheckIntegrationTests : IAsyncDisposable
     {
         // Arrange
         var services = new ServiceCollection();
+        services.AddLogging();
 
         var mockTransport = new Mock<IMessageTransport>();
         var transportHealth = new TransportHealth
@@ -169,6 +172,7 @@ public class TransportHealthCheckIntegrationTests : IAsyncDisposable
     {
         // Arrange
         var services = new ServiceCollection();
+        services.AddLogging();
 
         // Don't register a transport
         services.AddHealthChecks()
@@ -199,6 +203,7 @@ public class TransportHealthCheckIntegrationTests : IAsyncDisposable
     {
         // Arrange
         var services = new ServiceCollection();
+        services.AddLogging();
 
         var mockTransport = new Mock<IMessageTransport>();
         services.AddSingleton(mockTransport.Object);
@@ -232,6 +237,7 @@ public class TransportHealthCheckIntegrationTests : IAsyncDisposable
     {
         // Arrange
         var services = new ServiceCollection();
+        services.AddLogging();
 
         var mockTransport = new Mock<IMessageTransport>();
         var transportHealth = new TransportHealth

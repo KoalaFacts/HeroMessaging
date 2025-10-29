@@ -23,6 +23,7 @@ public class MultipleTransportHealthCheckTests : IAsyncDisposable
     {
         // Arrange
         var services = new ServiceCollection();
+        services.AddLogging();
 
         // Register two different transports
         var mockTransport1 = new Mock<IMessageTransport>();
@@ -96,6 +97,7 @@ public class MultipleTransportHealthCheckTests : IAsyncDisposable
     {
         // Arrange
         var services = new ServiceCollection();
+        services.AddLogging();
 
         // Healthy transport
         var mockTransport1 = new Mock<IMessageTransport>();
@@ -155,6 +157,7 @@ public class MultipleTransportHealthCheckTests : IAsyncDisposable
     {
         // Arrange
         var services = new ServiceCollection();
+        services.AddLogging();
 
         // Healthy transport
         var mockTransport1 = new Mock<IMessageTransport>();
@@ -215,6 +218,7 @@ public class MultipleTransportHealthCheckTests : IAsyncDisposable
     {
         // Arrange
         var services = new ServiceCollection();
+        services.AddLogging();
 
         var mockTransport1 = new Mock<IMessageTransport>();
         mockTransport1.Setup(t => t.Name).Returns("Transport1");
