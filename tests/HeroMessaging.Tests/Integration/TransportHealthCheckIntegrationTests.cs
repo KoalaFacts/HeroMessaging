@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Moq;
 using Xunit;
+using TransportHealthStatus = HeroMessaging.Abstractions.Transport.HealthStatus;
 
 namespace HeroMessaging.Tests.Integration;
 
@@ -26,7 +27,7 @@ public class TransportHealthCheckIntegrationTests : IAsyncDisposable
         var transportHealth = new TransportHealth
         {
             TransportName = "TestTransport",
-            Status = HealthStatus.Healthy,
+            Status = TransportHealthStatus.Healthy,
             State = TransportState.Connected,
             StatusMessage = "All systems operational",
             ActiveConnections = 5,
@@ -76,7 +77,7 @@ public class TransportHealthCheckIntegrationTests : IAsyncDisposable
         var transportHealth = new TransportHealth
         {
             TransportName = "TestTransport",
-            Status = HealthStatus.Unhealthy,
+            Status = TransportHealthStatus.Unhealthy,
             State = TransportState.Faulted,
             StatusMessage = "Connection failed",
             LastError = "Network error",
@@ -126,7 +127,7 @@ public class TransportHealthCheckIntegrationTests : IAsyncDisposable
         var transportHealth = new TransportHealth
         {
             TransportName = "TestTransport",
-            Status = HealthStatus.Degraded,
+            Status = TransportHealthStatus.Degraded,
             State = TransportState.Reconnecting,
             StatusMessage = "Connection pool is degraded",
             ActiveConnections = 2,
@@ -236,7 +237,7 @@ public class TransportHealthCheckIntegrationTests : IAsyncDisposable
         var transportHealth = new TransportHealth
         {
             TransportName = "TestTransport",
-            Status = HealthStatus.Healthy,
+            Status = TransportHealthStatus.Healthy,
             State = TransportState.Connected,
             StatusMessage = "Healthy"
         };
