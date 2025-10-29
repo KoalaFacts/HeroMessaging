@@ -29,7 +29,7 @@ public class InboxEntry
     public IMessage Message { get; set; } = null!;
     public InboxOptions Options { get; set; } = new();
     public InboxStatus Status { get; set; } = InboxStatus.Pending;
-    public DateTime ReceivedAt { get; set; } = DateTime.UtcNow;
+    public DateTime ReceivedAt { get; set; } = TimeProvider.System.GetUtcNow().DateTime;
     public DateTime? ProcessedAt { get; set; }
     public string? Error { get; set; }
 }

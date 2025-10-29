@@ -12,9 +12,9 @@ public abstract record MessageBase : IMessage
     public Guid MessageId { get; init; } = Guid.NewGuid();
 
     /// <summary>
-    /// When this message was created
+    /// When this message was created. Defaults to system time when not explicitly set.
     /// </summary>
-    public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+    public DateTime Timestamp { get; init; } = TimeProvider.System.GetUtcNow().DateTime;
 
     /// <summary>
     /// Correlation identifier for linking related messages in a workflow

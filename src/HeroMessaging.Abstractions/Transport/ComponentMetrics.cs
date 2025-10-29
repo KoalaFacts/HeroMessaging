@@ -56,13 +56,14 @@ public abstract class ComponentMetrics
     /// Record a failed operation
     /// </summary>
     /// <param name="error">Error message or exception details</param>
-    public virtual void RecordFailure(string? error = null)
+    /// <param name="timeProvider">Optional time provider for testability. Uses system time if null.</param>
+    public virtual void RecordFailure(string? error = null, TimeProvider? timeProvider = null)
     {
         FailedOperations++;
         if (error != null)
         {
             LastError = error;
-            LastErrorOccurredAt = DateTime.UtcNow;
+            LastErrorOccurredAt = (timeProvider ?? TimeProvider.System).GetUtcNow().DateTime;
         }
     }
 
