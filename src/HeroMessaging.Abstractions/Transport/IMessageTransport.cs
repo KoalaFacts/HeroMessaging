@@ -115,9 +115,9 @@ public interface IMessageTransport : IAsyncDisposable, ITransportObservability
     /// <param name="cancellationToken">Cancellation token to abort the connection attempt</param>
     /// <returns>A task representing the asynchronous connection operation</returns>
     /// <exception cref="InvalidOperationException">Thrown when already connected or connecting</exception>
-    /// <exception cref="AuthenticationException">Thrown when authentication fails</exception>
+    /// <exception cref="System.Security.Authentication.AuthenticationException">Thrown when authentication fails</exception>
     /// <exception cref="TimeoutException">Thrown when connection times out</exception>
-    /// <exception cref="TransportException">Thrown when connection fails for transport-specific reasons</exception>
+    /// <exception cref="System.InvalidOperationException">Thrown when connection fails for transport-specific reasons</exception>
     /// <remarks>
     /// This method:
     /// - Establishes connection(s) to the message broker
@@ -203,7 +203,7 @@ public interface IMessageTransport : IAsyncDisposable, ITransportObservability
     /// <exception cref="ArgumentNullException">Thrown when destination or envelope is null</exception>
     /// <exception cref="InvalidOperationException">Thrown when transport is not connected</exception>
     /// <exception cref="TimeoutException">Thrown when send operation times out</exception>
-    /// <exception cref="TransportException">Thrown when send fails for transport-specific reasons</exception>
+    /// <exception cref="System.InvalidOperationException">Thrown when send fails for transport-specific reasons</exception>
     /// <remarks>
     /// Point-to-point messaging ensures exactly one consumer receives the message.
     /// This is suitable for:
@@ -255,7 +255,7 @@ public interface IMessageTransport : IAsyncDisposable, ITransportObservability
     /// <exception cref="ArgumentNullException">Thrown when topic or envelope is null</exception>
     /// <exception cref="InvalidOperationException">Thrown when transport is not connected</exception>
     /// <exception cref="TimeoutException">Thrown when publish operation times out</exception>
-    /// <exception cref="TransportException">Thrown when publish fails for transport-specific reasons</exception>
+    /// <exception cref="System.InvalidOperationException">Thrown when publish fails for transport-specific reasons</exception>
     /// <remarks>
     /// Publish-subscribe messaging delivers the message to zero or more subscribers.
     /// This is suitable for:
@@ -313,7 +313,7 @@ public interface IMessageTransport : IAsyncDisposable, ITransportObservability
     /// <returns>A consumer handle that can be used to control and stop the subscription</returns>
     /// <exception cref="ArgumentNullException">Thrown when source or handler is null</exception>
     /// <exception cref="InvalidOperationException">Thrown when transport is not connected</exception>
-    /// <exception cref="TransportException">Thrown when subscription fails for transport-specific reasons</exception>
+    /// <exception cref="System.InvalidOperationException">Thrown when subscription fails for transport-specific reasons</exception>
     /// <remarks>
     /// This method creates a message consumer that continuously receives and processes messages
     /// from the specified source. The handler is invoked for each message.
@@ -389,7 +389,7 @@ public interface IMessageTransport : IAsyncDisposable, ITransportObservability
     /// <returns>A task representing the asynchronous topology configuration operation</returns>
     /// <exception cref="ArgumentNullException">Thrown when topology is null</exception>
     /// <exception cref="InvalidOperationException">Thrown when transport is not connected</exception>
-    /// <exception cref="TransportException">Thrown when topology configuration fails</exception>
+    /// <exception cref="System.InvalidOperationException">Thrown when topology configuration fails</exception>
     /// <remarks>
     /// This method creates or updates the messaging topology based on the transport type:
     ///
@@ -631,7 +631,7 @@ public interface ITransportConsumer : IAsyncDisposable
     /// - <see cref="ConsumerMetrics.MessagesRejected"/>: Messages rejected
     /// - <see cref="ConsumerMetrics.MessagesDeadLettered"/>: Messages moved to dead letter queue
     /// - <see cref="ConsumerMetrics.AverageProcessingDuration"/>: Average handler execution time
-    /// - <see cref="ConsumerMetrics.SuccessRate"/>: Success ratio (0.0 to 1.0)
+    /// - Success rate: Ratio of successful to total operations (0.0 to 1.0)
     ///
     /// Use these metrics for:
     /// - Monitoring consumer health
