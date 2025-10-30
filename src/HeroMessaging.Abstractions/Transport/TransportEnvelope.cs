@@ -3,12 +3,86 @@ using System.Collections.Immutable;
 namespace HeroMessaging.Abstractions.Transport;
 
 /// <summary>
-/// Message envelope for transport layer
-/// Contains the serialized message body and metadata
-/// Optimized as readonly record struct for zero-allocation scenarios
+/// Represents a message envelope for the transport layer.
+/// Contains the serialized message body and associated metadata required for message delivery and processing.
 /// </summary>
+/// <remarks>
+/// The TransportEnvelope is optimized as a readonly record struct for:
+/// - Zero heap allocations in messaging hot paths
+/// - Value semantics (equality by value)
+/// - Immutability for thread safety
+/// - High-performance message processing loops
+///
+/// The envelope contains:
+/// - Message payload (serialized body)
+/// - Identity and tracing metadata (MessageId, CorrelationId, CausationId)
+/// - Routing information (Source, Destination, ReplyTo)
+/// - Message properties (Priority, TTL, DeliveryCount)
+/// - Custom headers for extensibility
+///
+/// Metadata supports:
+/// - Distributed tracing and correlation
+/// - Request/response patterns
+/// - Message routing and dead lettering
+/// - Deduplication and idempotency
+/// - Message expiration and priority queuing
+///
+/// Example usage:
+/// <code>
+/// // Create envelope with message
+/// var envelope = new TransportEnvelope(
+///     messageType: "CreateOrder",
+///     body: messageBytes,
+///     messageId: Guid.NewGuid().ToString(),
+///     correlationId: sagaId)
+/// {
+///     Priority = 5,
+///     ReplyTo = TransportAddress.Queue("order-responses")
+/// };
+///
+/// // Add custom headers
+/// envelope = envelope
+///     .WithHeader("TenantId", "customer-123")
+///     .WithHeader("Version", "1.0")
+///     .WithTtl(TimeSpan.FromMinutes(5));
+///
+/// // Send message
+/// await transport.SendAsync(destination, envelope);
+/// </code>
+///
+/// Correlation tracking example:
+/// <code>
+/// // Initial command
+/// var command = new TransportEnvelope("ProcessOrder", orderBytes)
+/// {
+///     CorrelationId = sagaId,  // Track entire workflow
+///     CausationId = null        // No previous message
+/// };
+///
+/// // Event caused by command
+/// var @event = new TransportEnvelope("OrderProcessed", eventBytes)
+/// {
+///     CorrelationId = sagaId,        // Same workflow
+///     CausationId = command.MessageId // Caused by command
+/// };
+/// </code>
+/// </remarks>
 public readonly record struct TransportEnvelope
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="TransportEnvelope"/> struct with default values.
+    /// </summary>
+    /// <remarks>
+    /// Creates an envelope with:
+    /// - Auto-generated MessageId (GUID)
+    /// - Empty message body
+    /// - Current UTC timestamp
+    /// - No expiration
+    /// - Default priority (0)
+    /// - No headers
+    ///
+    /// Typically used for testing or when all properties will be set via init syntax.
+    /// </remarks>
     public TransportEnvelope()
     {
         MessageId = Guid.NewGuid().ToString();
@@ -24,6 +98,54 @@ public readonly record struct TransportEnvelope
         Priority = 0;
     }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="TransportEnvelope"/> struct with message content and correlation identifiers.
+    /// </summary>
+    /// <param name="messageType">The fully qualified message type name or identifier</param>
+    /// <param name="body">The serialized message body</param>
+    /// <param name="messageId">Optional unique message identifier (auto-generated if not provided)</param>
+    /// <param name="correlationId">Optional correlation identifier for linking related messages in a workflow</param>
+    /// <param name="causationId">Optional causation identifier indicating which message caused this message</param>
+    /// <remarks>
+    /// This is the primary constructor for creating transport envelopes.
+    ///
+    /// Parameters:
+    /// - <paramref name="messageType"/>: Used for deserialization and routing. Typically the message's fully qualified type name.
+    /// - <paramref name="body"/>: Pre-serialized message bytes. Use ReadOnlyMemory for zero-copy performance.
+    /// - <paramref name="messageId"/>: Unique identifier for deduplication. Auto-generated GUID if not provided.
+    /// - <paramref name="correlationId"/>: Links all messages in a workflow/saga. All related messages share the same CorrelationId.
+    /// - <paramref name="causationId"/>: Forms a causality chain. Set to the MessageId of the message that triggered this one.
+    ///
+    /// Defaults:
+    /// - ContentType: "application/octet-stream"
+    /// - Timestamp: Current UTC time
+    /// - Priority: 0 (normal)
+    /// - No expiration
+    /// - No custom headers
+    ///
+    /// Example:
+    /// <code>
+    /// // Simple message
+    /// var envelope = new TransportEnvelope(
+    ///     "OrderCreated",
+    ///     messageBytes);
+    ///
+    /// // With correlation tracking
+    /// var envelope = new TransportEnvelope(
+    ///     "OrderProcessed",
+    ///     eventBytes,
+    ///     messageId: Guid.NewGuid().ToString(),
+    ///     correlationId: workflowId,
+    ///     causationId: triggeringMessageId);
+    ///
+    /// // Add additional properties
+    /// envelope = envelope with
+    /// {
+    ///     Priority = 5,
+    ///     Destination = TransportAddress.Queue("high-priority-orders")
+    /// };
+    /// </code>
+    /// </remarks>
     public TransportEnvelope(
         string messageType,
         ReadOnlyMemory<byte> body,
