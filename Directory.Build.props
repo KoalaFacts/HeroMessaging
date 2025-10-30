@@ -8,6 +8,8 @@
 
     <!-- XML Documentation -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <NoWarn>$(NoWarn);CS1591</NoWarn> <!-- Suppress "Missing XML comment" warnings for now -->
+    <!-- Enable CS1591 warnings to find missing XML documentation -->
+    <!-- Suppress for test projects only -->
+    <NoWarn Condition="$(MSBuildProjectName.Contains('Test')) or $(MSBuildProjectName.Contains('Benchmark'))">$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
 </Project>
