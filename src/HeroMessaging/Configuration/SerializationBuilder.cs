@@ -5,17 +5,65 @@ using Microsoft.Extensions.DependencyInjection;
 namespace HeroMessaging.Configuration;
 
 /// <summary>
-/// Implementation of serialization builder for configuring serialization plugins
+/// Builder for configuring message serialization in HeroMessaging.
 /// </summary>
+/// <remarks>
+/// This builder provides a fluent API for configuring:
+/// - Serialization formats (JSON, Protobuf, MessagePack)
+/// - Compression settings
+/// - Message size limits
+/// - Type-specific serializers
+///
+/// Serialization affects message size, performance, and inter operability.
+/// Choose the format that best matches your requirements:
+/// - JSON: Human-readable, widely supported, larger size
+/// - Protobuf: Compact binary, fast, requires schema
+/// - MessagePack: Compact binary, very fast, schema-less
+///
+/// Example:
+/// <code>
+/// var serializationBuilder = new SerializationBuilder(services);
+/// serializationBuilder
+///     .UseJson()
+///     .WithCompression(CompressionLevel.Optimal)
+///     .WithMaxMessageSize(10 * 1024 * 1024)
+///     .Build();
+/// </code>
+/// </remarks>
 public class SerializationBuilder : ISerializationBuilder
 {
     private readonly IServiceCollection _services;
 
+    /// <summary>
+    /// Initializes a new instance of the SerializationBuilder class.
+    /// </summary>
+    /// <param name="services">The service collection to register serialization services with</param>
+    /// <exception cref="ArgumentNullException">Thrown when services is null</exception>
     public SerializationBuilder(IServiceCollection services)
     {
         _services = services ?? throw new ArgumentNullException(nameof(services));
     }
 
+    /// <summary>
+    /// Configures HeroMessaging to use JSON serialization for messages.
+    /// </summary>
+    /// <param name="configure">Optional configuration action for JSON serialization options</param>
+    /// <returns>The serialization builder for method chaining</returns>
+    /// <remarks>
+    /// JSON serialization is human-readable and widely supported but produces larger messages.
+    ///
+    /// Requirements:
+    /// - HeroMessaging.Serialization.Json package must be installed
+    ///
+    /// Example:
+    /// <code>
+    /// serializationBuilder.UseJson(options =>
+    /// {
+    ///     options.WriteIndented = false;
+    ///     options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+    /// });
+    /// </code>
+    /// </remarks>
     public ISerializationBuilder UseJson(Action<Abstractions.Configuration.JsonSerializationOptions>? configure = null)
     {
         var options = new Abstractions.Configuration.JsonSerializationOptions();
@@ -31,6 +79,26 @@ public class SerializationBuilder : ISerializationBuilder
         return this;
     }
 
+    /// <summary>
+    /// Configures HeroMessaging to use Protocol Buffers (Protobuf) serialization for messages.
+    /// </summary>
+    /// <param name="configure">Optional configuration action for Protobuf serialization options</param>
+    /// <returns>The serialization builder for method chaining</returns>
+    /// <remarks>
+    /// Protobuf provides compact binary serialization with strong schema enforcement.
+    ///
+    /// Requirements:
+    /// - HeroMessaging.Serialization.Protobuf package must be installed
+    /// - Message types must have Protobuf contracts
+    ///
+    /// Example:
+    /// <code>
+    /// serializationBuilder.UseProtobuf(options =>
+    /// {
+    ///     options.PreferLengthPrefix = true;
+    /// });
+    /// </code>
+    /// </remarks>
     public ISerializationBuilder UseProtobuf(Action<Abstractions.Configuration.ProtobufSerializationOptions>? configure = null)
     {
         var options = new Abstractions.Configuration.ProtobufSerializationOptions();
@@ -45,6 +113,25 @@ public class SerializationBuilder : ISerializationBuilder
         return this;
     }
 
+    /// <summary>
+    /// Configures HeroMessaging to use MessagePack serialization for messages.
+    /// </summary>
+    /// <param name="configure">Optional configuration action for MessagePack serialization options</param>
+    /// <returns>The serialization builder for method chaining</returns>
+    /// <remarks>
+    /// MessagePack provides very fast binary serialization without requiring schema definitions.
+    ///
+    /// Requirements:
+    /// - HeroMessaging.Serialization.MessagePack package must be installed
+    ///
+    /// Example:
+    /// <code>
+    /// serializationBuilder.UseMessagePack(options =>
+    /// {
+    ///     options.Compression = MessagePackCompression.Lz4BlockArray;
+    /// });
+    /// </code>
+    /// </remarks>
     public ISerializationBuilder UseMessagePack(Action<Abstractions.Configuration.MessagePackSerializationOptions>? configure = null)
     {
         var options = new Abstractions.Configuration.MessagePackSerializationOptions();
@@ -59,18 +146,62 @@ public class SerializationBuilder : ISerializationBuilder
         return this;
     }
 
+    /// <summary>
+    /// Registers a custom message serializer implementation.
+    /// </summary>
+    /// <typeparam name="T">The custom serializer implementation type</typeparam>
+    /// <returns>The serialization builder for method chaining</returns>
+    /// <remarks>
+    /// Use this to register a custom IMessageSerializer implementation.
+    ///
+    /// Example:
+    /// <code>
+    /// serializationBuilder.UseCustom&lt;MyCustomSerializer&gt;();
+    /// </code>
+    /// </remarks>
     public ISerializationBuilder UseCustom<T>() where T : class, IMessageSerializer
     {
         _services.AddSingleton<IMessageSerializer, T>();
         return this;
     }
 
+    /// <summary>
+    /// Registers a specific message serializer instance.
+    /// </summary>
+    /// <param name="serializer">The serializer instance to use</param>
+    /// <returns>The serialization builder for method chaining</returns>
+    /// <remarks>
+    /// Use this to register a pre-configured serializer instance.
+    ///
+    /// Example:
+    /// <code>
+    /// var serializer = new MyCustomSerializer(options);
+    /// serializationBuilder.UseCustom(serializer);
+    /// </code>
+    /// </remarks>
     public ISerializationBuilder UseCustom(IMessageSerializer serializer)
     {
         _services.AddSingleton(serializer);
         return this;
     }
 
+    /// <summary>
+    /// Registers a type-specific serializer for a particular message type.
+    /// </summary>
+    /// <typeparam name="TMessage">The message type to serialize</typeparam>
+    /// <typeparam name="TSerializer">The serializer to use for this message type</typeparam>
+    /// <returns>The serialization builder for method chaining</returns>
+    /// <remarks>
+    /// Use this when you need different serializers for different message types.
+    /// For example, using Protobuf for compact domain events and JSON for audit messages.
+    ///
+    /// Example:
+    /// <code>
+    /// serializationBuilder
+    ///     .AddTypeSerializer&lt;OrderCreatedEvent, ProtobufSerializer&gt;()
+    ///     .AddTypeSerializer&lt;AuditLogEntry, JsonSerializer&gt;();
+    /// </code>
+    /// </remarks>
     public ISerializationBuilder AddTypeSerializer<TMessage, TSerializer>()
         where TSerializer : class, IMessageSerializer
     {
@@ -86,12 +217,46 @@ public class SerializationBuilder : ISerializationBuilder
         return this;
     }
 
+    /// <summary>
+    /// Sets the default serializer to use when no type-specific serializer is registered.
+    /// </summary>
+    /// <typeparam name="T">The default serializer implementation type</typeparam>
+    /// <returns>The serialization builder for method chaining</returns>
+    /// <remarks>
+    /// The default serializer is used for messages that don't have a type-specific serializer.
+    ///
+    /// Example:
+    /// <code>
+    /// serializationBuilder.SetDefault&lt;JsonSerializer&gt;();
+    /// </code>
+    /// </remarks>
     public ISerializationBuilder SetDefault<T>() where T : class, IMessageSerializer
     {
         _services.AddSingleton<IMessageSerializer, T>();
         return this;
     }
 
+    /// <summary>
+    /// Enables compression for serialized messages.
+    /// </summary>
+    /// <param name="level">Compression level (default: Optimal)</param>
+    /// <returns>The serialization builder for method chaining</returns>
+    /// <remarks>
+    /// Compression reduces message size at the cost of CPU time.
+    ///
+    /// Compression levels:
+    /// - Fastest: Less compression, faster processing
+    /// - Optimal: Balanced compression and speed (default)
+    /// - SmallestSize: Maximum compression, slower processing
+    ///
+    /// Best used with text-based formats like JSON. Binary formats like Protobuf
+    /// and MessagePack are already compact and may not benefit from compression.
+    ///
+    /// Example:
+    /// <code>
+    /// serializationBuilder.WithCompression(CompressionLevel.Optimal);
+    /// </code>
+    /// </remarks>
     public ISerializationBuilder WithCompression(Abstractions.Configuration.CompressionLevel level = Abstractions.Configuration.CompressionLevel.Optimal)
     {
         _services.Configure<SerializationCompressionOptions>(options =>
@@ -102,6 +267,27 @@ public class SerializationBuilder : ISerializationBuilder
         return this;
     }
 
+    /// <summary>
+    /// Sets the maximum allowed message size in bytes.
+    /// </summary>
+    /// <param name="maxSizeInBytes">Maximum message size in bytes</param>
+    /// <returns>The serialization builder for method chaining</returns>
+    /// <remarks>
+    /// This prevents excessively large messages from being processed.
+    /// Messages exceeding this size will be rejected during serialization.
+    ///
+    /// Default: 10MB (10 * 1024 * 1024 bytes)
+    ///
+    /// Recommended limits:
+    /// - Small messages: 1MB
+    /// - Normal messages: 10MB (default)
+    /// - Large messages: 100MB
+    ///
+    /// Example:
+    /// <code>
+    /// serializationBuilder.WithMaxMessageSize(5 * 1024 * 1024); // 5MB
+    /// </code>
+    /// </remarks>
     public ISerializationBuilder WithMaxMessageSize(int maxSizeInBytes)
     {
         _services.Configure<SerializationOptions>(options =>
@@ -111,6 +297,23 @@ public class SerializationBuilder : ISerializationBuilder
         return this;
     }
 
+    /// <summary>
+    /// Completes serialization configuration and returns the service collection.
+    /// </summary>
+    /// <returns>The configured service collection</returns>
+    /// <remarks>
+    /// This method finalizes serialization configuration.
+    /// Unlike storage, no default serializer is registered if none is configured.
+    /// Applications should explicitly choose a serialization format.
+    ///
+    /// Example:
+    /// <code>
+    /// serializationBuilder
+    ///     .UseJson()
+    ///     .WithCompression()
+    ///     .Build();
+    /// </code>
+    /// </remarks>
     public IServiceCollection Build()
     {
         // If no serializer was configured, we don't add a default one
