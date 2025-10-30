@@ -56,7 +56,7 @@ public interface IHeroMessaging
     /// <returns>A task representing the asynchronous operation</returns>
     /// <exception cref="ArgumentNullException">Thrown when command is null</exception>
     /// <exception cref="InvalidOperationException">Thrown when no handler is registered for the command type</exception>
-    /// <exception cref="ValidationException">Thrown when command validation fails</exception>
+    /// <exception cref="Validation.ValidationException">Thrown when command validation fails</exception>
     Task Send(ICommand command, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -69,7 +69,7 @@ public interface IHeroMessaging
     /// <returns>A task containing the command response</returns>
     /// <exception cref="ArgumentNullException">Thrown when command is null</exception>
     /// <exception cref="InvalidOperationException">Thrown when no handler is registered for the command type</exception>
-    /// <exception cref="ValidationException">Thrown when command validation fails</exception>
+    /// <exception cref="Validation.ValidationException">Thrown when command validation fails</exception>
     Task<TResponse> Send<TResponse>(ICommand<TResponse> command, CancellationToken cancellationToken = default);
 
     /// <summary>

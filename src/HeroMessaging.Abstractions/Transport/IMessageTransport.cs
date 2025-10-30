@@ -658,7 +658,7 @@ public interface ITransportConsumer : IAsyncDisposable
     ///     metrics.AverageProcessingDuration.TotalMilliseconds);
     ///
     /// // Alert on high failure rate
-    /// if (metrics.SuccessRate < 0.95 && metrics.TotalOperations > 100)
+    /// if (metrics.SuccessRate &lt; 0.95 &amp;&amp; metrics.TotalOperations &gt; 100)
     /// {
     ///     await alertService.SendAlertAsync(
     ///         $"Consumer {consumer.ConsumerId} has low success rate: {metrics.SuccessRate:P}");

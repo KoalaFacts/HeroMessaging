@@ -78,7 +78,7 @@ public interface IMessageSerializer
     /// The byte array can be sent over the network, stored in a database, or written to a queue.
     /// </returns>
     /// <exception cref="ArgumentNullException">Thrown when message is null and serializer doesn't support null values.</exception>
-    /// <exception cref="SerializationException">Thrown when serialization fails (invalid type, circular reference, etc.).</exception>
+    /// <exception cref="System.InvalidOperationException">Thrown when serialization fails (invalid type, circular reference, etc.).</exception>
     /// <exception cref="OperationCanceledException">Thrown when the operation is cancelled via the cancellation token.</exception>
     /// <remarks>
     /// This method should:
@@ -116,7 +116,7 @@ public interface IMessageSerializer
     /// </returns>
     /// <exception cref="ArgumentNullException">Thrown when data is null.</exception>
     /// <exception cref="ArgumentException">Thrown when data is empty or invalid.</exception>
-    /// <exception cref="SerializationException">
+    /// <exception cref="System.InvalidOperationException">
     /// Thrown when deserialization fails (invalid format, type mismatch, version incompatibility, etc.).
     /// </exception>
     /// <exception cref="OperationCanceledException">Thrown when the operation is cancelled via the cancellation token.</exception>
@@ -157,7 +157,7 @@ public interface IMessageSerializer
     /// </returns>
     /// <exception cref="ArgumentNullException">Thrown when data or messageType is null.</exception>
     /// <exception cref="ArgumentException">Thrown when data is empty, invalid, or messageType is not a valid message type.</exception>
-    /// <exception cref="SerializationException">
+    /// <exception cref="System.InvalidOperationException">
     /// Thrown when deserialization fails (invalid format, type mismatch, version incompatibility, etc.).
     /// </exception>
     /// <exception cref="OperationCanceledException">Thrown when the operation is cancelled via the cancellation token.</exception>

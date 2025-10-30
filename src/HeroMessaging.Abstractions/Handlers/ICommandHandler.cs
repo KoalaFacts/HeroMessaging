@@ -55,7 +55,7 @@ public interface ICommandHandler<TCommand> where TCommand : ICommand
     /// <param name="command">The command to handle</param>
     /// <param name="cancellationToken">Cancellation token to abort the operation</param>
     /// <returns>A task representing the asynchronous operation</returns>
-    /// <exception cref="ValidationException">Thrown when command validation fails</exception>
+    /// <exception cref="Validation.ValidationException">Thrown when command validation fails</exception>
     /// <exception cref="OperationCanceledException">Thrown when the operation is canceled</exception>
     Task Handle(TCommand command, CancellationToken cancellationToken = default);
 }
@@ -102,7 +102,7 @@ public interface ICommandHandler<TCommand, TResponse> where TCommand : ICommand<
     /// <param name="command">The command to handle</param>
     /// <param name="cancellationToken">Cancellation token to abort the operation</param>
     /// <returns>A task containing the response from command execution</returns>
-    /// <exception cref="ValidationException">Thrown when command validation fails</exception>
+    /// <exception cref="Validation.ValidationException">Thrown when command validation fails</exception>
     /// <exception cref="OperationCanceledException">Thrown when the operation is canceled</exception>
     Task<TResponse> Handle(TCommand command, CancellationToken cancellationToken = default);
 }
