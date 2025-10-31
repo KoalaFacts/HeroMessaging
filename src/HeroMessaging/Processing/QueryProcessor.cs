@@ -8,6 +8,27 @@ using System.Threading.Tasks.Dataflow;
 
 namespace HeroMessaging.Processing;
 
+/// <summary>
+/// Default implementation of <see cref="IQueryProcessor"/> that processes queries through a sequential pipeline with automatic metrics tracking.
+/// </summary>
+/// <remarks>
+/// This implementation provides reliable query processing with the following characteristics:
+/// - Sequential processing ensures queries execute in FIFO order
+/// - Bounded queue prevents memory exhaustion (capacity: 100 queries)
+/// - Automatic metrics collection (processed count, failures, average duration, cache hit rate)
+/// - Handler resolution via dependency injection
+/// - Exception propagation to callers for proper error handling
+///
+/// Implementation Details:
+/// - Uses TPL Dataflow ActionBlock for queue management
+/// - Single-threaded processing (MaxDegreeOfParallelism = 1)
+/// - Reflection-based handler invocation
+/// - Lock-protected metrics for thread safety
+/// - Maintains sliding window of last 100 execution durations
+///
+/// All queries must return a typed result (void queries are not supported per CQRS principles).
+/// All processing is asynchronous and respects cancellation tokens.
+/// </remarks>
 public class QueryProcessor : IQueryProcessor, IProcessor
 {
     private readonly IServiceProvider _serviceProvider;
@@ -18,8 +39,27 @@ public class QueryProcessor : IQueryProcessor, IProcessor
     private readonly List<long> _durations = new();
     private readonly object _metricsLock = new();
 
+    /// <summary>
+    /// Gets a value indicating whether the processor is running and accepting queries.
+    /// </summary>
+    /// <value>
+    /// Always returns <c>true</c> in this implementation as the processor is always ready to accept queries.
+    /// </value>
     public bool IsRunning { get; private set; } = true;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="QueryProcessor"/> class.
+    /// </summary>
+    /// <param name="serviceProvider">The service provider used to resolve query handlers.</param>
+    /// <param name="logger">Optional logger for diagnostic output. If null, a NullLogger is used.</param>
+    /// <remarks>
+    /// The processor is configured with:
+    /// - MaxDegreeOfParallelism = 1 (sequential processing)
+    /// - BoundedCapacity = 100 (prevents unbounded memory growth)
+    ///
+    /// Query handlers are resolved from the service provider using the pattern:
+    /// - IQueryHandler&lt;TQuery, TResponse&gt; for all queries (queries must return results)
+    /// </remarks>
     public QueryProcessor(IServiceProvider serviceProvider, ILogger<QueryProcessor>? logger = null)
     {
         _serviceProvider = serviceProvider;
@@ -91,6 +131,22 @@ public class QueryProcessor : IQueryProcessor, IProcessor
         return await tcs.Task;
     }
 
+    /// <summary>
+    /// Retrieves current query processing metrics for monitoring and diagnostics.
+    /// </summary>
+    /// <returns>
+    /// A <see cref="QueryProcessorMetrics"/> instance containing current statistics.
+    /// </returns>
+    /// <remarks>
+    /// Metrics are collected automatically during query processing:
+    /// - ProcessedCount: Total successful queries (incremented on success)
+    /// - FailedCount: Total failed queries (incremented on exception)
+    /// - AverageDuration: Rolling average of last 100 query execution times
+    /// - CacheHitRate: Currently always 0 (caching not implemented in this version)
+    ///
+    /// Thread-safe: This method uses locking to ensure consistent metric snapshots.
+    /// The average duration calculation excludes cancelled operations.
+    /// </remarks>
     public IQueryProcessorMetrics GetMetrics()
     {
         lock (_metricsLock)
@@ -108,11 +164,54 @@ public class QueryProcessor : IQueryProcessor, IProcessor
     }
 }
 
+/// <summary>
+/// Implementation of <see cref="IQueryProcessorMetrics"/> providing query processor statistics.
+/// </summary>
+/// <remarks>
+/// This class is an immutable record type that captures a snapshot of query processor metrics
+/// at a specific point in time. It is returned by <see cref="QueryProcessor.GetMetrics"/>.
+/// </remarks>
 public class QueryProcessorMetrics : IQueryProcessorMetrics
 {
+    /// <summary>
+    /// Gets the total number of successfully processed queries.
+    /// </summary>
+    /// <value>
+    /// The count of queries that completed without throwing exceptions.
+    /// This count increases monotonically and is never reset.
+    /// </value>
     public long ProcessedCount { get; init; }
+
+    /// <summary>
+    /// Gets the total number of failed query processing attempts.
+    /// </summary>
+    /// <value>
+    /// The count of queries that threw exceptions during processing.
+    /// This includes both business logic failures and infrastructure errors.
+    /// Cancelled operations are not counted as failures.
+    /// </value>
     public long FailedCount { get; init; }
+
+    /// <summary>
+    /// Gets the average duration of query processing operations.
+    /// </summary>
+    /// <value>
+    /// The rolling average of the last 100 query execution times.
+    /// Returns <see cref="TimeSpan.Zero"/> if no queries have been processed.
+    /// </value>
+    /// <remarks>
+    /// The average is calculated from a sliding window of the most recent 100 executions
+    /// to provide a current view of query performance rather than historical average.
+    /// </remarks>
     public TimeSpan AverageDuration { get; init; }
+
+    /// <summary>
+    /// Gets the cache hit rate for query results.
+    /// </summary>
+    /// <value>
+    /// Currently always returns 0 as response caching is not implemented in this version.
+    /// Future implementations may add query result caching with cache hit rate tracking.
+    /// </value>
     public double CacheHitRate { get; init; }
 }
 

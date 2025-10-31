@@ -24,12 +24,18 @@ public sealed class InMemoryScheduler : IMessageScheduler, IDisposable
     private readonly object _disposeLock = new();
     private bool _disposed;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="InMemoryScheduler"/> class.
+    /// </summary>
+    /// <param name="deliveryHandler">The handler responsible for delivering scheduled messages when they become due.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="deliveryHandler"/> is null.</exception>
     public InMemoryScheduler(IMessageDeliveryHandler deliveryHandler)
     {
         _deliveryHandler = deliveryHandler ?? throw new ArgumentNullException(nameof(deliveryHandler));
         _scheduledMessages = new ConcurrentDictionary<Guid, ScheduledEntry>();
     }
 
+    /// <inheritdoc />
     public Task<ScheduleResult> ScheduleAsync<T>(
         T message,
         TimeSpan delay,
@@ -44,6 +50,7 @@ public sealed class InMemoryScheduler : IMessageScheduler, IDisposable
         return ScheduleAsyncInternal(message, deliverAt, now, options, cancellationToken);
     }
 
+    /// <inheritdoc />
     public Task<ScheduleResult> ScheduleAsync<T>(
         T message,
         DateTimeOffset deliverAt,
@@ -104,6 +111,7 @@ public sealed class InMemoryScheduler : IMessageScheduler, IDisposable
         return Task.FromResult(ScheduleResult.Successful(scheduleId, deliverAt));
     }
 
+    /// <inheritdoc />
     public Task<bool> CancelScheduledAsync(Guid scheduleId, CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
@@ -122,6 +130,7 @@ public sealed class InMemoryScheduler : IMessageScheduler, IDisposable
         return Task.FromResult(false);
     }
 
+    /// <inheritdoc />
     public Task<ScheduledMessageInfo?> GetScheduledAsync(Guid scheduleId, CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
@@ -135,6 +144,7 @@ public sealed class InMemoryScheduler : IMessageScheduler, IDisposable
         return Task.FromResult<ScheduledMessageInfo?>(null);
     }
 
+    /// <inheritdoc />
     public Task<IReadOnlyList<ScheduledMessageInfo>> GetPendingAsync(
         ScheduledMessageQuery? query = null,
         CancellationToken cancellationToken = default)
@@ -188,6 +198,7 @@ public sealed class InMemoryScheduler : IMessageScheduler, IDisposable
         return Task.FromResult<IReadOnlyList<ScheduledMessageInfo>>(result);
     }
 
+    /// <inheritdoc />
     public Task<long> GetPendingCountAsync(CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
@@ -266,6 +277,10 @@ public sealed class InMemoryScheduler : IMessageScheduler, IDisposable
         }
     }
 
+    /// <summary>
+    /// Releases all resources used by the <see cref="InMemoryScheduler"/>.
+    /// Cancels all pending scheduled messages and disposes their associated timers.
+    /// </summary>
     public void Dispose()
     {
         lock (_disposeLock)

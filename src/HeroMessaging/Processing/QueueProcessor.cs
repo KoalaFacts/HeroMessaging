@@ -10,6 +10,35 @@ using System.Threading.Tasks.Dataflow;
 
 namespace HeroMessaging.Processing;
 
+/// <summary>
+/// Default implementation of <see cref="IQueueProcessor"/> that manages background message processing through named durable queues.
+/// </summary>
+/// <param name="serviceProvider">The service provider used to resolve message handlers and dependencies.</param>
+/// <param name="queueStorage">The storage provider for persisting and retrieving queue messages.</param>
+/// <param name="logger">The logger for diagnostic output.</param>
+/// <remarks>
+/// This implementation provides reliable background job processing with the following characteristics:
+/// - Named queues for logical separation of work
+/// - Durable storage (messages survive application restarts)
+/// - Priority-based message ordering within queues
+/// - Automatic retry with configurable limits (default: 3 attempts)
+/// - Dead-letter handling for permanently failed messages
+/// - Independent lifecycle management per queue
+/// - Sequential processing per queue (parallel across queues)
+///
+/// Implementation Details:
+/// - Uses ConcurrentDictionary to manage multiple queue workers
+/// - Each queue has a dedicated worker (QueueWorker) running in background
+/// - Workers use TPL Dataflow ActionBlock for processing pipeline
+/// - Sequential processing per queue (MaxDegreeOfParallelism = 1)
+/// - Bounded capacity per queue (100 messages)
+/// - Continuous polling with adaptive backoff
+/// - Auto-creation of queues on first use
+///
+/// Queue workers poll for messages continuously and dispatch them to appropriate handlers
+/// based on message type (ICommand or IEvent). Messages are acknowledged on success or
+/// rejected with optional requeue on failure.
+/// </remarks>
 public class QueueProcessor(
     IServiceProvider serviceProvider,
     IQueueStorage queueStorage,

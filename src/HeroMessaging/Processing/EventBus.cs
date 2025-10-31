@@ -9,6 +9,29 @@ using System.Threading.Tasks.Dataflow;
 
 namespace HeroMessaging.Processing;
 
+/// <summary>
+/// Default implementation of <see cref="IEventBus"/> that distributes events to multiple handlers with parallel processing and automatic retry.
+/// </summary>
+/// <remarks>
+/// This implementation provides reliable event distribution with the following characteristics:
+/// - Parallel handler execution for maximum throughput (MaxDegreeOfParallelism = CPU count)
+/// - Bounded queue prevents memory exhaustion (capacity: 1000 events)
+/// - Automatic retry with exponential backoff (up to 3 attempts per handler)
+/// - Optional error handler integration for advanced error handling strategies
+/// - Handler isolation (one handler's failure doesn't affect others)
+/// - Automatic metrics collection (published count, failures, handler count)
+///
+/// Implementation Details:
+/// - Uses TPL Dataflow ActionBlock for concurrent queue management
+/// - Multi-threaded processing (scales with CPU cores)
+/// - Reflection-based handler invocation
+/// - Lock-protected metrics for thread safety
+/// - Each handler maintains independent retry state
+/// - Integration with IErrorHandler for custom error policies
+///
+/// Event handlers execute independently and in parallel. Events support zero-to-many handlers (0..N).
+/// All processing is asynchronous and respects cancellation tokens.
+/// </remarks>
 public class EventBus : IEventBus, IProcessor
 {
     private readonly IServiceProvider _serviceProvider;
@@ -21,8 +44,35 @@ public class EventBus : IEventBus, IProcessor
     private readonly object _metricsLock = new();
     private readonly TimeProvider _timeProvider;
 
+    /// <summary>
+    /// Gets a value indicating whether the event bus is running and accepting events.
+    /// </summary>
+    /// <value>
+    /// Always returns <c>true</c> in this implementation as the event bus is always ready to accept events.
+    /// </value>
     public bool IsRunning { get; private set; } = true;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="EventBus"/> class.
+    /// </summary>
+    /// <param name="serviceProvider">The service provider used to resolve event handlers.</param>
+    /// <param name="timeProvider">The time provider for tracking failure timestamps and retry scheduling.</param>
+    /// <param name="logger">Optional logger for diagnostic output. If null, a NullLogger is used.</param>
+    /// <param name="errorHandler">Optional error handler for custom error handling strategies. If null, default retry logic is used.</param>
+    /// <exception cref="ArgumentNullException">Thrown when timeProvider is null.</exception>
+    /// <remarks>
+    /// The event bus is configured with:
+    /// - MaxDegreeOfParallelism = CPU count (parallel handler execution)
+    /// - BoundedCapacity = 1000 (prevents unbounded memory growth)
+    ///
+    /// Event handlers are resolved from the service provider using the pattern:
+    /// - IEventHandler&lt;TEvent&gt; (supports multiple handlers per event type)
+    ///
+    /// If no error handler is provided, the default retry policy is:
+    /// - Up to 3 retry attempts per handler
+    /// - Exponential backoff (2^retryCount seconds)
+    /// - Failed handlers logged with retry attempt information
+    /// </remarks>
     public EventBus(IServiceProvider serviceProvider, TimeProvider timeProvider, ILogger<EventBus>? logger = null, IErrorHandler? errorHandler = null)
     {
         _serviceProvider = serviceProvider;
@@ -170,6 +220,21 @@ public class EventBus : IEventBus, IProcessor
         public DateTime? FirstFailureTime { get; set; }
     }
 
+    /// <summary>
+    /// Retrieves current event bus metrics for monitoring and diagnostics.
+    /// </summary>
+    /// <returns>
+    /// An <see cref="EventBusMetrics"/> instance containing current statistics.
+    /// </returns>
+    /// <remarks>
+    /// Metrics are collected automatically during event processing:
+    /// - PublishedCount: Total events published (incremented on each Publish call)
+    /// - FailedCount: Total handler failures after all retries exhausted
+    /// - RegisteredHandlers: Number of handlers for the most recently published event
+    ///
+    /// Thread-safe: This method uses locking to ensure consistent metric snapshots.
+    /// Failed count represents handlers that failed after max retries, not individual retry attempts.
+    /// </remarks>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1024:Use properties where appropriate", Justification = "This method performs computation (locking and object creation) and is not a simple getter")]
     public IEventBusMetrics GetMetrics()
     {
@@ -185,10 +250,43 @@ public class EventBus : IEventBus, IProcessor
     }
 }
 
+/// <summary>
+/// Implementation of <see cref="IEventBusMetrics"/> providing event bus statistics.
+/// </summary>
+/// <remarks>
+/// This class is an immutable record type that captures a snapshot of event bus metrics
+/// at a specific point in time. It is returned by <see cref="EventBus.GetMetrics"/>.
+/// </remarks>
 public class EventBusMetrics : IEventBusMetrics
 {
+    /// <summary>
+    /// Gets the total number of events published to the event bus.
+    /// </summary>
+    /// <value>
+    /// The count of Publish() calls made to the event bus.
+    /// This count increases monotonically and is never reset.
+    /// Each published event is counted once, regardless of how many handlers process it.
+    /// </value>
     public long PublishedCount { get; init; }
+
+    /// <summary>
+    /// Gets the total number of handler failures after all retry attempts were exhausted.
+    /// </summary>
+    /// <value>
+    /// The count of handlers that failed processing after reaching the maximum retry limit.
+    /// This represents permanent failures where retry attempts were unsuccessful.
+    /// Does not include successful retries or handlers that are still retrying.
+    /// </value>
     public long FailedCount { get; init; }
+
+    /// <summary>
+    /// Gets the number of handlers registered for the most recently published event type.
+    /// </summary>
+    /// <value>
+    /// The count of IEventHandler instances found for the last event type published.
+    /// This value changes with each Publish() call based on the event type.
+    /// Returns 0 if no events have been published or no handlers were found.
+    /// </value>
     public int RegisteredHandlers { get; init; }
 }
 

@@ -11,8 +11,44 @@ using Microsoft.Extensions.Logging;
 namespace HeroMessaging.Processing;
 
 /// <summary>
-/// Builder for creating message processing pipelines with decorators
+/// Fluent builder for creating message processing pipelines with decorator-based cross-cutting concerns.
 /// </summary>
+/// <param name="serviceProvider">The service provider for resolving decorator dependencies.</param>
+/// <remarks>
+/// This builder enables composing message processing pipelines using the Decorator pattern.
+/// Each decorator wraps the previous processor, forming a chain where each layer can:
+/// - Execute logic before the inner processor
+/// - Execute logic after the inner processor
+/// - Modify the message or context
+/// - Handle errors from inner processors
+/// - Short-circuit the pipeline
+///
+/// Decorator Execution Order:
+/// - Decorators execute in REVERSE order of how they're added
+/// - First added decorator executes LAST (outermost layer)
+/// - Last added decorator executes FIRST (innermost layer)
+/// - Example: UseMetrics().UseLogging() → Metrics wraps Logging
+///
+/// Available Decorators:
+/// - UseLogging: Structured logging with configurable log levels
+/// - UseValidation: Message validation before processing
+/// - UseRetry: Automatic retry with configurable policy
+/// - UseErrorHandling: Error handling with dead-letter queue support
+/// - UseMetrics: Metrics collection and reporting
+/// - UseCircuitBreaker: Circuit breaker for fault tolerance
+/// - UseCorrelation: Correlation and causation ID tracking
+/// - UseOpenTelemetry: Distributed tracing integration
+/// - Use: Custom decorator injection
+///
+/// Usage Pattern:
+/// 1. Create builder with service provider
+/// 2. Add decorators in desired order (outermost to innermost)
+/// 3. Call Build() with core processor
+/// 4. Use resulting processor for message handling
+///
+/// Thread Safety:
+/// Builder is not thread-safe. Build pipeline once, then use processor from multiple threads.
+/// </remarks>
 public class MessageProcessingPipelineBuilder(IServiceProvider serviceProvider)
 {
     private readonly IServiceProvider _serviceProvider = serviceProvider;
@@ -185,13 +221,66 @@ public class MessageProcessingPipelineBuilder(IServiceProvider serviceProvider)
 }
 
 /// <summary>
-/// Core message processor that does the actual work
+/// Core message processor that wraps a processing function for use in the decorator pipeline.
 /// </summary>
+/// <param name="processFunc">The core processing function to execute for each message.</param>
+/// <remarks>
+/// This class adapts a simple processing function into the IMessageProcessor interface,
+/// making it suitable for use as the innermost processor in a decorator pipeline.
+///
+/// The process function receives:
+/// - message: The message to process
+/// - context: Processing context with metadata
+/// - cancellationToken: Cancellation token
+///
+/// Responsibility:
+/// - Executes the actual business logic (handler invocation)
+/// - Wraps function in IMessageProcessor interface
+/// - Converts exceptions to ProcessingResult.Failed
+/// - Returns ProcessingResult.Successful on success
+///
+/// This is typically used internally by EventBusV2, CommandProcessor, and QueryProcessor
+/// to wrap their handler invocation logic in a pipeline-compatible format.
+///
+/// Usage:
+/// <code>
+/// var coreProcessor = new CoreMessageProcessor(async (msg, ctx, ct) =>
+/// {
+///     // Execute handler
+///     await handler.Handle(msg, ct);
+/// });
+///
+/// // Wrap with decorators
+/// var pipeline = new MessageProcessingPipelineBuilder(serviceProvider)
+///     .UseLogging()
+///     .UseRetry()
+///     .Build(coreProcessor);
+/// </code>
+/// </remarks>
 public class CoreMessageProcessor(Func<IMessage, ProcessingContext, CancellationToken, ValueTask> processFunc) : IMessageProcessor
 {
     private readonly Func<IMessage, ProcessingContext, CancellationToken, ValueTask> _processFunc = processFunc;
 
-
+    /// <summary>
+    /// Processes a message by invoking the wrapped processing function.
+    /// </summary>
+    /// <param name="message">The message to process.</param>
+    /// <param name="context">The processing context with metadata.</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+    /// <returns>
+    /// A ProcessingResult indicating success or failure.
+    /// Returns ProcessingResult.Successful() if the function completes without exception.
+    /// Returns ProcessingResult.Failed(exception) if the function throws.
+    /// </returns>
+    /// <remarks>
+    /// This method serves as the innermost layer of the processing pipeline.
+    /// All decorators wrap this method, executing their logic before and/or after this call.
+    ///
+    /// Exception Handling:
+    /// - Exceptions from the processing function are caught
+    /// - Converted to ProcessingResult.Failed with exception details
+    /// - Allows decorators to handle failures appropriately
+    /// </remarks>
     public async ValueTask<ProcessingResult> ProcessAsync(IMessage message, ProcessingContext context, CancellationToken cancellationToken = default)
     {
         try

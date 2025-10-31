@@ -8,11 +8,30 @@ namespace HeroMessaging.Scheduling;
 /// Default implementation of message delivery handler that publishes scheduled messages
 /// through the HeroMessaging system.
 /// </summary>
+/// <remarks>
+/// This handler routes scheduled messages based on their message type:
+/// - Commands without response types are sent via Send()
+/// - Commands with response types cannot be scheduled (logged as warning)
+/// - Queries cannot be scheduled (logged as warning)
+/// - Events are published via Publish()
+/// - Other messages are enqueued to specified destination or default queue
+///
+/// Performance characteristics:
+/// - Delivery time depends on underlying message transport
+/// - Supports all message types from HeroMessaging.Abstractions
+/// - Integrates with existing error handling and logging infrastructure
+/// </remarks>
 public sealed class DefaultMessageDeliveryHandler : IMessageDeliveryHandler
 {
     private readonly IHeroMessaging _messaging;
     private readonly ILogger<DefaultMessageDeliveryHandler> _logger;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DefaultMessageDeliveryHandler"/> class.
+    /// </summary>
+    /// <param name="messaging">The HeroMessaging instance for publishing messages.</param>
+    /// <param name="logger">The logger for diagnostic information.</param>
+    /// <exception cref="ArgumentNullException">Thrown when any parameter is null.</exception>
     public DefaultMessageDeliveryHandler(
         IHeroMessaging messaging,
         ILogger<DefaultMessageDeliveryHandler> logger)
@@ -21,6 +40,7 @@ public sealed class DefaultMessageDeliveryHandler : IMessageDeliveryHandler
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
+    /// <inheritdoc />
     public async Task DeliverAsync(ScheduledMessage scheduledMessage, CancellationToken cancellationToken = default)
     {
         if (scheduledMessage == null) throw new ArgumentNullException(nameof(scheduledMessage));
@@ -69,6 +89,7 @@ public sealed class DefaultMessageDeliveryHandler : IMessageDeliveryHandler
         }
     }
 
+    /// <inheritdoc />
     public Task HandleDeliveryFailureAsync(Guid scheduleId, Exception exception, CancellationToken cancellationToken = default)
     {
         _logger.LogError(

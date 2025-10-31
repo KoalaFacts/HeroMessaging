@@ -9,6 +9,31 @@ using System.Threading.Tasks.Dataflow;
 
 namespace HeroMessaging.Processing;
 
+/// <summary>
+/// Default implementation of <see cref="IInboxProcessor"/> that implements the Inbox pattern for exactly-once message processing with automatic deduplication.
+/// </summary>
+/// <remarks>
+/// This implementation provides exactly-once processing semantics with the following characteristics:
+/// - Automatic deduplication based on MessageId
+/// - Exactly-once processing guarantee (duplicates detected and skipped)
+/// - Sequential processing maintains message ordering (MaxDegreeOfParallelism = 1)
+/// - Configurable deduplication window for time-based duplicate detection
+/// - Automatic cleanup of old processed messages (hourly, 7-day retention)
+/// - Source tracking for audit trail and debugging
+/// - Status tracking (Pending, Processing, Processed, Failed)
+///
+/// Implementation Details:
+/// - Uses TPL Dataflow ActionBlock for ordered processing
+/// - Sequential processing (MaxDegreeOfParallelism = 1, EnsureOrdered = true)
+/// - Bounded capacity (100 concurrent messages)
+/// - Two background tasks: polling (100ms/5s) and cleanup (hourly)
+/// - Duplicate check before processing (fast database query)
+/// - Integration with IHeroMessaging for message dispatch
+///
+/// The Inbox pattern solves the at-least-once delivery problem by tracking which messages
+/// have been processed and automatically skipping duplicates, enabling exactly-once semantics
+/// even when upstream systems deliver messages multiple times.
+/// </remarks>
 public class InboxProcessor : IInboxProcessor
 {
     private readonly IInboxStorage _inboxStorage;
@@ -19,6 +44,22 @@ public class InboxProcessor : IInboxProcessor
     private Task? _pollingTask;
     private Task? _cleanupTask;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="InboxProcessor"/> class.
+    /// </summary>
+    /// <param name="inboxStorage">The storage provider for persisting and retrieving inbox messages and tracking processed message IDs.</param>
+    /// <param name="serviceProvider">The service provider used to resolve IHeroMessaging and create scoped handlers.</param>
+    /// <param name="logger">The logger for diagnostic output.</param>
+    /// <remarks>
+    /// The processor is configured with:
+    /// - MaxDegreeOfParallelism = 1 (sequential processing for ordering)
+    /// - BoundedCapacity = 100 (prevents unbounded memory growth)
+    /// - EnsureOrdered = true (strict FIFO ordering)
+    ///
+    /// Two background tasks are started by Start():
+    /// 1. Polling task: Retrieves unprocessed messages (100ms active, 5s idle)
+    /// 2. Cleanup task: Removes old processed entries >7 days (runs hourly)
+    /// </remarks>
     public InboxProcessor(
         IInboxStorage inboxStorage,
         IServiceProvider serviceProvider,

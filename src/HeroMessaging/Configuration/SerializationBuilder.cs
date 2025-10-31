@@ -323,18 +323,68 @@ public class SerializationBuilder : ISerializationBuilder
 }
 
 // Configuration option classes
+
+/// <summary>
+/// Base configuration options for message serialization.
+/// </summary>
+/// <remarks>
+/// Contains common settings that apply to all serialization formats.
+/// </remarks>
 public class SerializationOptions
 {
+    /// <summary>
+    /// Gets or sets the maximum allowed message size in bytes.
+    /// </summary>
+    /// <remarks>
+    /// Messages exceeding this size will be rejected during serialization.
+    /// Default is 10MB (10 * 1024 * 1024 bytes).
+    /// </remarks>
     public int MaxMessageSize { get; set; } = 1024 * 1024 * 10; // 10MB default
 }
 
+/// <summary>
+/// Configuration options for message serialization with compression support.
+/// </summary>
+/// <remarks>
+/// Extends <see cref="SerializationOptions"/> to include compression settings.
+/// Compression reduces message size at the cost of CPU time for compression/decompression.
+/// </remarks>
 public class SerializationCompressionOptions : SerializationOptions
 {
+    /// <summary>
+    /// Gets or sets whether compression is enabled for serialized messages.
+    /// </summary>
+    /// <remarks>
+    /// When enabled, messages will be compressed using the specified <see cref="CompressionLevel"/>.
+    /// Default is false.
+    /// </remarks>
     public bool EnableCompression { get; set; }
+
+    /// <summary>
+    /// Gets or sets the compression level to use when compression is enabled.
+    /// </summary>
+    /// <remarks>
+    /// Default is <see cref="Abstractions.Configuration.CompressionLevel.Optimal"/> for balanced
+    /// compression ratio and performance.
+    /// </remarks>
     public Abstractions.Configuration.CompressionLevel CompressionLevel { get; set; } = Abstractions.Configuration.CompressionLevel.Optimal;
 }
 
+/// <summary>
+/// Mapping configuration for type-specific serializers.
+/// </summary>
+/// <remarks>
+/// Allows different message types to use different serializers.
+/// For example, domain events can use Protobuf while audit logs use JSON.
+/// </remarks>
 public class SerializationTypeMapping
 {
+    /// <summary>
+    /// Gets the dictionary mapping message types to their specific serializer implementations.
+    /// </summary>
+    /// <remarks>
+    /// Key: The message type (e.g., typeof(OrderCreatedEvent))
+    /// Value: The serializer type to use for that message (e.g., typeof(ProtobufSerializer))
+    /// </remarks>
     public Dictionary<Type, Type> TypeSerializers { get; } = new();
 }

@@ -8,8 +8,38 @@ using System.Threading.Tasks.Dataflow;
 namespace HeroMessaging.Processing;
 
 /// <summary>
-/// Event bus implementation using the pipeline architecture
+/// Advanced implementation of <see cref="IEventBus"/> that uses the decorator pipeline architecture for event processing.
 /// </summary>
+/// <remarks>
+/// This implementation extends the standard EventBus with a configurable processing pipeline:
+/// - Decorator-based architecture for cross-cutting concerns
+/// - Built-in metrics collection for all event processing
+/// - Structured logging with correlation tracking
+/// - Automatic validation before handler execution
+/// - Error handling with dead-letter queue support
+/// - Retry logic with exponential backoff
+/// - Correlation/causation tracking for event choreography
+///
+/// Pipeline Architecture (default configuration, innermost to outermost):
+/// 1. Core handler execution (innermost)
+/// 2. Retry decorator - retries failed operations
+/// 3. Error handling decorator - handles errors, sends to dead-letter queue
+/// 4. Validation decorator - validates messages before processing
+/// 5. Correlation decorator - tracks correlation and causation IDs
+/// 6. Logging decorator - structured logging
+/// 7. Metrics decorator - collects processing metrics (outermost)
+///
+/// Implementation Details:
+/// - Uses TPL Dataflow ActionBlock for concurrent processing
+/// - Parallel handler execution (MaxDegreeOfParallelism = CPU count)
+/// - Bounded capacity (1000 events)
+/// - Decorator pipeline built once, reused for all events
+/// - Each handler execution runs through complete pipeline
+/// - ProcessingContext carries metadata through pipeline
+///
+/// This version is recommended for production scenarios requiring comprehensive
+/// observability, error handling, and resilience features.
+/// </remarks>
 public class EventBusV2 : IEventBus
 {
     private readonly IServiceProvider _serviceProvider;
@@ -17,6 +47,21 @@ public class EventBusV2 : IEventBus
     private readonly ActionBlock<EventEnvelope> _processingBlock;
     private readonly MessageProcessingPipelineBuilder _pipelineBuilder;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="EventBusV2"/> class.
+    /// </summary>
+    /// <param name="serviceProvider">The service provider used to resolve event handlers and pipeline dependencies.</param>
+    /// <param name="logger">Optional logger for diagnostic output. If null, a NullLogger is used.</param>
+    /// <remarks>
+    /// The event bus is configured with:
+    /// - MaxDegreeOfParallelism = CPU count (parallel handler execution)
+    /// - BoundedCapacity = 1000 (prevents unbounded memory growth)
+    ///
+    /// The default pipeline includes (outermost to innermost):
+    /// UseMetrics() → UseLogging() → UseCorrelation() → UseValidation() → UseErrorHandling() → UseRetry()
+    ///
+    /// To customize the pipeline, modify the ConfigurePipeline() method.
+    /// </remarks>
     public EventBusV2(IServiceProvider serviceProvider, ILogger<EventBusV2>? logger = null)
     {
         _serviceProvider = serviceProvider;

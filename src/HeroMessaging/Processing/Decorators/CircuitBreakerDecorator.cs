@@ -9,12 +9,51 @@ namespace HeroMessaging.Processing.Decorators;
 /// <summary>
 /// Decorator that implements circuit breaker pattern to prevent cascading failures
 /// </summary>
+/// <remarks>
+/// The circuit breaker pattern protects the system from cascading failures by temporarily
+/// blocking calls to a failing downstream service, allowing it time to recover. The circuit
+/// operates in three states:
+///
+/// - Closed: Normal operation, requests flow through
+/// - Open: Failures detected, requests are rejected immediately
+/// - HalfOpen: Testing recovery, limited requests allowed
+///
+/// State transitions occur based on:
+/// - Failure threshold: Number of failures before opening
+/// - Failure rate: Percentage of failures in the sampling window
+/// - Break duration: Time to wait before attempting recovery
+/// - Success threshold: Consecutive successes needed to close from half-open
+///
+/// The circuit monitors failures within a sliding time window and opens when either
+/// the failure count or failure rate exceeds configured thresholds. After the break
+/// duration, it transitions to half-open to test recovery with a single request.
+/// Three consecutive successes close the circuit, while any failure reopens it.
+///
+/// Example usage:
+/// <code>
+/// var options = new CircuitBreakerOptions
+/// {
+///     FailureThreshold = 5,
+///     FailureRateThreshold = 0.5,
+///     BreakDuration = TimeSpan.FromSeconds(30)
+/// };
+/// var decorator = new CircuitBreakerDecorator(processor, logger, TimeProvider.System, options);
+/// </code>
+/// </remarks>
 public class CircuitBreakerDecorator : MessageProcessorDecorator
 {
     private readonly ILogger<CircuitBreakerDecorator> _logger;
     private readonly CircuitBreakerOptions _options;
     private readonly CircuitBreakerState _state;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CircuitBreakerDecorator"/> class.
+    /// </summary>
+    /// <param name="inner">The inner message processor to decorate</param>
+    /// <param name="logger">Logger for circuit breaker state changes and diagnostics</param>
+    /// <param name="timeProvider">Time provider for testable time-based operations</param>
+    /// <param name="options">Circuit breaker configuration options, or null to use defaults</param>
+    /// <exception cref="ArgumentNullException">Thrown when timeProvider is null</exception>
     public CircuitBreakerDecorator(
         IMessageProcessor inner,
         ILogger<CircuitBreakerDecorator> logger,
@@ -26,6 +65,25 @@ public class CircuitBreakerDecorator : MessageProcessorDecorator
         _state = new CircuitBreakerState(_options, timeProvider ?? throw new ArgumentNullException(nameof(timeProvider)));
     }
 
+    /// <summary>
+    /// Processes a message through the circuit breaker, enforcing failure protection.
+    /// </summary>
+    /// <param name="message">The message to process</param>
+    /// <param name="context">The processing context containing execution metadata</param>
+    /// <param name="cancellationToken">Cancellation token to abort processing</param>
+    /// <returns>A task containing the processing result, or a failed result if the circuit is open</returns>
+    /// <remarks>
+    /// This method checks the circuit state before allowing processing. If the circuit is open,
+    /// it immediately returns a failed result with a CircuitBreakerOpenException. If closed or
+    /// half-open, it processes the message and records the outcome to update circuit state.
+    ///
+    /// Successful processing decrements the failure count and may close an open circuit.
+    /// Failed processing increments the failure count and may open the circuit if thresholds
+    /// are exceeded. All state changes are logged for diagnostics.
+    ///
+    /// The circuit breaker does not catch exceptions - they are recorded as failures and rethrown
+    /// to preserve the original error handling behavior.
+    /// </remarks>
     public override async ValueTask<ProcessingResult> ProcessAsync(
         IMessage message,
         ProcessingContext context,
@@ -294,9 +352,29 @@ public enum CircuitState
 /// <summary>
 /// Exception thrown when circuit breaker is open
 /// </summary>
+/// <remarks>
+/// This exception is thrown when a request is rejected because the circuit breaker is in the Open state.
+/// It indicates that the circuit has detected too many failures and is temporarily blocking requests
+/// to allow the downstream service time to recover. Clients should handle this exception by either
+/// failing fast or using an alternative processing path.
+/// </remarks>
 public class CircuitBreakerOpenException : Exception
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CircuitBreakerOpenException"/> class with a default message.
+    /// </summary>
     public CircuitBreakerOpenException() : base("Circuit breaker is open") { }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CircuitBreakerOpenException"/> class with a specified error message.
+    /// </summary>
+    /// <param name="message">The message that describes the error</param>
     public CircuitBreakerOpenException(string message) : base(message) { }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CircuitBreakerOpenException"/> class with a specified error message and inner exception.
+    /// </summary>
+    /// <param name="message">The error message that explains the reason for the exception</param>
+    /// <param name="innerException">The exception that is the cause of the current exception</param>
     public CircuitBreakerOpenException(string message, Exception innerException) : base(message, innerException) { }
 }

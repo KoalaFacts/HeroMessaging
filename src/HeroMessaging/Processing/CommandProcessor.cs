@@ -8,6 +8,27 @@ using System.Threading.Tasks.Dataflow;
 
 namespace HeroMessaging.Processing;
 
+/// <summary>
+/// Default implementation of <see cref="ICommandProcessor"/> that processes commands through a sequential pipeline with automatic metrics tracking.
+/// </summary>
+/// <remarks>
+/// This implementation provides reliable command processing with the following characteristics:
+/// - Sequential processing ensures commands execute in FIFO order
+/// - Bounded queue prevents memory exhaustion (capacity: 100 commands)
+/// - Automatic metrics collection (processed count, failures, average duration)
+/// - Handler resolution via dependency injection
+/// - Exception propagation to callers for proper error handling
+///
+/// Implementation Details:
+/// - Uses TPL Dataflow ActionBlock for queue management
+/// - Single-threaded processing (MaxDegreeOfParallelism = 1)
+/// - Reflection-based handler invocation
+/// - Lock-protected metrics for thread safety
+/// - Maintains sliding window of last 100 execution durations
+///
+/// The processor supports both fire-and-forget commands (void) and commands that return results.
+/// All processing is asynchronous and respects cancellation tokens.
+/// </remarks>
 public class CommandProcessor : ICommandProcessor, IProcessor
 {
     private readonly IServiceProvider _serviceProvider;
@@ -18,8 +39,28 @@ public class CommandProcessor : ICommandProcessor, IProcessor
     private readonly List<long> _durations = new();
     private readonly object _metricsLock = new();
 
+    /// <summary>
+    /// Gets a value indicating whether the processor is running and accepting commands.
+    /// </summary>
+    /// <value>
+    /// Always returns <c>true</c> in this implementation as the processor is always ready to accept commands.
+    /// </value>
     public bool IsRunning { get; private set; } = true;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CommandProcessor"/> class.
+    /// </summary>
+    /// <param name="serviceProvider">The service provider used to resolve command handlers.</param>
+    /// <param name="logger">Optional logger for diagnostic output. If null, a NullLogger is used.</param>
+    /// <remarks>
+    /// The processor is configured with:
+    /// - MaxDegreeOfParallelism = 1 (sequential processing)
+    /// - BoundedCapacity = 100 (prevents unbounded memory growth)
+    ///
+    /// Command handlers are resolved from the service provider using the pattern:
+    /// - ICommandHandler&lt;TCommand&gt; for void commands
+    /// - ICommandHandler&lt;TCommand, TResponse&gt; for commands with results
+    /// </remarks>
     public CommandProcessor(IServiceProvider serviceProvider, ILogger<CommandProcessor>? logger = null)
     {
         _serviceProvider = serviceProvider;
@@ -148,6 +189,21 @@ public class CommandProcessor : ICommandProcessor, IProcessor
         return await tcs.Task;
     }
 
+    /// <summary>
+    /// Retrieves current processing metrics for monitoring and diagnostics.
+    /// </summary>
+    /// <returns>
+    /// A <see cref="ProcessorMetrics"/> instance containing current statistics.
+    /// </returns>
+    /// <remarks>
+    /// Metrics are collected automatically during command processing:
+    /// - ProcessedCount: Total successful commands (incremented on success)
+    /// - FailedCount: Total failed commands (incremented on exception)
+    /// - AverageDuration: Rolling average of last 100 command execution times
+    ///
+    /// Thread-safe: This method uses locking to ensure consistent metric snapshots.
+    /// The average duration calculation excludes cancelled operations.
+    /// </remarks>
     public IProcessorMetrics GetMetrics()
     {
         lock (_metricsLock)
@@ -164,10 +220,46 @@ public class CommandProcessor : ICommandProcessor, IProcessor
     }
 }
 
+/// <summary>
+/// Implementation of <see cref="IProcessorMetrics"/> providing command processor statistics.
+/// </summary>
+/// <remarks>
+/// This class is an immutable record type that captures a snapshot of processor metrics
+/// at a specific point in time. It is returned by <see cref="CommandProcessor.GetMetrics"/>
+/// and <see cref="QueryProcessor.GetMetrics"/>.
+/// </remarks>
 public class ProcessorMetrics : IProcessorMetrics
 {
+    /// <summary>
+    /// Gets the total number of successfully processed commands.
+    /// </summary>
+    /// <value>
+    /// The count of commands that completed without throwing exceptions.
+    /// This count increases monotonically and is never reset.
+    /// </value>
     public long ProcessedCount { get; init; }
+
+    /// <summary>
+    /// Gets the total number of failed command processing attempts.
+    /// </summary>
+    /// <value>
+    /// The count of commands that threw exceptions during processing.
+    /// This includes both business logic failures and infrastructure errors.
+    /// Cancelled operations are not counted as failures.
+    /// </value>
     public long FailedCount { get; init; }
+
+    /// <summary>
+    /// Gets the average duration of command processing operations.
+    /// </summary>
+    /// <value>
+    /// The rolling average of the last 100 command execution times.
+    /// Returns <see cref="TimeSpan.Zero"/> if no commands have been processed.
+    /// </value>
+    /// <remarks>
+    /// The average is calculated from a sliding window of the most recent 100 executions
+    /// to provide a current view of processing performance rather than historical average.
+    /// </remarks>
     public TimeSpan AverageDuration { get; init; }
 }
 

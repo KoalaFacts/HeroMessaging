@@ -10,6 +10,31 @@ using System.Threading.Tasks.Dataflow;
 
 namespace HeroMessaging.Processing;
 
+/// <summary>
+/// Default implementation of <see cref="IOutboxProcessor"/> that implements the Transactional Outbox pattern for reliable message publishing.
+/// </summary>
+/// <remarks>
+/// This implementation provides guaranteed message delivery with transactional consistency:
+/// - Messages stored in database within same transaction as business logic
+/// - Atomic publication ensures messages only sent if transaction commits
+/// - At-least-once delivery semantics (handlers should be idempotent)
+/// - Automatic retry with exponential backoff for failed deliveries
+/// - High-priority messages processed immediately (Priority > 5)
+/// - Support for external system integration via destination URLs
+///
+/// Implementation Details:
+/// - Uses TPL Dataflow ActionBlock for concurrent processing
+/// - Parallel publishing (MaxDegreeOfParallelism = CPU count)
+/// - Bounded capacity (100 concurrent messages)
+/// - Continuous polling (100ms active, 1s idle)
+/// - Status tracking (Pending, Processing, Completed, Failed)
+/// - Retry scheduling with configurable delay
+/// - Integration with IHeroMessaging for internal dispatch
+///
+/// The Transactional Outbox pattern solves the dual-write problem by ensuring messages
+/// are only published if the business transaction commits successfully, preventing
+/// message loss and maintaining consistency between database state and published events.
+/// </remarks>
 public class OutboxProcessor : IOutboxProcessor
 {
     private readonly IOutboxStorage _outboxStorage;
@@ -20,6 +45,22 @@ public class OutboxProcessor : IOutboxProcessor
     private Task? _pollingTask;
     private readonly TimeProvider _timeProvider;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="OutboxProcessor"/> class.
+    /// </summary>
+    /// <param name="outboxStorage">The storage provider for persisting and retrieving outbox messages.</param>
+    /// <param name="serviceProvider">The service provider used to resolve IHeroMessaging and create scoped handlers.</param>
+    /// <param name="logger">The logger for diagnostic output.</param>
+    /// <param name="timeProvider">The time provider for tracking retry timing and scheduling.</param>
+    /// <exception cref="ArgumentNullException">Thrown when timeProvider is null.</exception>
+    /// <remarks>
+    /// The processor is configured with:
+    /// - MaxDegreeOfParallelism = CPU count (parallel message publishing)
+    /// - BoundedCapacity = 100 (prevents unbounded memory growth)
+    ///
+    /// Messages with Priority > 5 are processed immediately upon addition to the outbox.
+    /// Normal priority messages are processed during the next polling cycle.
+    /// </remarks>
     public OutboxProcessor(
         IOutboxStorage outboxStorage,
         IServiceProvider serviceProvider,

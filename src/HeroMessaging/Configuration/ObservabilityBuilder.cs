@@ -396,13 +396,51 @@ public class ObservabilityBuilder : IObservabilityBuilder
 }
 
 // Configuration option classes
+
+/// <summary>
+/// Base configuration options for observability features.
+/// </summary>
+/// <remarks>
+/// Controls platform-specific observability features such as Windows performance counters
+/// and .NET diagnostic listeners.
+/// </remarks>
 public class ObservabilityOptions
 {
+    /// <summary>
+    /// Gets or sets whether Windows performance counters are enabled.
+    /// </summary>
+    /// <remarks>
+    /// Performance counters provide system-level metrics like CPU, memory, and thread pool usage.
+    /// Only available on Windows; ignored on other platforms.
+    /// Default is false.
+    /// </remarks>
     public bool EnablePerformanceCounters { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether .NET diagnostic listeners are enabled.
+    /// </summary>
+    /// <remarks>
+    /// Diagnostic listeners provide access to .NET runtime events such as HttpClient activity,
+    /// Entity Framework queries, and custom DiagnosticSource events.
+    /// Default is false.
+    /// </remarks>
     public bool EnableDiagnosticListeners { get; set; }
 }
 
+/// <summary>
+/// Configuration options for health checks.
+/// </summary>
+/// <remarks>
+/// Stores the configuration action to be applied when the health checks plugin is loaded.
+/// </remarks>
 public class HealthCheckOptions
 {
+    /// <summary>
+    /// Gets or sets the configuration action to apply to health check settings.
+    /// </summary>
+    /// <remarks>
+    /// This action is invoked when the health checks plugin is initialized,
+    /// allowing dynamic configuration of health check behavior.
+    /// </remarks>
     public Action<object>? ConfigureAction { get; set; }
 }

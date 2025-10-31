@@ -21,6 +21,22 @@ public class SqlServerInboxStorage : IInboxStorage
     private readonly TimeProvider _timeProvider;
     private readonly JsonSerializerOptions _jsonOptions;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SqlServerInboxStorage"/> class with the specified options.
+    /// </summary>
+    /// <param name="options">SQL Server storage configuration options including connection string and table settings</param>
+    /// <param name="timeProvider">Provider for retrieving current time, useful for testing with custom time</param>
+    /// <remarks>
+    /// This constructor creates a new inbox storage instance that manages its own database connections.
+    /// If <see cref="SqlServerStorageOptions.AutoCreateTables"/> is true, the inbox table and schema
+    /// will be created automatically during construction.
+    ///
+    /// The inbox table includes indexes optimized for:
+    /// - Status-based queries (pending, processed, failed)
+    /// - Time-range queries for cleanup and monitoring
+    /// - Deduplication lookups by message ID
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">Thrown when options, options.ConnectionString, or timeProvider is null</exception>
     public SqlServerInboxStorage(SqlServerStorageOptions options, TimeProvider timeProvider)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
@@ -40,6 +56,24 @@ public class SqlServerInboxStorage : IInboxStorage
         }
     }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SqlServerInboxStorage"/> class with a shared connection and optional transaction.
+    /// </summary>
+    /// <param name="connection">An existing SQL Server connection to use for all operations</param>
+    /// <param name="transaction">Optional SQL Server transaction for transactional operations</param>
+    /// <param name="timeProvider">Provider for retrieving current time, useful for testing with custom time</param>
+    /// <remarks>
+    /// This constructor is used for transaction-aware operations where the inbox storage participates
+    /// in an existing transaction scope. This enables atomic operations across multiple storage systems
+    /// (inbox, outbox, message storage) within a single database transaction.
+    ///
+    /// When using a shared connection:
+    /// - The connection is not disposed when operations complete
+    /// - All operations use the provided transaction if one is specified
+    /// - The caller is responsible for connection and transaction lifecycle management
+    /// - Tables are NOT automatically created (AutoCreateTables is ignored)
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">Thrown when connection or timeProvider is null</exception>
     public SqlServerInboxStorage(SqlConnection connection, SqlTransaction? transaction, TimeProvider timeProvider)
     {
         _sharedConnection = connection ?? throw new ArgumentNullException(nameof(connection));
@@ -104,6 +138,26 @@ public class SqlServerInboxStorage : IInboxStorage
         await command.ExecuteNonQueryAsync();
     }
 
+    /// <summary>
+    /// Adds a message to the inbox for tracking and deduplication using SQL Server storage.
+    /// </summary>
+    /// <param name="message">The incoming message to track</param>
+    /// <param name="options">Inbox options including source, idempotency requirements, and deduplication window</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>The created inbox entry, or null if the message is a duplicate and RequireIdempotency is true</returns>
+    /// <remarks>
+    /// SQL Server-specific implementation details:
+    /// - Message is serialized to JSON for storage in NVARCHAR(MAX) column
+    /// - Deduplication check uses indexed lookup on message ID
+    /// - If using a shared transaction, the insert participates in that transaction
+    /// - Entry is created with status 'Pending' and includes deduplication window settings
+    ///
+    /// Performance considerations:
+    /// - Clustered index on Id column provides fast duplicate checks
+    /// - Status and ReceivedAt indexes support efficient querying
+    /// - Large messages may impact performance due to JSON serialization
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">Thrown when message or options is null</exception>
     public async Task<InboxEntry?> Add(IMessage message, InboxOptions options, CancellationToken cancellationToken = default)
     {
         var connection = _sharedConnection ?? new SqlConnection(_connectionString);
@@ -164,6 +218,21 @@ public class SqlServerInboxStorage : IInboxStorage
         }
     }
 
+    /// <summary>
+    /// Checks if a message with the specified ID has already been received and processed using SQL Server storage.
+    /// </summary>
+    /// <param name="messageId">The unique identifier of the message to check</param>
+    /// <param name="window">Optional time window for deduplication. Only checks messages received within this timespan</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>True if the message ID exists in the inbox (indicating a duplicate); otherwise false</returns>
+    /// <remarks>
+    /// SQL Server-specific implementation details:
+    /// - Uses indexed COUNT query on primary key for fast duplicate detection
+    /// - Window-based queries filter using ReceivedAt column with indexed lookup
+    /// - Query participates in shared transaction if one is active
+    /// - Efficient for both exact ID lookup and time-windowed deduplication
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">Thrown when messageId is null or empty</exception>
     public async Task<bool> IsDuplicate(string messageId, TimeSpan? window = null, CancellationToken cancellationToken = default)
     {
         var connection = _sharedConnection ?? new SqlConnection(_connectionString);
@@ -201,6 +270,20 @@ public class SqlServerInboxStorage : IInboxStorage
         }
     }
 
+    /// <summary>
+    /// Retrieves an inbox entry by message ID from SQL Server storage.
+    /// </summary>
+    /// <param name="messageId">The unique identifier of the message</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>The inbox entry if found; otherwise null</returns>
+    /// <remarks>
+    /// SQL Server-specific implementation details:
+    /// - Retrieves full entry data including message payload, status, and timestamps
+    /// - Message payload is deserialized from JSON to <see cref="IMessage"/>
+    /// - Uses primary key lookup for optimal performance
+    /// - Query participates in shared transaction if one is active for consistent reads
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">Thrown when messageId is null or empty</exception>
     public async Task<InboxEntry?> Get(string messageId, CancellationToken cancellationToken = default)
     {
         var connection = _sharedConnection ?? new SqlConnection(_connectionString);
@@ -268,6 +351,20 @@ public class SqlServerInboxStorage : IInboxStorage
         }
     }
 
+    /// <summary>
+    /// Marks an inbox entry as successfully processed in SQL Server storage.
+    /// </summary>
+    /// <param name="messageId">The unique identifier of the message</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>True if the entry was marked as processed; false if not found</returns>
+    /// <remarks>
+    /// SQL Server-specific implementation details:
+    /// - Updates Status to 'Processed' and sets ProcessedAt timestamp in a single UPDATE statement
+    /// - If using a shared transaction, the update participates in that transaction
+    /// - Primary key lookup ensures efficient update operation
+    /// - Use within same transaction as message processing for atomicity
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">Thrown when messageId is null or empty</exception>
     public async Task<bool> MarkProcessed(string messageId, CancellationToken cancellationToken = default)
     {
         var connection = _sharedConnection ?? new SqlConnection(_connectionString);
@@ -303,6 +400,21 @@ public class SqlServerInboxStorage : IInboxStorage
         }
     }
 
+    /// <summary>
+    /// Marks an inbox entry as failed with an error message in SQL Server storage.
+    /// </summary>
+    /// <param name="messageId">The unique identifier of the message</param>
+    /// <param name="error">The error message describing why processing failed</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>True if the entry was marked as failed; false if not found</returns>
+    /// <remarks>
+    /// SQL Server-specific implementation details:
+    /// - Updates Status to 'Failed', sets ProcessedAt timestamp, and stores error message in NVARCHAR(MAX) column
+    /// - Error details are preserved for debugging and monitoring purposes
+    /// - If using a shared transaction, the update participates in that transaction
+    /// - Failed entries can be queried later for investigation and alerting
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">Thrown when messageId or error is null or empty</exception>
     public async Task<bool> MarkFailed(string messageId, string error, CancellationToken cancellationToken = default)
     {
         var connection = _sharedConnection ?? new SqlConnection(_connectionString);
@@ -339,6 +451,22 @@ public class SqlServerInboxStorage : IInboxStorage
         }
     }
 
+    /// <summary>
+    /// Retrieves inbox entries matching the specified query criteria from SQL Server storage.
+    /// </summary>
+    /// <param name="query">Query criteria including status, time range, and limit</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Collection of inbox entries matching the query</returns>
+    /// <remarks>
+    /// SQL Server-specific implementation details:
+    /// - Uses dynamic SQL query building based on query criteria
+    /// - Supports filtering by Status, OlderThan, and NewerThan with indexed lookups
+    /// - Results are ordered by ReceivedAt DESC for most-recent-first ordering
+    /// - Uses OFFSET/FETCH for efficient pagination
+    /// - All message payloads are deserialized from JSON
+    /// - Query participates in shared transaction if one is active
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">Thrown when query is null</exception>
     public async Task<IEnumerable<InboxEntry>> GetPending(InboxQuery query, CancellationToken cancellationToken = default)
     {
         var connection = _sharedConnection ?? new SqlConnection(_connectionString);
@@ -437,6 +565,17 @@ public class SqlServerInboxStorage : IInboxStorage
         }
     }
 
+    /// <summary>
+    /// Retrieves unprocessed inbox entries ready for processing or retry from SQL Server storage.
+    /// </summary>
+    /// <param name="limit">Maximum number of entries to retrieve. Default is 100</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Collection of unprocessed inbox entries, ordered by received time</returns>
+    /// <remarks>
+    /// This is a convenience method that queries for entries with status 'Pending'.
+    /// SQL Server-specific implementation delegates to <see cref="GetPending"/> with
+    /// appropriate query criteria for unprocessed messages.
+    /// </remarks>
     public async Task<IEnumerable<InboxEntry>> GetUnprocessed(int limit = 100, CancellationToken cancellationToken = default)
     {
         var query = new InboxQuery
@@ -448,6 +587,17 @@ public class SqlServerInboxStorage : IInboxStorage
         return await GetPending(query, cancellationToken);
     }
 
+    /// <summary>
+    /// Gets the total count of unprocessed inbox entries in SQL Server storage.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>The number of entries with status 'Pending'</returns>
+    /// <remarks>
+    /// SQL Server-specific implementation details:
+    /// - Uses optimized COUNT(*) query with indexed Status filter
+    /// - Efficient for monitoring and observability without retrieving full entry data
+    /// - Query participates in shared transaction if one is active
+    /// </remarks>
     public async Task<long> GetUnprocessedCount(CancellationToken cancellationToken = default)
     {
         var connection = _sharedConnection ?? new SqlConnection(_connectionString);
@@ -475,6 +625,21 @@ public class SqlServerInboxStorage : IInboxStorage
         }
     }
 
+    /// <summary>
+    /// Removes old inbox entries to prevent unbounded growth in SQL Server storage.
+    /// </summary>
+    /// <param name="olderThan">Remove entries older than this duration</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>A task representing the asynchronous cleanup operation</returns>
+    /// <remarks>
+    /// SQL Server-specific implementation details:
+    /// - Uses DELETE query with indexed ReceivedAt filter for efficient cleanup
+    /// - Only removes entries with status 'Processed' or 'Failed' to preserve pending work
+    /// - If using a shared transaction, the delete participates in that transaction
+    /// - Consider running during off-peak hours for large-scale cleanup operations
+    /// - Index on ReceivedAt ensures efficient filtering of old entries
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when olderThan is negative</exception>
     public async Task CleanupOldEntries(TimeSpan olderThan, CancellationToken cancellationToken = default)
     {
         var connection = _sharedConnection ?? new SqlConnection(_connectionString);

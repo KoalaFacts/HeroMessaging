@@ -31,6 +31,15 @@ public sealed class StorageBackedScheduler : IMessageScheduler, IAsyncDisposable
     private readonly Task _deliveryTask;
     private readonly Task? _cleanupTask;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="StorageBackedScheduler"/> class.
+    /// Starts background workers for polling, delivery, and optional cleanup.
+    /// </summary>
+    /// <param name="storage">The persistent storage for scheduled messages.</param>
+    /// <param name="deliveryHandler">The handler responsible for delivering scheduled messages when they become due.</param>
+    /// <param name="options">Configuration options for the scheduler including polling interval and concurrency settings.</param>
+    /// <param name="logger">The logger for diagnostic information.</param>
+    /// <exception cref="ArgumentNullException">Thrown when any parameter is null.</exception>
     public StorageBackedScheduler(
         IScheduledMessageStorage storage,
         IMessageDeliveryHandler deliveryHandler,
@@ -65,6 +74,7 @@ public sealed class StorageBackedScheduler : IMessageScheduler, IAsyncDisposable
             _options.MaxConcurrency);
     }
 
+    /// <inheritdoc />
     public async Task<ScheduleResult> ScheduleAsync<T>(
         T message,
         TimeSpan delay,
@@ -78,6 +88,7 @@ public sealed class StorageBackedScheduler : IMessageScheduler, IAsyncDisposable
         return await ScheduleAsync(message, deliverAt, options, cancellationToken);
     }
 
+    /// <inheritdoc />
     public async Task<ScheduleResult> ScheduleAsync<T>(
         T message,
         DateTimeOffset deliverAt,
@@ -116,6 +127,7 @@ public sealed class StorageBackedScheduler : IMessageScheduler, IAsyncDisposable
         }
     }
 
+    /// <inheritdoc />
     public async Task<bool> CancelScheduledAsync(Guid scheduleId, CancellationToken cancellationToken = default)
     {
         try
@@ -136,6 +148,7 @@ public sealed class StorageBackedScheduler : IMessageScheduler, IAsyncDisposable
         }
     }
 
+    /// <inheritdoc />
     public async Task<ScheduledMessageInfo?> GetScheduledAsync(Guid scheduleId, CancellationToken cancellationToken = default)
     {
         try
@@ -150,6 +163,7 @@ public sealed class StorageBackedScheduler : IMessageScheduler, IAsyncDisposable
         }
     }
 
+    /// <inheritdoc />
     public async Task<IReadOnlyList<ScheduledMessageInfo>> GetPendingAsync(
         ScheduledMessageQuery? query = null,
         CancellationToken cancellationToken = default)
@@ -168,6 +182,7 @@ public sealed class StorageBackedScheduler : IMessageScheduler, IAsyncDisposable
         }
     }
 
+    /// <inheritdoc />
     public async Task<long> GetPendingCountAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -315,6 +330,11 @@ public sealed class StorageBackedScheduler : IMessageScheduler, IAsyncDisposable
         };
     }
 
+    /// <summary>
+    /// Asynchronously releases all resources used by the <see cref="StorageBackedScheduler"/>.
+    /// Stops all background workers gracefully and waits for in-flight deliveries to complete.
+    /// </summary>
+    /// <returns>A task that completes when all resources have been released.</returns>
     public async ValueTask DisposeAsync()
     {
         _logger.LogInformation("Shutting down StorageBackedScheduler");

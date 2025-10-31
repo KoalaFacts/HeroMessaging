@@ -21,6 +21,22 @@ public class SqlServerQueueStorage : IQueueStorage
     private readonly TimeProvider _timeProvider;
     private readonly JsonSerializerOptions _jsonOptions;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SqlServerQueueStorage"/> class with the specified options.
+    /// </summary>
+    /// <param name="options">SQL Server storage configuration options including connection string and table settings</param>
+    /// <param name="timeProvider">Provider for retrieving current time, useful for testing with custom time</param>
+    /// <remarks>
+    /// This constructor creates a new queue storage instance that manages its own database connections.
+    /// If <see cref="SqlServerStorageOptions.AutoCreateTables"/> is true, the queue table and schema
+    /// will be created automatically during construction.
+    ///
+    /// The queue table includes indexes optimized for:
+    /// - Priority and FIFO ordering (QueueName, Priority DESC, EnqueuedAt)
+    /// - Visibility timeout queries (QueueName, VisibleAt, Acknowledged)
+    /// - Queue name lookups for depth and existence checks
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">Thrown when options, options.ConnectionString, or timeProvider is null</exception>
     public SqlServerQueueStorage(SqlServerStorageOptions options, TimeProvider timeProvider)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
@@ -40,6 +56,24 @@ public class SqlServerQueueStorage : IQueueStorage
         }
     }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SqlServerQueueStorage"/> class with a shared connection and optional transaction.
+    /// </summary>
+    /// <param name="connection">An existing SQL Server connection to use for all operations</param>
+    /// <param name="transaction">Optional SQL Server transaction for transactional operations</param>
+    /// <param name="timeProvider">Provider for retrieving current time, useful for testing with custom time</param>
+    /// <remarks>
+    /// This constructor is used for transaction-aware operations where the queue storage participates
+    /// in an existing transaction scope. This enables atomic operations across multiple storage systems
+    /// within a single database transaction.
+    ///
+    /// When using a shared connection:
+    /// - The connection is not disposed when operations complete
+    /// - All operations use the provided transaction if one is specified
+    /// - The caller is responsible for connection and transaction lifecycle management
+    /// - Tables are NOT automatically created (AutoCreateTables is ignored)
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">Thrown when connection or timeProvider is null</exception>
     public SqlServerQueueStorage(SqlConnection connection, SqlTransaction? transaction, TimeProvider timeProvider)
     {
         _sharedConnection = connection ?? throw new ArgumentNullException(nameof(connection));
@@ -104,6 +138,24 @@ public class SqlServerQueueStorage : IQueueStorage
         await command.ExecuteNonQueryAsync();
     }
 
+    /// <summary>
+    /// Adds a message to the specified queue for background processing using SQL Server storage.
+    /// </summary>
+    /// <param name="queueName">The name of the queue to add the message to</param>
+    /// <param name="message">The message to enqueue</param>
+    /// <param name="options">Optional enqueue configuration including priority, delay, and metadata</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>The created queue entry with assigned ID and metadata</returns>
+    /// <remarks>
+    /// SQL Server-specific implementation details:
+    /// - Message is serialized to JSON for storage in NVARCHAR(MAX) column
+    /// - Generates a new GUID as the entry ID
+    /// - VisibleAt is set to now + Delay if delay is specified
+    /// - Priority, delay, and enqueue timestamp are stored for ordering
+    /// - If using a shared transaction, the insert participates in that transaction
+    /// - Queues are implicitly created when first message is enqueued (no explicit CreateQueue required)
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">Thrown when queueName or message is null</exception>
     public async Task<QueueEntry> Enqueue(string queueName, IMessage message, EnqueueOptions? options = null, CancellationToken cancellationToken = default)
     {
         var connection = _sharedConnection ?? new SqlConnection(_connectionString);
@@ -158,6 +210,23 @@ public class SqlServerQueueStorage : IQueueStorage
         }
     }
 
+    /// <summary>
+    /// Retrieves and removes the next available message from the queue using SQL Server storage.
+    /// </summary>
+    /// <param name="queueName">The name of the queue to dequeue from</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>The next queue entry if available; otherwise null</returns>
+    /// <remarks>
+    /// SQL Server-specific implementation details:
+    /// - Uses UPDLOCK and READPAST hints for lock-free concurrent dequeuing
+    /// - Atomic dequeue operation using a transaction to ensure consistency
+    /// - Selects highest priority message first, then FIFO within same priority
+    /// - Only returns messages where VisibleAt is NULL or in the past
+    /// - Increments DequeueCount and sets new VisibleAt (current time + 5 minutes visibility timeout)
+    /// - If using a shared transaction, uses that transaction; otherwise creates a local one
+    /// - Message payload is deserialized from JSON
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">Thrown when queueName is null</exception>
     public async Task<QueueEntry?> Dequeue(string queueName, CancellationToken cancellationToken = default)
     {
         var connection = _sharedConnection ?? new SqlConnection(_connectionString);
@@ -256,6 +325,23 @@ public class SqlServerQueueStorage : IQueueStorage
         }
     }
 
+    /// <summary>
+    /// Retrieves messages from the queue without removing them (preview mode) using SQL Server storage.
+    /// </summary>
+    /// <param name="queueName">The name of the queue to peek into</param>
+    /// <param name="count">Maximum number of messages to retrieve. Default is 1</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Collection of queue entries up to the specified count</returns>
+    /// <remarks>
+    /// SQL Server-specific implementation details:
+    /// - Uses SELECT TOP(count) to retrieve specified number of messages
+    /// - Messages are returned in dequeue order (priority DESC, then FIFO)
+    /// - Only returns visible messages (VisibleAt is NULL or in the past)
+    /// - Does not modify message visibility or dequeue count
+    /// - All message payloads are deserialized from JSON
+    /// - Query participates in shared transaction if one is active
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">Thrown when queueName is null</exception>
     public async Task<IEnumerable<QueueEntry>> Peek(string queueName, int count = 1, CancellationToken cancellationToken = default)
     {
         var connection = _sharedConnection ?? new SqlConnection(_connectionString);
@@ -325,6 +411,22 @@ public class SqlServerQueueStorage : IQueueStorage
         }
     }
 
+    /// <summary>
+    /// Acknowledges successful processing of a dequeued message, permanently removing it from the queue in SQL Server storage.
+    /// </summary>
+    /// <param name="queueName">The name of the queue containing the entry</param>
+    /// <param name="entryId">The unique identifier of the queue entry to acknowledge</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>True if the entry was acknowledged and removed; false if not found</returns>
+    /// <remarks>
+    /// SQL Server-specific implementation details:
+    /// - Sets Acknowledged flag to 1 (true) to mark message as completed
+    /// - Message remains in table but is excluded from dequeue queries
+    /// - Consider periodic cleanup of acknowledged messages for storage optimization
+    /// - If using a shared transaction, the update participates in that transaction
+    /// - Uses composite key (Id + QueueName) for efficient lookup
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">Thrown when queueName or entryId is null</exception>
     public async Task<bool> Acknowledge(string queueName, string entryId, CancellationToken cancellationToken = default)
     {
         var connection = _sharedConnection ?? new SqlConnection(_connectionString);
@@ -359,6 +461,23 @@ public class SqlServerQueueStorage : IQueueStorage
         }
     }
 
+    /// <summary>
+    /// Rejects a dequeued message, optionally returning it to the queue for retry using SQL Server storage.
+    /// </summary>
+    /// <param name="queueName">The name of the queue containing the entry</param>
+    /// <param name="entryId">The unique identifier of the queue entry to reject</param>
+    /// <param name="requeue">If true, message is returned to queue for retry. If false, message is permanently removed</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>True if the entry was rejected; false if not found</returns>
+    /// <remarks>
+    /// SQL Server-specific implementation details:
+    /// - When requeue=true: Updates VisibleAt to current time, making message immediately available for dequeue
+    /// - When requeue=false: Deletes the message row from the table permanently
+    /// - If using a shared transaction, the operation participates in that transaction
+    /// - Uses composite key (Id + QueueName) for efficient lookup
+    /// - DequeueCount is not reset when requeuing (preserves retry tracking)
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">Thrown when queueName or entryId is null</exception>
     public async Task<bool> Reject(string queueName, string entryId, bool requeue = false, CancellationToken cancellationToken = default)
     {
         var connection = _sharedConnection ?? new SqlConnection(_connectionString);
@@ -413,6 +532,21 @@ public class SqlServerQueueStorage : IQueueStorage
         }
     }
 
+    /// <summary>
+    /// Gets the current number of messages in the queue (pending + invisible) from SQL Server storage.
+    /// </summary>
+    /// <param name="queueName">The name of the queue to measure</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>The total number of messages in the queue, including invisible messages</returns>
+    /// <remarks>
+    /// SQL Server-specific implementation details:
+    /// - Uses COUNT(*) query filtered by QueueName and Acknowledged = 0
+    /// - Includes both visible and invisible (being processed) messages
+    /// - Excludes acknowledged messages that are pending cleanup
+    /// - Efficient indexed query for monitoring and capacity planning
+    /// - Query participates in shared transaction if one is active
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">Thrown when queueName is null</exception>
     public async Task<long> GetQueueDepth(string queueName, CancellationToken cancellationToken = default)
     {
         var connection = _sharedConnection ?? new SqlConnection(_connectionString);
@@ -447,6 +581,22 @@ public class SqlServerQueueStorage : IQueueStorage
         }
     }
 
+    /// <summary>
+    /// Creates a new queue with the specified options in SQL Server storage.
+    /// </summary>
+    /// <param name="queueName">The name of the queue to create</param>
+    /// <param name="options">Optional queue configuration including size limits, TTL, and visibility timeout</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>True if the queue was created; false if it already exists</returns>
+    /// <remarks>
+    /// SQL Server-specific implementation details:
+    /// - This is a no-op operation in the SQL Server implementation
+    /// - Queues are implicitly created when the first message is enqueued
+    /// - The method always returns true for compatibility with the interface
+    /// - Queue options are not persisted; they should be applied at the application level
+    /// - No database operations are performed by this method
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">Thrown when queueName is null</exception>
     public async Task<bool> CreateQueue(string queueName, QueueOptions? options = null, CancellationToken cancellationToken = default)
     {
         // In SQL Server implementation, queues are created implicitly when messages are enqueued
@@ -455,6 +605,21 @@ public class SqlServerQueueStorage : IQueueStorage
         return true;
     }
 
+    /// <summary>
+    /// Deletes a queue and all its messages from SQL Server storage.
+    /// </summary>
+    /// <param name="queueName">The name of the queue to delete</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>True if the queue was deleted; false if it doesn't exist</returns>
+    /// <remarks>
+    /// SQL Server-specific implementation details:
+    /// - Deletes all rows with the specified QueueName from the queue table
+    /// - Permanently removes all messages (visible, invisible, and acknowledged)
+    /// - If using a shared transaction, the delete participates in that transaction
+    /// - Always returns true after deletion (doesn't check if queue existed)
+    /// - No separate queue metadata to delete; queue ceases to exist when all messages are deleted
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">Thrown when queueName is null</exception>
     public async Task<bool> DeleteQueue(string queueName, CancellationToken cancellationToken = default)
     {
         var connection = _sharedConnection ?? new SqlConnection(_connectionString);
@@ -487,6 +652,19 @@ public class SqlServerQueueStorage : IQueueStorage
         }
     }
 
+    /// <summary>
+    /// Retrieves the names of all existing queues from SQL Server storage.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Collection of queue names</returns>
+    /// <remarks>
+    /// SQL Server-specific implementation details:
+    /// - Uses SELECT DISTINCT QueueName to retrieve unique queue names
+    /// - Returns queues that have at least one message (any status)
+    /// - Results are ordered alphabetically by queue name
+    /// - Query participates in shared transaction if one is active
+    /// - Empty queues (no messages) are not returned since queues are implicit
+    /// </remarks>
     public async Task<IEnumerable<string>> GetQueues(CancellationToken cancellationToken = default)
     {
         var connection = _sharedConnection ?? new SqlConnection(_connectionString);
@@ -525,6 +703,21 @@ public class SqlServerQueueStorage : IQueueStorage
         }
     }
 
+    /// <summary>
+    /// Checks whether a queue with the specified name exists in SQL Server storage.
+    /// </summary>
+    /// <param name="queueName">The name of the queue to check</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>True if the queue exists; otherwise false</returns>
+    /// <remarks>
+    /// SQL Server-specific implementation details:
+    /// - Uses COUNT(*) query to check if any messages exist for the specified queue name
+    /// - Returns true if at least one message exists with the queue name (any status)
+    /// - Empty queues (no messages) return false since queues are implicit
+    /// - Query participates in shared transaction if one is active
+    /// - Efficient indexed query for queue existence checks
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">Thrown when queueName is null</exception>
     public async Task<bool> QueueExists(string queueName, CancellationToken cancellationToken = default)
     {
         var connection = _sharedConnection ?? new SqlConnection(_connectionString);
