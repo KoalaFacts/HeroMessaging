@@ -1,5 +1,7 @@
 using HeroMessaging.Abstractions.Configuration;
+using HeroMessaging.Abstractions.Observability;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -25,6 +27,9 @@ public static class ServiceCollectionExtensions
         var options = new OpenTelemetryOptions();
         configure?.Invoke(options);
 
+        // Register transport instrumentation
+        services.TryAddSingleton<ITransportInstrumentation>(OpenTelemetryTransportInstrumentation.Instance);
+
         // Register OpenTelemetry tracing
         if (options.EnableTracing)
         {
@@ -34,6 +39,7 @@ public static class ServiceCollectionExtensions
                 .WithTracing(tracing =>
                 {
                     tracing.AddSource(HeroMessagingInstrumentation.ActivitySourceName);
+                    tracing.AddSource(TransportInstrumentation.ActivitySourceName);
 
                     // Add configured trace providers
                     foreach (var tracingConfig in options.TracingConfigurations)
@@ -52,6 +58,7 @@ public static class ServiceCollectionExtensions
                 .WithMetrics(metrics =>
                 {
                     metrics.AddMeter(HeroMessagingInstrumentation.MeterName);
+                    metrics.AddMeter(TransportInstrumentation.MeterName);
 
                     // Add configured metric providers
                     foreach (var metricsConfig in options.MetricsConfigurations)

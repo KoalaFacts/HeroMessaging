@@ -1,7 +1,9 @@
+using HeroMessaging.Abstractions.Observability;
 using HeroMessaging.Abstractions.Transport;
 using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using System.Diagnostics;
 
 namespace HeroMessaging.Transport.RabbitMQ;
 
@@ -15,6 +17,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
     private readonly ConsumerOptions _options;
     private readonly RabbitMqTransport _transport;
     private readonly ILogger<RabbitMqConsumer> _logger;
+    private readonly ITransportInstrumentation _instrumentation;
     private AsyncEventingBasicConsumer? _consumer;
     private string? _consumerTag;
     private bool _isActive;
@@ -38,7 +41,8 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
         Func<TransportEnvelope, MessageContext, CancellationToken, Task> handler,
         ConsumerOptions options,
         RabbitMqTransport transport,
-        ILogger<RabbitMqConsumer> logger)
+        ILogger<RabbitMqConsumer> logger,
+        ITransportInstrumentation? instrumentation = null)
     {
         ConsumerId = consumerId ?? throw new ArgumentNullException(nameof(consumerId));
         Source = source ?? throw new ArgumentNullException(nameof(source));
@@ -47,6 +51,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _transport = transport ?? throw new ArgumentNullException(nameof(transport));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _instrumentation = instrumentation ?? NoOpTransportInstrumentation.Instance;
     }
 
     /// <summary>
@@ -168,44 +173,102 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
 
         _logger.LogTrace("Received message {MessageId} from {Queue}", messageId, Source.Name);
 
+        var startTime = Stopwatch.GetTimestamp();
+        Activity? activity = null;
+
         try
         {
-            // Build transport envelope
+            _instrumentation.AddEvent(activity, "receive.start");
+
+            // Build transport envelope with headers including trace context
+            var headers = ea.BasicProperties.Headers?.ToDictionary(
+                kvp => kvp.Key,
+                kvp => kvp.Value) ?? new Dictionary<string, object>();
+
             var envelope = new TransportEnvelope
             {
-                MessageId = Guid.TryParse(messageId, out var mid) ? mid : Guid.NewGuid(),
+                MessageId = messageId,
                 CorrelationId = ea.BasicProperties.CorrelationId,
                 ContentType = ea.BasicProperties.ContentType,
                 Body = ea.Body.ToArray(),
-                RoutingKey = ea.RoutingKey,
-                Headers = ea.BasicProperties.Headers?.ToDictionary(
-                    kvp => kvp.Key,
-                    kvp => kvp.Value) ?? new Dictionary<string, object>()
+                MessageType = ea.BasicProperties.Type ?? "Unknown",
+                Headers = headers.ToImmutableDictionary()
             };
+
+            // Extract trace context from message headers
+            var parentContext = _instrumentation.ExtractTraceContext(envelope);
+
+            // Start receive activity with extracted parent context
+            activity = _instrumentation.StartReceiveActivity(
+                envelope,
+                Source.Name,
+                _transport.Name,
+                ConsumerId,
+                parentContext);
+
+            _instrumentation.AddEvent(activity, "deserialization.start");
 
             // Build message context
             var context = new MessageContext
             {
-                MessageId = envelope.MessageId,
-                CorrelationId = envelope.CorrelationId,
-                Source = Source.Name,
-                Timestamp = DateTimeOffset.FromUnixTimeSeconds(ea.BasicProperties.Timestamp.UnixTime),
-                Metadata = new Dictionary<string, object>
+                TransportName = _transport.Name,
+                SourceAddress = Source,
+                ReceiveTimestamp = DateTime.UtcNow,
+                Properties = new Dictionary<string, object>
                 {
                     ["DeliveryTag"] = ea.DeliveryTag,
                     ["Redelivered"] = ea.Redelivered,
                     ["Exchange"] = ea.Exchange,
-                    ["RoutingKey"] = ea.RoutingKey
+                    ["RoutingKey"] = ea.RoutingKey,
+                    ["MessageId"] = envelope.MessageId,
+                    ["CorrelationId"] = envelope.CorrelationId ?? string.Empty
+                }.ToImmutableDictionary(),
+                Acknowledge = async (ct) =>
+                {
+                    _channel.BasicAck(ea.DeliveryTag, multiple: false);
+                    _instrumentation.AddEvent(activity, "acknowledge");
+                    await Task.CompletedTask;
+                },
+                Reject = async (requeue, ct) =>
+                {
+                    _channel.BasicNack(ea.DeliveryTag, multiple: false, requeue);
+                    _instrumentation.AddEvent(activity, requeue ? "reject.requeue" : "reject.drop");
+                    await Task.CompletedTask;
+                },
+                Defer = async (delay, ct) =>
+                {
+                    _channel.BasicNack(ea.DeliveryTag, multiple: false, requeue: true);
+                    _instrumentation.AddEvent(activity, "defer");
+                    await Task.CompletedTask;
+                },
+                DeadLetter = async (reason, ct) =>
+                {
+                    _channel.BasicNack(ea.DeliveryTag, multiple: false, requeue: false);
+                    _instrumentation.AddEvent(activity, "deadletter", new[]
+                    {
+                        new KeyValuePair<string, object?>("reason", reason ?? "unknown")
+                    });
+                    await Task.CompletedTask;
                 }
             };
 
+            _instrumentation.AddEvent(activity, "deserialization.complete");
+            _instrumentation.AddEvent(activity, "handler.start");
+
             // Process message
             await _handler(envelope, context, CancellationToken.None);
+
+            _instrumentation.AddEvent(activity, "handler.complete");
 
             // Acknowledge successful processing
             _channel.BasicAck(ea.DeliveryTag, multiple: false);
 
             Interlocked.Increment(ref _messagesProcessed);
+
+            // Record successful operation
+            var durationMs = GetElapsedMilliseconds(startTime);
+            _instrumentation.RecordReceiveDuration(_transport.Name, Source.Name, envelope.MessageType, durationMs);
+            _instrumentation.RecordOperation(_transport.Name, "receive", "success");
 
             _logger.LogTrace("Successfully processed message {MessageId}", messageId);
         }
@@ -213,11 +276,19 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
         {
             Interlocked.Increment(ref _messagesFailed);
 
+            // Record error
+            _instrumentation.RecordError(activity, ex);
+            _instrumentation.RecordOperation(_transport.Name, "receive", "failure");
+
             _logger.LogError(ex, "Error processing message {MessageId} from {Queue}", messageId, Source.Name);
 
             // Nack with requeue for transient failures
             // In production, you'd want to check error type and potentially dead-letter permanent failures
             _channel.BasicNack(ea.DeliveryTag, multiple: false, requeue: true);
+        }
+        finally
+        {
+            activity?.Dispose();
         }
     }
 
@@ -228,5 +299,14 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
             ConsumerId, e.ReplyCode, e.ReplyText);
 
         _isActive = false;
+    }
+
+    /// <summary>
+    /// Calculate elapsed milliseconds from timestamp (compatible with netstandard2.0)
+    /// </summary>
+    private static double GetElapsedMilliseconds(long startTimestamp)
+    {
+        var elapsedTicks = Stopwatch.GetTimestamp() - startTimestamp;
+        return (elapsedTicks * 1000.0) / Stopwatch.Frequency;
     }
 }
