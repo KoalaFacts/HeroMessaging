@@ -410,31 +410,238 @@ public class StorageBuilder : IStorageBuilder
 }
 
 // Configuration option classes
+
+/// <summary>
+/// Base configuration options for storage operations.
+/// </summary>
+/// <remarks>
+/// Provides common configuration settings that apply to all storage providers.
+/// This is the base class for more specialized storage option classes.
+/// </remarks>
 public class StorageOptions
 {
+    /// <summary>
+    /// Gets or sets the maximum time to wait for storage operations to complete.
+    /// Default is 30 seconds.
+    /// </summary>
+    /// <remarks>
+    /// This timeout applies to individual storage commands such as reads, writes, and queries.
+    /// If an operation exceeds this timeout, it will be canceled and may throw a timeout exception.
+    /// Adjust based on your storage performance characteristics and workload requirements.
+    /// </remarks>
     public TimeSpan CommandTimeout { get; set; } = TimeSpan.FromSeconds(30);
 }
 
+/// <summary>
+/// Configuration options for storage connection pooling and connection management.
+/// </summary>
+/// <remarks>
+/// Connection pooling improves performance by reusing database connections instead of
+/// creating new ones for each operation. These settings control pooling behavior and
+/// connection lifecycle management.
+///
+/// Example:
+/// <code>
+/// services.Configure&lt;StorageConnectionOptions&gt;(options =>
+/// {
+///     options.EnablePooling = true;
+///     options.MaxPoolSize = 100;
+///     options.MinPoolSize = 10;
+///     options.ConnectionLifetime = TimeSpan.FromMinutes(5);
+/// });
+/// </code>
+/// </remarks>
 public class StorageConnectionOptions : StorageOptions
 {
+    /// <summary>
+    /// Gets or sets whether connection pooling is enabled.
+    /// Default is false.
+    /// </summary>
+    /// <remarks>
+    /// When enabled, the storage provider will maintain a pool of reusable connections
+    /// to improve performance. Recommended for production deployments with moderate to high traffic.
+    /// </remarks>
     public bool EnablePooling { get; set; }
+
+    /// <summary>
+    /// Gets or sets the maximum number of connections in the pool.
+    /// Default is 100.
+    /// </summary>
+    /// <remarks>
+    /// This limits the total number of concurrent connections to the storage provider.
+    /// Set based on your expected concurrent workload and storage provider connection limits.
+    /// Recommended: 10-50 for low traffic, 50-100 for medium traffic, 100-200 for high traffic.
+    /// </remarks>
     public int MaxPoolSize { get; set; } = 100;
+
+    /// <summary>
+    /// Gets or sets the minimum number of connections to maintain in the pool.
+    /// Default is 0.
+    /// </summary>
+    /// <remarks>
+    /// Maintaining a minimum number of connections reduces latency for initial requests
+    /// but consumes more resources. Set to 0 for dynamic scaling based on demand,
+    /// or set to a positive value to keep warm connections ready.
+    /// </remarks>
     public int MinPoolSize { get; set; } = 0;
+
+    /// <summary>
+    /// Gets or sets the maximum lifetime of a connection before it is closed and recreated.
+    /// Default is 5 minutes.
+    /// </summary>
+    /// <remarks>
+    /// Periodically recycling connections helps handle load balancer changes, DNS updates,
+    /// and prevents connection state buildup. A value of 5-15 minutes is typical.
+    /// Set to TimeSpan.Zero to disable connection recycling (not recommended for production).
+    /// </remarks>
     public TimeSpan ConnectionLifetime { get; set; } = TimeSpan.FromMinutes(5);
 }
 
+/// <summary>
+/// Configuration options for automatic retry of transient storage failures.
+/// </summary>
+/// <remarks>
+/// Retry logic helps handle transient failures such as network timeouts,
+/// database deadlocks, and temporary connection issues. The retry strategy
+/// uses exponential backoff to avoid overwhelming the storage system.
+///
+/// Retry pattern:
+/// - First retry: after RetryDelay
+/// - Second retry: after RetryDelay * 2
+/// - Third retry: after RetryDelay * 4
+/// - Capped at MaxRetryDelay
+///
+/// Example:
+/// <code>
+/// services.Configure&lt;StorageRetryOptions&gt;(options =>
+/// {
+///     options.EnableRetry = true;
+///     options.MaxRetries = 3;
+///     options.RetryDelay = TimeSpan.FromSeconds(1);
+///     options.MaxRetryDelay = TimeSpan.FromMinutes(1);
+/// });
+/// </code>
+/// </remarks>
 public class StorageRetryOptions : StorageOptions
 {
+    /// <summary>
+    /// Gets or sets whether automatic retry is enabled for transient failures.
+    /// Default is false.
+    /// </summary>
+    /// <remarks>
+    /// When enabled, storage operations that fail due to transient errors will be
+    /// automatically retried up to MaxRetries times with exponential backoff.
+    /// Recommended for production deployments to improve resilience.
+    /// </remarks>
     public bool EnableRetry { get; set; }
+
+    /// <summary>
+    /// Gets or sets the maximum number of retry attempts for failed operations.
+    /// Default is 3.
+    /// </summary>
+    /// <remarks>
+    /// This controls how many times a failed operation will be retried before giving up.
+    /// Higher values increase resilience but may delay error reporting.
+    /// Typical range: 2-5 retries for most scenarios.
+    /// </remarks>
     public int MaxRetries { get; set; } = 3;
+
+    /// <summary>
+    /// Gets or sets the initial delay between retry attempts.
+    /// Default is 1 second.
+    /// </summary>
+    /// <remarks>
+    /// This is the base delay for the exponential backoff strategy.
+    /// Subsequent retries will wait RetryDelay * 2^attemptNumber.
+    /// Lower values provide faster retries but may overwhelm a recovering system.
+    /// Typical range: 100ms-2 seconds.
+    /// </remarks>
     public TimeSpan RetryDelay { get; set; } = TimeSpan.FromSeconds(1);
+
+    /// <summary>
+    /// Gets or sets the maximum delay between retry attempts.
+    /// Default is 1 minute.
+    /// </summary>
+    /// <remarks>
+    /// This caps the exponential backoff delay to prevent excessively long waits.
+    /// Even if the calculated delay exceeds this value, the actual delay will be
+    /// limited to MaxRetryDelay. Typical range: 30 seconds to 5 minutes.
+    /// </remarks>
     public TimeSpan MaxRetryDelay { get; set; } = TimeSpan.FromMinutes(1);
 }
 
+/// <summary>
+/// Configuration options for the circuit breaker pattern to prevent cascading failures.
+/// </summary>
+/// <remarks>
+/// The circuit breaker pattern protects the system when storage becomes degraded or unavailable.
+/// It operates in three states:
+/// - Closed (Normal): All operations are allowed, failures are counted
+/// - Open (Broken): Operations fail fast without attempting storage access
+/// - Half-Open (Testing): Limited operations are allowed to test if storage has recovered
+///
+/// State transitions:
+/// - Closed → Open: When failure count exceeds FailureThreshold within SamplingDuration
+/// - Open → Half-Open: After BreakDuration has elapsed
+/// - Half-Open → Closed: When operations succeed
+/// - Half-Open → Open: When operations continue to fail
+///
+/// Example:
+/// <code>
+/// services.Configure&lt;StorageCircuitBreakerOptions&gt;(options =>
+/// {
+///     options.EnableCircuitBreaker = true;
+///     options.FailureThreshold = 5;
+///     options.BreakDuration = TimeSpan.FromMinutes(1);
+///     options.SamplingDuration = TimeSpan.FromSeconds(10);
+/// });
+/// </code>
+/// </remarks>
 public class StorageCircuitBreakerOptions : StorageOptions
 {
+    /// <summary>
+    /// Gets or sets whether circuit breaker protection is enabled.
+    /// Default is false.
+    /// </summary>
+    /// <remarks>
+    /// When enabled, the circuit breaker will monitor storage operations and trip open
+    /// if failures exceed the configured threshold. This prevents overwhelming a failing
+    /// storage system and allows it time to recover. Recommended for production deployments.
+    /// </remarks>
     public bool EnableCircuitBreaker { get; set; }
+
+    /// <summary>
+    /// Gets or sets the number of failures within the sampling duration before opening the circuit.
+    /// Default is 5.
+    /// </summary>
+    /// <remarks>
+    /// When this many failures occur within the SamplingDuration window, the circuit will open
+    /// and subsequent operations will fail fast without attempting storage access.
+    /// Higher values make the circuit breaker less sensitive but slower to respond to failures.
+    /// Typical range: 3-10 failures.
+    /// </remarks>
     public int FailureThreshold { get; set; } = 5;
+
+    /// <summary>
+    /// Gets or sets how long the circuit remains open before attempting recovery.
+    /// Default is 1 minute.
+    /// </summary>
+    /// <remarks>
+    /// After the circuit opens, it will wait this duration before transitioning to half-open state
+    /// to test if the storage has recovered. This gives the storage system time to recover
+    /// without being overwhelmed by requests. Typical range: 30 seconds to 5 minutes.
+    /// </remarks>
     public TimeSpan BreakDuration { get; set; } = TimeSpan.FromMinutes(1);
+
+    /// <summary>
+    /// Gets or sets the time window for measuring the failure threshold.
+    /// Default is 10 seconds.
+    /// </summary>
+    /// <remarks>
+    /// The circuit breaker counts failures within this rolling time window. If failures exceed
+    /// FailureThreshold within this duration, the circuit will open. A shorter duration makes
+    /// the circuit breaker more responsive but potentially more sensitive to brief spikes.
+    /// Typical range: 5-30 seconds.
+    /// </remarks>
     public TimeSpan SamplingDuration { get; set; } = TimeSpan.FromSeconds(10);
 }

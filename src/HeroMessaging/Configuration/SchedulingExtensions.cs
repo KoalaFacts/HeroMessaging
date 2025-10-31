@@ -91,13 +91,46 @@ public static class SchedulingExtensions
 }
 
 /// <summary>
-/// Builder for configuring message scheduling.
+/// Builder interface for configuring message scheduling capabilities in HeroMessaging.
 /// </summary>
+/// <remarks>
+/// This builder provides access to the service collection for configuring:
+/// - Message scheduler implementations (in-memory or storage-backed)
+/// - Scheduled message storage providers
+/// - Message delivery handlers
+/// - Polling intervals and batch processing options
+///
+/// The builder is obtained through the WithScheduling() extension method on IHeroMessagingBuilder.
+/// Use the extension methods (UseInMemoryScheduler, UseStorageBackedScheduler) to configure
+/// the scheduling implementation.
+///
+/// Example usage:
+/// <code>
+/// builder.WithScheduling(scheduling =>
+/// {
+///     scheduling.UseStorageBackedScheduler(options =>
+///     {
+///         options.PollingInterval = TimeSpan.FromSeconds(5);
+///         options.BatchSize = 50;
+///     });
+/// });
+/// </code>
+/// </remarks>
 public interface ISchedulingBuilder
 {
     /// <summary>
-    /// Gets the service collection.
+    /// Gets the service collection for registering scheduling-related services.
     /// </summary>
+    /// <remarks>
+    /// Use this property for advanced scenarios where you need to register custom
+    /// implementations of IMessageScheduler, IScheduledMessageStorage, or
+    /// IMessageDeliveryHandler directly.
+    ///
+    /// Example:
+    /// <code>
+    /// schedulingBuilder.Services.AddSingleton&lt;IScheduledMessageStorage, MyCustomStorage&gt;();
+    /// </code>
+    /// </remarks>
     IServiceCollection Services { get; }
 }
 
