@@ -89,8 +89,23 @@ public interface IStorageBuilder
 /// </summary>
 public class InMemoryStorageOptions
 {
+    /// <summary>
+    /// Maximum number of messages to store before evicting oldest messages. Default is 10000.
+    /// </summary>
     public int MaxMessages { get; set; } = 10000;
+
+    /// <summary>
+    /// How long to retain messages before automatic deletion. Default is 24 hours.
+    /// </summary>
     public TimeSpan MessageRetention { get; set; } = TimeSpan.FromHours(24);
+
+    /// <summary>
+    /// Whether to collect metrics for storage operations. Default is false for performance.
+    /// </summary>
     public bool EnableMetrics { get; set; } = false;
+
+    /// <summary>
+    /// Whether to enable in-memory caching for frequently accessed messages. Default is true.
+    /// </summary>
     public bool EnableCaching { get; set; } = true;
 }

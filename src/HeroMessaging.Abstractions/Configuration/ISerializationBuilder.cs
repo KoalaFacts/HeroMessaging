@@ -61,30 +61,86 @@ public interface ISerializationBuilder
 }
 
 // These option classes would normally be in their respective plugin projects
+/// <summary>
+/// Configuration options for JSON serialization
+/// </summary>
 public class JsonSerializationOptions
 {
+    /// <summary>
+    /// Whether to format JSON with indentation for readability. Default is false for compact output.
+    /// </summary>
     public bool Indented { get; set; } = false;
+
+    /// <summary>
+    /// Whether to use camelCase naming for properties. Default is true for JavaScript compatibility.
+    /// </summary>
     public bool CamelCase { get; set; } = true;
+
+    /// <summary>
+    /// Maximum depth for nested objects to prevent stack overflow. Default is 32.
+    /// </summary>
     public int MaxDepth { get; set; } = 32;
+
+    /// <summary>
+    /// Whether to include .NET type information in serialized JSON for polymorphic deserialization. Default is false.
+    /// </summary>
     public bool IncludeTypeInfo { get; set; } = false;
 }
 
+/// <summary>
+/// Configuration options for Protocol Buffers (Protobuf) serialization
+/// </summary>
 public class ProtobufSerializationOptions
 {
+    /// <summary>
+    /// Whether to include .NET type information for polymorphic deserialization. Default is false.
+    /// </summary>
     public bool IncludeTypeInfo { get; set; } = false;
+
+    /// <summary>
+    /// Whether to compress serialized data using GZip compression. Default is false.
+    /// </summary>
     public bool UseCompression { get; set; } = false;
 }
 
+/// <summary>
+/// Configuration options for MessagePack serialization
+/// </summary>
 public class MessagePackSerializationOptions
 {
+    /// <summary>
+    /// Whether to compress serialized data using LZ4 compression. Default is true for smaller message sizes.
+    /// </summary>
     public bool UseCompression { get; set; } = true;
+
+    /// <summary>
+    /// Whether to resolve types without explicit contracts for dynamic scenarios. Default is true.
+    /// </summary>
     public bool ContractlessResolve { get; set; } = true;
 }
 
+/// <summary>
+/// Compression level for serialized message data
+/// </summary>
 public enum CompressionLevel
 {
+    /// <summary>
+    /// No compression applied
+    /// </summary>
     None = 0,
+
+    /// <summary>
+    /// Fastest compression speed with moderate compression ratio
+    /// </summary>
     Fastest = 1,
+
+    /// <summary>
+    /// Balanced compression speed and ratio (recommended default)
+    /// </summary>
     Optimal = 2,
+
+    /// <summary>
+    /// Maximum compression ratio with slower compression speed
+    /// </summary>
     SmallestSize = 3
 }
