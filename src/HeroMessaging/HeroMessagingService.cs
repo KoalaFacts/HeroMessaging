@@ -8,6 +8,59 @@ using Microsoft.Extensions.Logging;
 
 namespace HeroMessaging;
 
+/// <summary>
+/// Default implementation of <see cref="IHeroMessaging"/> providing unified access to all messaging patterns
+/// </summary>
+/// <remarks>
+/// This service acts as the main entry point for HeroMessaging functionality, coordinating between
+/// command processing, query handling, event publishing, queue management, and transactional messaging
+/// patterns (outbox/inbox). It aggregates metrics and provides health status for all configured components.
+///
+/// Supported messaging patterns:
+/// - Commands: Send and await responses from command handlers (mediator pattern)
+/// - Queries: Send queries and receive responses (CQRS query side)
+/// - Events: Publish events to multiple subscribers (pub/sub pattern)
+/// - Queues: Enqueue messages for asynchronous processing with competing consumers
+/// - Outbox: Publish messages transactionally with guaranteed delivery
+/// - Inbox: Process incoming messages idempotently with deduplication
+///
+/// Component availability:
+/// - CommandProcessor, QueryProcessor, EventBus: Always available
+/// - QueueProcessor: Available when configured with WithQueues()
+/// - OutboxProcessor: Available when configured with WithOutbox()
+/// - InboxProcessor: Available when configured with WithInbox()
+///
+/// Metrics tracking:
+/// - Commands sent
+/// - Queries executed
+/// - Events published
+/// - Messages queued
+/// - Outbox messages
+/// - Inbox messages
+///
+/// Example usage:
+/// <code>
+/// // Inject the service
+/// public class OrderService
+/// {
+///     private readonly IHeroMessaging _messaging;
+///
+///     public OrderService(IHeroMessaging messaging)
+///     {
+///         _messaging = messaging;
+///     }
+///
+///     public async Task CreateOrder(CreateOrderCommand command)
+///     {
+///         // Send command and await response
+///         var orderId = await _messaging.Send(command);
+///
+///         // Publish event about order creation
+///         await _messaging.Publish(new OrderCreatedEvent(orderId));
+///     }
+/// }
+/// </code>
+/// </remarks>
 public class HeroMessagingService(
     ICommandProcessor commandProcessor,
     IQueryProcessor queryProcessor,

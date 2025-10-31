@@ -72,11 +72,32 @@ public enum PluginCategory
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
 public sealed class HeroMessagingPluginAttribute : Attribute
 {
+    /// <summary>
+    /// Gets the unique name of the plugin.
+    /// </summary>
     public string Name { get; }
+
+    /// <summary>
+    /// Gets the category that this plugin belongs to.
+    /// </summary>
     public PluginCategory Category { get; }
+
+    /// <summary>
+    /// Gets or sets an optional description of what the plugin does.
+    /// </summary>
     public string? Description { get; set; }
+
+    /// <summary>
+    /// Gets or sets the version of the plugin (e.g., "1.0.0").
+    /// </summary>
     public string? Version { get; set; }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="HeroMessagingPluginAttribute"/> class.
+    /// </summary>
+    /// <param name="name">The unique name of the plugin. Must not be null.</param>
+    /// <param name="category">The category that this plugin belongs to.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="name"/> is null.</exception>
     public HeroMessagingPluginAttribute(string name, PluginCategory category)
     {
         Name = name ?? throw new ArgumentNullException(nameof(name));

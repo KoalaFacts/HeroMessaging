@@ -1,5 +1,13 @@
 namespace HeroMessaging.Utilities;
 
+/// <summary>
+/// Provides compatibility helpers for cross-framework functionality across .NET Standard 2.0 and modern .NET
+/// </summary>
+/// <remarks>
+/// This internal utility class bridges API differences between .NET Standard 2.0 and newer .NET versions,
+/// enabling the library to target multiple frameworks with a single codebase. Uses conditional compilation
+/// to provide framework-specific implementations that expose a unified API surface.
+/// </remarks>
 internal static class CompatibilityHelpers
 {
 #if NETSTANDARD2_0

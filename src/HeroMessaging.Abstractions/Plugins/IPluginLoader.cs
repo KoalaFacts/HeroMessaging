@@ -42,9 +42,27 @@ public interface IPluginLoader
 /// </summary>
 public class PluginValidationResult
 {
+    /// <summary>
+    /// Gets or sets a value indicating whether the plugin is valid and can be loaded.
+    /// </summary>
     public bool IsValid { get; set; }
+
+    /// <summary>
+    /// Gets or sets the collection of validation errors that prevent the plugin from loading.
+    /// Empty if there are no errors.
+    /// </summary>
     public IReadOnlyCollection<string> Errors { get; set; } = Array.Empty<string>();
+
+    /// <summary>
+    /// Gets or sets the collection of validation warnings.
+    /// Warnings do not prevent loading but indicate potential issues.
+    /// </summary>
     public IReadOnlyCollection<string> Warnings { get; set; } = Array.Empty<string>();
+
+    /// <summary>
+    /// Gets or sets the collection of missing plugin dependencies.
+    /// Lists plugins or assemblies that are required but not found.
+    /// </summary>
     public IReadOnlyCollection<string> MissingDependencies { get; set; } = Array.Empty<string>();
 }
 

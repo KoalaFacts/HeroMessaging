@@ -31,10 +31,33 @@ public interface IVersionedMessage<TResponse> : IVersionedMessage, IMessage<TRes
 /// </summary>
 public readonly record struct MessageVersion
 {
+    /// <summary>
+    /// Gets the major version number.
+    /// Incremented for breaking changes that are not backwards compatible.
+    /// </summary>
     public int Major { get; }
+
+    /// <summary>
+    /// Gets the minor version number.
+    /// Incremented for new features that are backwards compatible.
+    /// </summary>
     public int Minor { get; }
+
+    /// <summary>
+    /// Gets the patch version number.
+    /// Incremented for backwards compatible bug fixes.
+    /// </summary>
     public int Patch { get; }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MessageVersion"/> struct.
+    /// </summary>
+    /// <param name="major">The major version number (must be non-negative).</param>
+    /// <param name="minor">The minor version number (must be non-negative, default is 0).</param>
+    /// <param name="patch">The patch version number (must be non-negative, default is 0).</param>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when <paramref name="major"/>, <paramref name="minor"/>, or <paramref name="patch"/> is negative.
+    /// </exception>
     public MessageVersion(int major, int minor = 0, int patch = 0)
     {
         if (major < 0) throw new ArgumentOutOfRangeException(nameof(major), "Major version cannot be negative");
@@ -113,16 +136,69 @@ public readonly record struct MessageVersion
         return IsCompatibleWith(messageVersion) && this >= messageVersion;
     }
 
+    /// <summary>
+    /// Returns a string representation of the message version in the format "Major.Minor.Patch".
+    /// </summary>
+    /// <returns>A string in the format "Major.Minor.Patch" (e.g., "1.2.3").</returns>
     public override string ToString() => $"{Major}.{Minor}.{Patch}";
 
+    /// <summary>
+    /// Implicitly converts a <see cref="MessageVersion"/> to its string representation.
+    /// </summary>
+    /// <param name="version">The message version to convert.</param>
+    /// <returns>A string in the format "Major.Minor.Patch".</returns>
     public static implicit operator string(MessageVersion version) => version.ToString();
+
+    /// <summary>
+    /// Explicitly converts a string to a <see cref="MessageVersion"/>.
+    /// </summary>
+    /// <param name="version">The version string to parse (e.g., "1.2.3").</param>
+    /// <returns>A <see cref="MessageVersion"/> instance.</returns>
+    /// <exception cref="FormatException">Thrown when the version string format is invalid.</exception>
+    /// <exception cref="ArgumentException">Thrown when the version string is null or empty.</exception>
     public static explicit operator MessageVersion(string version) => Parse(version);
 
+    /// <summary>
+    /// Determines whether one message version is greater than another.
+    /// </summary>
+    /// <param name="left">The first version to compare.</param>
+    /// <param name="right">The second version to compare.</param>
+    /// <returns><c>true</c> if <paramref name="left"/> is greater than <paramref name="right"/>; otherwise, <c>false</c>.</returns>
     public static bool operator >(MessageVersion left, MessageVersion right) => left.CompareTo(right) > 0;
+
+    /// <summary>
+    /// Determines whether one message version is greater than or equal to another.
+    /// </summary>
+    /// <param name="left">The first version to compare.</param>
+    /// <param name="right">The second version to compare.</param>
+    /// <returns><c>true</c> if <paramref name="left"/> is greater than or equal to <paramref name="right"/>; otherwise, <c>false</c>.</returns>
     public static bool operator >=(MessageVersion left, MessageVersion right) => left.CompareTo(right) >= 0;
+
+    /// <summary>
+    /// Determines whether one message version is less than another.
+    /// </summary>
+    /// <param name="left">The first version to compare.</param>
+    /// <param name="right">The second version to compare.</param>
+    /// <returns><c>true</c> if <paramref name="left"/> is less than <paramref name="right"/>; otherwise, <c>false</c>.</returns>
     public static bool operator <(MessageVersion left, MessageVersion right) => left.CompareTo(right) < 0;
+
+    /// <summary>
+    /// Determines whether one message version is less than or equal to another.
+    /// </summary>
+    /// <param name="left">The first version to compare.</param>
+    /// <param name="right">The second version to compare.</param>
+    /// <returns><c>true</c> if <paramref name="left"/> is less than or equal to <paramref name="right"/>; otherwise, <c>false</c>.</returns>
     public static bool operator <=(MessageVersion left, MessageVersion right) => left.CompareTo(right) <= 0;
 
+    /// <summary>
+    /// Compares this message version to another message version.
+    /// </summary>
+    /// <param name="other">The message version to compare with this instance.</param>
+    /// <returns>
+    /// A negative value if this version is less than <paramref name="other"/>,
+    /// zero if they are equal,
+    /// or a positive value if this version is greater than <paramref name="other"/>.
+    /// </returns>
     public int CompareTo(MessageVersion other)
     {
         var majorComparison = Major.CompareTo(other.Major);
@@ -141,9 +217,24 @@ public readonly record struct MessageVersion
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
 public sealed class MessageVersionAttribute(int major, int minor = 0, int patch = 0) : Attribute
 {
+    /// <summary>
+    /// Gets the major version number.
+    /// </summary>
     public int Major { get; } = major;
+
+    /// <summary>
+    /// Gets the minor version number.
+    /// </summary>
     public int Minor { get; } = minor;
+
+    /// <summary>
+    /// Gets the patch version number.
+    /// </summary>
     public int Patch { get; } = patch;
+
+    /// <summary>
+    /// Gets the message version represented by this attribute.
+    /// </summary>
     public MessageVersion Version { get; } = new MessageVersion(major, minor, patch);
 }
 
@@ -153,9 +244,24 @@ public sealed class MessageVersionAttribute(int major, int minor = 0, int patch 
 [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = false, Inherited = true)]
 public sealed class AddedInVersionAttribute(int major, int minor = 0, int patch = 0) : Attribute
 {
+    /// <summary>
+    /// Gets the major version number when this property was added.
+    /// </summary>
     public int Major { get; } = major;
+
+    /// <summary>
+    /// Gets the minor version number when this property was added.
+    /// </summary>
     public int Minor { get; } = minor;
+
+    /// <summary>
+    /// Gets the patch version number when this property was added.
+    /// </summary>
     public int Patch { get; } = patch;
+
+    /// <summary>
+    /// Gets the version when this property was added.
+    /// </summary>
     public MessageVersion Version { get; } = new MessageVersion(major, minor, patch);
 }
 
@@ -165,13 +271,42 @@ public sealed class AddedInVersionAttribute(int major, int minor = 0, int patch 
 [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = false, Inherited = true)]
 public sealed class DeprecatedInVersionAttribute : Attribute
 {
+    /// <summary>
+    /// Gets the major version number when this property was deprecated.
+    /// </summary>
     public int Major { get; }
+
+    /// <summary>
+    /// Gets the minor version number when this property was deprecated.
+    /// </summary>
     public int Minor { get; }
+
+    /// <summary>
+    /// Gets the patch version number when this property was deprecated.
+    /// </summary>
     public int Patch { get; }
+
+    /// <summary>
+    /// Gets the version when this property was deprecated.
+    /// </summary>
     public MessageVersion Version { get; }
+
+    /// <summary>
+    /// Gets or sets the reason why this property was deprecated.
+    /// </summary>
     public string? Reason { get; set; }
+
+    /// <summary>
+    /// Gets or sets the name of the property or feature that replaces this deprecated property.
+    /// </summary>
     public string? ReplacedBy { get; set; }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DeprecatedInVersionAttribute"/> class.
+    /// </summary>
+    /// <param name="major">The major version number when the property was deprecated.</param>
+    /// <param name="minor">The minor version number when the property was deprecated (default is 0).</param>
+    /// <param name="patch">The patch version number when the property was deprecated (default is 0).</param>
     public DeprecatedInVersionAttribute(int major, int minor = 0, int patch = 0)
     {
         Major = major;

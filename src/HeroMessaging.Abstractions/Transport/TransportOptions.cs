@@ -77,6 +77,10 @@ public abstract class TransportOptions
 /// </summary>
 public class InMemoryTransportOptions : TransportOptions
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="InMemoryTransportOptions"/> class with default settings.
+    /// Sets the transport name to "InMemory" and disables connection pooling (not needed for in-memory transport).
+    /// </summary>
     [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     public InMemoryTransportOptions()
     {
@@ -115,6 +119,10 @@ public class InMemoryTransportOptions : TransportOptions
 /// </summary>
 public class RabbitMqTransportOptions : TransportOptions
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="RabbitMqTransportOptions"/> class with default settings.
+    /// Sets the transport name to "RabbitMQ" and initializes the Host property to an empty string (must be configured).
+    /// </summary>
     [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     public RabbitMqTransportOptions()
     {
@@ -188,6 +196,10 @@ public class RabbitMqTransportOptions : TransportOptions
 /// </summary>
 public class AzureServiceBusTransportOptions : TransportOptions
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AzureServiceBusTransportOptions"/> class with default settings.
+    /// Sets the transport name to "AzureServiceBus".
+    /// </summary>
     [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     public AzureServiceBusTransportOptions()
     {
@@ -290,6 +302,10 @@ public enum AzureServiceBusTransportType
 /// </summary>
 public class AmazonSqsTransportOptions : TransportOptions
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AmazonSqsTransportOptions"/> class with default settings.
+    /// Sets the transport name to "AmazonSqs" and initializes the Region property to an empty string (must be configured).
+    /// </summary>
     [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     public AmazonSqsTransportOptions()
     {
@@ -353,6 +369,10 @@ public class AmazonSqsTransportOptions : TransportOptions
 /// </summary>
 public class KafkaTransportOptions : TransportOptions
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="KafkaTransportOptions"/> class with default settings.
+    /// Sets the transport name to "Kafka" and initializes the BootstrapServers property to an empty string (must be configured).
+    /// </summary>
     [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     public KafkaTransportOptions()
     {

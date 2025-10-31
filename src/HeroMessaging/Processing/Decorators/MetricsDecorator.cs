@@ -52,6 +52,30 @@ public class MetricsDecorator(IMessageProcessor inner, IMetricsCollector metrics
     }
 }
 
+/// <summary>
+/// In-memory implementation of <see cref="IMetricsCollector"/> for collecting application metrics
+/// </summary>
+/// <remarks>
+/// This implementation stores metrics in memory using concurrent collections for thread-safe access.
+/// Suitable for development, testing, and single-instance deployments. For production distributed
+/// systems, consider using a dedicated metrics provider like Prometheus, Application Insights, or DataDog.
+///
+/// Collected metrics include:
+/// - Counters: Incrementing values (e.g., messages processed, errors occurred)
+/// - Durations: Time measurements (e.g., processing time, latency)
+/// - Values: Arbitrary numeric measurements (e.g., queue depth, payload size)
+///
+/// Performance characteristics:
+/// - Lock-free counter increments using ConcurrentDictionary
+/// - O(1) metric recording operations
+/// - Memory grows with unique metric names and recorded values
+/// - No automatic metric expiration or aggregation
+///
+/// Usage recommendations:
+/// - Development: Useful for debugging and local testing
+/// - Production: Use for low-traffic scenarios or as a fallback
+/// - Distributed systems: Replace with distributed metrics provider
+/// </remarks>
 public class InMemoryMetricsCollector : IMetricsCollector
 {
     private readonly ConcurrentDictionary<string, long> _counters = new();
