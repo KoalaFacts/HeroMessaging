@@ -300,9 +300,24 @@ public sealed class InMemoryScheduler : IMessageScheduler, IDisposable
 
     private sealed class ScheduledEntry
     {
+        /// <summary>
+        /// Gets or initializes the scheduled message details
+        /// </summary>
         public ScheduledMessage ScheduledMessage { get; init; } = null!;
+
+        /// <summary>
+        /// Gets or initializes the timer responsible for triggering message delivery at the scheduled time
+        /// </summary>
         public Timer? Timer { get; init; }
+
+        /// <summary>
+        /// Gets or sets the current status of the scheduled message (Pending, Delivered, Failed, Cancelled)
+        /// </summary>
         public ScheduledMessageStatus Status { get; set; }
+
+        /// <summary>
+        /// Gets or sets the error message if the scheduled message delivery failed
+        /// </summary>
         public string? ErrorMessage { get; set; }
     }
 }

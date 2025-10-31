@@ -168,10 +168,29 @@ public static class TransactionExtensions
 /// </summary>
 public class TransactionConfiguration
 {
+    /// <summary>
+    /// Gets or sets the transaction isolation level for command processing. Default is ReadCommitted.
+    /// </summary>
     public IsolationLevel? CommandIsolationLevel { get; set; } = IsolationLevel.ReadCommitted;
+
+    /// <summary>
+    /// Gets or sets the transaction isolation level for query processing. Default is ReadCommitted.
+    /// </summary>
     public IsolationLevel? QueryIsolationLevel { get; set; } = IsolationLevel.ReadCommitted;
+
+    /// <summary>
+    /// Gets or sets the transaction isolation level for event processing. Default is ReadCommitted.
+    /// </summary>
     public IsolationLevel? EventIsolationLevel { get; set; } = IsolationLevel.ReadCommitted;
+
+    /// <summary>
+    /// Gets or sets the transaction isolation level for outbox processing. Default is ReadCommitted.
+    /// </summary>
     public IsolationLevel? OutboxIsolationLevel { get; set; } = IsolationLevel.ReadCommitted;
+
+    /// <summary>
+    /// Gets or sets the transaction isolation level for inbox processing. Default is ReadCommitted.
+    /// </summary>
     public IsolationLevel? InboxIsolationLevel { get; set; } = IsolationLevel.ReadCommitted;
 
     /// <summary>

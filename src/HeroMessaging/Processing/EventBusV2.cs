@@ -162,9 +162,24 @@ public class EventBusV2 : IEventBus
 
     private class EventEnvelope
     {
+        /// <summary>
+        /// Gets or sets the event to be processed
+        /// </summary>
         public IEvent Event { get; set; } = null!;
+
+        /// <summary>
+        /// Gets or sets the handler instance that will process the event
+        /// </summary>
         public object Handler { get; set; } = null!;
+
+        /// <summary>
+        /// Gets or sets the type of the handler interface (IEventHandler&lt;TEvent&gt;)
+        /// </summary>
         public Type HandlerType { get; set; } = null!;
+
+        /// <summary>
+        /// Gets or sets the cancellation token for the processing operation
+        /// </summary>
         public CancellationToken CancellationToken { get; set; }
     }
 }

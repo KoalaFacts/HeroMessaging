@@ -206,6 +206,9 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
         private readonly DateTime _created;
         private bool _disposed;
 
+        /// <summary>
+        /// Gets the underlying RabbitMQ channel (model) instance
+        /// </summary>
         public IModel Channel { get; }
         public bool IsHealthy => Channel.IsOpen && !_disposed;
         public bool IsExpired => (_timeProvider.GetUtcNow().DateTime - _created) > _lifetime;

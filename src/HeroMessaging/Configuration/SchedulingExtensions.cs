@@ -144,6 +144,9 @@ internal sealed class SchedulingBuilder : ISchedulingBuilder
         Services = services ?? throw new ArgumentNullException(nameof(services));
     }
 
+    /// <summary>
+    /// Gets the service collection for registering scheduling-related services
+    /// </summary>
     public IServiceCollection Services { get; }
 }
 

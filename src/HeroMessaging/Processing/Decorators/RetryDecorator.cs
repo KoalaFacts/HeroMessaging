@@ -76,6 +76,9 @@ public class ExponentialBackoffRetryPolicy(
     TimeSpan? maxDelay = null,
     double jitterFactor = 0.3) : IRetryPolicy
 {
+    /// <summary>
+    /// Gets the maximum number of retry attempts. Default is 3.
+    /// </summary>
     public int MaxRetries { get; } = maxRetries;
     private readonly TimeSpan _baseDelay = baseDelay ?? TimeSpan.FromSeconds(1);
     private readonly TimeSpan _maxDelay = maxDelay ?? TimeSpan.FromSeconds(30);

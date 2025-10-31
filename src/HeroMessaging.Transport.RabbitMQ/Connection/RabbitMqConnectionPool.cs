@@ -302,6 +302,9 @@ internal sealed class RabbitMqConnectionPool : IAsyncDisposable
         private DateTime _lastUsed;
         private bool _disposed;
 
+        /// <summary>
+        /// Gets the underlying RabbitMQ connection instance
+        /// </summary>
         public IConnection Connection { get; }
         public DateTime LastUsed => _lastUsed;
         public bool IsHealthy => Connection.IsOpen && !_disposed;

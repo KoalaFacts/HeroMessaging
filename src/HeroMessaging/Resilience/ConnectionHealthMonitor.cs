@@ -296,9 +296,24 @@ public class ConnectionHealthMetrics
 
     private record OperationResult
     {
+        /// <summary>
+        /// Gets or initializes a value indicating whether the operation succeeded
+        /// </summary>
         public bool Success { get; init; }
+
+        /// <summary>
+        /// Gets or initializes the duration of the operation execution
+        /// </summary>
         public TimeSpan Duration { get; init; }
+
+        /// <summary>
+        /// Gets or initializes the timestamp when the operation was executed
+        /// </summary>
         public DateTime Timestamp { get; init; }
+
+        /// <summary>
+        /// Gets or initializes the exception that occurred during the operation, if any
+        /// </summary>
         public Exception? Exception { get; init; }
     }
 }

@@ -9,7 +9,16 @@ namespace HeroMessaging.Observability.OpenTelemetry;
 /// </summary>
 public static class HeroMessagingInstrumentation
 {
+    /// <summary>
+    /// The OpenTelemetry activity source name used for distributed tracing.
+    /// This constant identifies all HeroMessaging trace spans in OpenTelemetry backends.
+    /// </summary>
     public const string ActivitySourceName = "HeroMessaging";
+
+    /// <summary>
+    /// The OpenTelemetry meter name used for metrics collection.
+    /// This constant identifies all HeroMessaging metrics in OpenTelemetry backends.
+    /// </summary>
     public const string MeterName = "HeroMessaging.Metrics";
 
     private static readonly ActivitySource ActivitySource = new(ActivitySourceName, "1.0.0");

@@ -193,6 +193,10 @@ internal class CircuitBreakerState(CircuitBreakerOptions options, TimeProvider t
     private readonly object _stateLock = new();
 
     public CircuitState CurrentState => _currentState;
+
+    /// <summary>
+    /// Gets a value indicating whether the circuit breaker state changed during the last operation
+    /// </summary>
     public bool StateChanged { get; private set; }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -84,8 +84,20 @@ internal class StateTransition<TSaga, TEvent>
     where TEvent : IEvent
 {
     public State FromState { get; }
+
+    /// <summary>
+    /// Gets the event that triggers this state transition
+    /// </summary>
     public Event<TEvent> TriggerEvent { get; }
+
+    /// <summary>
+    /// Gets or sets the target state to transition to when this event is triggered
+    /// </summary>
     public State? ToState { get; set; }
+
+    /// <summary>
+    /// Gets or sets the action to execute during the state transition
+    /// </summary>
     public Func<StateContext<TSaga, TEvent>, Task>? Action { get; set; }
 
     public StateTransition(State fromState, Event<TEvent> triggerEvent)
