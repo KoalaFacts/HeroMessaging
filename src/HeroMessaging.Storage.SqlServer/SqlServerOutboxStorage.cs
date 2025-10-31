@@ -10,6 +10,12 @@ namespace HeroMessaging.Storage.SqlServer;
 /// <summary>
 /// SQL Server implementation of outbox pattern storage using pure ADO.NET with configurable schema/table
 /// </summary>
+/// <remarks>
+/// Implements the Transactional Outbox pattern for reliable message publishing in SQL Server.
+/// Supports both standalone and transaction-aware operations using shared connections.
+/// Messages are stored with retry counts, scheduling, and error tracking capabilities.
+/// Uses SQL Server row-level locking (UPDLOCK, READPAST) to prevent concurrent processing of the same message.
+/// </remarks>
 public class SqlServerOutboxStorage : IOutboxStorage
 {
     private readonly SqlServerStorageOptions _options;
@@ -19,6 +25,12 @@ public class SqlServerOutboxStorage : IOutboxStorage
     private readonly SqlTransaction? _sharedTransaction;
     private readonly TimeProvider _timeProvider;
 
+    /// <summary>
+    /// Initializes a new instance of the SqlServerOutboxStorage class with full configuration options
+    /// </summary>
+    /// <param name="options">Configuration options including connection string, schema, and table names</param>
+    /// <param name="timeProvider">The time provider for testable time-based operations</param>
+    /// <exception cref="ArgumentNullException">Thrown when options or timeProvider is null</exception>
     public SqlServerOutboxStorage(SqlServerStorageOptions options, TimeProvider timeProvider)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
@@ -37,8 +49,16 @@ public class SqlServerOutboxStorage : IOutboxStorage
     }
 
     /// <summary>
-    /// Constructor for transaction-aware operations with shared connection and transaction
+    /// Initializes a new instance of the SqlServerOutboxStorage class for transaction-aware operations
     /// </summary>
+    /// <param name="connection">The shared SQL Server connection to use</param>
+    /// <param name="transaction">The optional transaction to participate in</param>
+    /// <param name="timeProvider">The time provider for testable time-based operations</param>
+    /// <exception cref="ArgumentNullException">Thrown when connection or timeProvider is null</exception>
+    /// <remarks>
+    /// This constructor is used when participating in an existing transaction context,
+    /// such as within a Unit of Work. Operations will use the provided connection and transaction.
+    /// </remarks>
     public SqlServerOutboxStorage(SqlConnection connection, SqlTransaction? transaction, TimeProvider timeProvider)
     {
         _sharedConnection = connection ?? throw new ArgumentNullException(nameof(connection));
@@ -56,8 +76,12 @@ public class SqlServerOutboxStorage : IOutboxStorage
     }
 
     /// <summary>
-    /// Constructor with connection string for transaction-aware operations
+    /// Initializes a new instance of the SqlServerOutboxStorage class with a connection string
     /// </summary>
+    /// <param name="connectionString">The SQL Server connection string</param>
+    /// <param name="timeProvider">The time provider for testable time-based operations</param>
+    /// <exception cref="ArgumentException">Thrown when connectionString is null or empty</exception>
+    /// <exception cref="ArgumentNullException">Thrown when timeProvider is null</exception>
     public SqlServerOutboxStorage(string connectionString, TimeProvider timeProvider)
     {
         if (string.IsNullOrEmpty(connectionString))
@@ -124,6 +148,18 @@ public class SqlServerOutboxStorage : IOutboxStorage
         await command.ExecuteNonQueryAsync();
     }
 
+    /// <summary>
+    /// Adds a message to the outbox for reliable delivery
+    /// </summary>
+    /// <param name="message">The message to add to the outbox</param>
+    /// <param name="options">Options controlling message delivery behavior</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>The created outbox entry with assigned ID and metadata</returns>
+    /// <exception cref="SqlException">Thrown when a database error occurs</exception>
+    /// <remarks>
+    /// When used with a shared transaction, the message is added atomically with other operations.
+    /// The message will remain in Pending status until processed by an outbox worker.
+    /// </remarks>
     public async Task<OutboxEntry> Add(IMessage message, OutboxOptions options, CancellationToken cancellationToken = default)
     {
         var entry = new OutboxEntry
@@ -174,6 +210,13 @@ public class SqlServerOutboxStorage : IOutboxStorage
         }
     }
 
+    /// <summary>
+    /// Retrieves pending outbox messages matching the specified query criteria
+    /// </summary>
+    /// <param name="query">Query parameters for filtering messages (status, time ranges, limit)</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>Collection of outbox entries matching the query, ordered by priority descending then creation time ascending</returns>
+    /// <exception cref="SqlException">Thrown when a database error occurs</exception>
     public async Task<IEnumerable<OutboxEntry>> GetPending(OutboxQuery query, CancellationToken cancellationToken = default)
     {
         using var connection = new SqlConnection(_options.ConnectionString);
@@ -237,6 +280,18 @@ public class SqlServerOutboxStorage : IOutboxStorage
         return entries;
     }
 
+    /// <summary>
+    /// Retrieves and locks pending outbox messages for processing
+    /// </summary>
+    /// <param name="limit">Maximum number of messages to retrieve (default: 100)</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>Collection of pending outbox entries, automatically marked as Processing</returns>
+    /// <exception cref="SqlException">Thrown when a database error occurs</exception>
+    /// <remarks>
+    /// Uses SQL Server row-level locking (UPDLOCK, READPAST) to prevent concurrent workers
+    /// from processing the same messages. Retrieved messages are automatically transitioned
+    /// to Processing status. Only returns messages where NextRetryAt is null or in the past.
+    /// </remarks>
     public async Task<IEnumerable<OutboxEntry>> GetPending(int limit = 100, CancellationToken cancellationToken = default)
     {
         using var connection = new SqlConnection(_options.ConnectionString);
@@ -318,6 +373,13 @@ public class SqlServerOutboxStorage : IOutboxStorage
         return entries;
     }
 
+    /// <summary>
+    /// Marks an outbox message as successfully processed
+    /// </summary>
+    /// <param name="entryId">The unique identifier of the outbox entry</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>True if the message was marked as processed; false if not found</returns>
+    /// <exception cref="SqlException">Thrown when a database error occurs</exception>
     public async Task<bool> MarkProcessed(string entryId, CancellationToken cancellationToken = default)
     {
         using var connection = new SqlConnection(_options.ConnectionString);
@@ -339,6 +401,15 @@ public class SqlServerOutboxStorage : IOutboxStorage
         return result > 0;
     }
 
+    /// <summary>
+    /// Marks an outbox message as failed with error details
+    /// </summary>
+    /// <param name="entryId">The unique identifier of the outbox entry</param>
+    /// <param name="error">The error message describing the failure</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>True if the message was marked as failed; false if not found</returns>
+    /// <exception cref="SqlException">Thrown when a database error occurs</exception>
+    /// <remarks>Increments the retry count for the message</remarks>
     public async Task<bool> MarkFailed(string entryId, string error, CancellationToken cancellationToken = default)
     {
         using var connection = new SqlConnection(_options.ConnectionString);
@@ -360,6 +431,19 @@ public class SqlServerOutboxStorage : IOutboxStorage
         return result > 0;
     }
 
+    /// <summary>
+    /// Updates the retry count and next retry time for an outbox message
+    /// </summary>
+    /// <param name="entryId">The unique identifier of the outbox entry</param>
+    /// <param name="retryCount">The new retry count</param>
+    /// <param name="nextRetry">Optional timestamp for when the next retry should occur</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>True if the message was updated; false if not found</returns>
+    /// <exception cref="SqlException">Thrown when a database error occurs</exception>
+    /// <remarks>
+    /// Resets the message status to Pending to allow retry processing.
+    /// If nextRetry is specified, the message will not be retrieved by GetPending until that time.
+    /// </remarks>
     public async Task<bool> UpdateRetryCount(string entryId, int retryCount, DateTime? nextRetry = null, CancellationToken cancellationToken = default)
     {
         using var connection = new SqlConnection(_options.ConnectionString);
@@ -382,6 +466,12 @@ public class SqlServerOutboxStorage : IOutboxStorage
         return result > 0;
     }
 
+    /// <summary>
+    /// Gets the count of pending outbox messages
+    /// </summary>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>The number of messages with Pending status</returns>
+    /// <exception cref="SqlException">Thrown when a database error occurs</exception>
     public async Task<long> GetPendingCount(CancellationToken cancellationToken = default)
     {
         using var connection = new SqlConnection(_options.ConnectionString);
@@ -397,6 +487,13 @@ public class SqlServerOutboxStorage : IOutboxStorage
         return Convert.ToInt64(result ?? 0);
     }
 
+    /// <summary>
+    /// Retrieves failed outbox messages for inspection or retry
+    /// </summary>
+    /// <param name="limit">Maximum number of failed messages to return (default: 100)</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>Collection of failed outbox entries with error details, ordered by creation time descending</returns>
+    /// <exception cref="SqlException">Thrown when a database error occurs</exception>
     public async Task<IEnumerable<OutboxEntry>> GetFailed(int limit = 100, CancellationToken cancellationToken = default)
     {
         using var connection = new SqlConnection(_options.ConnectionString);

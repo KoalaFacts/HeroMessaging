@@ -9,6 +9,11 @@ namespace HeroMessaging.Storage.PostgreSql;
 /// <summary>
 /// PostgreSQL implementation of dead letter queue using pure ADO.NET
 /// </summary>
+/// <remarks>
+/// Provides persistent storage for failed messages with retry tracking, error details, and status management.
+/// Supports categorization by component, reason, and message type for debugging and monitoring.
+/// Failed messages can be retried, discarded, or analyzed for patterns using comprehensive statistics.
+/// </remarks>
 public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
 {
     private readonly PostgreSqlStorageOptions _options;
@@ -16,6 +21,16 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
     private readonly string _tableName;
     private readonly TimeProvider _timeProvider;
 
+    /// <summary>
+    /// Initializes a new instance of PostgreSQL dead letter queue storage
+    /// </summary>
+    /// <param name="options">Configuration options for PostgreSQL storage including connection string and table names</param>
+    /// <param name="timeProvider">Time provider for testable time-based operations</param>
+    /// <exception cref="ArgumentNullException">Thrown when options or timeProvider is null</exception>
+    /// <remarks>
+    /// If AutoCreateTables is enabled in options, database schema is initialized synchronously during construction.
+    /// The dead letter table includes indexes for efficient querying by status, message type, component, and failure time.
+    /// </remarks>
     public PostgreSqlDeadLetterQueue(PostgreSqlStorageOptions options, TimeProvider timeProvider)
     {
         _options = options;
@@ -68,6 +83,20 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         await command.ExecuteNonQueryAsync();
     }
 
+    /// <summary>
+    /// Sends a failed message to the dead letter queue with context information
+    /// </summary>
+    /// <typeparam name="T">The type of message being sent to dead letter</typeparam>
+    /// <param name="message">The failed message to store</param>
+    /// <param name="context">Context information including failure reason, retry count, and exception details</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>The unique identifier assigned to the dead letter entry</returns>
+    /// <exception cref="ArgumentNullException">Thrown when message or context is null</exception>
+    /// <remarks>
+    /// Stores the complete message payload along with failure metadata for debugging and analysis.
+    /// The entry is created with Active status and can be retried or discarded later.
+    /// Metadata from context is serialized as JSONB for flexible querying.
+    /// </remarks>
     public async Task<string> SendToDeadLetter<T>(T message, DeadLetterContext context, CancellationToken cancellationToken = default)
         where T : IMessage
     {
@@ -111,6 +140,18 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         return deadLetterId;
     }
 
+    /// <summary>
+    /// Retrieves active dead letter entries of a specific message type
+    /// </summary>
+    /// <typeparam name="T">The type of messages to retrieve</typeparam>
+    /// <param name="limit">Maximum number of entries to retrieve. Default is 100</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>Collection of active dead letter entries, ordered by failure time descending (most recent first)</returns>
+    /// <remarks>
+    /// Only returns entries with Active status (not Retried or Discarded).
+    /// Each entry includes the original message, failure context, and status tracking information.
+    /// Useful for processing failed messages of a specific type for retry or analysis.
+    /// </remarks>
     public async Task<IEnumerable<DeadLetterEntry<T>>> GetDeadLetters<T>(int limit = 100, CancellationToken cancellationToken = default)
         where T : IMessage
     {
@@ -174,6 +215,19 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         return entries;
     }
 
+    /// <summary>
+    /// Marks a dead letter entry as retried, indicating the message has been reprocessed
+    /// </summary>
+    /// <typeparam name="T">The type of message being retried</typeparam>
+    /// <param name="deadLetterId">The unique identifier of the dead letter entry</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>True if the entry was marked as retried; false if not found or already processed</returns>
+    /// <exception cref="ArgumentNullException">Thrown when deadLetterId is null</exception>
+    /// <remarks>
+    /// Updates the entry status to Retried and sets the RetriedAt timestamp.
+    /// Only active entries can be marked as retried. The original message should be
+    /// resubmitted to processing before calling this method.
+    /// </remarks>
     public async Task<bool> Retry<T>(string deadLetterId, CancellationToken cancellationToken = default)
         where T : IMessage
     {
@@ -200,6 +254,18 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         return result > 0;
     }
 
+    /// <summary>
+    /// Marks a dead letter entry as discarded, indicating permanent failure
+    /// </summary>
+    /// <param name="deadLetterId">The unique identifier of the dead letter entry</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>True if the entry was marked as discarded; false if not found or already processed</returns>
+    /// <exception cref="ArgumentNullException">Thrown when deadLetterId is null</exception>
+    /// <remarks>
+    /// Updates the entry status to Discarded and sets the DiscardedAt timestamp.
+    /// Only active entries can be discarded. Use this for messages that cannot be
+    /// successfully processed and should be permanently archived.
+    /// </remarks>
     public async Task<bool> Discard(string deadLetterId, CancellationToken cancellationToken = default)
     {
         using var connection = new NpgsqlConnection(_options.ConnectionString);
@@ -225,6 +291,15 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         return result > 0;
     }
 
+    /// <summary>
+    /// Gets the total count of active dead letter entries across all message types
+    /// </summary>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>The number of active dead letter entries</returns>
+    /// <remarks>
+    /// Only counts entries with Active status. Retried and discarded entries are excluded.
+    /// Useful for monitoring the health of message processing and identifying systemic issues.
+    /// </remarks>
     public async Task<long> GetDeadLetterCount(CancellationToken cancellationToken = default)
     {
         using var connection = new NpgsqlConnection(_options.ConnectionString);
@@ -243,6 +318,24 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         return Convert.ToInt64(result ?? 0);
     }
 
+    /// <summary>
+    /// Retrieves comprehensive statistics about dead letter entries for monitoring and analysis
+    /// </summary>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>Statistics including counts by status, component, reason, and time range information</returns>
+    /// <remarks>
+    /// Provides aggregated view of dead letter queue health:
+    /// - Counts by status (Active, Retried, Discarded, Total)
+    /// - Counts by component (which component generated the failures)
+    /// - Top 10 failure reasons by count
+    /// - Oldest and newest active entry timestamps
+    ///
+    /// Use these statistics for:
+    /// - Identifying problematic components
+    /// - Detecting patterns in failures
+    /// - Monitoring queue growth over time
+    /// - Alerting on threshold breaches
+    /// </remarks>
     public async Task<DeadLetterStatistics> GetStatistics(CancellationToken cancellationToken = default)
     {
         using var connection = new NpgsqlConnection(_options.ConnectionString);

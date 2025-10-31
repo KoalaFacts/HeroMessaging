@@ -9,6 +9,12 @@ namespace HeroMessaging.Storage.SqlServer;
 /// <summary>
 /// SQL Server implementation of dead letter queue using pure ADO.NET
 /// </summary>
+/// <remarks>
+/// Stores failed messages with detailed failure context including retry counts, exception information,
+/// and custom metadata. Supports querying, retrying, and discarding dead-lettered messages.
+/// Uses SQL Server for durable storage with indexed queries for efficient filtering by status,
+/// message type, and failure time.
+/// </remarks>
 public class SqlServerDeadLetterQueue : IDeadLetterQueue
 {
     private readonly SqlServerStorageOptions _options;
@@ -17,6 +23,12 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
     private readonly string _tableName;
     private readonly TimeProvider _timeProvider;
 
+    /// <summary>
+    /// Initializes a new instance of the SqlServerDeadLetterQueue class
+    /// </summary>
+    /// <param name="options">Configuration options for SQL Server storage</param>
+    /// <param name="timeProvider">The time provider for testable time-based operations</param>
+    /// <exception cref="ArgumentNullException">Thrown when options or timeProvider is null</exception>
     public SqlServerDeadLetterQueue(SqlServerStorageOptions options, TimeProvider timeProvider)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
@@ -65,6 +77,15 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
         await command.ExecuteNonQueryAsync();
     }
 
+    /// <summary>
+    /// Sends a failed message to the dead letter queue with contextual failure information
+    /// </summary>
+    /// <typeparam name="T">The type of message being dead-lettered</typeparam>
+    /// <param name="message">The message that failed processing</param>
+    /// <param name="context">Contextual information about the failure (reason, component, retry count, etc.)</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>A unique identifier for the dead-lettered message entry</returns>
+    /// <exception cref="SqlException">Thrown when a database error occurs</exception>
     public async Task<string> SendToDeadLetter<T>(T message, DeadLetterContext context, CancellationToken cancellationToken = default)
         where T : IMessage
     {
@@ -104,6 +125,14 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
         return deadLetterId;
     }
 
+    /// <summary>
+    /// Retrieves active dead-lettered messages of a specific type
+    /// </summary>
+    /// <typeparam name="T">The type of messages to retrieve</typeparam>
+    /// <param name="limit">Maximum number of entries to return (default: 100)</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>Collection of dead letter entries with messages and failure context, ordered by failure time descending</returns>
+    /// <exception cref="SqlException">Thrown when a database error occurs</exception>
     public async Task<IEnumerable<DeadLetterEntry<T>>> GetDeadLetters<T>(int limit = 100, CancellationToken cancellationToken = default)
         where T : IMessage
     {
@@ -163,6 +192,14 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
         return entries;
     }
 
+    /// <summary>
+    /// Marks a dead-lettered message as retried, allowing it to be reprocessed
+    /// </summary>
+    /// <typeparam name="T">The type of message being retried</typeparam>
+    /// <param name="deadLetterId">The unique identifier of the dead letter entry</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>True if the message was successfully marked as retried; false if not found or already processed</returns>
+    /// <exception cref="SqlException">Thrown when a database error occurs</exception>
     public async Task<bool> Retry<T>(string deadLetterId, CancellationToken cancellationToken = default)
         where T : IMessage
     {
@@ -185,6 +222,13 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
         return result > 0;
     }
 
+    /// <summary>
+    /// Marks a dead-lettered message as discarded, permanently removing it from active processing
+    /// </summary>
+    /// <param name="deadLetterId">The unique identifier of the dead letter entry</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>True if the message was successfully discarded; false if not found or already processed</returns>
+    /// <exception cref="SqlException">Thrown when a database error occurs</exception>
     public async Task<bool> Discard(string deadLetterId, CancellationToken cancellationToken = default)
     {
         using var connection = new SqlConnection(_connectionString);
@@ -206,6 +250,12 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
         return result > 0;
     }
 
+    /// <summary>
+    /// Gets the count of active dead-lettered messages
+    /// </summary>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>The number of messages currently in the dead letter queue with Active status</returns>
+    /// <exception cref="SqlException">Thrown when a database error occurs</exception>
     public async Task<long> GetDeadLetterCount(CancellationToken cancellationToken = default)
     {
         using var connection = new SqlConnection(_connectionString);
@@ -220,6 +270,14 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
         return Convert.ToInt64(result ?? 0);
     }
 
+    /// <summary>
+    /// Gets comprehensive statistics about dead-lettered messages
+    /// </summary>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>
+    /// Statistics including counts by status, component, and reason, as well as oldest and newest entry timestamps
+    /// </returns>
+    /// <exception cref="SqlException">Thrown when a database error occurs</exception>
     public async Task<DeadLetterStatistics> GetStatistics(CancellationToken cancellationToken = default)
     {
         using var connection = new SqlConnection(_connectionString);

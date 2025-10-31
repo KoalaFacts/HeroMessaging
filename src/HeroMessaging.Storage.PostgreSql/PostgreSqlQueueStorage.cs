@@ -11,6 +11,11 @@ namespace HeroMessaging.Storage.PostgreSql;
 /// PostgreSQL implementation of queue storage using pure ADO.NET
 /// Provides message queueing with priority, visibility timeout, and dead letter support
 /// </summary>
+/// <remarks>
+/// Supports priority-based message ordering, delayed message delivery, and visibility timeouts
+/// for reliable message processing. Uses PostgreSQL's FOR UPDATE SKIP LOCKED for efficient
+/// concurrent dequeuing without blocking.
+/// </remarks>
 public class PostgreSqlQueueStorage : IQueueStorage
 {
     private readonly PostgreSqlStorageOptions _options;
@@ -21,6 +26,16 @@ public class PostgreSqlQueueStorage : IQueueStorage
     private readonly TimeProvider _timeProvider;
     private readonly JsonSerializerOptions _jsonOptions;
 
+    /// <summary>
+    /// Initializes a new instance of PostgreSQL queue storage with independent connection management
+    /// </summary>
+    /// <param name="options">Configuration options for PostgreSQL storage including connection string and table names</param>
+    /// <param name="timeProvider">Time provider for testable time-based operations</param>
+    /// <exception cref="ArgumentNullException">Thrown when options or timeProvider is null</exception>
+    /// <remarks>
+    /// This constructor creates a queue storage instance that manages its own database connections.
+    /// If AutoCreateTables is enabled in options, database schema is initialized synchronously.
+    /// </remarks>
     public PostgreSqlQueueStorage(PostgreSqlStorageOptions options, TimeProvider timeProvider)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
@@ -40,6 +55,18 @@ public class PostgreSqlQueueStorage : IQueueStorage
         }
     }
 
+    /// <summary>
+    /// Initializes a new instance of PostgreSQL queue storage using a shared connection and transaction
+    /// </summary>
+    /// <param name="connection">Shared NpgsqlConnection to use for all operations</param>
+    /// <param name="transaction">Optional shared transaction for participating in unit of work</param>
+    /// <param name="timeProvider">Time provider for testable time-based operations</param>
+    /// <exception cref="ArgumentNullException">Thrown when connection or timeProvider is null</exception>
+    /// <remarks>
+    /// This constructor is used when the queue storage participates in a unit of work pattern,
+    /// sharing a connection and transaction with other storage operations for atomicity.
+    /// No automatic table creation occurs when using shared connections.
+    /// </remarks>
     public PostgreSqlQueueStorage(NpgsqlConnection connection, NpgsqlTransaction? transaction, TimeProvider timeProvider)
     {
         _sharedConnection = connection ?? throw new ArgumentNullException(nameof(connection));
@@ -95,6 +122,19 @@ public class PostgreSqlQueueStorage : IQueueStorage
         await command.ExecuteNonQueryAsync();
     }
 
+    /// <summary>
+    /// Adds a message to the specified queue with optional priority and delay
+    /// </summary>
+    /// <param name="queueName">Name of the queue to add the message to</param>
+    /// <param name="message">The message to enqueue</param>
+    /// <param name="options">Optional enqueue options including priority and delay</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>The created queue entry with assigned ID and metadata</returns>
+    /// <exception cref="ArgumentNullException">Thrown when queueName or message is null</exception>
+    /// <remarks>
+    /// Messages with higher priority values are dequeued before lower priority messages.
+    /// Delayed messages are not visible until their delay period has elapsed.
+    /// </remarks>
     public async Task<QueueEntry> Enqueue(string queueName, IMessage message, EnqueueOptions? options = null, CancellationToken cancellationToken = default)
     {
         var connection = _sharedConnection ?? new NpgsqlConnection(_connectionString);
@@ -149,6 +189,19 @@ public class PostgreSqlQueueStorage : IQueueStorage
         }
     }
 
+    /// <summary>
+    /// Retrieves and locks the next available message from the specified queue
+    /// </summary>
+    /// <param name="queueName">Name of the queue to dequeue from</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>The next available queue entry, or null if queue is empty</returns>
+    /// <exception cref="ArgumentNullException">Thrown when queueName is null</exception>
+    /// <remarks>
+    /// Uses FOR UPDATE SKIP LOCKED for efficient concurrent access without blocking.
+    /// Messages are ordered by priority (descending) then enqueue time (ascending).
+    /// Dequeued messages have a 5-minute visibility timeout and incremented dequeue count.
+    /// The message remains in the queue until acknowledged or the visibility timeout expires.
+    /// </remarks>
     public async Task<QueueEntry?> Dequeue(string queueName, CancellationToken cancellationToken = default)
     {
         var connection = _sharedConnection ?? new NpgsqlConnection(_connectionString);
@@ -249,6 +302,19 @@ public class PostgreSqlQueueStorage : IQueueStorage
         }
     }
 
+    /// <summary>
+    /// Retrieves messages from the queue without removing or locking them
+    /// </summary>
+    /// <param name="queueName">Name of the queue to peek into</param>
+    /// <param name="count">Maximum number of messages to retrieve. Default is 1</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>Collection of visible queue entries, ordered by priority then enqueue time</returns>
+    /// <exception cref="ArgumentNullException">Thrown when queueName is null</exception>
+    /// <remarks>
+    /// Peek allows inspecting queue contents without modifying message state.
+    /// Only returns messages that are currently visible (not locked by another consumer).
+    /// Messages remain in the queue and can be dequeued by other consumers.
+    /// </remarks>
     public async Task<IEnumerable<QueueEntry>> Peek(string queueName, int count = 1, CancellationToken cancellationToken = default)
     {
         var connection = _sharedConnection ?? new NpgsqlConnection(_connectionString);
@@ -319,6 +385,18 @@ public class PostgreSqlQueueStorage : IQueueStorage
         }
     }
 
+    /// <summary>
+    /// Marks a message as successfully processed and removes it from the queue
+    /// </summary>
+    /// <param name="queueName">Name of the queue containing the message</param>
+    /// <param name="entryId">Unique identifier of the queue entry to acknowledge</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>True if the message was acknowledged; false if not found</returns>
+    /// <exception cref="ArgumentNullException">Thrown when queueName or entryId is null</exception>
+    /// <remarks>
+    /// Call this method after successfully processing a dequeued message.
+    /// The message is permanently marked as acknowledged and won't be reprocessed.
+    /// </remarks>
     public async Task<bool> Acknowledge(string queueName, string entryId, CancellationToken cancellationToken = default)
     {
         var connection = _sharedConnection ?? new NpgsqlConnection(_connectionString);
@@ -353,6 +431,20 @@ public class PostgreSqlQueueStorage : IQueueStorage
         }
     }
 
+    /// <summary>
+    /// Rejects a message, either making it immediately visible for retry or removing it from the queue
+    /// </summary>
+    /// <param name="queueName">Name of the queue containing the message</param>
+    /// <param name="entryId">Unique identifier of the queue entry to reject</param>
+    /// <param name="requeue">If true, makes message immediately visible for retry; if false, deletes the message</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>True if the operation succeeded; false if message not found</returns>
+    /// <exception cref="ArgumentNullException">Thrown when queueName or entryId is null</exception>
+    /// <remarks>
+    /// Use requeue=true for transient failures where the message should be retried immediately.
+    /// Use requeue=false for permanent failures where the message should be discarded.
+    /// Consider sending permanently failed messages to a dead letter queue before rejecting.
+    /// </remarks>
     public async Task<bool> Reject(string queueName, string entryId, bool requeue = false, CancellationToken cancellationToken = default)
     {
         var connection = _sharedConnection ?? new NpgsqlConnection(_connectionString);
@@ -407,6 +499,17 @@ public class PostgreSqlQueueStorage : IQueueStorage
         }
     }
 
+    /// <summary>
+    /// Gets the total number of pending (unacknowledged) messages in the specified queue
+    /// </summary>
+    /// <param name="queueName">Name of the queue to check</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>The count of pending messages in the queue</returns>
+    /// <exception cref="ArgumentNullException">Thrown when queueName is null</exception>
+    /// <remarks>
+    /// Includes both visible and temporarily invisible (locked) messages.
+    /// Useful for monitoring queue backlog and scaling consumers.
+    /// </remarks>
     public async Task<long> GetQueueDepth(string queueName, CancellationToken cancellationToken = default)
     {
         var connection = _sharedConnection ?? new NpgsqlConnection(_connectionString);
@@ -441,6 +544,17 @@ public class PostgreSqlQueueStorage : IQueueStorage
         }
     }
 
+    /// <summary>
+    /// Creates a new queue with the specified name and options
+    /// </summary>
+    /// <param name="queueName">Name of the queue to create</param>
+    /// <param name="options">Optional queue configuration options</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>Always returns true as queues are created implicitly in PostgreSQL implementation</returns>
+    /// <remarks>
+    /// In the PostgreSQL implementation, queues are created implicitly when the first message is enqueued.
+    /// This method is a no-op but provided for API compatibility. Queue configuration is applied per-message via EnqueueOptions.
+    /// </remarks>
     public async Task<bool> CreateQueue(string queueName, QueueOptions? options = null, CancellationToken cancellationToken = default)
     {
         // In PostgreSQL implementation, queues are created implicitly when messages are enqueued
@@ -449,6 +563,17 @@ public class PostgreSqlQueueStorage : IQueueStorage
         return true;
     }
 
+    /// <summary>
+    /// Deletes all messages from the specified queue
+    /// </summary>
+    /// <param name="queueName">Name of the queue to delete</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>True if the operation succeeded</returns>
+    /// <exception cref="ArgumentNullException">Thrown when queueName is null</exception>
+    /// <remarks>
+    /// WARNING: This operation is destructive and cannot be undone.
+    /// All messages in the queue, including locked and delayed messages, are permanently deleted.
+    /// </remarks>
     public async Task<bool> DeleteQueue(string queueName, CancellationToken cancellationToken = default)
     {
         var connection = _sharedConnection ?? new NpgsqlConnection(_connectionString);
@@ -481,6 +606,15 @@ public class PostgreSqlQueueStorage : IQueueStorage
         }
     }
 
+    /// <summary>
+    /// Retrieves the names of all queues that currently have messages
+    /// </summary>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>Collection of distinct queue names, ordered alphabetically</returns>
+    /// <remarks>
+    /// Only returns queues that currently contain at least one message.
+    /// Empty queues are not tracked in the PostgreSQL implementation.
+    /// </remarks>
     public async Task<IEnumerable<string>> GetQueues(CancellationToken cancellationToken = default)
     {
         var connection = _sharedConnection ?? new NpgsqlConnection(_connectionString);
@@ -519,6 +653,17 @@ public class PostgreSqlQueueStorage : IQueueStorage
         }
     }
 
+    /// <summary>
+    /// Checks whether the specified queue has any messages
+    /// </summary>
+    /// <param name="queueName">Name of the queue to check</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>True if the queue has at least one message; otherwise false</returns>
+    /// <exception cref="ArgumentNullException">Thrown when queueName is null</exception>
+    /// <remarks>
+    /// In the PostgreSQL implementation, a queue "exists" if it contains at least one message.
+    /// Empty queues are considered non-existent.
+    /// </remarks>
     public async Task<bool> QueueExists(string queueName, CancellationToken cancellationToken = default)
     {
         var connection = _sharedConnection ?? new NpgsqlConnection(_connectionString);
