@@ -81,6 +81,15 @@ public class OutboxProcessor : IOutboxProcessor
             });
     }
 
+    /// <summary>
+    /// Adds a message to the outbox for asynchronous publishing within a database transaction.
+    /// </summary>
+    /// <param name="message">The message to publish. Must implement ICommand or IEvent.</param>
+    /// <param name="options">Optional outbox options including priority, retry, and destination settings.</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+    /// <returns>A task that completes when the message has been added to the outbox.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when message is null.</exception>
+    /// <exception cref="OperationCanceledException">Thrown when the operation is cancelled.</exception>
     public async Task PublishToOutbox(IMessage message, OutboxOptions? options = null, CancellationToken cancellationToken = default)
     {
         options ??= new OutboxOptions();
@@ -97,6 +106,12 @@ public class OutboxProcessor : IOutboxProcessor
         }
     }
 
+    /// <summary>
+    /// Starts the background processor to poll and publish messages from the outbox.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+    /// <returns>A task that completes when the processor has started.</returns>
+    /// <exception cref="OperationCanceledException">Thrown when the operation is cancelled.</exception>
     public Task Start(CancellationToken cancellationToken = default)
     {
         if (_cancellationTokenSource != null)
@@ -109,6 +124,10 @@ public class OutboxProcessor : IOutboxProcessor
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Stops the background processor gracefully, completing any in-flight message publishing.
+    /// </summary>
+    /// <returns>A task that completes when the processor has stopped.</returns>
     public async Task Stop()
     {
         _cancellationTokenSource?.Cancel();

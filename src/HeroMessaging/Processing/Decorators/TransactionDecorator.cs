@@ -20,6 +20,13 @@ public class TransactionCommandProcessorDecorator(
     private readonly ILogger<TransactionCommandProcessorDecorator> _logger = logger;
     private readonly IsolationLevel _defaultIsolationLevel = defaultIsolationLevel;
 
+    /// <summary>
+    /// Sends a command for processing within a database transaction
+    /// </summary>
+    /// <param name="command">The command to process</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>A task representing the asynchronous operation</returns>
+    /// <exception cref="Exception">Thrown when command processing fails; the transaction will be rolled back</exception>
     public async Task Send(ICommand command, CancellationToken cancellationToken = default)
     {
         await using var unitOfWork = await _unitOfWorkFactory.CreateAsync(_defaultIsolationLevel, cancellationToken);
@@ -46,6 +53,14 @@ public class TransactionCommandProcessorDecorator(
         }
     }
 
+    /// <summary>
+    /// Sends a command for processing within a database transaction and returns a response
+    /// </summary>
+    /// <typeparam name="TResponse">The type of the command response</typeparam>
+    /// <param name="command">The command to process</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>A task representing the asynchronous operation with the command response</returns>
+    /// <exception cref="Exception">Thrown when command processing fails; the transaction will be rolled back</exception>
     public async Task<TResponse> Send<TResponse>(ICommand<TResponse> command, CancellationToken cancellationToken = default)
     {
         await using var unitOfWork = await _unitOfWorkFactory.CreateAsync(_defaultIsolationLevel, cancellationToken);
@@ -87,6 +102,14 @@ public class TransactionQueryProcessorDecorator(
     private readonly IUnitOfWorkFactory _unitOfWorkFactory = unitOfWorkFactory ?? throw new ArgumentNullException(nameof(unitOfWorkFactory));
     private readonly ILogger<TransactionQueryProcessorDecorator> _logger = logger;
 
+    /// <summary>
+    /// Sends a query for processing within a read-only database transaction
+    /// </summary>
+    /// <typeparam name="TResponse">The type of the query response</typeparam>
+    /// <param name="query">The query to process</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>A task representing the asynchronous operation with the query response</returns>
+    /// <exception cref="Exception">Thrown when query processing fails; the transaction will be rolled back</exception>
     public async Task<TResponse> Send<TResponse>(IQuery<TResponse> query, CancellationToken cancellationToken = default)
     {
         await using var unitOfWork = await _unitOfWorkFactory.CreateAsync(IsolationLevel.ReadCommitted, cancellationToken);

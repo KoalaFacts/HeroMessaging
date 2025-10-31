@@ -218,7 +218,14 @@ public class WhenConfigurator<TSaga, TEvent>
 /// </summary>
 public class StateMachineDefinition<TSaga> where TSaga : class, ISaga
 {
+    /// <summary>
+    /// Gets the initial state where the saga starts execution
+    /// </summary>
     public State InitialState { get; }
+
+    /// <summary>
+    /// Gets the collection of final states that mark saga completion
+    /// </summary>
     public IReadOnlyCollection<State> FinalStates { get; }
 
     /// <summary>

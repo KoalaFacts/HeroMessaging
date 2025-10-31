@@ -25,6 +25,14 @@ public class TransactionEventBusDecorator(
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1823:Avoid unused private fields", Justification = "Reserved for future transaction support implementation")]
     private readonly IsolationLevel _defaultIsolationLevel = defaultIsolationLevel;
 
+    /// <summary>
+    /// Publishes an event to all registered handlers without wrapping in a transaction.
+    /// Individual event handlers can be wrapped in transactions using TransactionEventHandlerWrapper.
+    /// </summary>
+    /// <param name="event">The event to publish</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>A task representing the asynchronous operation</returns>
+    /// <exception cref="Exception">Thrown when event publishing fails</exception>
     public async Task Publish(IEvent @event, CancellationToken cancellationToken = default)
     {
         // Note: For events, we might want to handle transactions per handler instead of per event
@@ -55,6 +63,13 @@ public class TransactionEventHandlerWrapper<TEvent>(
     private readonly ILogger<TransactionEventHandlerWrapper<TEvent>> _logger = logger;
     private readonly IsolationLevel _isolationLevel = isolationLevel;
 
+    /// <summary>
+    /// Handles an event within a database transaction, ensuring atomicity of event processing operations
+    /// </summary>
+    /// <param name="event">The event to handle</param>
+    /// <param name="cancellationToken">Token to cancel the operation</param>
+    /// <returns>A task representing the asynchronous operation</returns>
+    /// <exception cref="Exception">Thrown when event handling fails; the transaction will be rolled back</exception>
     public async Task HandleAsync(TEvent @event, CancellationToken cancellationToken = default)
     {
         await using var unitOfWork = await _unitOfWorkFactory.CreateAsync(_isolationLevel, cancellationToken);

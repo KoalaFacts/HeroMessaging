@@ -79,6 +79,15 @@ public class InboxProcessor : IInboxProcessor
             });
     }
 
+    /// <summary>
+    /// Processes an incoming message with automatic deduplication and exactly-once semantics.
+    /// </summary>
+    /// <param name="message">The incoming message to process. Must not be null.</param>
+    /// <param name="options">Optional inbox options including deduplication settings and source tracking.</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+    /// <returns>True if the message was processed successfully, false if the message was detected as a duplicate and skipped.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when message is null.</exception>
+    /// <exception cref="OperationCanceledException">Thrown when the operation is cancelled.</exception>
     public async Task<bool> ProcessIncoming(IMessage message, InboxOptions? options = null, CancellationToken cancellationToken = default)
     {
         options ??= new InboxOptions();
@@ -116,6 +125,12 @@ public class InboxProcessor : IInboxProcessor
         return true;
     }
 
+    /// <summary>
+    /// Starts the background processor to poll for unprocessed inbox entries and perform periodic cleanup.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+    /// <returns>A task that completes when the processor has started.</returns>
+    /// <exception cref="OperationCanceledException">Thrown when the operation is cancelled.</exception>
     public Task Start(CancellationToken cancellationToken = default)
     {
         if (_cancellationTokenSource != null)
@@ -129,6 +144,10 @@ public class InboxProcessor : IInboxProcessor
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Stops the background processor gracefully, completing any in-flight message processing.
+    /// </summary>
+    /// <returns>A task that completes when the processor has stopped.</returns>
     public async Task Stop()
     {
         _cancellationTokenSource?.Cancel();
@@ -237,6 +256,12 @@ public class InboxProcessor : IInboxProcessor
         }
     }
 
+    /// <summary>
+    /// Gets the current count of unprocessed messages in the inbox.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+    /// <returns>The number of messages waiting to be processed.</returns>
+    /// <exception cref="OperationCanceledException">Thrown when the operation is cancelled.</exception>
     public async Task<long> GetUnprocessedCount(CancellationToken cancellationToken = default)
     {
         return await _inboxStorage.GetUnprocessedCount(cancellationToken);

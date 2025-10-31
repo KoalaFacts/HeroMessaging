@@ -74,6 +74,16 @@ public class QueryProcessor : IQueryProcessor, IProcessor
             });
     }
 
+    /// <summary>
+    /// Sends a query for processing and returns the query result.
+    /// </summary>
+    /// <typeparam name="TResponse">The type of result returned by the query handler.</typeparam>
+    /// <param name="query">The query to process. Must not be null.</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+    /// <returns>A task containing the result produced by the query handler.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when query is null.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when no handler is registered for the query type.</exception>
+    /// <exception cref="OperationCanceledException">Thrown when the operation is cancelled via the cancellation token.</exception>
     public async Task<TResponse> Send<TResponse>(IQuery<TResponse> query, CancellationToken cancellationToken = default)
     {
         CompatibilityHelpers.ThrowIfNull(query, nameof(query));

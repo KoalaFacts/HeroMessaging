@@ -75,6 +75,15 @@ public class CommandProcessor : ICommandProcessor, IProcessor
             });
     }
 
+    /// <summary>
+    /// Sends a fire-and-forget command for processing without expecting a return value.
+    /// </summary>
+    /// <param name="command">The command to process. Must not be null.</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+    /// <returns>A task that completes when the command has been processed successfully.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when command is null.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when no handler is registered for the command type.</exception>
+    /// <exception cref="OperationCanceledException">Thrown when the operation is cancelled via the cancellation token.</exception>
     public async Task Send(ICommand command, CancellationToken cancellationToken = default)
     {
         CompatibilityHelpers.ThrowIfNull(command, nameof(command));
@@ -132,6 +141,16 @@ public class CommandProcessor : ICommandProcessor, IProcessor
         await tcs.Task;
     }
 
+    /// <summary>
+    /// Sends a command for processing and returns the command result.
+    /// </summary>
+    /// <typeparam name="TResponse">The type of result returned by the command handler.</typeparam>
+    /// <param name="command">The command to process. Must not be null.</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+    /// <returns>A task containing the result produced by the command handler.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when command is null.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when no handler is registered for the command type.</exception>
+    /// <exception cref="OperationCanceledException">Thrown when the operation is cancelled via the cancellation token.</exception>
     public async Task<TResponse> Send<TResponse>(ICommand<TResponse> command, CancellationToken cancellationToken = default)
     {
         CompatibilityHelpers.ThrowIfNull(command, nameof(command));

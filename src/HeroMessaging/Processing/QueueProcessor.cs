@@ -49,6 +49,16 @@ public class QueueProcessor(
     private readonly ILogger<QueueProcessor> _logger = logger;
     private readonly ConcurrentDictionary<string, QueueWorker> _workers = new();
 
+    /// <summary>
+    /// Enqueues a message to the specified queue for background processing.
+    /// </summary>
+    /// <param name="message">The message to enqueue. Must implement ICommand or IEvent.</param>
+    /// <param name="queueName">The name of the queue to add the message to.</param>
+    /// <param name="options">Optional enqueue options including priority and scheduling.</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+    /// <returns>A task that completes when the message has been added to the queue.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when message or queueName is null.</exception>
+    /// <exception cref="OperationCanceledException">Thrown when the operation is cancelled.</exception>
     public async Task Enqueue(IMessage message, string queueName, EnqueueOptions? options = null, CancellationToken cancellationToken = default)
     {
         if (!await _queueStorage.QueueExists(queueName, cancellationToken))
@@ -60,6 +70,14 @@ public class QueueProcessor(
         _logger.LogDebug("Message enqueued to {QueueName} with priority {Priority}", queueName, options?.Priority ?? 0);
     }
 
+    /// <summary>
+    /// Starts a background worker to process messages from the specified queue.
+    /// </summary>
+    /// <param name="queueName">The name of the queue to start processing.</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+    /// <returns>A task that completes when the queue worker has started.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when queueName is null.</exception>
+    /// <exception cref="OperationCanceledException">Thrown when the operation is cancelled.</exception>
     public async Task StartQueue(string queueName, CancellationToken cancellationToken = default)
     {
         if (!await _queueStorage.QueueExists(queueName, cancellationToken))
@@ -76,6 +94,14 @@ public class QueueProcessor(
         await worker.Start(cancellationToken);
     }
 
+    /// <summary>
+    /// Stops the background worker processing messages from the specified queue.
+    /// </summary>
+    /// <param name="queueName">The name of the queue to stop processing.</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+    /// <returns>A task that completes when the queue worker has stopped gracefully.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when queueName is null.</exception>
+    /// <exception cref="OperationCanceledException">Thrown when the operation is cancelled.</exception>
     public async Task StopQueue(string queueName, CancellationToken cancellationToken = default)
     {
         if (_workers.TryRemove(queueName, out var worker))
@@ -84,6 +110,14 @@ public class QueueProcessor(
         }
     }
 
+    /// <summary>
+    /// Gets the current number of messages waiting in the specified queue.
+    /// </summary>
+    /// <param name="queueName">The name of the queue to check.</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+    /// <returns>The number of unprocessed messages in the queue.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when queueName is null.</exception>
+    /// <exception cref="OperationCanceledException">Thrown when the operation is cancelled.</exception>
     public async Task<long> GetQueueDepth(string queueName, CancellationToken cancellationToken = default)
     {
         return await _queueStorage.GetQueueDepth(queueName, cancellationToken);

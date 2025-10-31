@@ -9,6 +9,9 @@ namespace HeroMessaging.Orchestration;
 /// </summary>
 public class State
 {
+    /// <summary>
+    /// Gets the unique name identifying this state
+    /// </summary>
     public string Name { get; }
 
     public State(string name)
@@ -27,6 +30,9 @@ public class State
 /// <typeparam name="TData">Type of event data</typeparam>
 public class Event<TData> where TData : IEvent
 {
+    /// <summary>
+    /// Gets the unique name identifying this event
+    /// </summary>
     public string Name { get; }
 
     public Event(string name)
@@ -83,6 +89,9 @@ internal class StateTransition<TSaga, TEvent>
     where TSaga : ISaga
     where TEvent : IEvent
 {
+    /// <summary>
+    /// Gets the source state from which this transition originates
+    /// </summary>
     public State FromState { get; }
 
     /// <summary>

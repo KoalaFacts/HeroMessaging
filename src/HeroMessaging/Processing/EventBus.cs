@@ -89,6 +89,14 @@ public class EventBus : IEventBus, IProcessor
             });
     }
 
+    /// <summary>
+    /// Publishes an event to all registered event handlers for parallel processing.
+    /// </summary>
+    /// <param name="event">The event to publish. Must not be null.</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation.</param>
+    /// <returns>A task that completes when the event has been queued for all handlers.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when event is null.</exception>
+    /// <exception cref="OperationCanceledException">Thrown when the operation is cancelled via the cancellation token.</exception>
     public async Task Publish(IEvent @event, CancellationToken cancellationToken = default)
     {
         CompatibilityHelpers.ThrowIfNull(@event, nameof(@event));
