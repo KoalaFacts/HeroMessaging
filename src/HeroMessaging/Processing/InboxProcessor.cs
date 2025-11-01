@@ -2,40 +2,30 @@ using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Commands;
 using HeroMessaging.Abstractions.Events;
 using HeroMessaging.Abstractions.Messages;
+using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Abstractions.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using System.Threading.Tasks.Dataflow;
 
 namespace HeroMessaging.Processing;
 
-public class InboxProcessor : IInboxProcessor
+public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxProcessor
 {
     private readonly IInboxStorage _inboxStorage;
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<InboxProcessor> _logger;
-    private readonly ActionBlock<InboxEntry> _processingBlock;
-    private CancellationTokenSource? _cancellationTokenSource;
-    private Task? _pollingTask;
     private Task? _cleanupTask;
+    private CancellationTokenSource? _cleanupCancellationTokenSource;
 
     public InboxProcessor(
         IInboxStorage inboxStorage,
         IServiceProvider serviceProvider,
         ILogger<InboxProcessor> logger)
+        : base(logger, maxDegreeOfParallelism: 1, boundedCapacity: 100, ensureOrdered: true)
     {
         _inboxStorage = inboxStorage;
         _serviceProvider = serviceProvider;
         _logger = logger;
-
-        _processingBlock = new ActionBlock<InboxEntry>(
-            ProcessInboxEntry,
-            new ExecutionDataflowBlockOptions
-            {
-                MaxDegreeOfParallelism = 1, // Sequential processing for ordering
-                BoundedCapacity = 100,
-                EnsureOrdered = true
-            });
     }
 
     public async Task<bool> ProcessIncoming(IMessage message, InboxOptions? options = null, CancellationToken cancellationToken = default)
@@ -66,69 +56,41 @@ public class InboxProcessor : IInboxProcessor
             return false;
         }
 
-        _logger.LogDebug("Message {MessageId} added to inbox from source {Source}",
-            message.MessageId, options.Source ?? "Unknown");
-
         // Process immediately
-        await _processingBlock.SendAsync(entry, cancellationToken);
+        await SubmitWorkItem(entry, cancellationToken);
 
         return true;
     }
 
-    public Task Start(CancellationToken cancellationToken = default)
+    public new Task Start(CancellationToken cancellationToken = default)
     {
-        if (_cancellationTokenSource != null)
-            return Task.CompletedTask;
+        // Start cleanup task in addition to base polling
+        _cleanupCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        _cleanupTask = RunCleanup(_cleanupCancellationTokenSource.Token);
 
-        _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        _pollingTask = PollInbox(_cancellationTokenSource.Token);
-        _cleanupTask = RunCleanup(_cancellationTokenSource.Token);
-
-        _logger.LogInformation("Inbox processor started");
-        return Task.CompletedTask;
+        return base.Start(cancellationToken);
     }
 
-    public async Task Stop()
+    public new async Task Stop()
     {
-        _cancellationTokenSource?.Cancel();
-        _processingBlock.Complete();
-
-        if (_pollingTask != null)
-            await _pollingTask;
+        _cleanupCancellationTokenSource?.Cancel();
 
         if (_cleanupTask != null)
             await _cleanupTask;
 
-        await _processingBlock.Completion;
-
-        _logger.LogInformation("Inbox processor stopped");
+        await base.Stop();
     }
 
-    private async Task PollInbox(CancellationToken cancellationToken)
+    protected override string GetServiceName() => "Inbox processor";
+
+    protected override async Task<IEnumerable<InboxEntry>> PollForWorkItems(CancellationToken cancellationToken)
     {
-        while (!cancellationToken.IsCancellationRequested)
-        {
-            try
-            {
-                var entries = await _inboxStorage.GetUnprocessed(100, cancellationToken);
+        return await _inboxStorage.GetUnprocessed(100, cancellationToken);
+    }
 
-                foreach (var entry in entries)
-                {
-                    await _processingBlock.SendAsync(entry, cancellationToken);
-                }
-
-                await Task.Delay(entries.Any() ? 100 : 5000, cancellationToken);
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error polling inbox");
-                await Task.Delay(5000, cancellationToken);
-            }
-        }
+    protected override TimeSpan GetPollingDelay(bool hasWork)
+    {
+        return hasWork ? TimeSpan.FromMilliseconds(100) : TimeSpan.FromSeconds(5);
     }
 
     private async Task RunCleanup(CancellationToken cancellationToken)
@@ -155,7 +117,7 @@ public class InboxProcessor : IInboxProcessor
         }
     }
 
-    private async Task ProcessInboxEntry(InboxEntry entry)
+    protected override async Task ProcessWorkItem(InboxEntry entry)
     {
         try
         {

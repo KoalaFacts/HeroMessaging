@@ -2,22 +2,18 @@ using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Commands;
 using HeroMessaging.Abstractions.Events;
 using HeroMessaging.Abstractions.Messages;
+using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Abstractions.Storage;
 using HeroMessaging.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using System.Threading.Tasks.Dataflow;
 
 namespace HeroMessaging.Processing;
 
-public class OutboxProcessor : IOutboxProcessor
+public class OutboxProcessor : PollingBackgroundServiceBase<OutboxEntry>, IOutboxProcessor
 {
     private readonly IOutboxStorage _outboxStorage;
     private readonly IServiceProvider _serviceProvider;
-    private readonly ILogger<OutboxProcessor> _logger;
-    private readonly ActionBlock<OutboxEntry> _processingBlock;
-    private CancellationTokenSource? _cancellationTokenSource;
-    private Task? _pollingTask;
     private readonly TimeProvider _timeProvider;
 
     public OutboxProcessor(
@@ -25,19 +21,11 @@ public class OutboxProcessor : IOutboxProcessor
         IServiceProvider serviceProvider,
         ILogger<OutboxProcessor> logger,
         TimeProvider timeProvider)
+        : base(logger, maxDegreeOfParallelism: Environment.ProcessorCount, boundedCapacity: 100)
     {
         _outboxStorage = outboxStorage;
         _serviceProvider = serviceProvider;
-        _logger = logger;
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
-
-        _processingBlock = new ActionBlock<OutboxEntry>(
-            ProcessOutboxEntry,
-            new ExecutionDataflowBlockOptions
-            {
-                MaxDegreeOfParallelism = Environment.ProcessorCount,
-                BoundedCapacity = 100
-            });
     }
 
     public async Task PublishToOutbox(IMessage message, OutboxOptions? options = null, CancellationToken cancellationToken = default)
@@ -46,69 +34,21 @@ public class OutboxProcessor : IOutboxProcessor
 
         var entry = await _outboxStorage.Add(message, options, cancellationToken);
 
-        _logger.LogDebug("Message {MessageId} added to outbox with priority {Priority}",
-            message.MessageId, options.Priority);
-
         // Trigger immediate processing for high priority messages
         if (options.Priority > 5)
         {
-            await _processingBlock.SendAsync(entry, cancellationToken);
+            await SubmitWorkItem(entry, cancellationToken);
         }
     }
 
-    public Task Start(CancellationToken cancellationToken = default)
+    protected override string GetServiceName() => "Outbox processor";
+
+    protected override async Task<IEnumerable<OutboxEntry>> PollForWorkItems(CancellationToken cancellationToken)
     {
-        if (_cancellationTokenSource != null)
-            return Task.CompletedTask;
-
-        _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        _pollingTask = PollOutbox(_cancellationTokenSource.Token);
-
-        _logger.LogInformation("Outbox processor started");
-        return Task.CompletedTask;
+        return await _outboxStorage.GetPending(100, cancellationToken);
     }
 
-    public async Task Stop()
-    {
-        _cancellationTokenSource?.Cancel();
-        _processingBlock.Complete();
-
-        if (_pollingTask != null)
-            await _pollingTask;
-
-        await _processingBlock.Completion;
-
-        _logger.LogInformation("Outbox processor stopped");
-    }
-
-    private async Task PollOutbox(CancellationToken cancellationToken)
-    {
-        while (!cancellationToken.IsCancellationRequested)
-        {
-            try
-            {
-                var entries = await _outboxStorage.GetPending(100, cancellationToken);
-
-                foreach (var entry in entries)
-                {
-                    await _processingBlock.SendAsync(entry, cancellationToken);
-                }
-
-                await Task.Delay(entries.Any() ? 100 : 1000, cancellationToken);
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error polling outbox");
-                await Task.Delay(5000, cancellationToken);
-            }
-        }
-    }
-
-    private async Task ProcessOutboxEntry(OutboxEntry entry)
+    protected override async Task ProcessWorkItem(OutboxEntry entry)
     {
         try
         {
