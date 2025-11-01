@@ -19,7 +19,7 @@ public class PostgreSqlQueueStorage : IQueueStorage
     private readonly string _connectionString;
     private readonly string _tableName;
     private readonly TimeProvider _timeProvider;
-    private readonly JsonSerializerOptions _jsonOptions;
+    private readonly JsonSerializerOptions _jsonOptionsProvider.GetOptions();
 
     public PostgreSqlQueueStorage(PostgreSqlStorageOptions options, TimeProvider timeProvider)
     {
@@ -28,7 +28,7 @@ public class PostgreSqlQueueStorage : IQueueStorage
         _tableName = _options.GetFullTableName(_options.QueueTableName);
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
-        _jsonOptions = new JsonSerializerOptions
+        _jsonOptionsProvider.GetOptions() = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
             WriteIndented = false
@@ -51,7 +51,7 @@ public class PostgreSqlQueueStorage : IQueueStorage
         _options = new PostgreSqlStorageOptions { ConnectionString = connection.ConnectionString };
         _tableName = _options.GetFullTableName(_options.QueueTableName);
 
-        _jsonOptions = new JsonSerializerOptions
+        _jsonOptionsProvider.GetOptions() = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
             WriteIndented = false
@@ -97,15 +97,11 @@ public class PostgreSqlQueueStorage : IQueueStorage
 
     public async Task<QueueEntry> Enqueue(string queueName, IMessage message, EnqueueOptions? options = null, CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new NpgsqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        var transaction = _connectionProvider.GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var entryId = Guid.NewGuid().ToString();
             var now = _timeProvider.GetUtcNow().DateTime;
@@ -122,7 +118,7 @@ public class PostgreSqlQueueStorage : IQueueStorage
             command.Parameters.AddWithValue("id", entryId);
             command.Parameters.AddWithValue("queue_name", queueName);
             command.Parameters.AddWithValue("message_type", message.GetType().FullName ?? "Unknown");
-            command.Parameters.AddWithValue("payload", JsonSerializer.Serialize(message, _jsonOptions));
+            command.Parameters.AddWithValue("payload", JsonSerializer.Serialize(message, _jsonOptionsProvider.GetOptions()));
             command.Parameters.AddWithValue("priority", options?.Priority ?? 0);
             command.Parameters.AddWithValue("enqueued_at", now);
             command.Parameters.AddWithValue("visible_at", visibleAt);
@@ -142,24 +138,16 @@ public class PostgreSqlQueueStorage : IQueueStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 
     public async Task<QueueEntry?> Dequeue(string queueName, CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new NpgsqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        var transaction = _connectionProvider.GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var now = _timeProvider.GetUtcNow().DateTime;
 
@@ -218,7 +206,7 @@ public class PostgreSqlQueueStorage : IQueueStorage
 
                 if (transaction == null) await localTransaction.CommitAsync(cancellationToken);
 
-                var message = JsonSerializer.Deserialize<IMessage>(payload, _jsonOptions);
+                var message = JsonSerializer.Deserialize<IMessage>(payload, _jsonOptionsProvider.GetOptions());
 
                 return new QueueEntry
                 {
@@ -242,24 +230,16 @@ public class PostgreSqlQueueStorage : IQueueStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 
     public async Task<IEnumerable<QueueEntry>> Peek(string queueName, int count = 1, CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new NpgsqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        var transaction = _connectionProvider.GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var now = _timeProvider.GetUtcNow().DateTime;
 
@@ -291,7 +271,7 @@ public class PostgreSqlQueueStorage : IQueueStorage
                 var dequeueCount = reader.GetInt32(6);
                 var delayMinutes = reader.IsDBNull(7) ? (int?)null : reader.GetInt32(7);
 
-                var message = JsonSerializer.Deserialize<IMessage>(payload, _jsonOptions);
+                var message = JsonSerializer.Deserialize<IMessage>(payload, _jsonOptionsProvider.GetOptions());
 
                 entries.Add(new QueueEntry
                 {
@@ -312,24 +292,16 @@ public class PostgreSqlQueueStorage : IQueueStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 
     public async Task<bool> Acknowledge(string queueName, string entryId, CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new NpgsqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        var transaction = _connectionProvider.GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var sql = $"""
                 UPDATE {_tableName}
@@ -346,24 +318,16 @@ public class PostgreSqlQueueStorage : IQueueStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 
     public async Task<bool> Reject(string queueName, string entryId, bool requeue = false, CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new NpgsqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        var transaction = _connectionProvider.GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             if (requeue)
             {
@@ -400,24 +364,16 @@ public class PostgreSqlQueueStorage : IQueueStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 
     public async Task<long> GetQueueDepth(string queueName, CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new NpgsqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        var transaction = _connectionProvider.GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var sql = $"""
                 SELECT COUNT(1)
@@ -434,10 +390,6 @@ public class PostgreSqlQueueStorage : IQueueStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 
@@ -451,15 +403,11 @@ public class PostgreSqlQueueStorage : IQueueStorage
 
     public async Task<bool> DeleteQueue(string queueName, CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new NpgsqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        var transaction = _connectionProvider.GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var sql = $"""
                 DELETE FROM {_tableName}
@@ -474,24 +422,16 @@ public class PostgreSqlQueueStorage : IQueueStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 
     public async Task<IEnumerable<string>> GetQueues(CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new NpgsqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        var transaction = _connectionProvider.GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var sql = $"""
                 SELECT DISTINCT queue_name
@@ -512,24 +452,16 @@ public class PostgreSqlQueueStorage : IQueueStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 
     public async Task<bool> QueueExists(string queueName, CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new NpgsqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        var transaction = _connectionProvider.GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var sql = $"""
                 SELECT COUNT(1)
@@ -545,10 +477,6 @@ public class PostgreSqlQueueStorage : IQueueStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 }

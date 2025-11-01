@@ -14,25 +14,27 @@ namespace HeroMessaging.Storage.SqlServer;
 public class SqlServerInboxStorage : IInboxStorage
 {
     private readonly SqlServerStorageOptions _options;
-    private readonly SqlConnection? _sharedConnection;
-    private readonly SqlTransaction? _sharedTransaction;
-    private readonly string _connectionString;
+    private readonly IDbConnectionProvider<SqlConnection, SqlTransaction> _connectionProvider;
+    private readonly IDbSchemaInitializer _schemaInitializer;
+    private readonly IJsonOptionsProvider _jsonOptionsProvider;
     private readonly string _tableName;
     private readonly TimeProvider _timeProvider;
-    private readonly JsonSerializerOptions _jsonOptions;
 
-    public SqlServerInboxStorage(SqlServerStorageOptions options, TimeProvider timeProvider)
+    public SqlServerInboxStorage(
+        SqlServerStorageOptions options,
+        TimeProvider timeProvider,
+        IDbConnectionProvider<SqlConnection, SqlTransaction>? connectionProvider = null,
+        IDbSchemaInitializer? schemaInitializer = null,
+        IJsonOptionsProvider? jsonOptionsProvider = null)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
-        _connectionString = options.ConnectionString ?? throw new ArgumentNullException(nameof(options.ConnectionString));
-        _tableName = _options.GetFullTableName(_options.InboxTableName);
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+        _tableName = _options.GetFullTableName(_options.InboxTableName);
 
-        _jsonOptions = new JsonSerializerOptions
-        {
-            PropertyNameCaseInsensitive = true,
-            WriteIndented = false
-        };
+        // Use provided dependencies or create defaults
+        _connectionProvider = connectionProvider ?? new SqlServerConnectionProvider(options.ConnectionString ?? throw new ArgumentNullException(nameof(options.ConnectionString)));
+        _jsonOptionsProvider = jsonOptionsProvider ?? new DefaultJsonOptionsProvider();
+        _schemaInitializer = schemaInitializer ?? new SqlServerSchemaInitializer(_connectionProvider);
 
         if (_options.AutoCreateTables)
         {
@@ -40,22 +42,20 @@ public class SqlServerInboxStorage : IInboxStorage
         }
     }
 
-    public SqlServerInboxStorage(SqlConnection connection, SqlTransaction? transaction, TimeProvider timeProvider)
+    public SqlServerInboxStorage(
+        SqlConnection connection,
+        SqlTransaction? transaction,
+        TimeProvider timeProvider,
+        IJsonOptionsProvider? jsonOptionsProvider = null)
     {
-        _sharedConnection = connection ?? throw new ArgumentNullException(nameof(connection));
-        _sharedTransaction = transaction;
-        _connectionString = connection.ConnectionString;
+        _connectionProvider = new SqlServerConnectionProvider(connection, transaction);
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+        _jsonOptionsProvider = jsonOptionsProvider ?? new DefaultJsonOptionsProvider();
 
         // Use default options when using shared connection
         _options = new SqlServerStorageOptions { ConnectionString = connection.ConnectionString };
         _tableName = _options.GetFullTableName(_options.InboxTableName);
-
-        _jsonOptions = new JsonSerializerOptions
-        {
-            PropertyNameCaseInsensitive = true,
-            WriteIndented = false
-        };
+        _schemaInitializer = new SqlServerSchemaInitializer(_connectionProvider);
     }
 
     private async Task InitializeDatabase()
@@ -106,15 +106,11 @@ public class SqlServerInboxStorage : IInboxStorage
 
     public async Task<InboxEntry?> Add(IMessage message, InboxOptions options, CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new SqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        var transaction = _connectionProvider.GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var messageId = message.MessageId.ToString();
             var now = _timeProvider.GetUtcNow().DateTime;
@@ -137,7 +133,7 @@ public class SqlServerInboxStorage : IInboxStorage
             using var command = new SqlCommand(sql, connection, transaction);
             command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = messageId;
             command.Parameters.Add("@MessageType", SqlDbType.NVarChar, 500).Value = message.GetType().FullName ?? "Unknown";
-            command.Parameters.Add("@Payload", SqlDbType.NVarChar, -1).Value = JsonSerializer.Serialize(message, _jsonOptions);
+            command.Parameters.Add("@Payload", SqlDbType.NVarChar, -1).Value = JsonSerializer.Serialize(message, _jsonOptionsProvider.GetOptions());
             command.Parameters.Add("@Source", SqlDbType.NVarChar, 200).Value = (object?)options.Source ?? DBNull.Value;
             command.Parameters.Add("@Status", SqlDbType.NVarChar, 50).Value = "Pending";
             command.Parameters.Add("@ReceivedAt", SqlDbType.DateTime2).Value = now;
@@ -157,24 +153,16 @@ public class SqlServerInboxStorage : IInboxStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 
     public async Task<bool> IsDuplicate(string messageId, TimeSpan? window = null, CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new SqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        var transaction = _connectionProvider.GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var sql = window.HasValue
                 ? $"SELECT COUNT(1) FROM {_tableName} WHERE Id = @Id AND ReceivedAt >= @WindowStart"
@@ -194,24 +182,16 @@ public class SqlServerInboxStorage : IInboxStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 
     public async Task<InboxEntry?> Get(string messageId, CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new SqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        var transaction = _connectionProvider.GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var sql = $"""
                 SELECT MessageType, Payload, Source, Status, ReceivedAt, ProcessedAt, Error, RequireIdempotency, DeduplicationWindowMinutes
@@ -236,7 +216,7 @@ public class SqlServerInboxStorage : IInboxStorage
                 var deduplicationWindowMinutes = reader.IsDBNull(8) ? (int?)null : reader.GetInt32(8);
 
                 // Deserialize message (simplified - in production would need type resolution)
-                var message = JsonSerializer.Deserialize<IMessage>(payload, _jsonOptions);
+                var message = JsonSerializer.Deserialize<IMessage>(payload, _jsonOptionsProvider.GetOptions());
 
                 return new InboxEntry
                 {
@@ -261,24 +241,16 @@ public class SqlServerInboxStorage : IInboxStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 
     public async Task<bool> MarkProcessed(string messageId, CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new SqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        var transaction = _connectionProvider.GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var sql = $"""
                 UPDATE {_tableName}
@@ -296,24 +268,16 @@ public class SqlServerInboxStorage : IInboxStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 
     public async Task<bool> MarkFailed(string messageId, string error, CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new SqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        var transaction = _connectionProvider.GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var sql = $"""
                 UPDATE {_tableName}
@@ -332,24 +296,16 @@ public class SqlServerInboxStorage : IInboxStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 
     public async Task<IEnumerable<InboxEntry>> GetPending(InboxQuery query, CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new SqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        var transaction = _connectionProvider.GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var whereClauses = new List<string>();
             var parameters = new List<SqlParameter>();
@@ -405,7 +361,7 @@ public class SqlServerInboxStorage : IInboxStorage
                 var requireIdempotency = reader.GetBoolean(8);
                 var deduplicationWindowMinutes = reader.IsDBNull(9) ? (int?)null : reader.GetInt32(9);
 
-                var message = JsonSerializer.Deserialize<IMessage>(payload, _jsonOptions);
+                var message = JsonSerializer.Deserialize<IMessage>(payload, _jsonOptionsProvider.GetOptions());
 
                 entries.Add(new InboxEntry
                 {
@@ -430,10 +386,6 @@ public class SqlServerInboxStorage : IInboxStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 
@@ -450,15 +402,11 @@ public class SqlServerInboxStorage : IInboxStorage
 
     public async Task<long> GetUnprocessedCount(CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new SqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        var transaction = _connectionProvider.GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var sql = $"SELECT COUNT(1) FROM {_tableName} WHERE Status = 'Pending'";
 
@@ -468,24 +416,16 @@ public class SqlServerInboxStorage : IInboxStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 
     public async Task CleanupOldEntries(TimeSpan olderThan, CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new SqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        var transaction = _connectionProvider.GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var cutoffTime = _timeProvider.GetUtcNow().DateTime.Subtract(olderThan);
 
@@ -502,10 +442,6 @@ public class SqlServerInboxStorage : IInboxStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 }

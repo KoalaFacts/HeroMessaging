@@ -13,25 +13,27 @@ namespace HeroMessaging.Storage.PostgreSql;
 public class PostgreSqlOutboxStorage : IOutboxStorage
 {
     private readonly PostgreSqlStorageOptions _options;
-    private readonly NpgsqlConnection? _sharedConnection;
-    private readonly NpgsqlTransaction? _sharedTransaction;
-    private readonly string _connectionString;
+    private readonly IDbConnectionProvider<NpgsqlConnection, NpgsqlTransaction> _connectionProvider;
+    private readonly IDbSchemaInitializer _schemaInitializer;
+    private readonly IJsonOptionsProvider _jsonOptionsProvider;
     private readonly string _tableName;
     private readonly TimeProvider _timeProvider;
-    private readonly JsonSerializerOptions _jsonOptions;
 
-    public PostgreSqlOutboxStorage(PostgreSqlStorageOptions options, TimeProvider timeProvider)
+    public PostgreSqlOutboxStorage(
+        PostgreSqlStorageOptions options,
+        TimeProvider timeProvider,
+        IDbConnectionProvider<NpgsqlConnection, NpgsqlTransaction>? connectionProvider = null,
+        IDbSchemaInitializer? schemaInitializer = null,
+        IJsonOptionsProvider? jsonOptionsProvider = null)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
-        _connectionString = options.ConnectionString ?? throw new ArgumentNullException(nameof(options.ConnectionString));
-        _tableName = _options.GetFullTableName(_options.OutboxTableName);
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+        _tableName = _options.GetFullTableName(_options.OutboxTableName);
 
-        _jsonOptions = new JsonSerializerOptions
-        {
-            PropertyNameCaseInsensitive = true,
-            WriteIndented = false
-        };
+        // Use provided dependencies or create defaults
+        _connectionProvider = connectionProvider ?? new PostgreSqlConnectionProvider(options.ConnectionString ?? throw new ArgumentNullException(nameof(options.ConnectionString)));
+        _jsonOptionsProvider = jsonOptionsProvider ?? new DefaultJsonOptionsProvider();
+        _schemaInitializer = schemaInitializer ?? new PostgreSqlSchemaInitializer(_connectionProvider);
 
         if (_options.AutoCreateTables)
         {
@@ -39,38 +41,31 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
         }
     }
 
-    public PostgreSqlOutboxStorage(NpgsqlConnection connection, NpgsqlTransaction? transaction, TimeProvider timeProvider)
+    public PostgreSqlOutboxStorage(
+        NpgsqlConnection connection,
+        NpgsqlTransaction? transaction,
+        TimeProvider timeProvider,
+        IJsonOptionsProvider? jsonOptionsProvider = null)
     {
-        _sharedConnection = connection ?? throw new ArgumentNullException(nameof(connection));
-        _sharedTransaction = transaction;
-        _connectionString = connection.ConnectionString ?? string.Empty;
+        _connectionProvider = new PostgreSqlConnectionProvider(connection, transaction);
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+        _jsonOptionsProvider = jsonOptionsProvider ?? new DefaultJsonOptionsProvider();
 
         // Use default options when using shared connection
         _options = new PostgreSqlStorageOptions { ConnectionString = connection.ConnectionString };
         _tableName = _options.GetFullTableName(_options.OutboxTableName);
-
-        _jsonOptions = new JsonSerializerOptions
-        {
-            PropertyNameCaseInsensitive = true,
-            WriteIndented = false
-        };
+        _schemaInitializer = new PostgreSqlSchemaInitializer(_connectionProvider);
     }
 
     private async Task InitializeDatabase()
     {
-        using var connection = new NpgsqlConnection(_connectionString);
-        await connection.OpenAsync();
-
-        // Create schema if it doesn't exist
-        if (!string.IsNullOrEmpty(_options.Schema) && _options.Schema != "public")
+        // Create schema if needed
+        if (!string.IsNullOrEmpty(_options.Schema))
         {
-            var createSchemaSql = $"CREATE SCHEMA IF NOT EXISTS {_options.Schema}";
-
-            using var schemaCommand = new NpgsqlCommand(createSchemaSql, connection);
-            await schemaCommand.ExecuteNonQueryAsync();
+            await _schemaInitializer.InitializeSchemaAsync(_options.Schema);
         }
 
+        // Create table
         var createTableSql = $"""
             CREATE TABLE IF NOT EXISTS {_tableName} (
                 id VARCHAR(100) PRIMARY KEY,
@@ -91,21 +86,16 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
             CREATE INDEX IF NOT EXISTS idx_{_options.OutboxTableName}_created_at ON {_tableName}(created_at DESC);
             """;
 
-        using var command = new NpgsqlCommand(createTableSql, connection);
-        await command.ExecuteNonQueryAsync();
+        await _schemaInitializer.ExecuteSchemaScriptAsync(createTableSql);
     }
 
     public async Task<OutboxEntry> Add(IMessage message, OutboxOptions options, CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new NpgsqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        var transaction = _connectionProvider.GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var entryId = Guid.NewGuid().ToString();
             var now = _timeProvider.GetUtcNow().DateTime;
@@ -118,7 +108,7 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
             using var command = new NpgsqlCommand(sql, connection, transaction);
             command.Parameters.AddWithValue("id", entryId);
             command.Parameters.AddWithValue("message_type", message.GetType().FullName ?? "Unknown");
-            command.Parameters.AddWithValue("payload", JsonSerializer.Serialize(message, _jsonOptions));
+            command.Parameters.AddWithValue("payload", JsonSerializer.Serialize(message, _jsonOptionsProvider.GetOptions()));
             command.Parameters.AddWithValue("destination", (object?)options.Destination ?? DBNull.Value);
             command.Parameters.AddWithValue("status", "Pending");
             command.Parameters.AddWithValue("retry_count", 0);
@@ -139,24 +129,16 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 
     public async Task<IEnumerable<OutboxEntry>> GetPending(OutboxQuery query, CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new NpgsqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        var transaction = _connectionProvider.GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var whereClauses = new List<string>();
             var parameters = new List<NpgsqlParameter>();
@@ -212,7 +194,7 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
                 var nextRetryAt = reader.IsDBNull(9) ? (DateTime?)null : reader.GetDateTime(9);
                 var lastError = reader.IsDBNull(10) ? null : reader.GetString(10);
 
-                var message = JsonSerializer.Deserialize<IMessage>(payload, _jsonOptions);
+                var message = JsonSerializer.Deserialize<IMessage>(payload, _jsonOptionsProvider.GetOptions());
 
                 entries.Add(new OutboxEntry
                 {
@@ -236,10 +218,6 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 
@@ -256,15 +234,11 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
 
     public async Task<bool> MarkProcessed(string entryId, CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new NpgsqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        var transaction = _connectionProvider.GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var sql = $"""
                 UPDATE {_tableName}
@@ -282,24 +256,16 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 
     public async Task<bool> MarkFailed(string entryId, string error, CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new NpgsqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        var transaction = _connectionProvider.GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var sql = $"""
                 UPDATE {_tableName}
@@ -318,24 +284,16 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 
     public async Task<bool> UpdateRetryCount(string entryId, int retryCount, DateTime? nextRetry = null, CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new NpgsqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        var transaction = _connectionProvider.GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var sql = $"""
                 UPDATE {_tableName}
@@ -353,24 +311,16 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 
     public async Task<long> GetPendingCount(CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new NpgsqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        var transaction = _connectionProvider.GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var sql = $"SELECT COUNT(1) FROM {_tableName} WHERE status = 'Pending'";
 
@@ -380,10 +330,6 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 

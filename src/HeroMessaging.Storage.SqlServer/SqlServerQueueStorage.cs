@@ -19,7 +19,7 @@ public class SqlServerQueueStorage : IQueueStorage
     private readonly string _connectionString;
     private readonly string _tableName;
     private readonly TimeProvider _timeProvider;
-    private readonly JsonSerializerOptions _jsonOptions;
+    private readonly JsonSerializerOptions _jsonOptionsProvider.GetOptions();
 
     public SqlServerQueueStorage(SqlServerStorageOptions options, TimeProvider timeProvider)
     {
@@ -28,7 +28,7 @@ public class SqlServerQueueStorage : IQueueStorage
         _tableName = _options.GetFullTableName(_options.QueueTableName);
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
-        _jsonOptions = new JsonSerializerOptions
+        _jsonOptionsProvider.GetOptions() = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
             WriteIndented = false
@@ -51,7 +51,7 @@ public class SqlServerQueueStorage : IQueueStorage
         _options = new SqlServerStorageOptions { ConnectionString = connection.ConnectionString };
         _tableName = _options.GetFullTableName(_options.QueueTableName);
 
-        _jsonOptions = new JsonSerializerOptions
+        _jsonOptionsProvider.GetOptions() = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
             WriteIndented = false
@@ -106,15 +106,11 @@ public class SqlServerQueueStorage : IQueueStorage
 
     public async Task<QueueEntry> Enqueue(string queueName, IMessage message, EnqueueOptions? options = null, CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new SqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        var transaction = _connectionProvider.GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var entryId = Guid.NewGuid().ToString();
             var now = _timeProvider.GetUtcNow().DateTime;
@@ -131,7 +127,7 @@ public class SqlServerQueueStorage : IQueueStorage
             command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = entryId;
             command.Parameters.Add("@QueueName", SqlDbType.NVarChar, 200).Value = queueName;
             command.Parameters.Add("@MessageType", SqlDbType.NVarChar, 500).Value = message.GetType().FullName ?? "Unknown";
-            command.Parameters.Add("@Payload", SqlDbType.NVarChar, -1).Value = JsonSerializer.Serialize(message, _jsonOptions);
+            command.Parameters.Add("@Payload", SqlDbType.NVarChar, -1).Value = JsonSerializer.Serialize(message, _jsonOptionsProvider.GetOptions());
             command.Parameters.Add("@Priority", SqlDbType.Int).Value = options?.Priority ?? 0;
             command.Parameters.Add("@EnqueuedAt", SqlDbType.DateTime2).Value = now;
             command.Parameters.Add("@VisibleAt", SqlDbType.DateTime2).Value = visibleAt;
@@ -151,24 +147,16 @@ public class SqlServerQueueStorage : IQueueStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 
     public async Task<QueueEntry?> Dequeue(string queueName, CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new SqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        var transaction = _connectionProvider.GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var now = _timeProvider.GetUtcNow().DateTime;
 
@@ -225,7 +213,7 @@ public class SqlServerQueueStorage : IQueueStorage
 
                 if (transaction == null) localTransaction.Commit();
 
-                var message = JsonSerializer.Deserialize<IMessage>(payload, _jsonOptions);
+                var message = JsonSerializer.Deserialize<IMessage>(payload, _jsonOptionsProvider.GetOptions());
 
                 return new QueueEntry
                 {
@@ -249,24 +237,16 @@ public class SqlServerQueueStorage : IQueueStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 
     public async Task<IEnumerable<QueueEntry>> Peek(string queueName, int count = 1, CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new SqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        var transaction = _connectionProvider.GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var now = _timeProvider.GetUtcNow().DateTime;
 
@@ -297,7 +277,7 @@ public class SqlServerQueueStorage : IQueueStorage
                 var dequeueCount = reader.GetInt32(6);
                 var delayMinutes = reader.IsDBNull(7) ? (int?)null : reader.GetInt32(7);
 
-                var message = JsonSerializer.Deserialize<IMessage>(payload, _jsonOptions);
+                var message = JsonSerializer.Deserialize<IMessage>(payload, _jsonOptionsProvider.GetOptions());
 
                 entries.Add(new QueueEntry
                 {
@@ -318,24 +298,16 @@ public class SqlServerQueueStorage : IQueueStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 
     public async Task<bool> Acknowledge(string queueName, string entryId, CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new SqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        var transaction = _connectionProvider.GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var sql = $"""
                 UPDATE {_tableName}
@@ -352,24 +324,16 @@ public class SqlServerQueueStorage : IQueueStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 
     public async Task<bool> Reject(string queueName, string entryId, bool requeue = false, CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new SqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        var transaction = _connectionProvider.GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             if (requeue)
             {
@@ -406,24 +370,16 @@ public class SqlServerQueueStorage : IQueueStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 
     public async Task<long> GetQueueDepth(string queueName, CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new SqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        var transaction = _connectionProvider.GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var sql = $"""
                 SELECT COUNT(1)
@@ -440,10 +396,6 @@ public class SqlServerQueueStorage : IQueueStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 
@@ -457,15 +409,11 @@ public class SqlServerQueueStorage : IQueueStorage
 
     public async Task<bool> DeleteQueue(string queueName, CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new SqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        var transaction = _connectionProvider.GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var sql = $"""
                 DELETE FROM {_tableName}
@@ -480,24 +428,16 @@ public class SqlServerQueueStorage : IQueueStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 
     public async Task<IEnumerable<string>> GetQueues(CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new SqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        var transaction = _connectionProvider.GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var sql = $"""
                 SELECT DISTINCT QueueName
@@ -518,24 +458,16 @@ public class SqlServerQueueStorage : IQueueStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 
     public async Task<bool> QueueExists(string queueName, CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new SqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        var transaction = _connectionProvider.GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var sql = $"""
                 SELECT COUNT(1)
@@ -551,10 +483,6 @@ public class SqlServerQueueStorage : IQueueStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 }

@@ -17,7 +17,7 @@ public class PostgreSqlMessageStorage : IMessageStorage
     private readonly string _connectionString;
     private readonly string _tableName;
     private readonly TimeProvider _timeProvider;
-    private readonly JsonSerializerOptions _jsonOptions;
+    private readonly JsonSerializerOptions _jsonOptionsProvider.GetOptions();
 
     public PostgreSqlMessageStorage(PostgreSqlStorageOptions options, TimeProvider timeProvider)
     {
@@ -26,7 +26,7 @@ public class PostgreSqlMessageStorage : IMessageStorage
         _tableName = _options.GetFullTableName(_options.MessagesTableName);
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
-        _jsonOptions = new JsonSerializerOptions
+        _jsonOptionsProvider.GetOptions() = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
             WriteIndented = false
@@ -49,7 +49,7 @@ public class PostgreSqlMessageStorage : IMessageStorage
         _options = new PostgreSqlStorageOptions { ConnectionString = connection.ConnectionString };
         _tableName = _options.GetFullTableName(_options.MessagesTableName);
 
-        _jsonOptions = new JsonSerializerOptions
+        _jsonOptionsProvider.GetOptions() = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
             WriteIndented = false
@@ -96,15 +96,11 @@ public class PostgreSqlMessageStorage : IMessageStorage
 
     public async Task<string> Store(IMessage message, MessageStorageOptions? options = null, CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new NpgsqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        var transaction = _connectionProvider.GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var messageId = Guid.NewGuid().ToString();
             var expiresAt = options?.Ttl != null
@@ -119,12 +115,12 @@ public class PostgreSqlMessageStorage : IMessageStorage
             using var command = new NpgsqlCommand(sql, connection, transaction);
             command.Parameters.AddWithValue("id", messageId);
             command.Parameters.AddWithValue("message_type", message.GetType().FullName ?? "Unknown");
-            command.Parameters.AddWithValue("payload", JsonSerializer.Serialize(message, _jsonOptions));
+            command.Parameters.AddWithValue("payload", JsonSerializer.Serialize(message, _jsonOptionsProvider.GetOptions()));
             command.Parameters.AddWithValue("timestamp", message.Timestamp);
             command.Parameters.AddWithValue("correlation_id", (object?)message.CorrelationId ?? DBNull.Value);
             command.Parameters.AddWithValue("collection", (object?)options?.Collection ?? DBNull.Value);
             command.Parameters.AddWithValue("metadata", options?.Metadata != null
-                ? JsonSerializer.Serialize(options.Metadata, _jsonOptions)
+                ? JsonSerializer.Serialize(options.Metadata, _jsonOptionsProvider.GetOptions())
                 : DBNull.Value);
             command.Parameters.AddWithValue("expires_at", (object?)expiresAt ?? DBNull.Value);
             command.Parameters.AddWithValue("created_at", _timeProvider.GetUtcNow().DateTime);
@@ -134,24 +130,16 @@ public class PostgreSqlMessageStorage : IMessageStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 
     public async Task<T?> Retrieve<T>(string messageId, CancellationToken cancellationToken = default) where T : IMessage
     {
-        var connection = _sharedConnection ?? new NpgsqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        var transaction = _connectionProvider.GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var sql = $"""
                 SELECT payload FROM {_tableName}
@@ -166,31 +154,23 @@ public class PostgreSqlMessageStorage : IMessageStorage
             if (await reader.ReadAsync(cancellationToken))
             {
                 var payload = reader.GetString(0);
-                return JsonSerializer.Deserialize<T>(payload, _jsonOptions);
+                return JsonSerializer.Deserialize<T>(payload, _jsonOptionsProvider.GetOptions());
             }
 
             return default;
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 
     public async Task<bool> Delete(string messageId, CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new NpgsqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        var transaction = _connectionProvider.GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var sql = $"DELETE FROM {_tableName} WHERE id = @id";
 
@@ -202,24 +182,16 @@ public class PostgreSqlMessageStorage : IMessageStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 
     public async Task<bool> Exists(string messageId, CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new NpgsqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        var transaction = _connectionProvider.GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var sql = $"""
                 SELECT COUNT(1) FROM {_tableName}
@@ -235,24 +207,16 @@ public class PostgreSqlMessageStorage : IMessageStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 
     public async Task<IEnumerable<T>> Query<T>(MessageQuery query, CancellationToken cancellationToken = default) where T : IMessage
     {
-        var connection = _sharedConnection ?? new NpgsqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        var transaction = _connectionProvider.GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var whereClauses = new List<string> { "(expires_at IS NULL OR expires_at > NOW())" };
             var parameters = new List<NpgsqlParameter>();
@@ -302,7 +266,7 @@ public class PostgreSqlMessageStorage : IMessageStorage
             while (await reader.ReadAsync(cancellationToken))
             {
                 var payload = reader.GetString(0);
-                var message = JsonSerializer.Deserialize<T>(payload, _jsonOptions);
+                var message = JsonSerializer.Deserialize<T>(payload, _jsonOptionsProvider.GetOptions());
                 if (message != null)
                 {
                     messages.Add(message);
@@ -313,24 +277,16 @@ public class PostgreSqlMessageStorage : IMessageStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 
     public async Task<bool> Update(string messageId, IMessage message, CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new NpgsqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        var transaction = _connectionProvider.GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var sql = $"""
                 UPDATE {_tableName}
@@ -343,7 +299,7 @@ public class PostgreSqlMessageStorage : IMessageStorage
 
             using var command = new NpgsqlCommand(sql, connection, transaction);
             command.Parameters.AddWithValue("id", messageId);
-            command.Parameters.AddWithValue("payload", JsonSerializer.Serialize(message, _jsonOptions));
+            command.Parameters.AddWithValue("payload", JsonSerializer.Serialize(message, _jsonOptionsProvider.GetOptions()));
             command.Parameters.AddWithValue("message_type", message.GetType().FullName ?? "Unknown");
             command.Parameters.AddWithValue("timestamp", message.Timestamp);
             command.Parameters.AddWithValue("correlation_id", (object?)message.CorrelationId ?? DBNull.Value);
@@ -353,24 +309,16 @@ public class PostgreSqlMessageStorage : IMessageStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 
     public async Task<long> Count(MessageQuery? query = null, CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new NpgsqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        var transaction = _connectionProvider.GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var whereClauses = new List<string> { "(expires_at IS NULL OR expires_at > NOW())" };
             var parameters = new List<NpgsqlParameter>();
@@ -412,24 +360,16 @@ public class PostgreSqlMessageStorage : IMessageStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 
     public async Task Clear(CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new NpgsqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        var transaction = _connectionProvider.GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var sql = $"TRUNCATE TABLE {_tableName}";
 
@@ -438,10 +378,6 @@ public class PostgreSqlMessageStorage : IMessageStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 
@@ -474,7 +410,7 @@ public class PostgreSqlMessageStorage : IMessageStorage
             using var command = new NpgsqlCommand(sql, connection, npgsqlTransaction);
             command.Parameters.AddWithValue("id", messageId);
             command.Parameters.AddWithValue("message_type", message.GetType().FullName ?? "Unknown");
-            command.Parameters.AddWithValue("payload", JsonSerializer.Serialize(message, _jsonOptions));
+            command.Parameters.AddWithValue("payload", JsonSerializer.Serialize(message, _jsonOptionsProvider.GetOptions()));
             command.Parameters.AddWithValue("timestamp", message.Timestamp);
             command.Parameters.AddWithValue("correlation_id", (object?)message.CorrelationId ?? DBNull.Value);
             command.Parameters.AddWithValue("created_at", _timeProvider.GetUtcNow().DateTime);
@@ -522,7 +458,7 @@ public class PostgreSqlMessageStorage : IMessageStorage
             if (await reader.ReadAsync(cancellationToken))
             {
                 var payload = reader.GetString(0);
-                return JsonSerializer.Deserialize<IMessage>(payload, _jsonOptions);
+                return JsonSerializer.Deserialize<IMessage>(payload, _jsonOptionsProvider.GetOptions());
             }
 
             return null;
@@ -589,7 +525,7 @@ public class PostgreSqlMessageStorage : IMessageStorage
         while (await reader.ReadAsync(cancellationToken))
         {
             var payload = reader.GetString(0);
-            var message = JsonSerializer.Deserialize<IMessage>(payload, _jsonOptions);
+            var message = JsonSerializer.Deserialize<IMessage>(payload, _jsonOptionsProvider.GetOptions());
             if (message != null)
             {
                 messages.Add(message);
