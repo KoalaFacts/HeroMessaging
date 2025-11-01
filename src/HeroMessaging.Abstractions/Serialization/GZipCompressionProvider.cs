@@ -3,18 +3,12 @@ using System.IO.Compression;
 namespace HeroMessaging.Abstractions.Serialization;
 
 /// <summary>
-/// Provides compression and decompression utilities for message serialization
+/// Provides GZip compression and decompression for message serialization
 /// </summary>
-public static class CompressionHelper
+public class GZipCompressionProvider : ICompressionProvider
 {
-    /// <summary>
-    /// Compresses data using GZip compression
-    /// </summary>
-    /// <param name="data">The data to compress</param>
-    /// <param name="level">The compression level to use</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Compressed data</returns>
-    public static async ValueTask<byte[]> CompressAsync(
+    /// <inheritdoc />
+    public async ValueTask<byte[]> CompressAsync(
         byte[] data,
         CompressionLevel level,
         CancellationToken cancellationToken = default)
@@ -40,13 +34,8 @@ public static class CompressionHelper
         return output.ToArray();
     }
 
-    /// <summary>
-    /// Decompresses GZip-compressed data
-    /// </summary>
-    /// <param name="data">The compressed data</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Decompressed data</returns>
-    public static async ValueTask<byte[]> DecompressAsync(
+    /// <inheritdoc />
+    public async ValueTask<byte[]> DecompressAsync(
         byte[] data,
         CancellationToken cancellationToken = default)
     {

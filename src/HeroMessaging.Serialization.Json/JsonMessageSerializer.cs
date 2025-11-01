@@ -8,10 +8,14 @@ namespace HeroMessaging.Serialization.Json;
 /// <summary>
 /// JSON message serializer using System.Text.Json
 /// </summary>
-public class JsonMessageSerializer(SerializationOptions? options = null, JsonSerializerOptions? jsonOptions = null) : IMessageSerializer
+public class JsonMessageSerializer(
+    SerializationOptions? options = null,
+    JsonSerializerOptions? jsonOptions = null,
+    ICompressionProvider? compressionProvider = null) : IMessageSerializer
 {
     private readonly SerializationOptions _options = options ?? new SerializationOptions();
     private readonly JsonSerializerOptions _jsonOptions = jsonOptions ?? CreateDefaultOptions();
+    private readonly ICompressionProvider _compressionProvider = compressionProvider ?? new GZipCompressionProvider();
 
     public string ContentType => "application/json";
 
@@ -32,7 +36,7 @@ public class JsonMessageSerializer(SerializationOptions? options = null, JsonSer
 
         if (_options.EnableCompression)
         {
-            data = await CompressionHelper.CompressAsync(data, _options.CompressionLevel, cancellationToken);
+            data = await _compressionProvider.CompressAsync(data, _options.CompressionLevel, cancellationToken);
         }
 
         return data;
@@ -47,7 +51,7 @@ public class JsonMessageSerializer(SerializationOptions? options = null, JsonSer
 
         if (_options.EnableCompression)
         {
-            data = await CompressionHelper.DecompressAsync(data, cancellationToken);
+            data = await _compressionProvider.DecompressAsync(data, cancellationToken);
         }
 
         var json = Encoding.UTF8.GetString(data);
@@ -64,7 +68,7 @@ public class JsonMessageSerializer(SerializationOptions? options = null, JsonSer
 
         if (_options.EnableCompression)
         {
-            data = await CompressionHelper.DecompressAsync(data, cancellationToken);
+            data = await _compressionProvider.DecompressAsync(data, cancellationToken);
         }
 
         var json = Encoding.UTF8.GetString(data);

@@ -7,11 +7,14 @@ namespace HeroMessaging.Serialization.Protobuf;
 /// <summary>
 /// Protocol Buffers serializer for efficient binary serialization
 /// </summary>
-public class ProtobufMessageSerializer(SerializationOptions? options = null, RuntimeTypeModel? typeModel = null) : IMessageSerializer
+public class ProtobufMessageSerializer(
+    SerializationOptions? options = null,
+    RuntimeTypeModel? typeModel = null,
+    ICompressionProvider? compressionProvider = null) : IMessageSerializer
 {
     private readonly SerializationOptions _options = options ?? new SerializationOptions();
     private readonly RuntimeTypeModel _typeModel = typeModel ?? RuntimeTypeModel.Default;
-
+    private readonly ICompressionProvider _compressionProvider = compressionProvider ?? new GZipCompressionProvider();
 
     public string ContentType => "application/x-protobuf";
 
@@ -33,7 +36,7 @@ public class ProtobufMessageSerializer(SerializationOptions? options = null, Run
 
         if (_options.EnableCompression)
         {
-            data = await CompressionHelper.CompressAsync(data, _options.CompressionLevel, cancellationToken);
+            data = await _compressionProvider.CompressAsync(data, _options.CompressionLevel, cancellationToken);
         }
 
         return data;
@@ -48,7 +51,7 @@ public class ProtobufMessageSerializer(SerializationOptions? options = null, Run
 
         if (_options.EnableCompression)
         {
-            data = await CompressionHelper.DecompressAsync(data, cancellationToken);
+            data = await _compressionProvider.DecompressAsync(data, cancellationToken);
         }
 
         using var stream = new MemoryStream(data);
@@ -65,7 +68,7 @@ public class ProtobufMessageSerializer(SerializationOptions? options = null, Run
 
         if (_options.EnableCompression)
         {
-            data = await CompressionHelper.DecompressAsync(data, cancellationToken);
+            data = await _compressionProvider.DecompressAsync(data, cancellationToken);
         }
 
         using var stream = new MemoryStream(data);
@@ -77,11 +80,14 @@ public class ProtobufMessageSerializer(SerializationOptions? options = null, Run
 /// <summary>
 /// Protobuf serializer with type information included for polymorphic scenarios
 /// </summary>
-public class TypedProtobufMessageSerializer(SerializationOptions? options = null, RuntimeTypeModel? typeModel = null) : IMessageSerializer
+public class TypedProtobufMessageSerializer(
+    SerializationOptions? options = null,
+    RuntimeTypeModel? typeModel = null,
+    ICompressionProvider? compressionProvider = null) : IMessageSerializer
 {
     private readonly SerializationOptions _options = options ?? new SerializationOptions();
     private readonly RuntimeTypeModel _typeModel = typeModel ?? RuntimeTypeModel.Default;
-
+    private readonly ICompressionProvider _compressionProvider = compressionProvider ?? new GZipCompressionProvider();
 
     public string ContentType => "application/x-protobuf-typed";
 
@@ -113,7 +119,7 @@ public class TypedProtobufMessageSerializer(SerializationOptions? options = null
 
         if (_options.EnableCompression)
         {
-            data = await CompressionHelper.CompressAsync(data, _options.CompressionLevel, cancellationToken);
+            data = await _compressionProvider.CompressAsync(data, _options.CompressionLevel, cancellationToken);
         }
 
         return data;
@@ -128,7 +134,7 @@ public class TypedProtobufMessageSerializer(SerializationOptions? options = null
 
         if (_options.EnableCompression)
         {
-            data = await CompressionHelper.DecompressAsync(data, cancellationToken);
+            data = await _compressionProvider.DecompressAsync(data, cancellationToken);
         }
 
         using var stream = new MemoryStream(data);
@@ -152,7 +158,7 @@ public class TypedProtobufMessageSerializer(SerializationOptions? options = null
 
         if (_options.EnableCompression)
         {
-            data = await CompressionHelper.DecompressAsync(data, cancellationToken);
+            data = await _compressionProvider.DecompressAsync(data, cancellationToken);
         }
 
         using var stream = new MemoryStream(data);
