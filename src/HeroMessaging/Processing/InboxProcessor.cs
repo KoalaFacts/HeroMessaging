@@ -13,7 +13,6 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
 {
     private readonly IInboxStorage _inboxStorage;
     private readonly IServiceProvider _serviceProvider;
-    private readonly ILogger<InboxProcessor> _logger;
     private Task? _cleanupTask;
     private CancellationTokenSource? _cleanupCancellationTokenSource;
 
@@ -25,7 +24,6 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
     {
         _inboxStorage = inboxStorage;
         _serviceProvider = serviceProvider;
-        _logger = logger;
     }
 
     public async Task<bool> ProcessIncoming(IMessage message, InboxOptions? options = null, CancellationToken cancellationToken = default)
@@ -42,7 +40,7 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
 
             if (isDuplicate)
             {
-                _logger.LogWarning("Duplicate message detected: {MessageId}. Skipping processing.", message.MessageId);
+                Logger.LogWarning("Duplicate message detected: {MessageId}. Skipping processing.", message.MessageId);
                 return false;
             }
         }
@@ -52,7 +50,7 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
 
         if (entry == null)
         {
-            _logger.LogWarning("Message {MessageId} was rejected as duplicate", message.MessageId);
+            Logger.LogWarning("Message {MessageId} was rejected as duplicate", message.MessageId);
             return false;
         }
 
@@ -104,7 +102,7 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
 
                 await _inboxStorage.CleanupOldEntries(TimeSpan.FromDays(7), cancellationToken);
 
-                _logger.LogDebug("Inbox cleanup completed");
+                Logger.LogDebug("Inbox cleanup completed");
             }
             catch (OperationCanceledException)
             {
@@ -112,7 +110,7 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error during inbox cleanup");
+                Logger.LogError(ex, "Error during inbox cleanup");
             }
         }
     }
@@ -139,19 +137,19 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
                     break;
 
                 default:
-                    _logger.LogWarning("Unknown message type in inbox: {MessageType}",
+                    Logger.LogWarning("Unknown message type in inbox: {MessageType}",
                         entry.Message.GetType().Name);
                     break;
             }
 
             await _inboxStorage.MarkProcessed(entry.Id);
 
-            _logger.LogInformation("Inbox entry {EntryId} (Message: {MessageId}) processed successfully from source {Source}",
+            Logger.LogInformation("Inbox entry {EntryId} (Message: {MessageId}) processed successfully from source {Source}",
                 entry.Id, entry.Message.MessageId, entry.Options.Source ?? "Unknown");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error processing inbox entry {EntryId} (Message: {MessageId})",
+            Logger.LogError(ex, "Error processing inbox entry {EntryId} (Message: {MessageId})",
                 entry.Id, entry.Message.MessageId);
 
             await _inboxStorage.MarkFailed(entry.Id, ex.Message);

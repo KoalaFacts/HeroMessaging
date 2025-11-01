@@ -33,16 +33,14 @@ public static class TransactionExtensions
         services.Decorate<ICommandProcessor>((inner, serviceProvider) =>
             new TransactionCommandProcessorDecorator(
                 inner,
-                serviceProvider.GetRequiredService<IUnitOfWorkFactory>(),
-                serviceProvider.GetRequiredService<ILogger<TransactionCommandProcessorDecorator>>(),
+                serviceProvider.GetRequiredService<ITransactionExecutor>(),
                 defaultIsolationLevel));
 
         // Decorate query processor with transaction support (read-only transactions)
         services.Decorate<IQueryProcessor>((inner, serviceProvider) =>
             new TransactionQueryProcessorDecorator(
                 inner,
-                serviceProvider.GetRequiredService<IUnitOfWorkFactory>(),
-                serviceProvider.GetRequiredService<ILogger<TransactionQueryProcessorDecorator>>()));
+                serviceProvider.GetRequiredService<ITransactionExecutor>()));
 
         // Decorate event bus with transaction support
         services.Decorate<IEventBus>((inner, serviceProvider) =>
@@ -56,16 +54,14 @@ public static class TransactionExtensions
         services.Decorate<Processing.IOutboxProcessor>((inner, serviceProvider) =>
             new TransactionOutboxProcessorDecorator(
                 inner,
-                serviceProvider.GetRequiredService<IUnitOfWorkFactory>(),
-                serviceProvider.GetRequiredService<ILogger<TransactionOutboxProcessorDecorator>>(),
+                serviceProvider.GetRequiredService<ITransactionExecutor>(),
                 defaultIsolationLevel));
 
         // Decorate inbox processor with transaction support
         services.Decorate<Processing.IInboxProcessor>((inner, serviceProvider) =>
             new TransactionInboxProcessorDecorator(
                 inner,
-                serviceProvider.GetRequiredService<IUnitOfWorkFactory>(),
-                serviceProvider.GetRequiredService<ILogger<TransactionInboxProcessorDecorator>>(),
+                serviceProvider.GetRequiredService<ITransactionExecutor>(),
                 defaultIsolationLevel));
 
         return builder;
@@ -89,8 +85,7 @@ public static class TransactionExtensions
         services.Decorate<ICommandProcessor>((inner, serviceProvider) =>
             new TransactionCommandProcessorDecorator(
                 inner,
-                serviceProvider.GetRequiredService<IUnitOfWorkFactory>(),
-                serviceProvider.GetRequiredService<ILogger<TransactionCommandProcessorDecorator>>(),
+                serviceProvider.GetRequiredService<ITransactionExecutor>(),
                 isolationLevel));
 
         return builder;
@@ -115,8 +110,7 @@ public static class TransactionExtensions
             services.Decorate<ICommandProcessor>((inner, serviceProvider) =>
                 new TransactionCommandProcessorDecorator(
                     inner,
-                    serviceProvider.GetRequiredService<IUnitOfWorkFactory>(),
-                    serviceProvider.GetRequiredService<ILogger<TransactionCommandProcessorDecorator>>(),
+                    serviceProvider.GetRequiredService<ITransactionExecutor>(),
                     config.CommandIsolationLevel.Value));
         }
 
@@ -125,8 +119,7 @@ public static class TransactionExtensions
             services.Decorate<IQueryProcessor>((inner, serviceProvider) =>
                 new TransactionQueryProcessorDecorator(
                     inner,
-                    serviceProvider.GetRequiredService<IUnitOfWorkFactory>(),
-                    serviceProvider.GetRequiredService<ILogger<TransactionQueryProcessorDecorator>>()));
+                    serviceProvider.GetRequiredService<ITransactionExecutor>()));
         }
 
         if (config.EventIsolationLevel.HasValue)
@@ -144,8 +137,7 @@ public static class TransactionExtensions
             services.Decorate<Processing.IOutboxProcessor>((inner, serviceProvider) =>
                 new TransactionOutboxProcessorDecorator(
                     inner,
-                    serviceProvider.GetRequiredService<IUnitOfWorkFactory>(),
-                    serviceProvider.GetRequiredService<ILogger<TransactionOutboxProcessorDecorator>>(),
+                    serviceProvider.GetRequiredService<ITransactionExecutor>(),
                     config.OutboxIsolationLevel.Value));
         }
 
@@ -154,8 +146,7 @@ public static class TransactionExtensions
             services.Decorate<Processing.IInboxProcessor>((inner, serviceProvider) =>
                 new TransactionInboxProcessorDecorator(
                     inner,
-                    serviceProvider.GetRequiredService<IUnitOfWorkFactory>(),
-                    serviceProvider.GetRequiredService<ILogger<TransactionInboxProcessorDecorator>>(),
+                    serviceProvider.GetRequiredService<ITransactionExecutor>(),
                     config.InboxIsolationLevel.Value));
         }
 

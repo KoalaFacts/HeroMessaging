@@ -13,7 +13,7 @@ public class SqlServerMessageStorage : IMessageStorage
 {
     private readonly SqlServerStorageOptions _options;
     private readonly string _connectionString;
-    private readonly JsonSerializerOptions _jsonOptionsProvider.GetOptions();
+    private readonly JsonSerializerOptions _jsonOptions;
     private readonly string _tableName;
     private readonly SqlConnection? _sharedConnection;
     private readonly SqlTransaction? _sharedTransaction;
@@ -26,7 +26,7 @@ public class SqlServerMessageStorage : IMessageStorage
         _tableName = _options.GetFullTableName(_options.MessagesTableName);
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
-        _jsonOptionsProvider.GetOptions() = new JsonSerializerOptions
+        _jsonOptions = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
             WriteIndented = false
@@ -49,11 +49,28 @@ public class SqlServerMessageStorage : IMessageStorage
         _tableName = _options.GetFullTableName(_options.MessagesTableName);
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
-        _jsonOptionsProvider.GetOptions() = new JsonSerializerOptions
+        _jsonOptions = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
             WriteIndented = false
         };
+    }
+
+    private async Task<SqlConnection> GetConnectionAsync()
+    {
+        if (_sharedConnection != null)
+        {
+            return _sharedConnection;
+        }
+
+        var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync();
+        return connection;
+    }
+
+    private SqlTransaction? GetTransaction()
+    {
+        return _sharedTransaction;
     }
 
     private async Task InitializeDatabase()
@@ -121,12 +138,12 @@ public class SqlServerMessageStorage : IMessageStorage
         using var command = new SqlCommand(sql, connection);
         command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = messageId;
         command.Parameters.Add("@MessageType", SqlDbType.NVarChar, 500).Value = message.GetType().FullName ?? "Unknown";
-        command.Parameters.Add("@Payload", SqlDbType.NVarChar, -1).Value = JsonSerializer.Serialize(message, _jsonOptionsProvider.GetOptions());
+        command.Parameters.Add("@Payload", SqlDbType.NVarChar, -1).Value = JsonSerializer.Serialize(message, _jsonOptions);
         command.Parameters.Add("@Timestamp", SqlDbType.DateTime2).Value = message.Timestamp;
         command.Parameters.Add("@CorrelationId", SqlDbType.NVarChar, 100).Value = DBNull.Value;
         command.Parameters.Add("@Collection", SqlDbType.NVarChar, 100).Value = (object?)options?.Collection ?? DBNull.Value;
         command.Parameters.Add("@Metadata", SqlDbType.NVarChar, -1).Value = options?.Metadata != null
-            ? JsonSerializer.Serialize(options.Metadata, _jsonOptionsProvider.GetOptions())
+            ? JsonSerializer.Serialize(options.Metadata, _jsonOptions)
             : DBNull.Value;
         command.Parameters.Add("@ExpiresAt", SqlDbType.DateTime2).Value = (object?)expiresAt ?? DBNull.Value;
         command.Parameters.Add("@CreatedAt", SqlDbType.DateTime2).Value = _timeProvider.GetUtcNow().DateTime;
@@ -153,7 +170,7 @@ public class SqlServerMessageStorage : IMessageStorage
         if (await reader.ReadAsync(cancellationToken))
         {
             var payload = reader.GetString(0);
-            return JsonSerializer.Deserialize<T>(payload, _jsonOptionsProvider.GetOptions());
+            return JsonSerializer.Deserialize<T>(payload, _jsonOptions);
         }
 
         return default;
@@ -210,7 +227,7 @@ public class SqlServerMessageStorage : IMessageStorage
         while (await reader.ReadAsync(cancellationToken))
         {
             var payload = reader.GetString(0);
-            var message = JsonSerializer.Deserialize<T>(payload, _jsonOptionsProvider.GetOptions());
+            var message = JsonSerializer.Deserialize<T>(payload, _jsonOptions);
             if (message != null)
             {
                 messages.Add(message);
@@ -251,7 +268,7 @@ public class SqlServerMessageStorage : IMessageStorage
         using var command = new SqlCommand(sql, connection);
         command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = messageId;
         command.Parameters.Add("@MessageType", SqlDbType.NVarChar, 500).Value = message.GetType().FullName ?? "Unknown";
-        command.Parameters.Add("@Payload", SqlDbType.NVarChar, -1).Value = JsonSerializer.Serialize(message, _jsonOptionsProvider.GetOptions());
+        command.Parameters.Add("@Payload", SqlDbType.NVarChar, -1).Value = JsonSerializer.Serialize(message, _jsonOptions);
         command.Parameters.Add("@Timestamp", SqlDbType.DateTime2).Value = message.Timestamp;
         command.Parameters.Add("@CorrelationId", SqlDbType.NVarChar, 100).Value = DBNull.Value;
 
@@ -356,7 +373,7 @@ public class SqlServerMessageStorage : IMessageStorage
             using var command = new SqlCommand(sql, connection, sqlTransaction);
             command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = messageId;
             command.Parameters.Add("@MessageType", SqlDbType.NVarChar, 500).Value = message.GetType().FullName ?? "Unknown";
-            command.Parameters.Add("@Payload", SqlDbType.NVarChar, -1).Value = JsonSerializer.Serialize(message, _jsonOptionsProvider.GetOptions());
+            command.Parameters.Add("@Payload", SqlDbType.NVarChar, -1).Value = JsonSerializer.Serialize(message, _jsonOptions);
             command.Parameters.Add("@Timestamp", SqlDbType.DateTime2).Value = message.Timestamp;
             command.Parameters.Add("@CorrelationId", SqlDbType.NVarChar, 100).Value = (object?)message.CorrelationId ?? DBNull.Value;
             command.Parameters.Add("@CreatedAt", SqlDbType.DateTime2).Value = _timeProvider.GetUtcNow().DateTime;
@@ -404,7 +421,7 @@ public class SqlServerMessageStorage : IMessageStorage
             if (await reader.ReadAsync(cancellationToken))
             {
                 var payload = reader.GetString(0);
-                return JsonSerializer.Deserialize<IMessage>(payload, _jsonOptionsProvider.GetOptions());
+                return JsonSerializer.Deserialize<IMessage>(payload, _jsonOptions);
             }
 
             return null;
@@ -472,7 +489,7 @@ public class SqlServerMessageStorage : IMessageStorage
         while (await reader.ReadAsync(cancellationToken))
         {
             var payload = reader.GetString(0);
-            var message = JsonSerializer.Deserialize<IMessage>(payload, _jsonOptionsProvider.GetOptions());
+            var message = JsonSerializer.Deserialize<IMessage>(payload, _jsonOptions);
             if (message != null)
             {
                 messages.Add(message);

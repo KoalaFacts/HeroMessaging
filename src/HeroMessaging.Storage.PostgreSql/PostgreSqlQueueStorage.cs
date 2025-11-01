@@ -19,7 +19,7 @@ public class PostgreSqlQueueStorage : IQueueStorage
     private readonly string _connectionString;
     private readonly string _tableName;
     private readonly TimeProvider _timeProvider;
-    private readonly JsonSerializerOptions _jsonOptionsProvider.GetOptions();
+    private readonly JsonSerializerOptions _jsonOptions;
 
     public PostgreSqlQueueStorage(PostgreSqlStorageOptions options, TimeProvider timeProvider)
     {
@@ -28,7 +28,7 @@ public class PostgreSqlQueueStorage : IQueueStorage
         _tableName = _options.GetFullTableName(_options.QueueTableName);
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
-        _jsonOptionsProvider.GetOptions() = new JsonSerializerOptions
+        _jsonOptions = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
             WriteIndented = false
@@ -48,14 +48,31 @@ public class PostgreSqlQueueStorage : IQueueStorage
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
         // Use default options when using shared connection
-        _options = new PostgreSqlStorageOptions { ConnectionString = connection.ConnectionString };
+        _options = new PostgreSqlStorageOptions { ConnectionString = connection.ConnectionString! };
         _tableName = _options.GetFullTableName(_options.QueueTableName);
 
-        _jsonOptionsProvider.GetOptions() = new JsonSerializerOptions
+        _jsonOptions = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
             WriteIndented = false
         };
+    }
+
+    private async Task<NpgsqlConnection> GetConnectionAsync()
+    {
+        if (_sharedConnection != null)
+        {
+            return _sharedConnection;
+        }
+
+        var connection = new NpgsqlConnection(_connectionString);
+        await connection.OpenAsync();
+        return connection;
+    }
+
+    private NpgsqlTransaction? GetTransaction()
+    {
+        return _sharedTransaction;
     }
 
     private async Task InitializeDatabase()
@@ -97,8 +114,8 @@ public class PostgreSqlQueueStorage : IQueueStorage
 
     public async Task<QueueEntry> Enqueue(string queueName, IMessage message, EnqueueOptions? options = null, CancellationToken cancellationToken = default)
     {
-        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
-        var transaction = _connectionProvider.GetTransaction();
+        var connection = await GetConnectionAsync();
+        var transaction = GetTransaction();
 
         try
         {
@@ -118,7 +135,7 @@ public class PostgreSqlQueueStorage : IQueueStorage
             command.Parameters.AddWithValue("id", entryId);
             command.Parameters.AddWithValue("queue_name", queueName);
             command.Parameters.AddWithValue("message_type", message.GetType().FullName ?? "Unknown");
-            command.Parameters.AddWithValue("payload", JsonSerializer.Serialize(message, _jsonOptionsProvider.GetOptions()));
+            command.Parameters.AddWithValue("payload", JsonSerializer.Serialize(message, _jsonOptions));
             command.Parameters.AddWithValue("priority", options?.Priority ?? 0);
             command.Parameters.AddWithValue("enqueued_at", now);
             command.Parameters.AddWithValue("visible_at", visibleAt);
@@ -143,8 +160,8 @@ public class PostgreSqlQueueStorage : IQueueStorage
 
     public async Task<QueueEntry?> Dequeue(string queueName, CancellationToken cancellationToken = default)
     {
-        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
-        var transaction = _connectionProvider.GetTransaction();
+        var connection = await GetConnectionAsync();
+        var transaction = GetTransaction();
 
         try
         {
@@ -206,7 +223,7 @@ public class PostgreSqlQueueStorage : IQueueStorage
 
                 if (transaction == null) await localTransaction.CommitAsync(cancellationToken);
 
-                var message = JsonSerializer.Deserialize<IMessage>(payload, _jsonOptionsProvider.GetOptions());
+                var message = JsonSerializer.Deserialize<IMessage>(payload, _jsonOptions);
 
                 return new QueueEntry
                 {
@@ -235,8 +252,8 @@ public class PostgreSqlQueueStorage : IQueueStorage
 
     public async Task<IEnumerable<QueueEntry>> Peek(string queueName, int count = 1, CancellationToken cancellationToken = default)
     {
-        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
-        var transaction = _connectionProvider.GetTransaction();
+        var connection = await GetConnectionAsync();
+        var transaction = GetTransaction();
 
         try
         {
@@ -271,7 +288,7 @@ public class PostgreSqlQueueStorage : IQueueStorage
                 var dequeueCount = reader.GetInt32(6);
                 var delayMinutes = reader.IsDBNull(7) ? (int?)null : reader.GetInt32(7);
 
-                var message = JsonSerializer.Deserialize<IMessage>(payload, _jsonOptionsProvider.GetOptions());
+                var message = JsonSerializer.Deserialize<IMessage>(payload, _jsonOptions);
 
                 entries.Add(new QueueEntry
                 {
@@ -297,8 +314,8 @@ public class PostgreSqlQueueStorage : IQueueStorage
 
     public async Task<bool> Acknowledge(string queueName, string entryId, CancellationToken cancellationToken = default)
     {
-        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
-        var transaction = _connectionProvider.GetTransaction();
+        var connection = await GetConnectionAsync();
+        var transaction = GetTransaction();
 
         try
         {
@@ -323,8 +340,8 @@ public class PostgreSqlQueueStorage : IQueueStorage
 
     public async Task<bool> Reject(string queueName, string entryId, bool requeue = false, CancellationToken cancellationToken = default)
     {
-        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
-        var transaction = _connectionProvider.GetTransaction();
+        var connection = await GetConnectionAsync();
+        var transaction = GetTransaction();
 
         try
         {
@@ -369,8 +386,8 @@ public class PostgreSqlQueueStorage : IQueueStorage
 
     public async Task<long> GetQueueDepth(string queueName, CancellationToken cancellationToken = default)
     {
-        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
-        var transaction = _connectionProvider.GetTransaction();
+        var connection = await GetConnectionAsync();
+        var transaction = GetTransaction();
 
         try
         {
@@ -403,8 +420,8 @@ public class PostgreSqlQueueStorage : IQueueStorage
 
     public async Task<bool> DeleteQueue(string queueName, CancellationToken cancellationToken = default)
     {
-        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
-        var transaction = _connectionProvider.GetTransaction();
+        var connection = await GetConnectionAsync();
+        var transaction = GetTransaction();
 
         try
         {
@@ -427,8 +444,8 @@ public class PostgreSqlQueueStorage : IQueueStorage
 
     public async Task<IEnumerable<string>> GetQueues(CancellationToken cancellationToken = default)
     {
-        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
-        var transaction = _connectionProvider.GetTransaction();
+        var connection = await GetConnectionAsync();
+        var transaction = GetTransaction();
 
         try
         {
@@ -457,8 +474,8 @@ public class PostgreSqlQueueStorage : IQueueStorage
 
     public async Task<bool> QueueExists(string queueName, CancellationToken cancellationToken = default)
     {
-        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
-        var transaction = _connectionProvider.GetTransaction();
+        var connection = await GetConnectionAsync();
+        var transaction = GetTransaction();
 
         try
         {

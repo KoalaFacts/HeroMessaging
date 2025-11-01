@@ -79,18 +79,18 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxEntry>, IOutbo
 
             await _outboxStorage.MarkProcessed(entry.Id);
 
-            _logger.LogInformation("Outbox entry {EntryId} processed successfully", entry.Id);
+            Logger.LogInformation("Outbox entry {EntryId} processed successfully", entry.Id);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error processing outbox entry {EntryId}", entry.Id);
+            Logger.LogError(ex, "Error processing outbox entry {EntryId}", entry.Id);
 
             entry.RetryCount++;
 
             if (entry.RetryCount >= entry.Options.MaxRetries)
             {
                 await _outboxStorage.MarkFailed(entry.Id, ex.Message);
-                _logger.LogError("Outbox entry {EntryId} failed after {RetryCount} retries",
+                Logger.LogError("Outbox entry {EntryId} failed after {RetryCount} retries",
                     entry.Id, entry.RetryCount);
             }
             else
@@ -100,7 +100,7 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxEntry>, IOutbo
 
                 await _outboxStorage.UpdateRetryCount(entry.Id, entry.RetryCount, nextRetry);
 
-                _logger.LogWarning("Outbox entry {EntryId} will be retried at {NextRetry} (attempt {RetryCount}/{MaxRetries})",
+                Logger.LogWarning("Outbox entry {EntryId} will be retried at {NextRetry} (attempt {RetryCount}/{MaxRetries})",
                     entry.Id, nextRetry, entry.RetryCount, entry.Options.MaxRetries);
             }
         }
@@ -110,7 +110,7 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxEntry>, IOutbo
     {
         // This is where you would implement actual external system integration
         // For now, we'll simulate it
-        _logger.LogInformation("Sending message {MessageId} to external system: {Destination}",
+        Logger.LogInformation("Sending message {MessageId} to external system: {Destination}",
             entry.Message.MessageId, entry.Options.Destination);
 
         // Simulate network call

@@ -9,7 +9,7 @@ namespace HeroMessaging.Abstractions.Processing;
 /// <typeparam name="TWorkItem">The type of work item to process</typeparam>
 public abstract class PollingBackgroundServiceBase<TWorkItem>
 {
-    private readonly ILogger _logger;
+    protected ILogger Logger { get; }
     private readonly ActionBlock<TWorkItem> _processingBlock;
     private CancellationTokenSource? _cancellationTokenSource;
     private Task? _pollingTask;
@@ -20,7 +20,7 @@ public abstract class PollingBackgroundServiceBase<TWorkItem>
         int boundedCapacity = 100,
         bool ensureOrdered = false)
     {
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        Logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
         _processingBlock = new ActionBlock<TWorkItem>(
             ProcessWorkItem,
@@ -43,7 +43,7 @@ public abstract class PollingBackgroundServiceBase<TWorkItem>
         _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _pollingTask = RunPollingLoop(_cancellationTokenSource.Token);
 
-        _logger.LogInformation("{ServiceName} started", GetServiceName());
+        Logger.LogInformation("{ServiceName} started", GetServiceName());
         return Task.CompletedTask;
     }
 
@@ -60,7 +60,7 @@ public abstract class PollingBackgroundServiceBase<TWorkItem>
 
         await _processingBlock.Completion;
 
-        _logger.LogInformation("{ServiceName} stopped", GetServiceName());
+        Logger.LogInformation("{ServiceName} stopped", GetServiceName());
     }
 
     /// <summary>
@@ -97,7 +97,7 @@ public abstract class PollingBackgroundServiceBase<TWorkItem>
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error in {ServiceName} polling loop", GetServiceName());
+                Logger.LogError(ex, "Error in {ServiceName} polling loop", GetServiceName());
                 await Task.Delay(GetErrorDelay(), cancellationToken);
             }
         }

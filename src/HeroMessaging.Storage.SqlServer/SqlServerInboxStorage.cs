@@ -60,22 +60,7 @@ public class SqlServerInboxStorage : IInboxStorage
 
     private async Task InitializeDatabase()
     {
-        using var connection = new SqlConnection(_connectionString);
-        await connection.OpenAsync();
-
-        // Create schema if it doesn't exist
-        if (!string.IsNullOrEmpty(_options.Schema) && _options.Schema != "dbo")
-        {
-            var createSchemaSql = $"""
-                IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = '{_options.Schema}')
-                BEGIN
-                    EXEC('CREATE SCHEMA [{_options.Schema}]')
-                END
-                """;
-
-            using var schemaCommand = new SqlCommand(createSchemaSql, connection);
-            await schemaCommand.ExecuteNonQueryAsync();
-        }
+        await _schemaInitializer.InitializeSchemaAsync(_options.Schema, CancellationToken.None);
 
         var createTableSql = $"""
             IF NOT EXISTS (SELECT * FROM sys.tables t
@@ -100,8 +85,7 @@ public class SqlServerInboxStorage : IInboxStorage
             END
             """;
 
-        using var command = new SqlCommand(createTableSql, connection);
-        await command.ExecuteNonQueryAsync();
+        await _schemaInitializer.ExecuteSchemaScriptAsync(createTableSql, CancellationToken.None);
     }
 
     public async Task<InboxEntry?> Add(IMessage message, InboxOptions options, CancellationToken cancellationToken = default)

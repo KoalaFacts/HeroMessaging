@@ -132,6 +132,9 @@ public sealed class InMemoryTransportInstrumentationIntegrationTests : IDisposab
             // Wait for message
             var received = await messageReceived.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
+            // Record observable instruments to ensure metrics are collected
+            _meterListener.RecordObservableInstruments();
+
             // Assert
             Assert.True(received, "Message should be received");
             Assert.NotNull(receivedEnvelope);
