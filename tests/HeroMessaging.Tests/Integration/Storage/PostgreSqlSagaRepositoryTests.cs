@@ -1,6 +1,7 @@
 using HeroMessaging.Abstractions.Sagas;
 using HeroMessaging.Storage.PostgreSql;
 using Microsoft.Extensions.Time.Testing;
+using Testcontainers.PostgreSql;
 using Xunit;
 
 namespace HeroMessaging.Tests.Integration.Storage;
@@ -8,13 +9,8 @@ namespace HeroMessaging.Tests.Integration.Storage;
 [Trait("Category", "Integration")]
 public class PostgreSqlSagaRepositoryTests : IAsyncLifetime
 {
-    // Use CI connection string if available, otherwise fall back to localhost for local development
-    private static readonly string ConnectionString =
-        Environment.GetEnvironmentVariable("PostgreSql__ConnectionString")
-        ?? "Host=localhost;Database=heromessaging_tests;Username=postgres;Password=postgres";
-
+    private PostgreSqlContainer? _postgreSqlContainer;
     private PostgreSqlStorageOptions? _options;
-    private bool _skipTests;
 
     private class TestSaga : SagaBase
     {
@@ -24,37 +20,40 @@ public class PostgreSqlSagaRepositoryTests : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
-        try
-        {
-            _options = new PostgreSqlStorageOptions
-            {
-                ConnectionString = ConnectionString,
-                Schema = "test",
-                SagasTableName = $"sagas_{Guid.NewGuid():N}",
-                AutoCreateTables = true
-            };
+        // Create and start PostgreSQL container
+        _postgreSqlContainer = new PostgreSqlBuilder()
+            .WithImage("postgres:17-alpine")
+            .WithPassword("postgres")
+            .Build();
 
-            // Try to create a repository to verify database connectivity
-            var testRepo = new PostgreSqlSagaRepository<TestSaga>(_options, TimeProvider.System);
-            _skipTests = false;
-        }
-        catch
-        {
-            _skipTests = true;
-        }
+        await _postgreSqlContainer.StartAsync();
 
-        await ValueTask.CompletedTask;
+        // Create storage options with container connection string
+        _options = new PostgreSqlStorageOptions
+        {
+            ConnectionString = _postgreSqlContainer.GetConnectionString(),
+            Schema = "test",
+            SagasTableName = $"sagas_{Guid.NewGuid():N}",
+            AutoCreateTables = true
+        };
     }
 
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
-        return ValueTask.CompletedTask;
+        if (_postgreSqlContainer != null)
+        {
+            await _postgreSqlContainer.StopAsync();
+            await _postgreSqlContainer.DisposeAsync();
+        }
     }
 
     private PostgreSqlSagaRepository<TestSaga> CreateRepository(TimeProvider? timeProvider = null)
     {
-        Assert.SkipWhen(_skipTests || _options == null, "PostgreSQL not available for integration tests");
-        return new PostgreSqlSagaRepository<TestSaga>(_options!, timeProvider ?? TimeProvider.System);
+        if (_options == null)
+        {
+            throw new InvalidOperationException("Test not initialized");
+        }
+        return new PostgreSqlSagaRepository<TestSaga>(_options, timeProvider ?? TimeProvider.System);
     }
 
     [Fact]
@@ -135,8 +134,8 @@ public class PostgreSqlSagaRepositoryTests : IAsyncLifetime
         // Assert
         var retrieved = await repository.FindAsync(saga.CorrelationId);
         Assert.NotNull(retrieved);
-        Assert.Equal(DateTime.Parse("2025-10-27T10:00:00Z"), retrieved!.CreatedAt);
-        Assert.Equal(DateTime.Parse("2025-10-27T10:00:00Z"), retrieved.UpdatedAt);
+        Assert.Equal(new DateTime(2025, 10, 27, 10, 0, 0, DateTimeKind.Utc), retrieved!.CreatedAt);
+        Assert.Equal(new DateTime(2025, 10, 27, 10, 0, 0, DateTimeKind.Utc), retrieved.UpdatedAt);
     }
 
     [Fact]
@@ -238,8 +237,8 @@ public class PostgreSqlSagaRepositoryTests : IAsyncLifetime
 
         // Assert
         var updated = await repository.FindAsync(saga.CorrelationId);
-        Assert.Equal(DateTime.Parse("2025-10-27T10:00:00Z"), updated!.CreatedAt);
-        Assert.Equal(DateTime.Parse("2025-10-27T12:00:00Z"), updated.UpdatedAt);
+        Assert.Equal(new DateTime(2025, 10, 27, 10, 0, 0, DateTimeKind.Utc), updated!.CreatedAt);
+        Assert.Equal(new DateTime(2025, 10, 27, 12, 0, 0, DateTimeKind.Utc), updated.UpdatedAt);
     }
 
     [Fact]

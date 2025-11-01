@@ -132,6 +132,10 @@ public sealed class InMemoryTransportInstrumentationIntegrationTests : IDisposab
             // Wait for message
             var received = await messageReceived.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
+            // Wait a bit for consumer to finish recording metrics (race condition fix)
+            // The consumer records metrics AFTER the handler completes
+            await Task.Delay(100);
+
             // Record observable instruments to ensure metrics are collected
             _meterListener.RecordObservableInstruments();
 
