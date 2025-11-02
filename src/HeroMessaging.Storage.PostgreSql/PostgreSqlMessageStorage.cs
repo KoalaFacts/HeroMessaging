@@ -46,7 +46,7 @@ public class PostgreSqlMessageStorage : IMessageStorage
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
         // Use default options when using shared connection
-        _options = new PostgreSqlStorageOptions { ConnectionString = connection.ConnectionString };
+        _options = new PostgreSqlStorageOptions { ConnectionString = connection.ConnectionString! };
         _tableName = _options.GetFullTableName(_options.MessagesTableName);
 
         _jsonOptions = new JsonSerializerOptions
@@ -54,6 +54,23 @@ public class PostgreSqlMessageStorage : IMessageStorage
             PropertyNameCaseInsensitive = true,
             WriteIndented = false
         };
+    }
+
+    private async Task<NpgsqlConnection> GetConnectionAsync()
+    {
+        if (_sharedConnection != null)
+        {
+            return _sharedConnection;
+        }
+
+        var connection = new NpgsqlConnection(_connectionString);
+        await connection.OpenAsync();
+        return connection;
+    }
+
+    private NpgsqlTransaction? GetTransaction()
+    {
+        return _sharedTransaction;
     }
 
     private async Task InitializeDatabase()
@@ -96,15 +113,11 @@ public class PostgreSqlMessageStorage : IMessageStorage
 
     public async Task<string> Store(IMessage message, MessageStorageOptions? options = null, CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new NpgsqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await GetConnectionAsync();
+        var transaction = GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var messageId = Guid.NewGuid().ToString();
             var expiresAt = options?.Ttl != null
@@ -134,24 +147,16 @@ public class PostgreSqlMessageStorage : IMessageStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 
     public async Task<T?> Retrieve<T>(string messageId, CancellationToken cancellationToken = default) where T : IMessage
     {
-        var connection = _sharedConnection ?? new NpgsqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await GetConnectionAsync();
+        var transaction = GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var sql = $"""
                 SELECT payload FROM {_tableName}
@@ -173,24 +178,16 @@ public class PostgreSqlMessageStorage : IMessageStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 
     public async Task<bool> Delete(string messageId, CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new NpgsqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await GetConnectionAsync();
+        var transaction = GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var sql = $"DELETE FROM {_tableName} WHERE id = @id";
 
@@ -202,24 +199,16 @@ public class PostgreSqlMessageStorage : IMessageStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 
     public async Task<bool> Exists(string messageId, CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new NpgsqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await GetConnectionAsync();
+        var transaction = GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var sql = $"""
                 SELECT COUNT(1) FROM {_tableName}
@@ -235,24 +224,16 @@ public class PostgreSqlMessageStorage : IMessageStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 
     public async Task<IEnumerable<T>> Query<T>(MessageQuery query, CancellationToken cancellationToken = default) where T : IMessage
     {
-        var connection = _sharedConnection ?? new NpgsqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await GetConnectionAsync();
+        var transaction = GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var whereClauses = new List<string> { "(expires_at IS NULL OR expires_at > NOW())" };
             var parameters = new List<NpgsqlParameter>();
@@ -313,24 +294,16 @@ public class PostgreSqlMessageStorage : IMessageStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 
     public async Task<bool> Update(string messageId, IMessage message, CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new NpgsqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await GetConnectionAsync();
+        var transaction = GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var sql = $"""
                 UPDATE {_tableName}
@@ -353,24 +326,16 @@ public class PostgreSqlMessageStorage : IMessageStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 
     public async Task<long> Count(MessageQuery? query = null, CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new NpgsqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await GetConnectionAsync();
+        var transaction = GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var whereClauses = new List<string> { "(expires_at IS NULL OR expires_at > NOW())" };
             var parameters = new List<NpgsqlParameter>();
@@ -412,24 +377,16 @@ public class PostgreSqlMessageStorage : IMessageStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 
     public async Task Clear(CancellationToken cancellationToken = default)
     {
-        var connection = _sharedConnection ?? new NpgsqlConnection(_connectionString);
-        var transaction = _sharedTransaction;
+        var connection = await GetConnectionAsync();
+        var transaction = GetTransaction();
 
         try
         {
-            if (_sharedConnection == null)
-            {
-                await connection.OpenAsync(cancellationToken);
-            }
 
             var sql = $"TRUNCATE TABLE {_tableName}";
 
@@ -438,10 +395,6 @@ public class PostgreSqlMessageStorage : IMessageStorage
         }
         finally
         {
-            if (_sharedConnection == null)
-            {
-                await connection.DisposeAsync();
-            }
         }
     }
 

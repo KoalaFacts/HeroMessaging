@@ -46,38 +46,19 @@ public class TransactionEventBusDecorator(
 /// </summary>
 public class TransactionEventHandlerWrapper<TEvent>(
     Func<TEvent, CancellationToken, Task> handler,
-    IUnitOfWorkFactory unitOfWorkFactory,
-    ILogger<TransactionEventHandlerWrapper<TEvent>> logger,
+    ITransactionExecutor transactionExecutor,
     IsolationLevel isolationLevel = IsolationLevel.ReadCommitted) where TEvent : IEvent
 {
     private readonly Func<TEvent, CancellationToken, Task> _handler = handler ?? throw new ArgumentNullException(nameof(handler));
-    private readonly IUnitOfWorkFactory _unitOfWorkFactory = unitOfWorkFactory ?? throw new ArgumentNullException(nameof(unitOfWorkFactory));
-    private readonly ILogger<TransactionEventHandlerWrapper<TEvent>> _logger = logger;
+    private readonly ITransactionExecutor _transactionExecutor = transactionExecutor ?? throw new ArgumentNullException(nameof(transactionExecutor));
     private readonly IsolationLevel _isolationLevel = isolationLevel;
 
     public async Task HandleAsync(TEvent @event, CancellationToken cancellationToken = default)
     {
-        await using var unitOfWork = await _unitOfWorkFactory.CreateAsync(_isolationLevel, cancellationToken);
-
-        try
-        {
-            _logger.LogDebug("Starting transaction for event handler {EventType} with ID {EventId}",
-                typeof(TEvent).Name, @event.MessageId);
-
-            await _handler(@event, cancellationToken);
-
-            await unitOfWork.CommitAsync(cancellationToken);
-
-            _logger.LogDebug("Transaction committed successfully for event handler {EventType} with ID {EventId}",
-                typeof(TEvent).Name, @event.MessageId);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Transaction rollback for event handler {EventType} with ID {EventId}",
-                typeof(TEvent).Name, @event.MessageId);
-
-            await unitOfWork.RollbackAsync(cancellationToken);
-            throw;
-        }
+        await _transactionExecutor.ExecuteInTransactionAsync(
+            async ct => await _handler(@event, ct),
+            $"event handler {typeof(TEvent).Name} with ID {@event.MessageId}",
+            _isolationLevel,
+            cancellationToken);
     }
 }

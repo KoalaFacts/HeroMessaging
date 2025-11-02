@@ -56,6 +56,23 @@ public class SqlServerMessageStorage : IMessageStorage
         };
     }
 
+    private async Task<SqlConnection> GetConnectionAsync()
+    {
+        if (_sharedConnection != null)
+        {
+            return _sharedConnection;
+        }
+
+        var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync();
+        return connection;
+    }
+
+    private SqlTransaction? GetTransaction()
+    {
+        return _sharedTransaction;
+    }
+
     private async Task InitializeDatabase()
     {
         using var connection = new SqlConnection(_connectionString);

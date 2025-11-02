@@ -1,18 +1,20 @@
 using HeroMessaging.Abstractions.Serialization;
 using ProtoBuf;
 using ProtoBuf.Meta;
-using System.IO.Compression;
 
 namespace HeroMessaging.Serialization.Protobuf;
 
 /// <summary>
 /// Protocol Buffers serializer for efficient binary serialization
 /// </summary>
-public class ProtobufMessageSerializer(SerializationOptions? options = null, RuntimeTypeModel? typeModel = null) : IMessageSerializer
+public class ProtobufMessageSerializer(
+    SerializationOptions? options = null,
+    RuntimeTypeModel? typeModel = null,
+    ICompressionProvider? compressionProvider = null) : IMessageSerializer
 {
     private readonly SerializationOptions _options = options ?? new SerializationOptions();
     private readonly RuntimeTypeModel _typeModel = typeModel ?? RuntimeTypeModel.Default;
-
+    private readonly ICompressionProvider _compressionProvider = compressionProvider ?? new GZipCompressionProvider();
 
     public string ContentType => "application/x-protobuf";
 
@@ -34,7 +36,7 @@ public class ProtobufMessageSerializer(SerializationOptions? options = null, Run
 
         if (_options.EnableCompression)
         {
-            data = await CompressAsync(data, cancellationToken);
+            data = await _compressionProvider.CompressAsync(data, _options.CompressionLevel, cancellationToken);
         }
 
         return data;
@@ -49,7 +51,7 @@ public class ProtobufMessageSerializer(SerializationOptions? options = null, Run
 
         if (_options.EnableCompression)
         {
-            data = await DecompressAsync(data, cancellationToken);
+            data = await _compressionProvider.DecompressAsync(data, cancellationToken);
         }
 
         using var stream = new MemoryStream(data);
@@ -66,54 +68,26 @@ public class ProtobufMessageSerializer(SerializationOptions? options = null, Run
 
         if (_options.EnableCompression)
         {
-            data = await DecompressAsync(data, cancellationToken);
+            data = await _compressionProvider.DecompressAsync(data, cancellationToken);
         }
 
         using var stream = new MemoryStream(data);
         var result = _typeModel.Deserialize(stream, null, messageType);
         return result;
     }
-
-    private async ValueTask<byte[]> CompressAsync(byte[] data, CancellationToken cancellationToken)
-    {
-        using var output = new MemoryStream();
-
-        var compressionLevel = _options.CompressionLevel switch
-        {
-            Abstractions.Serialization.CompressionLevel.None => System.IO.Compression.CompressionLevel.NoCompression,
-            Abstractions.Serialization.CompressionLevel.Fastest => System.IO.Compression.CompressionLevel.Fastest,
-            Abstractions.Serialization.CompressionLevel.Optimal => System.IO.Compression.CompressionLevel.Optimal,
-            Abstractions.Serialization.CompressionLevel.Maximum => System.IO.Compression.CompressionLevel.Optimal,
-            _ => System.IO.Compression.CompressionLevel.Optimal
-        };
-
-        using (var gzip = new GZipStream(output, compressionLevel))
-        {
-            await gzip.WriteAsync(data, 0, data.Length, cancellationToken);
-        }
-
-        return output.ToArray();
-    }
-
-    private async ValueTask<byte[]> DecompressAsync(byte[] data, CancellationToken cancellationToken)
-    {
-        using var input = new MemoryStream(data);
-        using var output = new MemoryStream();
-        using var gzip = new GZipStream(input, CompressionMode.Decompress);
-
-        await gzip.CopyToAsync(output, cancellationToken);
-        return output.ToArray();
-    }
 }
 
 /// <summary>
 /// Protobuf serializer with type information included for polymorphic scenarios
 /// </summary>
-public class TypedProtobufMessageSerializer(SerializationOptions? options = null, RuntimeTypeModel? typeModel = null) : IMessageSerializer
+public class TypedProtobufMessageSerializer(
+    SerializationOptions? options = null,
+    RuntimeTypeModel? typeModel = null,
+    ICompressionProvider? compressionProvider = null) : IMessageSerializer
 {
     private readonly SerializationOptions _options = options ?? new SerializationOptions();
     private readonly RuntimeTypeModel _typeModel = typeModel ?? RuntimeTypeModel.Default;
-
+    private readonly ICompressionProvider _compressionProvider = compressionProvider ?? new GZipCompressionProvider();
 
     public string ContentType => "application/x-protobuf-typed";
 
@@ -145,7 +119,7 @@ public class TypedProtobufMessageSerializer(SerializationOptions? options = null
 
         if (_options.EnableCompression)
         {
-            data = await CompressAsync(data, cancellationToken);
+            data = await _compressionProvider.CompressAsync(data, _options.CompressionLevel, cancellationToken);
         }
 
         return data;
@@ -160,7 +134,7 @@ public class TypedProtobufMessageSerializer(SerializationOptions? options = null
 
         if (_options.EnableCompression)
         {
-            data = await DecompressAsync(data, cancellationToken);
+            data = await _compressionProvider.DecompressAsync(data, cancellationToken);
         }
 
         using var stream = new MemoryStream(data);
@@ -184,7 +158,7 @@ public class TypedProtobufMessageSerializer(SerializationOptions? options = null
 
         if (_options.EnableCompression)
         {
-            data = await DecompressAsync(data, cancellationToken);
+            data = await _compressionProvider.DecompressAsync(data, cancellationToken);
         }
 
         using var stream = new MemoryStream(data);
@@ -205,36 +179,5 @@ public class TypedProtobufMessageSerializer(SerializationOptions? options = null
 
         var result = _typeModel.DeserializeWithLengthPrefix(stream, null, messageType, PrefixStyle.Base128, 0);
         return result;
-    }
-
-    private async ValueTask<byte[]> CompressAsync(byte[] data, CancellationToken cancellationToken)
-    {
-        using var output = new MemoryStream();
-
-        var compressionLevel = _options.CompressionLevel switch
-        {
-            Abstractions.Serialization.CompressionLevel.None => System.IO.Compression.CompressionLevel.NoCompression,
-            Abstractions.Serialization.CompressionLevel.Fastest => System.IO.Compression.CompressionLevel.Fastest,
-            Abstractions.Serialization.CompressionLevel.Optimal => System.IO.Compression.CompressionLevel.Optimal,
-            Abstractions.Serialization.CompressionLevel.Maximum => System.IO.Compression.CompressionLevel.Optimal,
-            _ => System.IO.Compression.CompressionLevel.Optimal
-        };
-
-        using (var gzip = new GZipStream(output, compressionLevel))
-        {
-            await gzip.WriteAsync(data, 0, data.Length, cancellationToken);
-        }
-
-        return output.ToArray();
-    }
-
-    private async ValueTask<byte[]> DecompressAsync(byte[] data, CancellationToken cancellationToken)
-    {
-        using var input = new MemoryStream(data);
-        using var output = new MemoryStream();
-        using var gzip = new GZipStream(input, CompressionMode.Decompress);
-
-        await gzip.CopyToAsync(output, cancellationToken);
-        return output.ToArray();
     }
 }
