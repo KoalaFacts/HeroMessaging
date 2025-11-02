@@ -33,6 +33,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HeroMessaging.Storage.Postg
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HeroMessaging.Benchmarks", "tests\HeroMessaging.Benchmarks\HeroMessaging.Benchmarks.csproj", "{A1B2C3D4-E5F6-4A5B-8C7D-9E0F1A2B3C4D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HeroMessaging.Tests.Integration", "tests\HeroMessaging.Tests.Integration\HeroMessaging.Tests.Integration.csproj", "{51E3BC71-6EA3-4361-A9AC-46014057F79C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -199,6 +201,18 @@ Global
 		{A1B2C3D4-E5F6-4A5B-8C7D-9E0F1A2B3C4D}.Release|x64.Build.0 = Release|Any CPU
 		{A1B2C3D4-E5F6-4A5B-8C7D-9E0F1A2B3C4D}.Release|x86.ActiveCfg = Release|Any CPU
 		{A1B2C3D4-E5F6-4A5B-8C7D-9E0F1A2B3C4D}.Release|x86.Build.0 = Release|Any CPU
+		{51E3BC71-6EA3-4361-A9AC-46014057F79C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{51E3BC71-6EA3-4361-A9AC-46014057F79C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{51E3BC71-6EA3-4361-A9AC-46014057F79C}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{51E3BC71-6EA3-4361-A9AC-46014057F79C}.Debug|x64.Build.0 = Debug|Any CPU
+		{51E3BC71-6EA3-4361-A9AC-46014057F79C}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{51E3BC71-6EA3-4361-A9AC-46014057F79C}.Debug|x86.Build.0 = Debug|Any CPU
+		{51E3BC71-6EA3-4361-A9AC-46014057F79C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{51E3BC71-6EA3-4361-A9AC-46014057F79C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{51E3BC71-6EA3-4361-A9AC-46014057F79C}.Release|x64.ActiveCfg = Release|Any CPU
+		{51E3BC71-6EA3-4361-A9AC-46014057F79C}.Release|x64.Build.0 = Release|Any CPU
+		{51E3BC71-6EA3-4361-A9AC-46014057F79C}.Release|x86.ActiveCfg = Release|Any CPU
+		{51E3BC71-6EA3-4361-A9AC-46014057F79C}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -217,5 +231,6 @@ Global
 		{5D538DC8-BFEF-4F42-B27D-8F207532212C} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{C57882BB-1F0B-467C-91EE-35870B6FE813} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{A1B2C3D4-E5F6-4A5B-8C7D-9E0F1A2B3C4D} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{51E3BC71-6EA3-4361-A9AC-46014057F79C} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal
