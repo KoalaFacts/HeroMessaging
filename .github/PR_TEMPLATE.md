@@ -17,7 +17,7 @@ This PR implements a production-ready RabbitMQ transport for HeroMessaging, enab
 - **Total: 143 Tests** with ~100% public API coverage
 
 ### Documentation
-- **ADR 0002**: Comprehensive architectural decision record with implementation strategy
+- **ADR 0003**: Comprehensive architectural decision record with implementation strategy
 - **XML Documentation**: All public APIs fully documented
 - **Implementation checklist**: Tracked progress and completion status
 
@@ -35,7 +35,7 @@ This PR implements a production-ready RabbitMQ transport for HeroMessaging, enab
 ### New Files (16)
 - `src/HeroMessaging.Transport.RabbitMQ/` - Core implementation (5 files, 1,373 lines)
 - `tests/HeroMessaging.Transport.RabbitMQ.Tests/` - Test suite (8 files, 2,776 lines)
-- `docs/adr/0002-rabbitmq-transport.md` - Architecture decision record
+- `docs/adr/0003-rabbitmq-transport.md` - Architecture decision record
 
 ### Modified Files (3)
 - `src/HeroMessaging.Abstractions/Transport/TransportOptions.cs` - Added `RabbitMqTransportOptions` with channel pool settings

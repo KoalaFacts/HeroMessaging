@@ -274,8 +274,8 @@ Significant design decisions should be documented as Architecture Decision Recor
 3. Include: Context, Decision, Consequences, Alternatives Considered
 
 See existing ADRs for examples:
-- [docs/adr/0001-transport-abstraction-layer.md](docs/adr/0001-transport-abstraction-layer.md)
-- [docs/adr/0003-state-machine-patterns-research.md](docs/adr/0003-state-machine-patterns-research.md)
+- [docs/adr/0002-transport-abstraction-layer.md](docs/adr/0002-transport-abstraction-layer.md)
+- [docs/adr/0004-saga-patterns.md](docs/adr/0004-saga-patterns.md)
 
 ## Pull Request Process
 

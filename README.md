@@ -204,8 +204,8 @@ dotnet run --project tests/HeroMessaging.Benchmarks --configuration Release
 
 - **[Saga Orchestration Guide](docs/orchestration-pattern.md)** - Complete guide to saga patterns
 - **[Choreography Pattern](docs/choreography-pattern.md)** - Event-driven choreography documentation
-- **[Test Guide](docs/TEST-GUIDE.md)** - Testing infrastructure and patterns
-- **[OpenTelemetry Integration](docs/OPENTELEMETRY_INTEGRATION.md)** - Observability setup
+- **[Testing Guide](docs/testing-guide.md)** - Testing infrastructure and patterns
+- **[OpenTelemetry Integration](docs/opentelemetry-integration.md)** - Observability setup
 - **[Architecture Decision Records](docs/adr/)** - Design decisions and rationale
 
 ## Development

@@ -40,7 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Documentation**:
   - `docs/orchestration-pattern.md` - Complete orchestration guide
   - `docs/choreography-pattern.md` - Choreography pattern documentation
-  - `docs/adr/0003-state-machine-patterns-research.md` - Implementation summary
+  - `docs/adr/0004-saga-patterns.md` - Implementation summary
   - Comprehensive code examples in tests
 
 ### Changed
@@ -87,7 +87,7 @@ services.AddHeroMessaging(builder =>
 ```
 
 ### References
-- ADR-0003: State Machine Patterns - Choreography vs Orchestration
+- ADR-0004: Saga Patterns - Choreography vs Orchestration
 - Examples: `tests/HeroMessaging.Tests/Examples/OrderSagaExample.cs`
 - Integration Tests: `tests/HeroMessaging.Tests/Integration/OrchestrationWorkflowTests.cs`
 

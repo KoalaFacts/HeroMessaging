@@ -7,11 +7,11 @@ This directory contains comprehensive documentation for HeroMessaging.
 ### User Documentation
 - **[Saga Orchestration Pattern](orchestration-pattern.md)** - Complete guide to implementing sagas with state machines
 - **[Choreography Pattern](choreography-pattern.md)** - Event-driven choreography for distributed systems
-- **[OpenTelemetry Integration](OPENTELEMETRY_INTEGRATION.md)** - Distributed tracing and observability setup
-- **[Builder API Guide](enhanced-builder-api.md)** - Fluent API for configuring HeroMessaging
+- **[OpenTelemetry Integration](opentelemetry-integration.md)** - Distributed tracing and observability setup
+- **[Builder API Guide](builder-api-guide.md)** - Fluent API for configuring HeroMessaging
 
 ### Developer Documentation
-- **[Test Guide](TEST-GUIDE.md)** - Testing infrastructure, patterns, and guidelines
+- **[Testing Guide](testing-guide.md)** - Testing infrastructure, patterns, and guidelines
 - **[Architecture Decision Records (ADRs)](adr/)** - Design decisions and rationale
 
 ## Architecture Decision Records
@@ -19,9 +19,9 @@ This directory contains comprehensive documentation for HeroMessaging.
 ADRs document significant architectural decisions:
 
 - **[0001-message-scheduling.md](adr/0001-message-scheduling.md)** - Message scheduling approach
-- **[0001-transport-abstraction-layer.md](adr/0001-transport-abstraction-layer.md)** - Transport abstraction design
-- **[0002-rabbitmq-transport.md](adr/0002-rabbitmq-transport.md)** - RabbitMQ integration decisions
-- **[0003-state-machine-patterns-research.md](adr/0003-state-machine-patterns-research.md)** - Saga patterns (orchestration vs choreography)
+- **[0002-transport-abstraction-layer.md](adr/0002-transport-abstraction-layer.md)** - Transport abstraction design
+- **[0003-rabbitmq-transport.md](adr/0003-rabbitmq-transport.md)** - RabbitMQ integration decisions
+- **[0004-saga-patterns.md](adr/0004-saga-patterns.md)** - Saga patterns (orchestration vs choreography)
 
 ## Getting Started
 
@@ -29,7 +29,7 @@ New to HeroMessaging? Start here:
 
 1. **[Main README](../README.md)** - Project overview and quick start
 2. **[Contributing Guide](../CONTRIBUTING.md)** - Development workflow and standards
-3. **[Test Guide](TEST-GUIDE.md)** - Testing approach and infrastructure
+3. **[Testing Guide](testing-guide.md)** - Testing approach and infrastructure
 
 ## Pattern Guides
 
@@ -93,7 +93,7 @@ services.AddOpenTelemetry()
         .AddOtlpExporter());
 ```
 
-See [OPENTELEMETRY_INTEGRATION.md](OPENTELEMETRY_INTEGRATION.md) for setup details.
+See [opentelemetry-integration.md](opentelemetry-integration.md) for setup details.
 
 ## Testing
 
@@ -104,7 +104,7 @@ HeroMessaging includes comprehensive testing infrastructure:
 - **Performance Benchmarks**: BenchmarkDotNet for performance validation
 - **Contract Tests**: API contract validation
 
-See [TEST-GUIDE.md](TEST-GUIDE.md) for testing patterns and infrastructure.
+See [testing-guide.md](testing-guide.md) for testing patterns and infrastructure.
 
 ## Contributing Documentation
 
