@@ -1,12 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
-    <PackageId>HeroMessaging.Transport.RabbitMQ</PackageId>
-    <PackageVersion>1.0.0</PackageVersion>
-    <Authors>HeroMessaging</Authors>
-    <Description>RabbitMQ transport implementation for HeroMessaging</Description>
-    <PackageTags>messaging;rabbitmq;amqp;transport</PackageTags>
+    <Description>Production-ready RabbitMQ transport plugin for HeroMessaging. Features connection pooling, publisher confirms, automatic reconnection, and declarative topology configuration.</Description>
+    <PackageTags>messaging;rabbitmq;amqp;transport;distributed;messagebus</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>

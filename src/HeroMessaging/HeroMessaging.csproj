@@ -4,9 +4,14 @@
     <AssemblyName>HeroMessaging</AssemblyName>
     <RootNamespace>HeroMessaging</RootNamespace>
     <PackageId>HeroMessaging</PackageId>
-    <Description>Lightweight, high-performance messaging library with in-memory defaults</Description>
-    <PackageTags>messaging;mediator;cqrs;eventbus;queue;outbox;inbox</PackageTags>
+    <Description>Lightweight, high-performance messaging library for .NET with saga orchestration, CQRS support, and pluggable infrastructure. Features include in-process messaging, inbox/outbox patterns, state machine-based sagas, and extensible serialization/storage/transport layers.</Description>
+    <PackageTags>messaging;mediator;cqrs;eventbus;queue;outbox;inbox;saga;orchestration;choreography;state-machine;distributed-transactions</PackageTags>
   </PropertyGroup>
+
+  <!-- Include README in package -->
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
   
   <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
     <PackageReference Include="System.Threading.Tasks.Dataflow" Version="9.0.9" />
