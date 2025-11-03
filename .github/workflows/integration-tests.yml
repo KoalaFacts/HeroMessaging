@@ -143,7 +143,7 @@ jobs:
             --filter "Category=Integration" \
             --collect:"XPlat Code Coverage" \
             --results-directory ./test-results \
-            --logger "trx;LogFileName=integration-tests-net9.0.trx" \
+            --logger "trx;LogFileName=integration-test-{assembly}.trx" \
             -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
 
       - name: Upload integration test results
