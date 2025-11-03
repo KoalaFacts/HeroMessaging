@@ -604,7 +604,7 @@ See `tests/HeroMessaging.Tests/Examples/OrderSagaExample.cs` for a complete impl
 
 ## References
 
-- [ADR-0003: State Machine Patterns Research](../docs/adr/0003-state-machine-patterns-research.md)
-- [Choreography Pattern](./choreography-pattern.md)
+- [ADR-0004: Saga Patterns](adr/0004-saga-patterns.md)
+- [Choreography Pattern](choreography-pattern.md)
 - [ISaga Interface](../src/HeroMessaging.Abstractions/Sagas/ISaga.cs)
 - [SagaOrchestrator](../src/HeroMessaging/Orchestration/SagaOrchestrator.cs)

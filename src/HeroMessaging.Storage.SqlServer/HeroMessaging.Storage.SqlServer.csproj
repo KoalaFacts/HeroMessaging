@@ -2,6 +2,8 @@
   <!-- SQL Server driver doesn't support netstandard2.0 with latest versions -->
   <PropertyGroup>
     <TargetFrameworks>net6.0;net7.0;net8.0;net9.0</TargetFrameworks>
+    <Description>SQL Server storage plugin for HeroMessaging. Provides persistent inbox, outbox, and saga repository implementations using Microsoft SQL Server.</Description>
+    <PackageTags>messaging;storage;sqlserver;persistence;saga;inbox;outbox</PackageTags>
   </PropertyGroup>
   
   <ItemGroup>

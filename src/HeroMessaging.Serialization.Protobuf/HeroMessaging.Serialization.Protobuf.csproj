@@ -3,12 +3,8 @@
   <PropertyGroup>
     <!-- protobuf-net v3.x doesn't support netstandard2.0 -->
     <TargetFrameworks>net6.0;net7.0;net8.0;net9.0</TargetFrameworks>
-    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
-    <PackageId>HeroMessaging.Serialization.Protobuf</PackageId>
-    <PackageVersion>1.0.0</PackageVersion>
-    <Authors>HeroMessaging</Authors>
-    <Description>Protocol Buffers serialization support for HeroMessaging</Description>
-    <PackageTags>messaging;serialization;protobuf</PackageTags>
+    <Description>Protocol Buffers serialization plugin for HeroMessaging. Provides efficient binary serialization using protobuf-net for cross-platform messaging.</Description>
+    <PackageTags>messaging;serialization;protobuf;protocol-buffers;binary</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>

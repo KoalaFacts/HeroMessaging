@@ -2,6 +2,8 @@
   <!-- PostgreSQL driver doesn't support netstandard2.0 with latest versions -->
   <PropertyGroup>
     <TargetFrameworks>net6.0;net7.0;net8.0;net9.0</TargetFrameworks>
+    <Description>PostgreSQL storage plugin for HeroMessaging. Provides persistent inbox, outbox, and saga repository implementations using PostgreSQL.</Description>
+    <PackageTags>messaging;storage;postgresql;postgres;persistence;saga;inbox;outbox</PackageTags>
   </PropertyGroup>
   
   <ItemGroup>

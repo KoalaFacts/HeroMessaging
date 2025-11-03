@@ -1,12 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
-    <PackageId>HeroMessaging.Serialization.Json</PackageId>
-    <PackageVersion>1.0.0</PackageVersion>
-    <Authors>HeroMessaging</Authors>
-    <Description>JSON serialization support for HeroMessaging</Description>
-    <PackageTags>messaging;serialization;json</PackageTags>
+    <Description>System.Text.Json serialization plugin for HeroMessaging. Provides JSON message serialization with high performance and .NET integration.</Description>
+    <PackageTags>messaging;serialization;json;system-text-json</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>
