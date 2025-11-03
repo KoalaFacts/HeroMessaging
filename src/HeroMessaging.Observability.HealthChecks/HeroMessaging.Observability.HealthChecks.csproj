@@ -1,10 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <AssemblyName>HeroMessaging.Observability.HealthChecks</AssemblyName>
-    <RootNamespace>HeroMessaging.Observability.HealthChecks</RootNamespace>
-    <Description>Health check implementations for HeroMessaging components</Description>
-    <PackageTags>messaging;healthcheck;monitoring;diagnostics;observability</PackageTags>
+    <Description>ASP.NET Core health check plugin for HeroMessaging. Provides health monitoring for message bus, inbox/outbox processors, and saga orchestration components.</Description>
+    <PackageTags>messaging;healthcheck;monitoring;diagnostics;observability;aspnetcore</PackageTags>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
