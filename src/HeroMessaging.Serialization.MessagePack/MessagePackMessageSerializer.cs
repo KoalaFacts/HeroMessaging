@@ -13,9 +13,10 @@ public class MessagePackMessageSerializer(SerializationOptions? options = null, 
     private readonly SerializationOptions _options = options ?? new SerializationOptions();
     private readonly MessagePackSerializerOptions _messagePackOptions = messagePackOptions ?? CreateDefaultOptions();
 
-
+    ///<inheritdoc/>
     public string ContentType => "application/x-msgpack";
 
+    ///<inheritdoc/>
     public async ValueTask<byte[]> SerializeAsync<T>(T message, CancellationToken cancellationToken = default)
     {
         if (message == null)
@@ -38,6 +39,7 @@ public class MessagePackMessageSerializer(SerializationOptions? options = null, 
         return data;
     }
 
+    ///<inheritdoc/>
     public async ValueTask<T> DeserializeAsync<T>(byte[] data, CancellationToken cancellationToken = default) where T : class
     {
         if (data == null || data.Length == 0)
@@ -54,6 +56,7 @@ public class MessagePackMessageSerializer(SerializationOptions? options = null, 
         return result!;
     }
 
+    ///<inheritdoc/>
     public async ValueTask<object?> DeserializeAsync(byte[] data, Type messageType, CancellationToken cancellationToken = default)
     {
         if (data == null || data.Length == 0)
