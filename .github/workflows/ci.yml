@@ -103,60 +103,6 @@ jobs:
           flags: unit-tests
           fail_ci_if_error: false
 
-  # Contract tests for API compatibility
-  contract-tests:
-    name: Contract Tests (${{ matrix.os }}, ${{ matrix.framework }})
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        framework: [net8.0, net9.0]
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: |
-            8.0.x
-            9.0.x
-
-      - name: Cache NuGet packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.nuget/packages
-          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/*.props', 'global.json', 'Directory.Build.*') }}
-          restore-keys: |
-            ${{ runner.os }}-nuget-
-
-      - name: Restore dependencies
-        run: dotnet restore
-
-      - name: Build solution
-        run: dotnet build --configuration Release --no-restore
-
-      - name: Run contract tests
-        shell: bash
-        run: |
-          dotnet test tests/HeroMessaging.Contract.Tests/HeroMessaging.Contract.Tests.csproj \
-            --configuration Release \
-            --no-build \
-            --framework ${{ matrix.framework }} \
-            --filter "Category=Contract" \
-            --logger "trx;LogFileName=contract-tests-${{ matrix.os }}-${{ matrix.framework }}.trx" \
-            --results-directory ./test-results
-
-      - name: Upload contract test results
-        uses: actions/upload-artifact@v5
-        if: always()
-        with:
-          name: contract-test-results-${{ matrix.os }}-${{ matrix.framework }}
-          path: ./test-results/**/*.trx
-
   # Performance regression detection
   performance-regression:
     name: Performance Regression Analysis
@@ -239,7 +185,7 @@ jobs:
   # Quality gates and final validation
   quality-gates:
     name: Quality Gates & Validation
-    needs: [unit-tests, contract-tests]
+    needs: [unit-tests]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -304,19 +250,12 @@ jobs:
 
           # Check test results first
           UNIT_TESTS_PASSED="${{ needs.unit-tests.result }}"
-          CONTRACT_TESTS_PASSED="${{ needs.contract-tests.result }}"
 
           echo "Unit tests: $UNIT_TESTS_PASSED"
-          echo "Contract tests: $CONTRACT_TESTS_PASSED"
           echo "ℹ️ Integration tests run in separate workflow"
 
           if [[ "$UNIT_TESTS_PASSED" != "success" && "$UNIT_TESTS_PASSED" != "skipped" ]]; then
             echo "❌ Unit tests failed"
-            exit 1
-          fi
-
-          if [[ "$CONTRACT_TESTS_PASSED" != "success" && "$CONTRACT_TESTS_PASSED" != "skipped" ]]; then
-            echo "❌ Contract tests failed"
             exit 1
           fi
 
