@@ -3,12 +3,13 @@ using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Sagas;
 using HeroMessaging.Orchestration;
 
-namespace HeroMessaging.Tests.Examples;
+namespace HeroMessaging.Tests.TestUtilities;
 
 /// <summary>
-/// Example saga demonstrating order fulfillment workflow with compensation
+/// Test fixture saga demonstrating order fulfillment workflow with compensation
 /// Shows state transitions: Initial -> AwaitingPayment -> AwaitingInventory -> AwaitingShipment -> Completed
 /// Each step can be compensated if a later step fails
+/// Used by integration tests to verify saga orchestration functionality
 /// </summary>
 public class OrderSaga : SagaBase
 {
