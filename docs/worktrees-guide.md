@@ -12,7 +12,7 @@ This project uses **git worktrees** to enable parallel development of critical p
 ## Active Worktrees
 
 ### 1. **feature/idempotency-framework** 🔴 CRITICAL
-**Location**: `../worktrees/feature-idempotency`
+**Location**: `../HeroMessaging-feature-idempotency`
 **Priority**: Critical (Blocker for production)
 **Effort**: 2-3 weeks
 **Owner**: TBD
@@ -55,7 +55,7 @@ docs/idempotency-guide.md
 ---
 
 ### 2. **feature/rate-limiting** 🟠 HIGH PRIORITY
-**Location**: `../worktrees/feature-rate-limiting`
+**Location**: `../HeroMessaging-feature-rate-limiting`
 **Priority**: High (Prevents resource exhaustion)
 **Effort**: 1-2 weeks
 **Owner**: TBD
@@ -95,7 +95,7 @@ docs/rate-limiting-guide.md
 ---
 
 ### 3. **feature/batch-processing** 🟠 HIGH PRIORITY
-**Location**: `../worktrees/feature-batch-processing`
+**Location**: `../HeroMessaging-feature-batch-processing`
 **Priority**: High (10-100x throughput improvement)
 **Effort**: 1-2 weeks
 **Owner**: TBD
@@ -136,7 +136,7 @@ docs/batch-processing-guide.md
 ---
 
 ### 4. **feature/deployment-artifacts** 🟡 MEDIUM PRIORITY
-**Location**: `../worktrees/feature-deployment-artifacts`
+**Location**: `../HeroMessaging-feature-deployment-artifacts`
 **Priority**: Medium (Enables deployment)
 **Effort**: 1 week
 **Owner**: TBD
@@ -182,19 +182,19 @@ docs/deployment-guide.md
 ### Navigate to a Worktree
 ```bash
 # Go to idempotency worktree
-cd ../worktrees/feature-idempotency
+cd ../HeroMessaging-feature-idempotency
 
 # Go to rate limiting worktree
-cd ../worktrees/feature-rate-limiting
+cd ../HeroMessaging-feature-rate-limiting
 
 # Go to batch processing worktree
-cd ../worktrees/feature-batch-processing
+cd ../HeroMessaging-feature-batch-processing
 
 # Go to deployment artifacts worktree
-cd ../worktrees/feature-deployment-artifacts
+cd ../HeroMessaging-feature-deployment-artifacts
 
 # Return to main worktree
-cd c:/projects/BeingCiteable/HeroMessaging
+cd ../HeroMessaging
 ```
 
 ### Check Worktree Status
@@ -211,7 +211,7 @@ git worktree list --porcelain
 #### 1. Start Work on a Feature
 ```bash
 # Navigate to feature worktree
-cd ../worktrees/feature-idempotency
+cd ../HeroMessaging-feature-idempotency
 
 # Verify you're on the right branch
 git branch --show-current
@@ -288,13 +288,13 @@ git merge origin/main
 #### 5. After PR is Merged
 ```bash
 # Go back to main worktree
-cd c:/projects/BeingCiteable/HeroMessaging
+cd ../HeroMessaging
 
 # Update main
 git pull origin main
 
 # Remove completed worktree
-git worktree remove ../worktrees/feature-idempotency
+git worktree remove ../HeroMessaging-feature-idempotency
 
 # Delete remote branch (if desired)
 git push origin --delete feature/idempotency-framework
@@ -311,12 +311,12 @@ git branch -d feature/idempotency-framework
 Work on multiple features simultaneously without `git checkout`:
 ```bash
 # Terminal 1: Working on idempotency
-cd ../worktrees/feature-idempotency
+cd ../HeroMessaging-feature-idempotency
 code .
 # Edit, test, commit
 
 # Terminal 2: Working on rate limiting (AT THE SAME TIME!)
-cd ../worktrees/feature-rate-limiting
+cd ../HeroMessaging-feature-rate-limiting
 code .
 # Edit, test, commit
 
@@ -326,7 +326,7 @@ code .
 ### Benefit 2: Compare Implementations
 ```bash
 # Diff between two worktrees
-diff -r ../worktrees/feature-idempotency/ ../worktrees/feature-rate-limiting/
+diff -r ../HeroMessaging-feature-idempotency/ ../HeroMessaging-feature-rate-limiting/
 
 # Or use a tool like Beyond Compare, Meld, etc.
 ```
@@ -334,11 +334,11 @@ diff -r ../worktrees/feature-idempotency/ ../worktrees/feature-rate-limiting/
 ### Benefit 3: Integration Testing Across Features
 ```bash
 # Terminal 1: Run idempotency tests
-cd ../worktrees/feature-idempotency
+cd ../HeroMessaging-feature-idempotency
 dotnet test --filter Category=Integration
 
 # Terminal 2: Run rate limiting tests (simultaneously)
-cd ../worktrees/feature-rate-limiting
+cd ../HeroMessaging-feature-rate-limiting
 dotnet test --filter Category=Integration
 
 # No conflicts, no waiting!
@@ -362,7 +362,7 @@ git rebase origin/main  # or merge if you prefer
 ### 3. Clean Up After Merge
 ```bash
 # After PR is merged, remove worktree
-git worktree remove ../worktrees/feature-name
+git worktree remove ../HeroMessaging-feature-name
 ```
 
 ### 4. Use Descriptive Branch Names
@@ -391,7 +391,7 @@ git worktree list
 git worktree prune
 
 # Then retry
-git worktree add ../worktrees/feature-name -b feature/branch-name main
+git worktree add ../HeroMessaging-feature-name -b feature/branch-name main
 ```
 
 ### Issue: "Branch already exists"
@@ -400,28 +400,28 @@ git worktree add ../worktrees/feature-name -b feature/branch-name main
 git branch -d feature/branch-name
 
 # Or use -B to force creation
-git worktree add ../worktrees/feature-name -B feature/branch-name main
+git worktree add ../HeroMessaging-feature-name -B feature/branch-name main
 ```
 
 ### Issue: "Cannot remove worktree - changes not committed"
 ```bash
 # Commit or stash changes first
-cd ../worktrees/feature-name
+cd ../HeroMessaging-feature-name
 git add .
 git commit -m "WIP: Save progress"
 
 # Then remove
-cd c:/projects/BeingCiteable/HeroMessaging
-git worktree remove ../worktrees/feature-name
+cd ../HeroMessaging
+git worktree remove ../HeroMessaging-feature-name
 ```
 
 ### Issue: "Locked worktree"
 ```bash
 # Unlock the worktree
-git worktree unlock ../worktrees/feature-name
+git worktree unlock ../HeroMessaging-feature-name
 
 # Then remove
-git worktree remove ../worktrees/feature-name
+git worktree remove ../HeroMessaging-feature-name
 ```
 
 ---
@@ -432,10 +432,10 @@ git worktree remove ../worktrees/feature-name
 
 | Feature | Worktree | Branch | Status | Owner | ETA |
 |---------|----------|--------|--------|-------|-----|
-| Idempotency | `../worktrees/feature-idempotency` | `feature/idempotency-framework` | 🟡 In Progress | TBD | 2-3 weeks |
-| Rate Limiting | `../worktrees/feature-rate-limiting` | `feature/rate-limiting` | 🟡 In Progress | TBD | 1-2 weeks |
-| Batch Processing | `../worktrees/feature-batch-processing` | `feature/batch-processing` | 🟡 In Progress | TBD | 1-2 weeks |
-| Deployment | `../worktrees/feature-deployment-artifacts` | `feature/deployment-artifacts` | 🟡 In Progress | TBD | 1 week |
+| Idempotency | `../HeroMessaging-feature-idempotency` | `feature/idempotency-framework` | 🟢 Ready | TBD | 2-3 weeks |
+| Rate Limiting | `../HeroMessaging-feature-rate-limiting` | `feature/rate-limiting` | 🟢 Ready | TBD | 1-2 weeks |
+| Batch Processing | `../HeroMessaging-feature-batch-processing` | `feature/batch-processing` | 🟢 Ready | TBD | 1-2 weeks |
+| Deployment | `../HeroMessaging-feature-deployment-artifacts` | `feature/deployment-artifacts` | 🟢 Ready | TBD | 1 week |
 
 **Target**: v1.0 Release - Minimum Viable Production
 
