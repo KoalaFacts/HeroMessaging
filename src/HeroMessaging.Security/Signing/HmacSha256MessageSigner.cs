@@ -1,0 +1,125 @@
+using System.Security.Cryptography;
+using HeroMessaging.Abstractions.Security;
+
+namespace HeroMessaging.Security.Signing;
+
+/// <summary>
+/// Provides HMAC-SHA256 message signing for integrity and authenticity
+/// </summary>
+public sealed class HmacSha256MessageSigner : IMessageSigner
+{
+    private const int KeySize = 32; // 256 bits recommended for HMAC-SHA256
+    private readonly byte[] _key;
+    private readonly string? _keyId;
+
+    public string Algorithm => "HMAC-SHA256";
+
+    /// <summary>
+    /// Creates a new HMAC-SHA256 signer with the specified key
+    /// </summary>
+    /// <param name="key">The signing key (recommended: 256 bits)</param>
+    /// <param name="keyId">Optional key identifier for key rotation</param>
+    public HmacSha256MessageSigner(byte[] key, string? keyId = null)
+    {
+        if (key == null)
+            throw new ArgumentNullException(nameof(key));
+
+        if (key.Length < 16)
+            throw new ArgumentException("Key must be at least 128 bits (16 bytes)", nameof(key));
+
+        _key = new byte[key.Length];
+        Array.Copy(key, _key, key.Length);
+        _keyId = keyId;
+    }
+
+    /// <summary>
+    /// Creates a new HMAC-SHA256 signer by generating a random key
+    /// </summary>
+    public static HmacSha256MessageSigner CreateWithRandomKey(string? keyId = null)
+    {
+        var key = new byte[KeySize];
+        using (var rng = RandomNumberGenerator.Create())
+        {
+            rng.GetBytes(key);
+        }
+        return new HmacSha256MessageSigner(key, keyId);
+    }
+
+    public Task<MessageSignature> SignAsync(
+        byte[] data,
+        SecurityContext context,
+        CancellationToken cancellationToken = default)
+    {
+        if (data == null)
+            throw new ArgumentNullException(nameof(data));
+
+        try
+        {
+            using (var hmac = new HMACSHA256(_key))
+            {
+                var signatureBytes = hmac.ComputeHash(data);
+                var signature = new MessageSignature(
+                    signatureBytes,
+                    Algorithm,
+                    _keyId,
+                    DateTimeOffset.UtcNow);
+
+                return Task.FromResult(signature);
+            }
+        }
+        catch (CryptographicException ex)
+        {
+            throw new SecurityException("Failed to sign message", ex);
+        }
+    }
+
+    public Task<bool> VerifyAsync(
+        byte[] data,
+        MessageSignature signature,
+        SecurityContext context,
+        CancellationToken cancellationToken = default)
+    {
+        if (data == null)
+            throw new ArgumentNullException(nameof(data));
+
+        if (signature == null)
+            throw new ArgumentNullException(nameof(signature));
+
+        if (signature.Algorithm != Algorithm)
+            throw new SignatureVerificationException($"Unsupported algorithm: {signature.Algorithm}. Expected: {Algorithm}");
+
+        try
+        {
+            using (var hmac = new HMACSHA256(_key))
+            {
+                var expectedSignature = hmac.ComputeHash(data);
+
+                // Use constant-time comparison to prevent timing attacks
+                var isValid = ConstantTimeEquals(expectedSignature, signature.SignatureBytes);
+
+                return Task.FromResult(isValid);
+            }
+        }
+        catch (CryptographicException ex)
+        {
+            throw new SignatureVerificationException("Failed to verify signature", ex);
+        }
+    }
+
+    /// <summary>
+    /// Performs constant-time comparison to prevent timing attacks
+    /// </summary>
+    private static bool ConstantTimeEquals(byte[] a, byte[] b)
+    {
+        if (a.Length != b.Length)
+            return false;
+
+        var result = 0;
+        for (var i = 0; i < a.Length; i++)
+        {
+            result |= a[i] ^ b[i];
+        }
+
+        return result == 0;
+    }
+}
