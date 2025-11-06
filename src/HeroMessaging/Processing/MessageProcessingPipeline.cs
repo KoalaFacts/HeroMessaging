@@ -137,6 +137,29 @@ public class MessageProcessingPipelineBuilder(IServiceProvider serviceProvider)
     }
 
     /// <summary>
+    /// Add rate limiting to the pipeline
+    /// Controls the rate at which messages are processed to protect downstream systems
+    /// </summary>
+    /// <param name="rateLimiter">Optional rate limiter instance. If not provided, attempts to resolve from service provider.</param>
+    /// <returns>The builder for method chaining.</returns>
+    public MessageProcessingPipelineBuilder UseRateLimiting(IRateLimiter? rateLimiter = null)
+    {
+        _decorators.Add(processor =>
+        {
+            var limiter = rateLimiter ?? _serviceProvider.GetService<IRateLimiter>();
+            if (limiter == null)
+            {
+                return processor; // Skip if no rate limiter available
+            }
+
+            var logger = _serviceProvider.GetService<ILogger<RateLimitingDecorator>>()
+                ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<RateLimitingDecorator>.Instance;
+            return new RateLimitingDecorator(processor, limiter, logger);
+        });
+        return this;
+    }
+
+    /// <summary>
     /// Add OpenTelemetry instrumentation to the pipeline
     /// </summary>
     public MessageProcessingPipelineBuilder UseOpenTelemetry()
