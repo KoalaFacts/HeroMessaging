@@ -28,6 +28,7 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="PolySharp" />
     <PackageReference Include="System.Collections.Immutable" />
+    <PackageReference Include="System.Security.Claims" />
   </ItemGroup>
   
   <ItemGroup>
@@ -38,6 +39,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Update="System.Collections.Immutable" Version="9.0.9" />
+    <PackageReference Update="System.Security.Claims" Version="4.3.0" />
   </ItemGroup>
   
 </Project>
