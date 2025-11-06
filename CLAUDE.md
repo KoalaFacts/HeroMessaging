@@ -1,6 +1,6 @@
 # HeroMessaging Development Guidelines for Claude Code
 
-Development guidelines for Claude Code and AI assistants. Last updated: 2025-11-02
+Development guidelines for Claude Code and AI assistants. Last updated: 2025-11-07
 
 ## Constitutional Principles
 1. **Code Quality & Maintainability**: SOLID principles, clear naming, low complexity
@@ -148,11 +148,126 @@ public async Task EndToEnd_WithRealDependencies_WorksCorrectly()
 - **Regression Alerts**: Automated alerts for performance degradation >10%
 - **Comparison Standards**: Benchmark against gRPC/HTTP2 performance levels
 
+## Idempotency Framework Guidelines
+
+### Overview
+The idempotency framework provides exactly-once semantics for at-least-once delivery scenarios through response caching. It's implemented as a decorator in the processing pipeline.
+
+### Implementation Status
+- **Phase 1 (Complete)**: Core abstractions, in-memory storage, unit tests (84 passing)
+- **Phase 2 (Pending)**: Configuration API, SQL/PostgreSQL storage, integration tests
+- **Phase 3 (Planned)**: Advanced key generators, concurrency handling, benchmarks
+- **Phase 4 (Planned)**: Documentation, samples, performance optimization
+
+### Core Components
+```
+HeroMessaging.Abstractions.Idempotency/
+├── IIdempotencyStore          # Storage abstraction (Get, Store, Cleanup)
+├── IIdempotencyKeyGenerator   # Key generation strategy
+├── IIdempotencyPolicy         # TTL and failure classification policy
+├── IdempotencyResponse        # Cached response model
+└── IdempotencyStatus          # Success/Failure enumeration
+
+HeroMessaging.Idempotency/
+├── DefaultIdempotencyPolicy    # Production-ready exception classification
+├── MessageIdKeyGenerator       # Default: idempotency:{MessageId}
+├── InMemoryIdempotencyStore    # Thread-safe in-memory storage with TTL
+└── Decorators/IdempotencyDecorator  # Pipeline decorator
+```
+
+### Design Principles
+1. **Response Caching**: Cache both success results and idempotent failures
+2. **Exception Classification**: Distinguish idempotent (cache) vs transient (retry) failures
+3. **TTL Management**: Separate TTLs for successes (24h default) and failures (1h default)
+4. **Storage Agnostic**: Pluggable storage backends (in-memory, SQL Server, PostgreSQL)
+5. **Pipeline Integration**: Position after validation, before retry/circuit breaker
+
+### Exception Classification Strategy
+The `DefaultIdempotencyPolicy.IsIdempotentFailure()` classifies exceptions:
+
+**Idempotent (cache these)**:
+- `ArgumentException` and derivatives - Invalid input
+- `InvalidOperationException` - Business rule violations
+- `NotSupportedException` - Unsupported operations
+- `FormatException` - Invalid formats
+- `UnauthorizedAccessException` - Authorization failures
+- `KeyNotFoundException` - Missing data
+
+**Non-Idempotent (retry these)**:
+- `TimeoutException` - Transient timeouts
+- `TaskCanceledException`, `OperationCanceledException` - Cancellations
+- `IOException` - I/O errors
+- `HttpRequestException`, `SocketException` - Network errors
+- **Unknown exceptions** - Conservative default (don't cache)
+
+### Key Generation Patterns
+**MessageId (Default)**:
+- Format: `idempotency:{MessageId}`
+- Use case: Standard message deduplication
+- Pros: Simple, globally unique, fast (no hashing)
+- Cons: Doesn't detect semantically identical messages with different IDs
+
+**Content Hash (Phase 3)**:
+- Format: `idempotency:hash:{SHA256(message)}`
+- Use case: Detect duplicate content with different MessageIds
+- Pros: Semantic deduplication
+- Cons: Hash computation overhead (~0.1ms)
+
+### Testing Guidelines
+- **Unit Tests**: 100% coverage for all public APIs (84 tests currently passing)
+- **FakeTimeProvider**: Use `Microsoft.Extensions.Time.Testing.FakeTimeProvider` for deterministic TTL testing
+- **Concurrency Tests**: Verify thread-safety of storage operations
+- **Integration Tests** (Phase 2): End-to-end pipeline tests with real handlers
+
+### Code Examples
+```csharp
+// Creating a policy with custom TTLs
+var policy = new DefaultIdempotencyPolicy(
+    successTtl: TimeSpan.FromDays(7),      // Financial transactions
+    failureTtl: TimeSpan.FromHours(1),     // Allow retry after fixes
+    cacheFailures: true                     // Cache idempotent failures
+);
+
+// Using in-memory store (testing/non-persistent scenarios)
+var store = new InMemoryIdempotencyStore(TimeProvider.System);
+
+// Decorator usage (manual construction for testing)
+var decorator = new IdempotencyDecorator(
+    inner: actualHandler,
+    store: store,
+    policy: policy,
+    logger: logger,
+    timeProvider: TimeProvider.System
+);
+
+var result = await decorator.ProcessAsync(message, context, cancellationToken);
+```
+
+### Future Configuration API (Phase 2)
+```csharp
+// Planned fluent API (not yet implemented)
+services.AddHeroMessaging(builder =>
+{
+    builder.WithIdempotency(idempotency =>
+    {
+        idempotency
+            .UseSqlServerStore(connectionString)
+            .WithSuccessTtl(TimeSpan.FromDays(7))
+            .WithFailureTtl(TimeSpan.FromHours(1))
+            .CacheIdempotentFailures();
+    });
+});
+```
+
+### Architecture Documentation
+See [ADR 0005: Idempotency Framework](docs/adr/0005-idempotency-framework.md) for comprehensive architecture decisions, trade-offs, and implementation plan.
+
 ## Recent Changes
-1. **Test Suite Implementation**: Comprehensive testing infrastructure with 80%+ coverage
-2. **Performance Benchmarking**: BenchmarkDotNet integration with regression detection
-3. **Cross-Platform CI**: GitHub Actions matrix testing across all supported platforms
-4. **Constitutional Compliance**: Quality gates enforcing testing excellence principles
+1. **Idempotency Framework (Phase 1)**: Core abstractions, in-memory storage, and 84 unit tests (2025-11-07)
+2. **Test Suite Implementation**: Comprehensive testing infrastructure with 80%+ coverage
+3. **Performance Benchmarking**: BenchmarkDotNet integration with regression detection
+4. **Cross-Platform CI**: GitHub Actions matrix testing across all supported platforms
+5. **Constitutional Compliance**: Quality gates enforcing testing excellence principles
 
 ## Plugin Development Guidelines
 - **Isolation**: Each plugin package must be independently buildable and testable
