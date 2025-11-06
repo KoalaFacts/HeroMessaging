@@ -16,20 +16,21 @@ internal static class TimeProviderExtensions
 
         // For testing with FakeTimeProvider, use a timer-based approach
         var tcs = new TaskCompletionSource<bool>();
+        ITimer? timer = null;
 
-        cancellationToken.Register(() => tcs.TrySetCanceled(cancellationToken));
-
-        var timer = timeProvider.CreateTimer(_ =>
+        cancellationToken.Register(() =>
         {
+            timer?.Dispose();
+            tcs.TrySetCanceled(cancellationToken);
+        });
+
+        timer = timeProvider.CreateTimer(_ =>
+        {
+            timer?.Dispose();
             tcs.TrySetResult(true);
         }, null, delay, Timeout.InfiniteTimeSpan);
 
-        return tcs.Task.ContinueWith(t =>
-        {
-            timer.Dispose();
-            if (t.IsCanceled)
-                throw new OperationCanceledException(cancellationToken);
-        }, cancellationToken, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+        return tcs.Task;
     }
 #endif
 }
