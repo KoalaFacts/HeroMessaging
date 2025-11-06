@@ -484,7 +484,8 @@ public class TokenBucketRateLimiterTests
         var options = new TokenBucketOptions
         {
             Capacity = 100,
-            RefillRate = 1.0
+            RefillRate = 1.0,
+            Behavior = RateLimitBehavior.Reject // Use Reject to avoid waiting with FakeTimeProvider
         };
         var limiter = new TokenBucketRateLimiter(options, new FakeTimeProvider());
 
@@ -592,9 +593,9 @@ public class TokenBucketRateLimiterTests
         timeProvider.Advance(TimeSpan.FromMilliseconds(300));
         var result = await limiter.AcquireAsync();
 
-        // Assert: Should have 50 - 50 + 30 - 1 = 29 remaining
+        // Assert: Should have 50 remaining + 30 refilled - 1 acquired = 79 remaining
         Assert.True(result.IsAllowed);
-        Assert.Equal(29, result.RemainingPermits);
+        Assert.Equal(79, result.RemainingPermits);
     }
 
     #endregion
