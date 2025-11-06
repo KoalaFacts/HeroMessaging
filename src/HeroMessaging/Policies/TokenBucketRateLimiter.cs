@@ -1,0 +1,271 @@
+using System.Collections.Concurrent;
+using HeroMessaging.Abstractions.Policies;
+
+namespace HeroMessaging.Policies;
+
+// Extension method to provide Task.Delay with TimeProvider for .NET 6 and netstandard2.0
+internal static class TimeProviderExtensions
+{
+#if !NET8_0_OR_GREATER
+    public static Task Delay(this TimeProvider timeProvider, TimeSpan delay, CancellationToken cancellationToken)
+    {
+        if (timeProvider == TimeProvider.System)
+        {
+            return Task.Delay(delay, cancellationToken);
+        }
+
+        // For testing with FakeTimeProvider, use a timer-based approach
+        var tcs = new TaskCompletionSource<bool>();
+
+        cancellationToken.Register(() => tcs.TrySetCanceled(cancellationToken));
+
+        var timer = timeProvider.CreateTimer(_ =>
+        {
+            tcs.TrySetResult(true);
+        }, null, delay, Timeout.InfiniteTimeSpan);
+
+        return tcs.Task.ContinueWith(t =>
+        {
+            timer.Dispose();
+            if (t.IsCanceled)
+                throw new OperationCanceledException(cancellationToken);
+        }, cancellationToken, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+    }
+#endif
+}
+
+/// <summary>
+/// Token Bucket rate limiter implementation.
+/// Allows controlled bursts while maintaining a steady-state rate.
+/// </summary>
+/// <remarks>
+/// The Token Bucket algorithm works by maintaining a bucket of tokens.
+/// Tokens are added at a fixed rate (RefillRate), and each request consumes one or more tokens.
+/// When the bucket is empty, requests are either queued or rejected based on configuration.
+/// Thread-safe for concurrent access.
+/// </remarks>
+public sealed class TokenBucketRateLimiter : IRateLimiter, IDisposable
+{
+    private readonly TokenBucketOptions _options;
+    private readonly TimeProvider _timeProvider;
+    private readonly TokenBucket _globalBucket;
+    private readonly ConcurrentDictionary<string, TokenBucket>? _scopedBuckets;
+    private bool _disposed;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="TokenBucketRateLimiter"/> class.
+    /// </summary>
+    /// <param name="options">Configuration options for the rate limiter.</param>
+    /// <param name="timeProvider">Time provider for testability. If null, uses <see cref="TimeProvider.System"/>.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="options"/> is null.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when options contain invalid values.</exception>
+    public TokenBucketRateLimiter(TokenBucketOptions options, TimeProvider? timeProvider = null)
+    {
+        _options = options ?? throw new ArgumentNullException(nameof(options));
+        _options.Validate();
+
+        _timeProvider = timeProvider ?? TimeProvider.System;
+        _globalBucket = new TokenBucket(_options, _timeProvider);
+
+        if (_options.EnableScoping)
+        {
+            _scopedBuckets = new ConcurrentDictionary<string, TokenBucket>();
+        }
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<RateLimitResult> AcquireAsync(
+        string? key = null,
+        int permits = 1,
+        CancellationToken cancellationToken = default)
+    {
+        if (_disposed)
+            throw new ObjectDisposedException(nameof(TokenBucketRateLimiter));
+
+        if (permits <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(permits), permits, "Permits must be positive.");
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var bucket = GetBucket(key);
+        return await bucket.AcquireAsync(permits, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public RateLimiterStatistics GetStatistics(string? key = null)
+    {
+        if (_disposed)
+            throw new ObjectDisposedException(nameof(TokenBucketRateLimiter));
+
+        var bucket = key != null && _scopedBuckets != null && _scopedBuckets.TryGetValue(key, out var scopedBucket)
+            ? scopedBucket
+            : _globalBucket;
+
+        return bucket.GetStatistics();
+    }
+
+    /// <summary>
+    /// Releases resources used by the rate limiter.
+    /// </summary>
+    public void Dispose()
+    {
+        if (_disposed) return;
+
+        _disposed = true;
+        _globalBucket?.Dispose();
+
+        if (_scopedBuckets != null)
+        {
+            foreach (var bucket in _scopedBuckets.Values)
+            {
+                bucket.Dispose();
+            }
+            _scopedBuckets.Clear();
+        }
+    }
+
+    private TokenBucket GetBucket(string? key)
+    {
+        if (key == null || !_options.EnableScoping || _scopedBuckets == null)
+        {
+            return _globalBucket;
+        }
+
+        return _scopedBuckets.GetOrAdd(key, _ => new TokenBucket(_options, _timeProvider));
+    }
+
+    /// <summary>
+    /// Internal token bucket state management.
+    /// </summary>
+    private sealed class TokenBucket : IDisposable
+    {
+        private readonly TokenBucketOptions _options;
+        private readonly TimeProvider _timeProvider;
+        private readonly object _lock = new();
+
+        private double _availableTokens;
+        private DateTimeOffset _lastRefillTime;
+        private long _totalAcquired;
+        private long _totalThrottled;
+        private bool _disposed;
+
+        public TokenBucket(TokenBucketOptions options, TimeProvider timeProvider)
+        {
+            _options = options;
+            _timeProvider = timeProvider;
+            _availableTokens = options.Capacity; // Start full
+            _lastRefillTime = _timeProvider.GetUtcNow();
+        }
+
+        public async ValueTask<RateLimitResult> AcquireAsync(int permits, CancellationToken cancellationToken)
+        {
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                lock (_lock)
+                {
+                    if (_disposed)
+                        throw new ObjectDisposedException(nameof(TokenBucket));
+
+                    RefillTokens();
+
+                    if (_availableTokens >= permits)
+                    {
+                        // Tokens available - acquire
+                        _availableTokens -= permits;
+                        _totalAcquired++;
+                        return RateLimitResult.Success((long)Math.Floor(_availableTokens));
+                    }
+
+                    // Not enough tokens
+                    _totalThrottled++;
+
+                    if (_options.Behavior == RateLimitBehavior.Reject)
+                    {
+                        // Calculate retry after based on refill rate
+                        var tokensNeeded = permits - _availableTokens;
+                        var retryAfter = TimeSpan.FromSeconds(tokensNeeded / _options.RefillRate);
+                        return RateLimitResult.Throttled(retryAfter, "Rate limit exceeded");
+                    }
+                }
+
+                // Queue behavior - wait and retry
+                var waitTime = CalculateWaitTime(permits);
+
+                if (waitTime > _options.MaxQueueWait)
+                {
+                    return RateLimitResult.Throttled(waitTime, "Rate limit exceeded - max queue wait time exceeded");
+                }
+
+                try
+                {
+                    // Use TimeProvider.Delay for testability (extension method for .NET 6/netstandard2.0)
+#if NET8_0_OR_GREATER
+                    await Task.Delay(waitTime, _timeProvider, cancellationToken);
+#else
+                    await _timeProvider.Delay(waitTime, cancellationToken);
+#endif
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+            }
+        }
+
+        public RateLimiterStatistics GetStatistics()
+        {
+            lock (_lock)
+            {
+                RefillTokens();
+
+                return new RateLimiterStatistics
+                {
+                    AvailablePermits = (long)Math.Floor(_availableTokens),
+                    Capacity = _options.Capacity,
+                    RefillRate = _options.RefillRate,
+                    LastRefillTime = _lastRefillTime,
+                    TotalAcquired = _totalAcquired,
+                    TotalThrottled = _totalThrottled
+                };
+            }
+        }
+
+        public void Dispose()
+        {
+            lock (_lock)
+            {
+                _disposed = true;
+            }
+        }
+
+        private void RefillTokens()
+        {
+            // Lazy refill: Calculate tokens based on elapsed time
+            var now = _timeProvider.GetUtcNow();
+            var elapsed = now - _lastRefillTime;
+
+            if (elapsed > TimeSpan.Zero)
+            {
+                var tokensToAdd = elapsed.TotalSeconds * _options.RefillRate;
+                _availableTokens = Math.Min(_options.Capacity, _availableTokens + tokensToAdd);
+                _lastRefillTime = now;
+            }
+        }
+
+        private TimeSpan CalculateWaitTime(int permits)
+        {
+            lock (_lock)
+            {
+                RefillTokens();
+                var tokensNeeded = permits - _availableTokens;
+                if (tokensNeeded <= 0) return TimeSpan.Zero;
+
+                return TimeSpan.FromSeconds(tokensNeeded / _options.RefillRate);
+            }
+        }
+    }
+}
