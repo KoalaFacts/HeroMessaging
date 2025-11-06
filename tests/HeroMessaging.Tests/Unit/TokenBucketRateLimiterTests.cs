@@ -270,7 +270,7 @@ public class TokenBucketRateLimiterTests
     [Trait("Category", "Unit")]
     public async Task AcquireAsync_WithMaxQueueWait_TimesOutCorrectly()
     {
-        // Arrange: Limiter with short max wait
+        // Arrange: Limiter with short max wait - use TimeProvider.System for simpler timing test
         var options = new TokenBucketOptions
         {
             Capacity = 1,
@@ -278,8 +278,7 @@ public class TokenBucketRateLimiterTests
             Behavior = RateLimitBehavior.Queue,
             MaxQueueWait = TimeSpan.FromMilliseconds(100)
         };
-        var timeProvider = new FakeTimeProvider();
-        var limiter = new TokenBucketRateLimiter(options, timeProvider);
+        var limiter = new TokenBucketRateLimiter(options, TimeProvider.System);
 
         await limiter.AcquireAsync(); // Exhaust token
 
@@ -541,11 +540,12 @@ public class TokenBucketRateLimiterTests
     [Trait("Category", "Unit")]
     public async Task AcquireAsync_WithFakeTimeProvider_DeterministicRefill()
     {
-        // Arrange: Use FakeTimeProvider for deterministic testing
+        // Arrange: Use FakeTimeProvider with Reject behavior for deterministic testing
         var options = new TokenBucketOptions
         {
             Capacity = 10,
-            RefillRate = 5.0 // 5 tokens per second
+            RefillRate = 5.0, // 5 tokens per second
+            Behavior = RateLimitBehavior.Reject // Use Reject to avoid queuing with FakeTimeProvider
         };
         var timeProvider = new FakeTimeProvider();
         var limiter = new TokenBucketRateLimiter(options, timeProvider);
@@ -686,13 +686,14 @@ public class TokenBucketRateLimiterTests
     [Trait("Category", "Unit")]
     public async Task AcquireAsync_WithZeroCapacity_AlwaysThrottles()
     {
-        // Arrange: This should fail validation, but test behavior if it somehow gets through
+        // Arrange: Use TimeProvider.System - no time manipulation needed for this test
         var options = new TokenBucketOptions
         {
             Capacity = 1, // Minimum valid
-            RefillRate = 0.1 // Very slow
+            RefillRate = 0.1, // Very slow
+            Behavior = RateLimitBehavior.Reject // Use Reject for immediate response
         };
-        var limiter = new TokenBucketRateLimiter(options, new FakeTimeProvider());
+        var limiter = new TokenBucketRateLimiter(options, TimeProvider.System);
 
         // Exhaust the one token
         await limiter.AcquireAsync();
@@ -708,7 +709,7 @@ public class TokenBucketRateLimiterTests
     [Trait("Category", "Unit")]
     public async Task AcquireAsync_WithCancellationToken_CancelsCorrectly()
     {
-        // Arrange: Queue behavior with slow refill
+        // Arrange: Use TimeProvider.System for real cancellation behavior test
         var options = new TokenBucketOptions
         {
             Capacity = 1,
@@ -716,7 +717,7 @@ public class TokenBucketRateLimiterTests
             Behavior = RateLimitBehavior.Queue,
             MaxQueueWait = TimeSpan.FromSeconds(10)
         };
-        var limiter = new TokenBucketRateLimiter(options, new FakeTimeProvider());
+        var limiter = new TokenBucketRateLimiter(options, TimeProvider.System);
 
         await limiter.AcquireAsync(); // Exhaust
 
