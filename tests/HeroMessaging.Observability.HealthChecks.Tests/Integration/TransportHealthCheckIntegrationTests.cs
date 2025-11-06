@@ -6,7 +6,7 @@ using Moq;
 using Xunit;
 using TransportHealthStatus = HeroMessaging.Abstractions.Transport.HealthStatus;
 
-namespace HeroMessaging.Tests.Integration;
+namespace HeroMessaging.Observability.HealthChecks.Tests.Integration;
 
 /// <summary>
 /// Integration tests for transport health check registration and execution

@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
 
-namespace HeroMessaging.Tests.Unit.Observability;
+namespace HeroMessaging.Observability.HealthChecks.Tests.Unit;
 
 /// <summary>
 /// Unit tests for ServiceCollectionExtensions

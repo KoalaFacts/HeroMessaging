@@ -1,16 +1,16 @@
 using HeroMessaging.Abstractions.Sagas;
-using HeroMessaging.Storage.SqlServer;
+using HeroMessaging.Storage.PostgreSql;
 using Microsoft.Extensions.Time.Testing;
-using Testcontainers.MsSql;
+using Testcontainers.PostgreSql;
 using Xunit;
 
-namespace HeroMessaging.Tests.Integration.Storage;
+namespace HeroMessaging.Storage.PostgreSql.Tests.Integration;
 
 [Trait("Category", "Integration")]
-public class SqlServerSagaRepositoryTests : IAsyncLifetime
+public class PostgreSqlSagaRepositoryTests : IAsyncLifetime
 {
-    private MsSqlContainer? _sqlContainer;
-    private SqlServerStorageOptions? _options;
+    private PostgreSqlContainer? _postgreSqlContainer;
+    private PostgreSqlStorageOptions? _options;
 
     private class TestSaga : SagaBase
     {
@@ -20,40 +20,40 @@ public class SqlServerSagaRepositoryTests : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
-        // Create and start SQL Server container
-        _sqlContainer = new MsSqlBuilder()
-            .WithImage("mcr.microsoft.com/mssql/server:2022-latest")
-            .WithPassword("YourStrong@Passw0rd")
+        // Create and start PostgreSQL container
+        _postgreSqlContainer = new PostgreSqlBuilder()
+            .WithImage("postgres:17-alpine")
+            .WithPassword("postgres")
             .Build();
 
-        await _sqlContainer.StartAsync();
+        await _postgreSqlContainer.StartAsync();
 
         // Create storage options with container connection string
-        _options = new SqlServerStorageOptions
+        _options = new PostgreSqlStorageOptions
         {
-            ConnectionString = _sqlContainer.GetConnectionString(),
+            ConnectionString = _postgreSqlContainer.GetConnectionString(),
             Schema = "test",
-            SagasTableName = $"Sagas_{Guid.NewGuid():N}",
+            SagasTableName = $"sagas_{Guid.NewGuid():N}",
             AutoCreateTables = true
         };
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (_sqlContainer != null)
+        if (_postgreSqlContainer != null)
         {
-            await _sqlContainer.StopAsync();
-            await _sqlContainer.DisposeAsync();
+            await _postgreSqlContainer.StopAsync();
+            await _postgreSqlContainer.DisposeAsync();
         }
     }
 
-    private SqlServerSagaRepository<TestSaga> CreateRepository(TimeProvider? timeProvider = null)
+    private PostgreSqlSagaRepository<TestSaga> CreateRepository(TimeProvider? timeProvider = null)
     {
         if (_options == null)
         {
             throw new InvalidOperationException("Test not initialized");
         }
-        return new SqlServerSagaRepository<TestSaga>(_options, timeProvider ?? TimeProvider.System);
+        return new PostgreSqlSagaRepository<TestSaga>(_options, timeProvider ?? TimeProvider.System);
     }
 
     [Fact]

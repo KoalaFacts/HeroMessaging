@@ -6,7 +6,7 @@ using Xunit;
 
 using TransportHealthStatus = HeroMessaging.Abstractions.Transport.HealthStatus;
 
-namespace HeroMessaging.Tests.Unit.Observability;
+namespace HeroMessaging.Observability.HealthChecks.Tests.Unit;
 
 /// <summary>
 /// Unit tests for TransportHealthCheck class

@@ -1,12 +1,12 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
 		<TargetFrameworks>net8.0;net9.0</TargetFrameworks>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
+		<OutputType>Exe</OutputType>
 		<IsPackable>false</IsPackable>
 		<IsTestProject>true</IsTestProject>
-		<OutputType>Exe</OutputType>
 		<SuppressTfmSupportBuildErrors>true</SuppressTfmSupportBuildErrors>
 	</PropertyGroup>
 
@@ -21,16 +21,12 @@
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 			<PrivateAssets>all</PrivateAssets>
 		</PackageReference>
-		<PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" Version="9.0.0" />
-		<PackageReference Include="Testcontainers.MsSql" Version="4.1.0" />
-		<PackageReference Include="Testcontainers.PostgreSql" Version="4.1.0" />
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\..\src\HeroMessaging\HeroMessaging.csproj" />
+		<ProjectReference Include="..\..\src\HeroMessaging.Serialization.Json\HeroMessaging.Serialization.Json.csproj" />
 		<ProjectReference Include="..\..\src\HeroMessaging.Abstractions\HeroMessaging.Abstractions.csproj" />
-		<ProjectReference Include="..\..\src\HeroMessaging.Storage.SqlServer\HeroMessaging.Storage.SqlServer.csproj" />
-		<ProjectReference Include="..\..\src\HeroMessaging.Storage.PostgreSql\HeroMessaging.Storage.PostgreSql.csproj" />
+		<ProjectReference Include="..\HeroMessaging.Tests\HeroMessaging.Tests.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>

@@ -17,9 +17,6 @@
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 			<PrivateAssets>all</PrivateAssets>
 		</PackageReference>
-		<PackageReference Include="Testcontainers.PostgreSql" Version="4.7.0" />
-		<PackageReference Include="Moq" Version="4.20.72" />
-		<PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" Version="9.0.0" />
 		<PackageReference Include="coverlet.collector" Version="6.0.4">
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 			<PrivateAssets>all</PrivateAssets>
@@ -27,7 +24,8 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\..\src\HeroMessaging.Storage.PostgreSql\HeroMessaging.Storage.PostgreSql.csproj" />
+		<ProjectReference Include="..\..\src\HeroMessaging.Serialization.MessagePack\HeroMessaging.Serialization.MessagePack.csproj" />
+		<ProjectReference Include="..\..\src\HeroMessaging.Serialization.Json\HeroMessaging.Serialization.Json.csproj" />
 		<ProjectReference Include="..\..\src\HeroMessaging.Abstractions\HeroMessaging.Abstractions.csproj" />
 		<ProjectReference Include="..\HeroMessaging.Tests\HeroMessaging.Tests.csproj" />
 	</ItemGroup>

@@ -2,7 +2,7 @@ using HeroMessaging.Observability.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Xunit;
 
-namespace HeroMessaging.Tests.Unit.Observability;
+namespace HeroMessaging.Observability.HealthChecks.Tests.Unit;
 
 /// <summary>
 /// Unit tests for CompositeHealthCheck

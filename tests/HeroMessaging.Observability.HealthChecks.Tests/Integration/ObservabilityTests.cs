@@ -2,7 +2,7 @@ using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Tests.TestUtilities;
 using Xunit;
 
-namespace HeroMessaging.Tests.Integration;
+namespace HeroMessaging.Observability.HealthChecks.Tests.Integration;
 
 /// <summary>
 /// Integration tests for observability plugin implementations
