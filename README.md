@@ -24,6 +24,7 @@ HeroMessaging is a modern, extensible messaging framework for .NET that provides
 - **Saga Orchestration**: State machine-based long-running process coordination
 - **Compensation Framework**: Automatic rollback support for distributed transactions
 - **Timeout Handling**: Background monitoring for saga timeouts
+- **Rate Limiting**: Token bucket algorithm for throughput control and backpressure
 - **OpenTelemetry Integration**: Built-in observability and distributed tracing
 - **Health Checks**: ASP.NET Core health check integration
 
@@ -185,6 +186,42 @@ services.AddOpenTelemetry()
         .AddHeroMessagingInstrumentation()
         .AddOtlpExporter());
 ```
+
+### Rate Limiting
+
+Control message processing throughput to protect downstream systems and comply with API quotas:
+
+```csharp
+using HeroMessaging.Policies;
+using Microsoft.Extensions.DependencyInjection;
+
+// Configure rate limiting
+services.AddSingleton<IRateLimiter>(sp => new TokenBucketRateLimiter(
+    new TokenBucketOptions
+    {
+        Capacity = 100,           // Burst capacity
+        RefillRate = 50,          // Tokens per second
+        Behavior = RateLimitBehavior.Queue,  // Queue or Reject
+        MaxQueueWait = TimeSpan.FromSeconds(5),
+        EnableScoping = true      // Per-message-type limiting
+    },
+    TimeProvider.System));
+
+// Add to processing pipeline
+var pipeline = new MessageProcessingPipelineBuilder(serviceProvider)
+    .UseLogging()
+    .UseRateLimiting()  // Add rate limiting decorator
+    .UseRetry()
+    .Build(coreProcessor);
+```
+
+**Rate Limiting Behaviors:**
+- `Reject`: Immediately fail when rate limit exceeded (fail-fast)
+- `Queue`: Wait for tokens to become available (up to MaxQueueWait)
+
+**Scoping Options:**
+- `EnableScoping = true`: Per-message-type rate limits (isolated quotas)
+- `EnableScoping = false`: Global rate limit across all message types
 
 ## Performance
 
