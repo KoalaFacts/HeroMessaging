@@ -1,7 +1,8 @@
 # ADR 0005: Idempotency Framework
 
-**Status**: Proposed
+**Status**: In Progress (Phase 1 Complete)
 **Date**: 2025-11-06
+**Last Updated**: 2025-11-07
 **Decision Makers**: Engineering Team
 **Technical Story**: Implement comprehensive idempotency framework for at-least-once delivery guarantees
 
