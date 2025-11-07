@@ -371,9 +371,10 @@ public class SqlServerMessageStorage : IMessageStorage
                 """;
 
             using var command = new SqlCommand(sql, connection, sqlTransaction);
+            var messageType = message.GetType();
             command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = messageId;
-            command.Parameters.Add("@MessageType", SqlDbType.NVarChar, 500).Value = message.GetType().AssemblyQualifiedName ?? "Unknown";
-            command.Parameters.Add("@Payload", SqlDbType.NVarChar, -1).Value = JsonSerializer.Serialize(message, _jsonOptions);
+            command.Parameters.Add("@MessageType", SqlDbType.NVarChar, 500).Value = messageType.AssemblyQualifiedName ?? "Unknown";
+            command.Parameters.Add("@Payload", SqlDbType.NVarChar, -1).Value = JsonSerializer.Serialize(message, messageType, _jsonOptions);
             command.Parameters.Add("@Timestamp", SqlDbType.DateTime2).Value = message.Timestamp;
             command.Parameters.Add("@CorrelationId", SqlDbType.NVarChar, 100).Value = (object?)message.CorrelationId ?? DBNull.Value;
             command.Parameters.Add("@CreatedAt", SqlDbType.DateTime2).Value = _timeProvider.GetUtcNow().DateTime;

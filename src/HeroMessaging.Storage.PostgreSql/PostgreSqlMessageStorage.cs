@@ -426,8 +426,9 @@ public class PostgreSqlMessageStorage : IMessageStorage
 
             using var command = new NpgsqlCommand(sql, connection, npgsqlTransaction);
             command.Parameters.AddWithValue("id", messageId);
-            command.Parameters.AddWithValue("message_type", message.GetType().AssemblyQualifiedName ?? "Unknown");
-            command.Parameters.AddWithValue("payload", JsonSerializer.Serialize(message, _jsonOptions));
+            var messageType = message.GetType();
+            command.Parameters.AddWithValue("message_type", messageType.AssemblyQualifiedName ?? "Unknown");
+            command.Parameters.AddWithValue("payload", JsonSerializer.Serialize(message, messageType, _jsonOptions));
             command.Parameters.AddWithValue("timestamp", message.Timestamp);
             command.Parameters.AddWithValue("correlation_id", (object?)message.CorrelationId ?? DBNull.Value);
             command.Parameters.AddWithValue("created_at", _timeProvider.GetUtcNow().DateTime);
