@@ -33,6 +33,7 @@ concurrency:
 
 env:
   DOTNET_NOLOGO: true
+  CI_WORKFLOW_NAME: 'ci.yml'  # CI workflow to validate before release
 
 jobs:
   validate-and-prepare:
@@ -94,15 +95,20 @@ jobs:
       - name: Find successful workflow run
         id: find-workflow
         uses: actions/github-script@v8
+        env:
+          CI_WORKFLOW: ${{ env.CI_WORKFLOW_NAME }}
         with:
           script: |
             const commitSha = '${{ steps.validate.outputs.commit_sha }}';
+            const ciWorkflow = process.env.CI_WORKFLOW;
+
+            console.log(`Looking for successful ${ciWorkflow} run for commit ${commitSha}`);
 
             // Find successful CI workflow run for this commit
             const runs = await github.rest.actions.listWorkflowRuns({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              workflow_id: 'ci.yml',
+              workflow_id: ciWorkflow,
               status: 'success',
               head_sha: commitSha,
               per_page: 1
@@ -151,27 +157,33 @@ jobs:
 
           cd ./release-packages
 
+          echo "Renaming packages to version: ${VERSION}"
+          echo ""
+
           # Rename packages from CI version to release version
-          # CI format: {PackageId}.{major}.{minor}.{patch}-ci.{branch}.{date}.{run}.{sha}.{ext}
-          # Example: HeroMessaging.0.0.0-ci.main-20251025.57.2478e37.nupkg
+          # CI format: {PackageId}.{version}-ci.{metadata}.{ext}
           # Release format: {PackageId}.{version}.{ext}
-          # Example: HeroMessaging.1.0.0.nupkg
-          for file in *.nupkg *.snupkg; do
-            # Match: PackageName.0.0.0-ci.branch.date.run.sha.ext
-            if [[ "$file" =~ ^(.+?)\.[0-9]+\.[0-9]+\.[0-9]+-ci\.[a-zA-Z0-9_-]+\.[0-9]+\.[0-9]+\.[a-f0-9]+\.(nupkg|snupkg)$ ]]; then
-              package="${BASH_REMATCH[1]}"
-              ext="${BASH_REMATCH[2]}"
-              newname="${package}.${VERSION}.${ext}"
-              echo "Renaming: $file → $newname"
+          for file in *.nupkg *.snupkg 2>/dev/null; do
+            # Skip if no files match
+            [ -e "$file" ] || continue
+
+            # Extract package ID and extension
+            # Match pattern: anything before version-ci, then version, then extension
+            if [[ "$file" =~ ^(.+)\.[0-9]+\.[0-9]+\.[0-9]+-ci\.(.+)\.(nupkg|snupkg)$ ]]; then
+              package_id="${BASH_REMATCH[1]}"
+              ext="${BASH_REMATCH[3]}"
+              newname="${package_id}.${VERSION}.${ext}"
+
+              echo "✓ Renaming: $file → $newname"
               mv "$file" "$newname"
             else
-              echo "Warning: Skipping $file (doesn't match expected CI package format)"
+              echo "⚠ Warning: $file doesn't match expected CI package format, skipping"
             fi
           done
 
           echo ""
-          echo "📦 Renamed packages:"
-          ls -lh
+          echo "📦 Final packages:"
+          ls -lh *.nupkg *.snupkg 2>/dev/null || echo "No packages found!"
 
       - name: Upload renamed packages
         uses: actions/upload-artifact@v5

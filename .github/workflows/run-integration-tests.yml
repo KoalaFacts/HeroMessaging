@@ -1,7 +1,6 @@
 name: Integration Tests
 
 on:
-  push:  # Run on every commit to any branch
   pull_request:
     branches: [ main, develop ]
   schedule:
@@ -27,7 +26,11 @@ env:
 jobs:
   # Integration tests with real database services
   integration-tests:
-    name: Integration Tests (.NET 9)
+    name: Integration Tests (${{ matrix.framework }})
+    strategy:
+      fail-fast: false
+      matrix:
+        framework: [net8.0, net9.0]
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -71,10 +74,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
-      - name: Setup .NET 9
+      - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: 9.0.x
+          dotnet-version: |
+            8.0.x
+            9.0.x
 
       - name: Cache NuGet packages
         uses: actions/cache@v4
@@ -139,18 +144,18 @@ jobs:
           dotnet test \
             --configuration Release \
             --no-build \
-            --framework net9.0 \
+            --framework ${{ matrix.framework }} \
             --filter "Category=Integration" \
             --collect:"XPlat Code Coverage" \
             --results-directory ./test-results \
-            --logger "trx;LogFileName=integration-test-{assembly}.trx" \
+            --logger "trx;LogFileName=integration-test-${{ matrix.framework }}.trx" \
             -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
 
       - name: Upload integration test results
         uses: actions/upload-artifact@v5
         if: always()
         with:
-          name: integration-results-net9.0
+          name: integration-results-${{ matrix.framework }}
           path: |
             ./test-results/**/*.trx
             ./test-results/**/*.xml
