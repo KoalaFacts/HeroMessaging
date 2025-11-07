@@ -10,18 +10,36 @@ namespace HeroMessaging.Transport.InMemory;
 /// In-memory message transport implementation for testing and development
 /// High-performance implementation using System.Threading.Channels
 /// </summary>
-public class InMemoryTransport : IMessageTransport
+public class InMemoryTransport(
+    InMemoryTransportOptions options,
+    TimeProvider timeProvider,
+    ITransportInstrumentation? instrumentation = null) : IMessageTransport
 {
-    private static readonly Random _random = new Random();
-    private readonly InMemoryTransportOptions _options;
-    private readonly ITransportInstrumentation _instrumentation;
+#if NETSTANDARD2_0
+    private static readonly ThreadLocal<Random> _random = new ThreadLocal<Random>(() => new Random(Guid.NewGuid().GetHashCode()));
+#else
+    private static readonly Random _random = Random.Shared;
+#endif
+
+    // Helper to get Random instance in a thread-safe manner across all frameworks
+    private static Random GetRandom()
+    {
+#if NETSTANDARD2_0
+        return _random.Value!;
+#else
+        return _random;
+#endif
+    }
+
+    private readonly InMemoryTransportOptions _options = options ?? throw new ArgumentNullException(nameof(options));
+    private readonly ITransportInstrumentation _instrumentation = instrumentation ?? NoOpTransportInstrumentation.Instance;
     private readonly ConcurrentDictionary<string, InMemoryQueue> _queues = new();
     private readonly ConcurrentDictionary<string, InMemoryTopic> _topics = new();
     private readonly ConcurrentDictionary<string, InMemoryConsumer> _consumers = new();
     private TransportState _state = TransportState.Disconnected;
     private readonly object _stateLock = new();
     private readonly SemaphoreSlim _connectLock = new(1, 1);
-    private readonly TimeProvider _timeProvider;
+    private readonly TimeProvider _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
     /// <inheritdoc/>
     public string Name => _options.Name;
@@ -34,16 +52,6 @@ public class InMemoryTransport : IMessageTransport
 
     /// <inheritdoc/>
     public event EventHandler<TransportErrorEventArgs>? Error;
-
-    public InMemoryTransport(
-        InMemoryTransportOptions options,
-        TimeProvider timeProvider,
-        ITransportInstrumentation? instrumentation = null)
-    {
-        _options = options ?? throw new ArgumentNullException(nameof(options));
-        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
-        _instrumentation = instrumentation ?? NoOpTransportInstrumentation.Instance;
-    }
 
     /// <inheritdoc/>
     public async Task ConnectAsync(CancellationToken cancellationToken = default)
@@ -74,28 +82,23 @@ public class InMemoryTransport : IMessageTransport
     }
 
     /// <inheritdoc/>
-    public Task DisconnectAsync(CancellationToken cancellationToken = default)
+    public async Task DisconnectAsync(CancellationToken cancellationToken = default)
     {
         ChangeState(TransportState.Disconnecting, "Disconnecting from in-memory transport");
 
-        // Stop all consumers
-        foreach (var consumer in _consumers.Values)
-        {
-            _ = consumer.StopAsync(cancellationToken);
-        }
+        // Stop all consumers and AWAIT their completion
+        var stopTasks = _consumers.Values.Select(c => c.StopAsync(cancellationToken)).ToList();
+        await Task.WhenAll(stopTasks);
 
-        // Dispose all queues to stop background processing
-        foreach (var queue in _queues.Values)
-        {
-            queue.Dispose();
-        }
+        // Dispose all queues to stop background processing - use async disposal
+        var disposeTasks = _queues.Values.Select(q => q.DisposeAsync().AsTask()).ToList();
+        await Task.WhenAll(disposeTasks);
 
         _consumers.Clear();
         _queues.Clear();
         _topics.Clear();
 
         ChangeState(TransportState.Disconnected, "Disconnected from in-memory transport");
-        return Task.CompletedTask;
     }
 
     /// <inheritdoc/>
@@ -104,7 +107,7 @@ public class InMemoryTransport : IMessageTransport
         EnsureConnected();
 
         // Start send activity for distributed tracing
-        using var activity = _instrumentation.StartSendActivity(envelope, destination.Name, Name);
+        var activity = _instrumentation.StartSendActivity(envelope, destination.Name, Name);
         var startTime = _timeProvider.GetTimestamp();
 
         try
@@ -117,7 +120,7 @@ public class InMemoryTransport : IMessageTransport
             // Simulate network delay if configured
             if (_options.SimulateNetworkDelay)
             {
-                var delay = _random.Next(
+                var delay = GetRandom().Next(
                     (int)_options.SimulatedDelayMin.TotalMilliseconds,
                     (int)_options.SimulatedDelayMax.TotalMilliseconds);
                 await Task.Delay(delay, cancellationToken);
@@ -127,7 +130,7 @@ public class InMemoryTransport : IMessageTransport
 
             if (!await queue.EnqueueAsync(envelope, cancellationToken))
             {
-                _instrumentation.AddEvent(activity, "queue.full");
+                _instrumentation.RecordOperation(Name, "send", "failure");
                 throw new InvalidOperationException($"Queue '{destination.Name}' is full and DropWhenFull is false");
             }
 
@@ -138,12 +141,10 @@ public class InMemoryTransport : IMessageTransport
             _instrumentation.RecordSendDuration(Name, destination.Name, envelope.MessageType, durationMs);
             _instrumentation.RecordOperation(Name, "send", "success");
         }
-        catch (Exception ex)
+        finally
         {
-            // Record error
-            _instrumentation.RecordError(activity, ex);
-            _instrumentation.RecordOperation(Name, "send", "failure");
-            throw;
+            // Always dispose the activity to prevent resource leaks
+            activity?.Dispose();
         }
     }
 
@@ -153,7 +154,7 @@ public class InMemoryTransport : IMessageTransport
         EnsureConnected();
 
         // Start publish activity for distributed tracing
-        using var activity = _instrumentation.StartPublishActivity(envelope, topic.Name, Name);
+        var activity = _instrumentation.StartPublishActivity(envelope, topic.Name, Name);
         var startTime = _timeProvider.GetTimestamp();
 
         try
@@ -166,7 +167,7 @@ public class InMemoryTransport : IMessageTransport
             // Simulate network delay if configured
             if (_options.SimulateNetworkDelay)
             {
-                var delay = _random.Next(
+                var delay = GetRandom().Next(
                     (int)_options.SimulatedDelayMin.TotalMilliseconds,
                     (int)_options.SimulatedDelayMax.TotalMilliseconds);
                 await Task.Delay(delay, cancellationToken);
@@ -183,17 +184,15 @@ public class InMemoryTransport : IMessageTransport
             _instrumentation.RecordSendDuration(Name, topic.Name, envelope.MessageType, durationMs);
             _instrumentation.RecordOperation(Name, "publish", "success");
         }
-        catch (Exception ex)
+        finally
         {
-            // Record error
-            _instrumentation.RecordError(activity, ex);
-            _instrumentation.RecordOperation(Name, "publish", "failure");
-            throw;
+            // Always dispose the activity to prevent resource leaks
+            activity?.Dispose();
         }
     }
 
     /// <inheritdoc/>
-    public Task<ITransportConsumer> SubscribeAsync(
+    public async Task<ITransportConsumer> SubscribeAsync(
         TransportAddress source,
         Func<TransportEnvelope, MessageContext, CancellationToken, Task> handler,
         ConsumerOptions? options = null,
@@ -232,10 +231,10 @@ public class InMemoryTransport : IMessageTransport
 
         if (options.StartImmediately)
         {
-            _ = consumer.StartAsync(cancellationToken);
+            await consumer.StartAsync(cancellationToken);
         }
 
-        return Task.FromResult<ITransportConsumer>(consumer);
+        return consumer;
     }
 
     /// <inheritdoc/>

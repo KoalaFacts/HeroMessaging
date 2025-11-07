@@ -65,6 +65,11 @@ public static class TestMessageBuilder
 /// </summary>
 public class TestMessage : IMessage
 {
+    public TestMessage()
+    {
+        // Parameterless constructor for JSON deserialization
+    }
+
     public TestMessage(
         Guid messageId,
         DateTime timestamp,
@@ -81,16 +86,16 @@ public class TestMessage : IMessage
         Metadata = metadata;
     }
 
-    public Guid MessageId { get; }
-    public DateTime Timestamp { get; }
-    public string? CorrelationId { get; }
-    public string? CausationId { get; }
-    public Dictionary<string, object>? Metadata { get; }
+    public Guid MessageId { get; set; }
+    public DateTime Timestamp { get; set; }
+    public string? CorrelationId { get; set; }
+    public string? CausationId { get; set; }
+    public Dictionary<string, object>? Metadata { get; set; }
 
     /// <summary>
     /// Content property for test scenarios - not part of core IMessage contract
     /// </summary>
-    public string? Content { get; }
+    public string? Content { get; set; }
 }
 
 /// <summary>

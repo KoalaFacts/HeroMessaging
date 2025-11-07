@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <Description>ASP.NET Core health check plugin for HeroMessaging. Provides health monitoring for message bus, inbox/outbox processors, and saga orchestration components.</Description>
@@ -6,7 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
-    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="9.0.9" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="9.0.10" />
   </ItemGroup>
   
   <ItemGroup Condition="'$(TargetFramework)' != 'netstandard2.0'">
@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0' OR '$(TargetFramework)' == 'net6.0' OR '$(TargetFramework)' == 'net7.0'">
-    <PackageReference Include="Microsoft.Bcl.TimeProvider" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Bcl.TimeProvider" Version="9.0.10" />
   </ItemGroup>
 
   <ItemGroup>
@@ -22,10 +22,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Update="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.9" />
-    <PackageReference Update="Microsoft.Extensions.Logging.Abstractions" Version="9.0.9" />
+    <PackageReference Update="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.10" />
+    <PackageReference Update="Microsoft.Extensions.Logging.Abstractions" Version="9.0.10" />
     <PackageReference Update="PolySharp" Version="1.15.0" />
-    <PackageReference Update="System.Collections.Immutable" Version="9.0.9" />
+    <PackageReference Update="System.Collections.Immutable" Version="9.0.10" />
   </ItemGroup>
 
 </Project>

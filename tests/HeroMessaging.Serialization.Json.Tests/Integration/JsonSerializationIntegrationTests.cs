@@ -30,10 +30,10 @@ public class JsonSerializationIntegrationTests
         TestMessageExtensions.AssertSameContent(originalMessage, deserializedMessage);
         Assert.Equal(originalMessage.Timestamp, deserializedMessage.Timestamp);
 
-        // Verify serialized data is valid JSON
+        // Verify serialized data is valid JSON with camelCase property names (default policy)
         var jsonString = Encoding.UTF8.GetString(serializedData);
-        Assert.Contains("MessageId", jsonString);
-        Assert.Contains("Timestamp", jsonString);
+        Assert.Contains("messageId", jsonString);
+        Assert.Contains("timestamp", jsonString);
     }
 
     [Fact]

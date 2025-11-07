@@ -13,67 +13,23 @@ namespace HeroMessaging.Storage.SqlServer.Tests;
 /// <remarks>
 /// These tests automatically spin up a SQL Server container and run all tests against it.
 /// No manual database setup is required - Docker is the only prerequisite.
+/// All tests in this class share a single SQL Server container for performance.
 /// </remarks>
 [Trait("Category", "Integration")]
 [Trait("Database", "SqlServer")]
-public sealed class SqlServerIdempotencyStoreIntegrationTests : IAsyncLifetime
+[Collection(nameof(SqlServerIdempotencyStoreCollection))]
+public sealed class SqlServerIdempotencyStoreIntegrationTests : IAsyncDisposable
 {
-    private MsSqlContainer? _container;
-    private SqlServerIdempotencyStore? _store;
-    private FakeTimeProvider? _timeProvider;
+    private readonly SqlServerIdempotencyStoreFixture _fixture;
+    private readonly SqlServerIdempotencyStore _store;
+    private readonly FakeTimeProvider _timeProvider;
     private readonly List<string> _keysToCleanup = new();
 
-    public async ValueTask InitializeAsync()
+    public SqlServerIdempotencyStoreIntegrationTests(SqlServerIdempotencyStoreFixture fixture)
     {
-        // Create and start SQL Server container
-        _container = new MsSqlBuilder()
-            .WithImage("mcr.microsoft.com/mssql/server:2022-latest")
-            .WithPassword("YourStrong@Passw0rd")
-            .Build();
-
-        await _container.StartAsync();
-
-        // Run schema initialization
-        var connectionString = _container.GetConnectionString();
-        await InitializeDatabaseSchemaAsync(connectionString);
-
-        // Create store with FakeTimeProvider for time-based tests
+        _fixture = fixture;
         _timeProvider = new FakeTimeProvider();
-        _store = new SqlServerIdempotencyStore(connectionString, _timeProvider);
-    }
-
-    private static async Task InitializeDatabaseSchemaAsync(string connectionString)
-    {
-        await using var connection = new SqlConnection(connectionString);
-        await connection.OpenAsync();
-
-        const string createTableSql = """
-            IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[IdempotencyResponses]') AND type in (N'U'))
-            BEGIN
-                CREATE TABLE [dbo].[IdempotencyResponses] (
-                    [IdempotencyKey] NVARCHAR(450) NOT NULL,
-                    [Status] TINYINT NOT NULL,
-                    [SuccessResult] NVARCHAR(MAX) NULL,
-                    [FailureType] NVARCHAR(500) NULL,
-                    [FailureMessage] NVARCHAR(MAX) NULL,
-                    [FailureStackTrace] NVARCHAR(MAX) NULL,
-                    [StoredAt] DATETIME2(7) NOT NULL,
-                    [ExpiresAt] DATETIME2(7) NOT NULL,
-                    CONSTRAINT [PK_IdempotencyResponses] PRIMARY KEY CLUSTERED ([IdempotencyKey] ASC)
-                );
-
-                CREATE NONCLUSTERED INDEX [IX_IdempotencyResponses_ExpiresAt]
-                    ON [dbo].[IdempotencyResponses] ([ExpiresAt] ASC);
-
-                CREATE NONCLUSTERED INDEX [IX_IdempotencyResponses_Status_StoredAt]
-                    ON [dbo].[IdempotencyResponses] ([Status] ASC, [StoredAt] DESC)
-                    INCLUDE ([ExpiresAt]);
-            END
-            """;
-
-        await using var command = connection.CreateCommand();
-        command.CommandText = createTableSql;
-        await command.ExecuteNonQueryAsync();
+        _store = new SqlServerIdempotencyStore(_fixture.ConnectionString, _timeProvider);
     }
 
     [Fact]
@@ -318,12 +274,12 @@ public sealed class SqlServerIdempotencyStoreIntegrationTests : IAsyncLifetime
 
     public async ValueTask DisposeAsync()
     {
-        // Cleanup test data (best effort)
-        if (_container != null && _keysToCleanup.Count > 0)
+        // Cleanup test data (best effort) - container is managed by the fixture
+        if (_keysToCleanup.Count > 0)
         {
             try
             {
-                await using var connection = new SqlConnection(_container.GetConnectionString());
+                await using var connection = new SqlConnection(_fixture.ConnectionString);
                 await connection.OpenAsync();
 
                 foreach (var key in _keysToCleanup)
@@ -345,13 +301,6 @@ public sealed class SqlServerIdempotencyStoreIntegrationTests : IAsyncLifetime
             {
                 // Ignore connection failures during cleanup
             }
-        }
-
-        // Stop and dispose container
-        if (_container != null)
-        {
-            await _container.StopAsync();
-            await _container.DisposeAsync();
         }
     }
 

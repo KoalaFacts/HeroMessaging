@@ -8,21 +8,29 @@ namespace HeroMessaging.Transport.InMemory;
 /// High-performance in-memory queue using System.Threading.Channels
 /// Supports competing consumers with round-robin distribution
 /// </summary>
-internal class InMemoryQueue : IDisposable
+internal class InMemoryQueue : IDisposable, IAsyncDisposable
 {
     private readonly Channel<TransportEnvelope> _channel;
-    private readonly ConcurrentBag<InMemoryConsumer> _consumers = new();
+    private readonly ConcurrentDictionary<string, InMemoryConsumer> _consumers = new();
     private readonly CancellationTokenSource _cts = new();
     private Task? _processingTask;
+    private readonly object _processingTaskLock = new();
     private int _consumerIndex;
     private long _messageCount;
     private long _depth;
+
+    // Performance optimization: Cache consumer array to avoid allocation on every message
+    private InMemoryConsumer[] _consumerCache = Array.Empty<InMemoryConsumer>();
+    private volatile int _consumerVersion; // Increment when consumers change
 
     public long MessageCount => Interlocked.Read(ref _messageCount);
     public long Depth => Interlocked.Read(ref _depth);
 
     public InMemoryQueue(int maxQueueLength, bool dropWhenFull)
     {
+        // IMPORTANT: When dropWhenFull=false, the channel uses BoundedChannelFullMode.Wait
+        // This means EnqueueAsync will WAIT INDEFINITELY for space when the queue is full
+        // Callers should use CancellationToken timeout to prevent indefinite blocking
         var options = new BoundedChannelOptions(maxQueueLength)
         {
             FullMode = dropWhenFull ? BoundedChannelFullMode.DropOldest : BoundedChannelFullMode.Wait,
@@ -48,61 +56,35 @@ internal class InMemoryQueue : IDisposable
         }
     }
 
-    public async ValueTask<TransportEnvelope?> DequeueAsync(CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            var envelope = await _channel.Reader.ReadAsync(cancellationToken);
-            Interlocked.Decrement(ref _depth);
-            return envelope;
-        }
-        catch (ChannelClosedException)
-        {
-            return null;
-        }
-    }
-
-    public bool TryDequeue(out TransportEnvelope envelope)
-    {
-        if (_channel.Reader.TryRead(out envelope))
-        {
-            Interlocked.Decrement(ref _depth);
-            return true;
-        }
-
-        return false;
-    }
-
     public void AddConsumer(InMemoryConsumer consumer)
     {
-        _consumers.Add(consumer);
+        _consumers.TryAdd(consumer.ConsumerId, consumer);
+        Interlocked.Increment(ref _consumerVersion); // Invalidate cache
         StartProcessingIfNeeded();
     }
 
     public void RemoveConsumer(InMemoryConsumer consumer)
     {
-        // ConcurrentBag doesn't have Remove, but consumers will be garbage collected
-        // This is fine for in-memory transport
-    }
-
-    public ChannelReader<TransportEnvelope> GetReader() => _channel.Reader;
-
-    public void Complete()
-    {
-        _channel.Writer.Complete();
+        _consumers.TryRemove(consumer.ConsumerId, out _);
+        Interlocked.Increment(ref _consumerVersion); // Invalidate cache
     }
 
     private void StartProcessingIfNeeded()
     {
-        if (_processingTask == null)
+        lock (_processingTaskLock)
         {
-            _processingTask = Task.Run(() => ProcessMessagesAsync(_cts.Token));
+            if (_processingTask == null)
+            {
+                _processingTask = Task.Run(() => ProcessMessagesAsync(_cts.Token));
+            }
         }
     }
 
     private async Task ProcessMessagesAsync(CancellationToken cancellationToken)
     {
         var reader = _channel.Reader;
+        var cachedConsumers = _consumerCache;
+        var cachedVersion = _consumerVersion;
 
         try
         {
@@ -117,12 +99,22 @@ internal class InMemoryQueue : IDisposable
                 {
                     Interlocked.Decrement(ref _depth);
 
-                    // Deliver to next consumer in round-robin fashion
-                    var consumers = _consumers.ToArray();
-                    if (consumers.Length > 0)
+                    // Check if consumer list changed - refresh cache if needed
+                    var currentVersion = _consumerVersion;
+                    if (currentVersion != cachedVersion || cachedConsumers.Length == 0)
                     {
-                        var consumerIndex = Interlocked.Increment(ref _consumerIndex);
-                        var consumer = consumers[Math.Abs(consumerIndex % consumers.Length)];
+                        cachedConsumers = _consumers.Values.ToArray();
+                        _consumerCache = cachedConsumers; // Update shared cache
+                        cachedVersion = currentVersion;
+                    }
+
+                    // Deliver to next consumer in round-robin fashion
+                    if (cachedConsumers.Length > 0)
+                    {
+                        // Use unchecked to allow natural overflow wrap-around
+                        // This is faster than Math.Abs and handles negative values correctly
+                        var index = unchecked((uint)Interlocked.Increment(ref _consumerIndex));
+                        var consumer = cachedConsumers[index % (uint)cachedConsumers.Length];
 
                         try
                         {
@@ -147,14 +139,36 @@ internal class InMemoryQueue : IDisposable
         }
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         _channel.Writer.Complete();
         _cts.Cancel();
 
-        // Wait for processing to complete with a timeout
-        _processingTask?.Wait(TimeSpan.FromSeconds(5));
+        // Wait for processing to complete asynchronously
+        if (_processingTask != null)
+        {
+            try
+            {
+                // Properly await the task completion
+                await _processingTask.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected during cancellation
+            }
+            catch (Exception)
+            {
+                // Ignore exceptions during disposal
+            }
+        }
 
         _cts.Dispose();
+    }
+
+    public void Dispose()
+    {
+        // Synchronous disposal calls async version
+        // This is acceptable for cleanup scenarios
+        DisposeAsync().AsTask().GetAwaiter().GetResult();
     }
 }

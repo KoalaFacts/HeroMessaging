@@ -12,65 +12,23 @@ namespace HeroMessaging.Storage.PostgreSql.Tests;
 /// <remarks>
 /// These tests automatically spin up a PostgreSQL container and run all tests against it.
 /// No manual database setup is required - Docker is the only prerequisite.
+/// All tests in this class share a single PostgreSQL container for performance.
 /// </remarks>
 [Trait("Category", "Integration")]
 [Trait("Database", "PostgreSQL")]
-public sealed class PostgreSqlIdempotencyStoreIntegrationTests : IAsyncLifetime
+[Collection(nameof(PostgreSqlIdempotencyStoreCollection))]
+public sealed class PostgreSqlIdempotencyStoreIntegrationTests : IAsyncDisposable
 {
-    private PostgreSqlContainer? _container;
-    private PostgreSqlIdempotencyStore? _store;
-    private FakeTimeProvider? _timeProvider;
+    private readonly PostgreSqlIdempotencyStoreFixture _fixture;
+    private readonly PostgreSqlIdempotencyStore _store;
+    private readonly FakeTimeProvider _timeProvider;
     private readonly List<string> _keysToCleanup = new();
 
-    public async ValueTask InitializeAsync()
+    public PostgreSqlIdempotencyStoreIntegrationTests(PostgreSqlIdempotencyStoreFixture fixture)
     {
-        // Create and start PostgreSQL container
-        _container = new PostgreSqlBuilder()
-            .WithImage("postgres:17-alpine")
-            .WithPassword("postgres")
-            .Build();
-
-        await _container.StartAsync();
-
-        // Run schema initialization
-        var connectionString = _container.GetConnectionString();
-        await InitializeDatabaseSchemaAsync(connectionString);
-
-        // Create store with FakeTimeProvider for time-based tests
+        _fixture = fixture;
         _timeProvider = new FakeTimeProvider();
-        _store = new PostgreSqlIdempotencyStore(connectionString, _timeProvider);
-    }
-
-    private static async Task InitializeDatabaseSchemaAsync(string connectionString)
-    {
-        await using var connection = new Npgsql.NpgsqlConnection(connectionString);
-        await connection.OpenAsync();
-
-        const string createTableSql = """
-            CREATE TABLE IF NOT EXISTS idempotency_responses (
-                idempotency_key VARCHAR(450) NOT NULL,
-                status SMALLINT NOT NULL,
-                success_result JSONB NULL,
-                failure_type VARCHAR(500) NULL,
-                failure_message TEXT NULL,
-                failure_stack_trace TEXT NULL,
-                stored_at TIMESTAMP NOT NULL,
-                expires_at TIMESTAMP NOT NULL,
-                CONSTRAINT pk_idempotency_responses PRIMARY KEY (idempotency_key)
-            );
-
-            CREATE INDEX IF NOT EXISTS idx_idempotency_responses_expires_at
-                ON idempotency_responses(expires_at);
-
-            CREATE INDEX IF NOT EXISTS idx_idempotency_responses_status_stored_at
-                ON idempotency_responses(status, stored_at DESC)
-                INCLUDE (expires_at);
-
-            """;
-
-        await using var command = connection.CreateCommand();
-        command.CommandText = createTableSql;
-        await command.ExecuteNonQueryAsync();
+        _store = new PostgreSqlIdempotencyStore(_fixture.ConnectionString, _timeProvider);
     }
 
     [Fact]
@@ -339,12 +297,12 @@ public sealed class PostgreSqlIdempotencyStoreIntegrationTests : IAsyncLifetime
 
     public async ValueTask DisposeAsync()
     {
-        // Cleanup test data (best effort)
-        if (_container != null && _keysToCleanup.Count > 0)
+        // Cleanup test data (best effort) - container is managed by the fixture
+        if (_keysToCleanup.Count > 0)
         {
             try
             {
-                await using var connection = new Npgsql.NpgsqlConnection(_container.GetConnectionString());
+                await using var connection = new Npgsql.NpgsqlConnection(_fixture.ConnectionString);
                 await connection.OpenAsync();
 
                 foreach (var key in _keysToCleanup)
@@ -366,13 +324,6 @@ public sealed class PostgreSqlIdempotencyStoreIntegrationTests : IAsyncLifetime
             {
                 // Ignore connection failures during cleanup
             }
-        }
-
-        // Stop and dispose container
-        if (_container != null)
-        {
-            await _container.StopAsync();
-            await _container.DisposeAsync();
         }
     }
 

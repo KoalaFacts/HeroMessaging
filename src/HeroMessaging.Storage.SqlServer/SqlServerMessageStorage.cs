@@ -372,7 +372,7 @@ public class SqlServerMessageStorage : IMessageStorage
 
             using var command = new SqlCommand(sql, connection, sqlTransaction);
             command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = messageId;
-            command.Parameters.Add("@MessageType", SqlDbType.NVarChar, 500).Value = message.GetType().FullName ?? "Unknown";
+            command.Parameters.Add("@MessageType", SqlDbType.NVarChar, 500).Value = message.GetType().AssemblyQualifiedName ?? "Unknown";
             command.Parameters.Add("@Payload", SqlDbType.NVarChar, -1).Value = JsonSerializer.Serialize(message, _jsonOptions);
             command.Parameters.Add("@Timestamp", SqlDbType.DateTime2).Value = message.Timestamp;
             command.Parameters.Add("@CorrelationId", SqlDbType.NVarChar, 100).Value = (object?)message.CorrelationId ?? DBNull.Value;
@@ -409,7 +409,7 @@ public class SqlServerMessageStorage : IMessageStorage
         try
         {
             var sql = $"""
-                SELECT Payload FROM {_tableName}
+                SELECT Payload, MessageType FROM {_tableName}
                 WHERE Id = @Id
                 AND (ExpiresAt IS NULL OR ExpiresAt > GETUTCDATE())
                 """;
@@ -421,7 +421,17 @@ public class SqlServerMessageStorage : IMessageStorage
             if (await reader.ReadAsync(cancellationToken))
             {
                 var payload = reader.GetString(0);
-                return JsonSerializer.Deserialize<IMessage>(payload, _jsonOptions);
+                var messageTypeName = reader.GetString(1);
+
+                // Deserialize using the concrete type stored in the database
+                var messageType = Type.GetType(messageTypeName);
+                if (messageType == null)
+                {
+                    throw new InvalidOperationException($"Unable to resolve message type: {messageTypeName}");
+                }
+
+                var message = JsonSerializer.Deserialize(payload, messageType, _jsonOptions);
+                return message as IMessage;
             }
 
             return null;
@@ -468,7 +478,7 @@ public class SqlServerMessageStorage : IMessageStorage
         var offset = query.Offset ?? 0;
 
         var sql = $"""
-            SELECT Payload FROM {_tableName}
+            SELECT Payload, MessageType FROM {_tableName}
             WHERE {whereClause}
             ORDER BY {orderBy} {orderDirection}
             OFFSET @Offset ROWS
@@ -489,10 +499,19 @@ public class SqlServerMessageStorage : IMessageStorage
         while (await reader.ReadAsync(cancellationToken))
         {
             var payload = reader.GetString(0);
-            var message = JsonSerializer.Deserialize<IMessage>(payload, _jsonOptions);
-            if (message != null)
+            var messageTypeName = reader.GetString(1);
+
+            // Deserialize using the concrete type stored in the database
+            var messageType = Type.GetType(messageTypeName);
+            if (messageType == null)
             {
-                messages.Add(message);
+                throw new InvalidOperationException($"Unable to resolve message type: {messageTypeName}");
+            }
+
+            var message = JsonSerializer.Deserialize(payload, messageType, _jsonOptions);
+            if (message is IMessage imessage)
+            {
+                messages.Add(imessage);
             }
         }
 

@@ -426,7 +426,7 @@ public class PostgreSqlMessageStorage : IMessageStorage
 
             using var command = new NpgsqlCommand(sql, connection, npgsqlTransaction);
             command.Parameters.AddWithValue("id", messageId);
-            command.Parameters.AddWithValue("message_type", message.GetType().FullName ?? "Unknown");
+            command.Parameters.AddWithValue("message_type", message.GetType().AssemblyQualifiedName ?? "Unknown");
             command.Parameters.AddWithValue("payload", JsonSerializer.Serialize(message, _jsonOptions));
             command.Parameters.AddWithValue("timestamp", message.Timestamp);
             command.Parameters.AddWithValue("correlation_id", (object?)message.CorrelationId ?? DBNull.Value);
@@ -463,7 +463,7 @@ public class PostgreSqlMessageStorage : IMessageStorage
         try
         {
             var sql = $"""
-                SELECT payload FROM {_tableName}
+                SELECT payload, message_type FROM {_tableName}
                 WHERE id = @id
                 AND (expires_at IS NULL OR expires_at > NOW())
                 """;
@@ -475,7 +475,17 @@ public class PostgreSqlMessageStorage : IMessageStorage
             if (await reader.ReadAsync(cancellationToken))
             {
                 var payload = reader.GetString(0);
-                return JsonSerializer.Deserialize<IMessage>(payload, _jsonOptions);
+                var messageTypeName = reader.GetString(1);
+
+                // Deserialize using the concrete type stored in the database
+                var messageType = Type.GetType(messageTypeName);
+                if (messageType == null)
+                {
+                    throw new InvalidOperationException($"Unable to resolve message type: {messageTypeName}");
+                }
+
+                var message = JsonSerializer.Deserialize(payload, messageType, _jsonOptions);
+                return message as IMessage;
             }
 
             return null;
@@ -522,7 +532,7 @@ public class PostgreSqlMessageStorage : IMessageStorage
         var offset = query.Offset ?? 0;
 
         var sql = $"""
-            SELECT payload FROM {_tableName}
+            SELECT payload, message_type FROM {_tableName}
             WHERE {whereClause}
             ORDER BY {orderBy} {orderDirection}
             LIMIT @limit OFFSET @offset
@@ -542,10 +552,19 @@ public class PostgreSqlMessageStorage : IMessageStorage
         while (await reader.ReadAsync(cancellationToken))
         {
             var payload = reader.GetString(0);
-            var message = JsonSerializer.Deserialize<IMessage>(payload, _jsonOptions);
-            if (message != null)
+            var messageTypeName = reader.GetString(1);
+
+            // Deserialize using the concrete type stored in the database
+            var messageType = Type.GetType(messageTypeName);
+            if (messageType == null)
             {
-                messages.Add(message);
+                throw new InvalidOperationException($"Unable to resolve message type: {messageTypeName}");
+            }
+
+            var message = JsonSerializer.Deserialize(payload, messageType, _jsonOptions);
+            if (message is IMessage imessage)
+            {
+                messages.Add(imessage);
             }
         }
 

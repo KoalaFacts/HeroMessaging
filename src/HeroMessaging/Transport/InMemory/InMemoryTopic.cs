@@ -9,7 +9,7 @@ namespace HeroMessaging.Transport.InMemory;
 /// </summary>
 internal class InMemoryTopic
 {
-    private readonly ConcurrentBag<InMemoryConsumer> _subscriptions = new();
+    private readonly ConcurrentDictionary<string, InMemoryConsumer> _subscriptions = new();
     private long _publishedCount;
     private long _pendingMessages;
 
@@ -21,7 +21,7 @@ internal class InMemoryTopic
         Interlocked.Increment(ref _publishedCount);
 
         // Broadcast to all subscriptions in parallel
-        var tasks = _subscriptions.Select(async subscription =>
+        var tasks = _subscriptions.Values.Select(async subscription =>
         {
             try
             {
@@ -44,12 +44,11 @@ internal class InMemoryTopic
 
     public void AddSubscription(InMemoryConsumer consumer)
     {
-        _subscriptions.Add(consumer);
+        _subscriptions.TryAdd(consumer.ConsumerId, consumer);
     }
 
     public void RemoveSubscription(InMemoryConsumer consumer)
     {
-        // ConcurrentBag doesn't have Remove, but subscriptions will be garbage collected
-        // This is fine for in-memory transport
+        _subscriptions.TryRemove(consumer.ConsumerId, out _);
     }
 }

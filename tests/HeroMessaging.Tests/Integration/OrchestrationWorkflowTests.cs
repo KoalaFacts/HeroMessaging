@@ -496,7 +496,8 @@ public class OrchestrationWorkflowTests
             fakeTime.Advance(TimeSpan.FromMilliseconds(50)); // Advance fake time too
         }
 
-        // Stop the handler
+        // Stop the handler properly
+        await timeoutHandler.StopAsync(cts.Token);
         cts.Cancel();
         try
         {
@@ -505,6 +506,10 @@ public class OrchestrationWorkflowTests
         catch (OperationCanceledException)
         {
             // Expected
+        }
+        finally
+        {
+            timeoutHandler.Dispose();
         }
 
         // Assert
