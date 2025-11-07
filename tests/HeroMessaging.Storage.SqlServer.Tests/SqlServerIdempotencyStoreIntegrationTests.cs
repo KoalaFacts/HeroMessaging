@@ -1,43 +1,79 @@
 using HeroMessaging.Abstractions.Idempotency;
 using HeroMessaging.Storage.SqlServer;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Time.Testing;
+using Testcontainers.MsSql;
 using Xunit;
 
 namespace HeroMessaging.Storage.SqlServer.Tests;
 
 /// <summary>
-/// Integration tests for SqlServerIdempotencyStore requiring a real SQL Server database.
+/// Integration tests for SqlServerIdempotencyStore using Testcontainers.
 /// </summary>
 /// <remarks>
-/// These tests require:
-/// 1. SQL Server running and accessible
-/// 2. Connection string configured (or using default LocalDB)
-/// 3. IdempotencyResponses table created (run migration script)
-///
-/// To run these tests:
-/// - Ensure SQL Server is running
-/// - Run the migration script: src/HeroMessaging/Idempotency/Storage/Sql/SqlServer/001_CreateIdempotencyTable.sql
-/// - Set connection string in environment variable: HEROMESSAGING_SQLSERVER_CONNECTIONSTRING
-///
-/// Or use default LocalDB: Server=(localdb)\mssqllocaldb;Database=HeroMessagingTests;Integrated Security=true;
+/// These tests automatically spin up a SQL Server container and run all tests against it.
+/// No manual database setup is required - Docker is the only prerequisite.
 /// </remarks>
 [Trait("Category", "Integration")]
 [Trait("Database", "SqlServer")]
-public sealed class SqlServerIdempotencyStoreIntegrationTests : IDisposable
+public sealed class SqlServerIdempotencyStoreIntegrationTests : IAsyncLifetime
 {
-    private readonly SqlServerIdempotencyStore _store;
-    private readonly FakeTimeProvider _timeProvider;
-    private readonly string _connectionString;
+    private MsSqlContainer? _container;
+    private SqlServerIdempotencyStore? _store;
+    private FakeTimeProvider? _timeProvider;
     private readonly List<string> _keysToCleanup = new();
 
-    public SqlServerIdempotencyStoreIntegrationTests()
+    public async ValueTask InitializeAsync()
     {
-        // Try to get connection string from environment variable, fallback to LocalDB
-        _connectionString = Environment.GetEnvironmentVariable("HEROMESSAGING_SQLSERVER_CONNECTIONSTRING")
-            ?? "Server=(localdb)\\mssqllocaldb;Database=HeroMessagingTests;Integrated Security=true;";
+        // Create and start SQL Server container
+        _container = new MsSqlBuilder()
+            .WithImage("mcr.microsoft.com/mssql/server:2022-latest")
+            .WithPassword("YourStrong@Passw0rd")
+            .Build();
 
+        await _container.StartAsync();
+
+        // Run schema initialization
+        var connectionString = _container.GetConnectionString();
+        await InitializeDatabaseSchemaAsync(connectionString);
+
+        // Create store with FakeTimeProvider for time-based tests
         _timeProvider = new FakeTimeProvider();
-        _store = new SqlServerIdempotencyStore(_connectionString, _timeProvider);
+        _store = new SqlServerIdempotencyStore(connectionString, _timeProvider);
+    }
+
+    private static async Task InitializeDatabaseSchemaAsync(string connectionString)
+    {
+        await using var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        const string createTableSql = """
+            IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[IdempotencyResponses]') AND type in (N'U'))
+            BEGIN
+                CREATE TABLE [dbo].[IdempotencyResponses] (
+                    [IdempotencyKey] NVARCHAR(450) NOT NULL,
+                    [Status] TINYINT NOT NULL,
+                    [SuccessResult] NVARCHAR(MAX) NULL,
+                    [FailureType] NVARCHAR(500) NULL,
+                    [FailureMessage] NVARCHAR(MAX) NULL,
+                    [FailureStackTrace] NVARCHAR(MAX) NULL,
+                    [StoredAt] DATETIME2(7) NOT NULL,
+                    [ExpiresAt] DATETIME2(7) NOT NULL,
+                    CONSTRAINT [PK_IdempotencyResponses] PRIMARY KEY CLUSTERED ([IdempotencyKey] ASC)
+                );
+
+                CREATE NONCLUSTERED INDEX [IX_IdempotencyResponses_ExpiresAt]
+                    ON [dbo].[IdempotencyResponses] ([ExpiresAt] ASC);
+
+                CREATE NONCLUSTERED INDEX [IX_IdempotencyResponses_Status_StoredAt]
+                    ON [dbo].[IdempotencyResponses] ([Status] ASC, [StoredAt] DESC)
+                    INCLUDE ([ExpiresAt]);
+            END
+            """;
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = createTableSql;
+        await command.ExecuteNonQueryAsync();
     }
 
     [Fact]
@@ -85,7 +121,7 @@ public sealed class SqlServerIdempotencyStoreIntegrationTests : IDisposable
         // Arrange
         var key = $"test:failure:{Guid.NewGuid()}";
         _keysToCleanup.Add(key);
-        var exception = new InvalidOperationException("Test error message");
+        var exception = GetExceptionWithStackTrace();
         var ttl = TimeSpan.FromHours(1);
 
         // Act - Store
@@ -280,25 +316,54 @@ public sealed class SqlServerIdempotencyStoreIntegrationTests : IDisposable
         Assert.NotNull(retrieved.SuccessResult);
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
-        // Cleanup test data
-        foreach (var key in _keysToCleanup)
+        // Cleanup test data (best effort)
+        if (_container != null && _keysToCleanup.Count > 0)
         {
             try
             {
-                // Best effort cleanup - don't fail tests if cleanup fails
-                using var connection = new Microsoft.Data.SqlClient.SqlConnection(_connectionString);
-                connection.Open();
-                using var command = connection.CreateCommand();
-                command.CommandText = "DELETE FROM IdempotencyResponses WHERE IdempotencyKey = @Key";
-                command.Parameters.AddWithValue("@Key", key);
-                command.ExecuteNonQuery();
+                await using var connection = new SqlConnection(_container.GetConnectionString());
+                await connection.OpenAsync();
+
+                foreach (var key in _keysToCleanup)
+                {
+                    try
+                    {
+                        await using var command = connection.CreateCommand();
+                        command.CommandText = "DELETE FROM IdempotencyResponses WHERE IdempotencyKey = @Key";
+                        command.Parameters.AddWithValue("@Key", key);
+                        await command.ExecuteNonQueryAsync();
+                    }
+                    catch
+                    {
+                        // Ignore individual cleanup failures
+                    }
+                }
             }
             catch
             {
-                // Ignore cleanup failures
+                // Ignore connection failures during cleanup
             }
+        }
+
+        // Stop and dispose container
+        if (_container != null)
+        {
+            await _container.StopAsync();
+            await _container.DisposeAsync();
+        }
+    }
+
+    private static Exception GetExceptionWithStackTrace()
+    {
+        try
+        {
+            throw new InvalidOperationException("Test error message");
+        }
+        catch (Exception ex)
+        {
+            return ex;
         }
     }
 }
