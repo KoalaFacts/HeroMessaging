@@ -12,14 +12,14 @@
 
 	<ItemGroup>
 		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.0" />
-		<PackageReference Include="xunit.v3" Version="3.1.0" />
+		<PackageReference Include="xunit.v3" Version="3.2.0" />
 		<PackageReference Include="xunit.runner.visualstudio" Version="3.1.5">
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 			<PrivateAssets>all</PrivateAssets>
 		</PackageReference>
-		<PackageReference Include="Testcontainers.PostgreSql" Version="4.7.0" />
+		<PackageReference Include="Testcontainers.PostgreSql" Version="4.8.1" />
 		<PackageReference Include="Moq" Version="4.20.72" />
-		<PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" Version="9.0.0" />
+		<PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" Version="9.10.0" />
 		<PackageReference Include="coverlet.collector" Version="6.0.4">
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 			<PrivateAssets>all</PrivateAssets>
@@ -35,7 +35,6 @@
 	<ItemGroup>
 		<PackageReference Update="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.0" />
 		<PackageReference Update="Microsoft.Extensions.Logging.Abstractions" Version="9.0.0" />
-		<PackageReference Update="PolySharp" Version="1.15.0" />
 		<PackageReference Update="System.Collections.Immutable" Version="9.0.0" />
 	</ItemGroup>
 

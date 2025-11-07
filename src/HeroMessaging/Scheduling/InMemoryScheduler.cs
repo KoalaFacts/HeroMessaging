@@ -21,6 +21,8 @@ public sealed class InMemoryScheduler : IMessageScheduler, IDisposable
 {
     private readonly IMessageDeliveryHandler _deliveryHandler;
     private readonly ConcurrentDictionary<Guid, ScheduledEntry> _scheduledMessages;
+    private readonly ConcurrentBag<Task> _backgroundTasks = new();
+    private readonly CancellationTokenSource _disposeCts = new();
     private readonly object _disposeLock = new();
     private bool _disposed;
 
@@ -201,7 +203,9 @@ public sealed class InMemoryScheduler : IMessageScheduler, IDisposable
         if (state is Guid scheduleId)
         {
             // Execute delivery on thread pool to avoid blocking timer thread
-            _ = Task.Run(async () => await DeliverScheduledMessage(scheduleId));
+            // Track the task so we can wait for it during disposal
+            var deliveryTask = Task.Run(async () => await DeliverScheduledMessage(scheduleId));
+            _backgroundTasks.Add(deliveryTask);
         }
     }
 
@@ -233,11 +237,22 @@ public sealed class InMemoryScheduler : IMessageScheduler, IDisposable
                 entry.Timer?.Dispose();
 
                 // Clean up delivered or failed messages after a short delay
-                _ = Task.Run(async () =>
+                // Use the disposal token so cleanup tasks are cancelled when disposed
+                // Track this task so we can wait for it during disposal
+                var cleanupTask = Task.Run(async () =>
                 {
-                    await Task.Delay(TimeSpan.FromSeconds(60));
-                    _scheduledMessages.TryRemove(scheduleId, out _);
-                });
+                    try
+                    {
+                        await Task.Delay(TimeSpan.FromSeconds(60), _disposeCts.Token);
+                        _scheduledMessages.TryRemove(scheduleId, out _);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // Cleanup cancelled due to disposal - remove immediately
+                        _scheduledMessages.TryRemove(scheduleId, out _);
+                    }
+                }, _disposeCts.Token);
+                _backgroundTasks.Add(cleanupTask);
             }
         }
     }
@@ -273,13 +288,37 @@ public sealed class InMemoryScheduler : IMessageScheduler, IDisposable
             if (_disposed) return;
             _disposed = true;
 
-            // Dispose all timers
+            // Cancel any pending cleanup tasks to prevent them from keeping the process alive
+            _disposeCts.Cancel();
+
+            // Dispose all timers to prevent new deliveries
             foreach (var entry in _scheduledMessages.Values)
             {
                 entry.Timer?.Dispose();
             }
 
+            // Wait for all background tasks (delivery and cleanup) to complete
+            // Use a hard grace period as user requested
+            var backgroundTasksSnapshot = _backgroundTasks.ToArray();
+            if (backgroundTasksSnapshot.Length > 0)
+            {
+                try
+                {
+                    // Grace period: 10 seconds for all background tasks to complete after cancellation
+                    if (!Task.WaitAll(backgroundTasksSnapshot, TimeSpan.FromSeconds(10)))
+                    {
+                        // Timeout - some tasks didn't complete within grace period
+                        // In production, we'd log this
+                    }
+                }
+                catch (AggregateException)
+                {
+                    // Ignore exceptions during disposal (tasks may have been cancelled)
+                }
+            }
+
             _scheduledMessages.Clear();
+            _disposeCts.Dispose();
         }
     }
 

@@ -82,6 +82,8 @@ internal class InMemoryConsumer : ITransportConsumer
         _messageChannel.Writer.Complete();
         _cts.Cancel();
 
+        // Wait for the main processing loop to exit
+        // This ensures all messages are processed sequentially before stopping
         if (_processingTask != null)
         {
             await _processingTask;
@@ -120,10 +122,13 @@ internal class InMemoryConsumer : ITransportConsumer
                 if (!await reader.WaitToReadAsync(cancellationToken))
                     break;
 
-                // Process messages with concurrency limit
+                // Process messages sequentially (FIFO order)
+                // The semaphore controls concurrency, but we AWAIT each message processing
                 while (reader.TryRead(out var envelope))
                 {
-                    _ = ProcessMessageAsync(envelope, cancellationToken);
+                    // Process this message and WAIT for it to complete before getting the next one
+                    // This ensures FIFO processing order
+                    await ProcessMessageAsync(envelope, cancellationToken);
                 }
             }
             catch (OperationCanceledException)

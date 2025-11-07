@@ -1,43 +1,34 @@
 using HeroMessaging.Abstractions.Idempotency;
 using HeroMessaging.Storage.PostgreSql;
 using Microsoft.Extensions.Time.Testing;
+using Testcontainers.PostgreSql;
 using Xunit;
 
 namespace HeroMessaging.Storage.PostgreSql.Tests;
 
 /// <summary>
-/// Integration tests for PostgreSqlIdempotencyStore requiring a real PostgreSQL database.
+/// Integration tests for PostgreSqlIdempotencyStore using Testcontainers.
 /// </summary>
 /// <remarks>
-/// These tests require:
-/// 1. PostgreSQL running and accessible
-/// 2. Connection string configured
-/// 3. idempotency_responses table created (run migration script)
-///
-/// To run these tests:
-/// - Ensure PostgreSQL is running
-/// - Run the migration script: src/HeroMessaging/Idempotency/Storage/Sql/PostgreSQL/001_create_idempotency_table.sql
-/// - Set connection string in environment variable: HEROMESSAGING_POSTGRESQL_CONNECTIONSTRING
-///
-/// Default: Host=localhost;Database=heromessaging_tests;Username=postgres;Password=postgres
+/// These tests automatically spin up a PostgreSQL container and run all tests against it.
+/// No manual database setup is required - Docker is the only prerequisite.
+/// All tests in this class share a single PostgreSQL container for performance.
 /// </remarks>
 [Trait("Category", "Integration")]
 [Trait("Database", "PostgreSQL")]
-public sealed class PostgreSqlIdempotencyStoreIntegrationTests : IDisposable
+[Collection(nameof(PostgreSqlIdempotencyStoreCollection))]
+public sealed class PostgreSqlIdempotencyStoreIntegrationTests : IAsyncDisposable
 {
+    private readonly PostgreSqlIdempotencyStoreFixture _fixture;
     private readonly PostgreSqlIdempotencyStore _store;
     private readonly FakeTimeProvider _timeProvider;
-    private readonly string _connectionString;
     private readonly List<string> _keysToCleanup = new();
 
-    public PostgreSqlIdempotencyStoreIntegrationTests()
+    public PostgreSqlIdempotencyStoreIntegrationTests(PostgreSqlIdempotencyStoreFixture fixture)
     {
-        // Try to get connection string from environment variable, fallback to default
-        _connectionString = Environment.GetEnvironmentVariable("HEROMESSAGING_POSTGRESQL_CONNECTIONSTRING")
-            ?? "Host=localhost;Database=heromessaging_tests;Username=postgres;Password=postgres";
-
+        _fixture = fixture;
         _timeProvider = new FakeTimeProvider();
-        _store = new PostgreSqlIdempotencyStore(_connectionString, _timeProvider);
+        _store = new PostgreSqlIdempotencyStore(_fixture.ConnectionString, _timeProvider);
     }
 
     [Fact]
@@ -85,7 +76,7 @@ public sealed class PostgreSqlIdempotencyStoreIntegrationTests : IDisposable
         // Arrange
         var key = $"test:failure:{Guid.NewGuid()}";
         _keysToCleanup.Add(key);
-        var exception = new InvalidOperationException("Test error message");
+        var exception = GetExceptionWithStackTrace();
         var ttl = TimeSpan.FromHours(1);
 
         // Act - Store
@@ -304,25 +295,47 @@ public sealed class PostgreSqlIdempotencyStoreIntegrationTests : IDisposable
         Assert.NotNull(retrieved.SuccessResult);
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
-        // Cleanup test data
-        foreach (var key in _keysToCleanup)
+        // Cleanup test data (best effort) - container is managed by the fixture
+        if (_keysToCleanup.Count > 0)
         {
             try
             {
-                // Best effort cleanup - don't fail tests if cleanup fails
-                using var connection = new Npgsql.NpgsqlConnection(_connectionString);
-                connection.Open();
-                using var command = connection.CreateCommand();
-                command.CommandText = "DELETE FROM idempotency_responses WHERE idempotency_key = $1";
-                command.Parameters.AddWithValue(key);
-                command.ExecuteNonQuery();
+                await using var connection = new Npgsql.NpgsqlConnection(_fixture.ConnectionString);
+                await connection.OpenAsync();
+
+                foreach (var key in _keysToCleanup)
+                {
+                    try
+                    {
+                        await using var command = connection.CreateCommand();
+                        command.CommandText = "DELETE FROM idempotency_responses WHERE idempotency_key = $1";
+                        command.Parameters.AddWithValue(key);
+                        await command.ExecuteNonQueryAsync();
+                    }
+                    catch
+                    {
+                        // Ignore individual cleanup failures
+                    }
+                }
             }
             catch
             {
-                // Ignore cleanup failures
+                // Ignore connection failures during cleanup
             }
+        }
+    }
+
+    private static Exception GetExceptionWithStackTrace()
+    {
+        try
+        {
+            throw new InvalidOperationException("Test error message");
+        }
+        catch (Exception ex)
+        {
+            return ex;
         }
     }
 }

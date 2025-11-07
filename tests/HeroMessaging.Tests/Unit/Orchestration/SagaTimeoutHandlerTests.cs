@@ -65,7 +65,8 @@ public class SagaTimeoutHandlerTests
             await Task.Delay(50);
         }
 
-        // Stop the handler
+        // Stop the handler properly
+        await handler.StopAsync(cts.Token);
         cts.Cancel();
         try
         {
@@ -74,6 +75,10 @@ public class SagaTimeoutHandlerTests
         catch (OperationCanceledException)
         {
             // Expected
+        }
+        finally
+        {
+            handler.Dispose();
         }
 
         // Assert
@@ -118,6 +123,7 @@ public class SagaTimeoutHandlerTests
         using var cts = new CancellationTokenSource();
         var handlerTask = handler.StartAsync(cts.Token);
         await Task.Delay(250);
+        await handler.StopAsync(cts.Token);
         cts.Cancel();
         try
         {
@@ -126,6 +132,10 @@ public class SagaTimeoutHandlerTests
         catch (OperationCanceledException)
         {
             // Expected
+        }
+        finally
+        {
+            handler.Dispose();
         }
 
         // Assert - Saga should not be modified
@@ -171,6 +181,7 @@ public class SagaTimeoutHandlerTests
         using var cts = new CancellationTokenSource();
         var handlerTask = handler.StartAsync(cts.Token);
         await Task.Delay(250);
+        await handler.StopAsync(cts.Token);
         cts.Cancel();
         try
         {
@@ -179,6 +190,10 @@ public class SagaTimeoutHandlerTests
         catch (OperationCanceledException)
         {
             // Expected
+        }
+        finally
+        {
+            handler.Dispose();
         }
 
         // Assert - Saga should not be modified
@@ -260,6 +275,7 @@ public class SagaTimeoutHandlerTests
             await Task.Delay(50);
         }
 
+        await handler.StopAsync(cts.Token);
         cts.Cancel();
         try
         {
@@ -268,6 +284,10 @@ public class SagaTimeoutHandlerTests
         catch (OperationCanceledException)
         {
             // Expected
+        }
+        finally
+        {
+            handler.Dispose();
         }
 
         // Assert - All three should be timed out
