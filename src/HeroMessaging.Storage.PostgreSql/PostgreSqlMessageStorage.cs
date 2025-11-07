@@ -526,6 +526,12 @@ public class PostgreSqlMessageStorage : IMessageStorage
             parameters.Add(new NpgsqlParameter("to_timestamp", query.ToTimestamp.Value));
         }
 
+        if (!string.IsNullOrEmpty(query.ContentContains))
+        {
+            whereClauses.Add("payload::text ILIKE @content_contains");
+            parameters.Add(new NpgsqlParameter("content_contains", $"%{query.ContentContains}%"));
+        }
+
         var whereClause = string.Join(" AND ", whereClauses);
         var orderBy = query.OrderBy ?? "timestamp";
         var orderDirection = query.Ascending ? "ASC" : "DESC";
