@@ -76,20 +76,20 @@ public static class JsonSerializationHelper
     }
 
     /// <summary>
-    /// Deserializes JSON from a UTF-8 string using span-based APIs.
-    /// More efficient than traditional JsonSerializer.Deserialize for strings.
+    /// Deserializes JSON from a UTF-8 string using span-based APIs with pooled buffers.
+    /// Uses stack allocation for small JSON, pooled buffers for larger JSON.
+    /// Most efficient option for deserialization hot paths.
     /// </summary>
     public static T? DeserializeFromString<T>(string json, JsonSerializerOptions? options = null)
     {
         if (string.IsNullOrEmpty(json))
             return default;
 
-        // Get UTF-8 bytes as ReadOnlySpan
         var maxByteCount = Encoding.UTF8.GetMaxByteCount(json.Length);
 
-        if (maxByteCount <= 1024)
+        if (maxByteCount <= PooledBufferHelper.SmallBufferThreshold)
         {
-            // Use stack allocation for small JSON
+            // Use stack allocation for small JSON (<= 1KB)
             Span<byte> utf8Bytes = stackalloc byte[maxByteCount];
             var bytesWritten = Encoding.UTF8.GetBytes(json, utf8Bytes);
 
@@ -98,15 +98,18 @@ public static class JsonSerializationHelper
         }
         else
         {
-            // Use heap allocation for larger JSON
-            var utf8Bytes = Encoding.UTF8.GetBytes(json);
-            var reader = new Utf8JsonReader(utf8Bytes);
+            // Use pooled buffer for larger JSON
+            using var pooledBuffer = PooledBufferHelper.Rent(maxByteCount);
+            var bytesWritten = Encoding.UTF8.GetBytes(json, pooledBuffer.Span);
+
+            var reader = new Utf8JsonReader(pooledBuffer.Span.Slice(0, bytesWritten));
             return JsonSerializer.Deserialize<T>(ref reader, options);
         }
     }
 
     /// <summary>
-    /// Deserializes JSON from a UTF-8 string to a specific type.
+    /// Deserializes JSON from a UTF-8 string to a specific type using pooled buffers.
+    /// Uses stack allocation for small JSON, pooled buffers for larger JSON.
     /// </summary>
     public static object? DeserializeFromString(string json, Type type, JsonSerializerOptions? options = null)
     {
@@ -115,8 +118,9 @@ public static class JsonSerializationHelper
 
         var maxByteCount = Encoding.UTF8.GetMaxByteCount(json.Length);
 
-        if (maxByteCount <= 1024)
+        if (maxByteCount <= PooledBufferHelper.SmallBufferThreshold)
         {
+            // Use stack allocation for small JSON (<= 1KB)
             Span<byte> utf8Bytes = stackalloc byte[maxByteCount];
             var bytesWritten = Encoding.UTF8.GetBytes(json, utf8Bytes);
 
@@ -125,8 +129,11 @@ public static class JsonSerializationHelper
         }
         else
         {
-            var utf8Bytes = Encoding.UTF8.GetBytes(json);
-            var reader = new Utf8JsonReader(utf8Bytes);
+            // Use pooled buffer for larger JSON
+            using var pooledBuffer = PooledBufferHelper.Rent(maxByteCount);
+            var bytesWritten = Encoding.UTF8.GetBytes(json, pooledBuffer.Span);
+
+            var reader = new Utf8JsonReader(pooledBuffer.Span.Slice(0, bytesWritten));
             return JsonSerializer.Deserialize(ref reader, type, options);
         }
     }
