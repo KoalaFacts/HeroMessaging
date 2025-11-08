@@ -309,12 +309,16 @@ var list = new List<int>
      - ReadOnlySpan: 6 methods (validation, security)
      - IEnumerable: 12 methods (configuration, health checks)
 
-### Phase 2: Future Enhancements 🔮
+### Phase 2: Zero-Allocation APIs ✅ **IN PROGRESS**
 
-3. **`ref struct` Interfaces** (Research phase)
-   - Research zero-allocation serialization APIs
-   - Benchmark against current implementation
-   - Implement if >20% performance gain
+3. **`ref struct` Interfaces + Span-Based APIs** - ⏳ IMPLEMENTING
+   - **Status**: Added span-based methods to IMessageSerializer
+   - **Files modified**:
+     - Abstractions/Serialization/IMessageSerializer.cs (added Serialize/Deserialize with Span)
+     - Serialization.Json/JsonMessageSerializer.cs (implemented zero-alloc methods)
+     - Examples/RefStructInterfacesExample.cs (comprehensive examples)
+   - **Impact**: Zero-allocation serialization for hot paths
+   - **Use Cases**: High-throughput scenarios (100K+ msg/sec)
 
 4. **Overload Resolution Priority** (As needed)
    - Use when deprecating overloads

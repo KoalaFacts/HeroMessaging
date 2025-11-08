@@ -1,4 +1,6 @@
 using HeroMessaging.Abstractions.Serialization;
+using System;
+using System.Buffers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -40,6 +42,56 @@ public class JsonMessageSerializer(
         }
 
         return data;
+    }
+
+    public int Serialize<T>(T message, Span<byte> destination)
+    {
+        if (message == null) return 0;
+
+        var bufferWriter = new ArrayBufferWriter<byte>(destination.Length);
+        using var writer = new Utf8JsonWriter(bufferWriter);
+        JsonSerializer.Serialize(writer, message, _jsonOptions);
+        writer.Flush();
+
+        var written = bufferWriter.WrittenSpan;
+        written.CopyTo(destination);
+        return written.Length;
+    }
+
+    public bool TrySerialize<T>(T message, Span<byte> destination, out int bytesWritten)
+    {
+        try
+        {
+            bytesWritten = Serialize(message, destination);
+            return true;
+        }
+        catch
+        {
+            bytesWritten = 0;
+            return false;
+        }
+    }
+
+    public int GetRequiredBufferSize<T>(T message)
+    {
+        // Estimate 4KB for typical messages
+        return 4096;
+    }
+
+    public T Deserialize<T>(ReadOnlySpan<byte> data) where T : class
+    {
+        if (data.IsEmpty) return default(T)!;
+
+        var reader = new Utf8JsonReader(data);
+        return JsonSerializer.Deserialize<T>(ref reader, _jsonOptions)!;
+    }
+
+    public object? Deserialize(ReadOnlySpan<byte> data, Type messageType)
+    {
+        if (data.IsEmpty) return null;
+
+        var reader = new Utf8JsonReader(data);
+        return JsonSerializer.Deserialize(ref reader, messageType, _jsonOptions);
     }
 
     public async ValueTask<T> DeserializeAsync<T>(byte[] data, CancellationToken cancellationToken = default) where T : class
