@@ -46,6 +46,84 @@ HeroMessaging is a modern, extensible messaging framework for .NET that provides
 - `HeroMessaging.Observability.OpenTelemetry` - Distributed tracing and metrics
 - `HeroMessaging.Observability.HealthChecks` - ASP.NET Core health monitoring
 
+### Source Generators
+
+**Reduce boilerplate by 80%** with Roslyn source generators that generate code at compile-time:
+
+- **Message Validator Generator** - Auto-generate validation from data annotations
+- **Message Builder Generator** - Fluent builders for test data creation
+- **Idempotency Key Generator** - Deterministic deduplication keys
+- **Handler Registration Generator** - Auto-discover and register all handlers
+- **Saga DSL Generator** - Declarative state machine definitions
+
+**Quick Example:**
+
+```csharp
+// Define message with attributes
+[GenerateValidator]
+[GenerateBuilder]
+[GenerateIdempotencyKey(nameof(OrderId))]
+public record CreateOrderCommand
+{
+    [Required]
+    [StringLength(50, MinimumLength = 5)]
+    public string OrderId { get; init; } = string.Empty;
+
+    [Range(0.01, 1000000)]
+    public decimal Amount { get; init; }
+}
+
+// Use generated code
+var command = CreateOrderCommandBuilder.New()
+    .WithOrderId("ORD-12345")
+    .WithAmount(299.99m)
+    .Build();
+
+var validationResult = CreateOrderCommandValidator.Validate(command);
+var idempotencyKey = command.GetIdempotencyKey();
+```
+
+**Saga DSL Example:**
+
+```csharp
+[GenerateSaga]
+public partial class OrderSaga : SagaBase<OrderSagaData>
+{
+    [InitialState]
+    [SagaState("Created")]
+    public class Created
+    {
+        [On<OrderCreatedEvent>]
+        public async Task OnOrderCreated(OrderCreatedEvent evt)
+        {
+            Data.OrderId = evt.OrderId;
+            TransitionTo("PaymentPending");
+        }
+    }
+
+    [SagaState("PaymentPending")]
+    public class PaymentPending
+    {
+        [On<PaymentProcessedEvent>]
+        public async Task OnPaymentProcessed(PaymentProcessedEvent evt)
+        {
+            Complete();
+        }
+
+        [OnTimeout(300)]
+        public async Task OnTimeout() => Fail("Payment timeout");
+
+        [Compensate]
+        public async Task RefundPayment()
+        {
+            // Compensation logic
+        }
+    }
+}
+```
+
+📖 **[Complete Source Generators Usage Guide](src/HeroMessaging.SourceGenerators/USAGE.md)**
+
 ## Quick Start
 
 ### Installation
