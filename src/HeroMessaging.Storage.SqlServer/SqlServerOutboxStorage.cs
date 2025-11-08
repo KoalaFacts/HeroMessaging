@@ -19,12 +19,17 @@ public class SqlServerOutboxStorage : IOutboxStorage
     private readonly SqlConnection? _sharedConnection;
     private readonly SqlTransaction? _sharedTransaction;
     private readonly TimeProvider _timeProvider;
+    private readonly IJsonSerializer _jsonSerializer;
 
-    public SqlServerOutboxStorage(SqlServerStorageOptions options, TimeProvider timeProvider)
+    public SqlServerOutboxStorage(
+        SqlServerStorageOptions options,
+        TimeProvider timeProvider,
+        IJsonSerializer jsonSerializer)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _tableName = _options.GetFullTableName(_options.OutboxTableName);
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+        _jsonSerializer = jsonSerializer ?? throw new ArgumentNullException(nameof(jsonSerializer));
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
@@ -40,7 +45,11 @@ public class SqlServerOutboxStorage : IOutboxStorage
     /// <summary>
     /// Constructor for transaction-aware operations with shared connection and transaction
     /// </summary>
-    public SqlServerOutboxStorage(SqlConnection connection, SqlTransaction? transaction, TimeProvider timeProvider)
+    public SqlServerOutboxStorage(
+        SqlConnection connection,
+        SqlTransaction? transaction,
+        TimeProvider timeProvider,
+        IJsonSerializer jsonSerializer)
     {
         _sharedConnection = connection ?? throw new ArgumentNullException(nameof(connection));
         _sharedTransaction = transaction;
@@ -49,6 +58,7 @@ public class SqlServerOutboxStorage : IOutboxStorage
         _options = new SqlServerStorageOptions { ConnectionString = connection.ConnectionString };
         _tableName = _options.GetFullTableName(_options.OutboxTableName);
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+        _jsonSerializer = jsonSerializer ?? throw new ArgumentNullException(nameof(jsonSerializer));
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
@@ -59,7 +69,10 @@ public class SqlServerOutboxStorage : IOutboxStorage
     /// <summary>
     /// Constructor with connection string for transaction-aware operations
     /// </summary>
-    public SqlServerOutboxStorage(string connectionString, TimeProvider timeProvider)
+    public SqlServerOutboxStorage(
+        string connectionString,
+        TimeProvider timeProvider,
+        IJsonSerializer jsonSerializer)
     {
         if (string.IsNullOrEmpty(connectionString))
             throw new ArgumentException("Connection string cannot be null or empty", nameof(connectionString));
@@ -67,6 +80,7 @@ public class SqlServerOutboxStorage : IOutboxStorage
         _options = new SqlServerStorageOptions { ConnectionString = connectionString };
         _tableName = _options.GetFullTableName(_options.OutboxTableName);
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+        _jsonSerializer = jsonSerializer ?? throw new ArgumentNullException(nameof(jsonSerializer));
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
@@ -156,7 +170,7 @@ public class SqlServerOutboxStorage : IOutboxStorage
             using var command = new SqlCommand(sql, connection, _sharedTransaction);
             command.CommandTimeout = _options.CommandTimeout;
             command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = entry.Id;
-            command.Parameters.Add("@MessagePayload", SqlDbType.NVarChar, -1).Value = JsonSerializationHelper.SerializeToString(message, _jsonOptions);
+            command.Parameters.Add("@MessagePayload", SqlDbType.NVarChar, -1).Value = _jsonSerializer.SerializeToString(message, _jsonOptions);
             command.Parameters.Add("@MessageType", SqlDbType.NVarChar, 500).Value = message.GetType().FullName ?? "Unknown";
             command.Parameters.Add("@Status", SqlDbType.Int).Value = (int)entry.Status;
             command.Parameters.Add("@RetryCount", SqlDbType.Int).Value = entry.RetryCount;
@@ -278,7 +292,7 @@ public class SqlServerOutboxStorage : IOutboxStorage
                 IMessage? message = null;
                 if (type != null)
                 {
-                    message = JsonSerializationHelper.DeserializeFromString(messagePayload, type, _jsonOptions) as IMessage;
+                    message = _jsonSerializer.DeserializeFromString(messagePayload, type, _jsonOptions) as IMessage;
                 }
 
                 if (message != null)
@@ -428,7 +442,7 @@ public class SqlServerOutboxStorage : IOutboxStorage
             IMessage? message = null;
             if (type != null)
             {
-                message = JsonSerializationHelper.DeserializeFromString(messagePayload, type, _jsonOptions) as IMessage;
+                message = _jsonSerializer.DeserializeFromString(messagePayload, type, _jsonOptions) as IMessage;
             }
 
             if (message != null)
@@ -460,7 +474,7 @@ public class SqlServerOutboxStorage : IOutboxStorage
         IMessage? message = null;
         if (type != null)
         {
-            message = JsonSerializationHelper.DeserializeFromString(messagePayload, type, _jsonOptions) as IMessage;
+            message = _jsonSerializer.DeserializeFromString(messagePayload, type, _jsonOptions) as IMessage;
         }
 
         return new OutboxEntry

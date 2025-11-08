@@ -8,18 +8,20 @@ namespace HeroMessaging.SourceGenerators.Examples;
 /// <summary>
 /// Examples demonstrating pooled buffer usage with ArrayPool for zero-allocation patterns.
 /// These patterns enable 100K+ msg/sec throughput with minimal GC pressure.
+/// NOTE: In production code, inject IBufferPoolManager via dependency injection rather than
+/// using static helpers. These examples use a parameter for demonstration.
 /// </summary>
 public static class PooledBufferExample
 {
     /// <summary>
     /// Example 1: Basic pooled buffer usage with automatic disposal.
     /// </summary>
-    public static void BasicPooledBufferUsage()
+    public static void BasicPooledBufferUsage(IBufferPoolManager bufferPool)
     {
         Console.WriteLine("=== Basic Pooled Buffer Usage ===\n");
 
         // Rent a 4KB buffer from the pool
-        using var buffer = PooledBufferHelper.Rent(4096);
+        using var buffer = bufferPool.Rent(4096);
 
         // Use the buffer's span
         var data = Encoding.UTF8.GetBytes("Hello, pooled world!");
@@ -35,7 +37,7 @@ public static class PooledBufferExample
     /// <summary>
     /// Example 2: Choosing the right buffering strategy based on size.
     /// </summary>
-    public static void BufferingStrategySelection()
+    public static void BufferingStrategySelection(IBufferPoolManager bufferPool)
     {
         Console.WriteLine("\n=== Buffering Strategy Selection ===\n");
 
@@ -43,21 +45,21 @@ public static class PooledBufferExample
 
         foreach (var size in sizes)
         {
-            var strategy = PooledBufferHelper.GetStrategy(size);
+            var strategy = bufferPool.GetStrategy(size);
             Console.WriteLine($"Size: {size,10} bytes ({size / 1024,6} KB) → Strategy: {strategy}");
         }
 
         Console.WriteLine("\nStrategy Guidelines:");
-        Console.WriteLine($"  StackAlloc:           ≤ {PooledBufferHelper.SmallBufferThreshold / 1024} KB");
-        Console.WriteLine($"  Pooled:               {PooledBufferHelper.SmallBufferThreshold / 1024} KB - {PooledBufferHelper.MediumBufferThreshold / 1024} KB");
-        Console.WriteLine($"  PooledWithChunking:   {PooledBufferHelper.MediumBufferThreshold / 1024} KB - {PooledBufferHelper.LargeBufferThreshold / 1024} KB");
-        Console.WriteLine($"  StreamBased:          > {PooledBufferHelper.LargeBufferThreshold / 1024} KB");
+        Console.WriteLine($"  StackAlloc:           ≤ {bufferPool.SmallBufferThreshold / 1024} KB");
+        Console.WriteLine($"  Pooled:               {bufferPool.SmallBufferThreshold / 1024} KB - {bufferPool.MediumBufferThreshold / 1024} KB");
+        Console.WriteLine($"  PooledWithChunking:   {bufferPool.MediumBufferThreshold / 1024} KB - {bufferPool.LargeBufferThreshold / 1024} KB");
+        Console.WriteLine($"  StreamBased:          > {bufferPool.LargeBufferThreshold / 1024} KB");
     }
 
     /// <summary>
     /// Example 3: Zero-allocation message processing pipeline.
     /// </summary>
-    public static void ZeroAllocationPipeline()
+    public static void ZeroAllocationPipeline(IBufferPoolManager bufferPool)
     {
         Console.WriteLine("\n=== Zero-Allocation Message Pipeline ===\n");
 
@@ -85,7 +87,7 @@ public static class PooledBufferExample
 
         // Medium messages: Pooled buffers
         Console.WriteLine("\nMedium message processing:");
-        using (var buffer = PooledBufferHelper.Rent(8192))
+        using (var buffer = bufferPool.Rent(8192))
         {
             var bytesWritten = SerializeToSpan(message, buffer.Span);
             Console.WriteLine($"Serialized {bytesWritten} bytes using pooled buffer (0 allocations)");
@@ -101,7 +103,7 @@ public static class PooledBufferExample
     /// <summary>
     /// Example 4: High-throughput batch processing with pooling.
     /// </summary>
-    public static void HighThroughputBatchProcessing()
+    public static void HighThroughputBatchProcessing(IBufferPoolManager bufferPool)
     {
         Console.WriteLine("\n=== High-Throughput Batch Processing ===\n");
 
@@ -128,7 +130,7 @@ public static class PooledBufferExample
         long withPoolingBytes = 0;
         for (int i = 0; i < messageCount; i++)
         {
-            using var buffer = PooledBufferHelper.Rent(messageSize); // ✅ From pool
+            using var buffer = bufferPool.Rent(messageSize); // ✅ From pool
             // Process message...
             withPoolingBytes += messageSize;
             // Buffer returned automatically
@@ -145,13 +147,13 @@ public static class PooledBufferExample
     /// <summary>
     /// Example 5: Sensitive data handling with buffer clearing.
     /// </summary>
-    public static void SensitiveDataHandling()
+    public static void SensitiveDataHandling(IBufferPoolManager bufferPool)
     {
         Console.WriteLine("\n=== Sensitive Data Handling ===\n");
 
         Console.WriteLine("Processing sensitive data (e.g., credit card, passwords)...");
 
-        using var buffer = PooledBufferHelper.Rent(256);
+        using var buffer = bufferPool.Rent(256);
 
         // Store sensitive data
         var sensitiveData = Encoding.UTF8.GetBytes("CreditCard:1234-5678-9012-3456");
@@ -171,7 +173,7 @@ public static class PooledBufferExample
     /// <summary>
     /// Example 6: Comparing allocation patterns.
     /// </summary>
-    public static void AllocationComparison()
+    public static void AllocationComparison(IBufferPoolManager bufferPool)
     {
         Console.WriteLine("\n=== Allocation Pattern Comparison ===\n");
 
@@ -202,7 +204,7 @@ public static class PooledBufferExample
         // Pattern 3: Pooled buffers (reused, no allocation)
         Console.WriteLine("\nPattern 3: Pooled buffers (medium/large data)");
         {
-            using var buffer = PooledBufferHelper.Rent(message.Length * 2); // ✅ From pool
+            using var buffer = bufferPool.Rent(message.Length * 2); // ✅ From pool
             var bytesWritten = Encoding.UTF8.GetBytes(message, buffer.Span);
             // Process in place...
             var result = Encoding.UTF8.GetString(buffer.Span.Slice(0, bytesWritten)); // 1 allocation
@@ -236,16 +238,20 @@ public static class PooledBufferExample
     /// </summary>
     public static void RunAllExamples()
     {
+        // In production, IBufferPoolManager would be injected via DI
+        // For examples, we create an instance directly
+        var bufferPool = new DefaultBufferPoolManager();
+
         Console.WriteLine("╔════════════════════════════════════════════════════════════════╗");
         Console.WriteLine("║  Pooled Buffer Examples - Zero-Allocation Message Processing  ║");
         Console.WriteLine("╚════════════════════════════════════════════════════════════════╝\n");
 
-        BasicPooledBufferUsage();
-        BufferingStrategySelection();
-        ZeroAllocationPipeline();
-        HighThroughputBatchProcessing();
-        SensitiveDataHandling();
-        AllocationComparison();
+        BasicPooledBufferUsage(bufferPool);
+        BufferingStrategySelection(bufferPool);
+        ZeroAllocationPipeline(bufferPool);
+        HighThroughputBatchProcessing(bufferPool);
+        SensitiveDataHandling(bufferPool);
+        AllocationComparison(bufferPool);
 
         Console.WriteLine("\n" + new string('═', 66));
         Console.WriteLine("All examples completed. Check results above.");

@@ -6,16 +6,27 @@ using System.Text.Json;
 namespace HeroMessaging.Utilities;
 
 /// <summary>
-/// Helper methods for efficient JSON serialization using span-based APIs.
+/// Default implementation of IJsonSerializer using span-based APIs.
 /// Reduces allocations in hot paths like storage and validation.
 /// </summary>
-public static class JsonSerializationHelper
+public sealed class DefaultJsonSerializer : IJsonSerializer
 {
+    private readonly IBufferPoolManager _bufferPool;
+
+    /// <summary>
+    /// Creates a new instance of DefaultJsonSerializer.
+    /// </summary>
+    /// <param name="bufferPool">Buffer pool manager for efficient memory allocation</param>
+    public DefaultJsonSerializer(IBufferPoolManager bufferPool)
+    {
+        _bufferPool = bufferPool ?? throw new ArgumentNullException(nameof(bufferPool));
+    }
+
     /// <summary>
     /// Serializes an object to JSON and returns the UTF-8 string.
     /// Uses ArrayBufferWriter for zero-allocation byte generation.
     /// </summary>
-    public static string SerializeToString(object value, JsonSerializerOptions? options = null)
+    public string SerializeToString(object value, JsonSerializerOptions? options = null)
     {
         var bufferWriter = new ArrayBufferWriter<byte>();
 
@@ -33,7 +44,7 @@ public static class JsonSerializationHelper
     /// Serializes an object to JSON and returns the UTF-8 string.
     /// Generic version for better performance when type is known at compile time.
     /// </summary>
-    public static string SerializeToString<T>(T value, JsonSerializerOptions? options = null)
+    public string SerializeToString<T>(T value, JsonSerializerOptions? options = null)
     {
         var bufferWriter = new ArrayBufferWriter<byte>();
 
@@ -51,7 +62,7 @@ public static class JsonSerializationHelper
     /// Serializes an object to JSON and returns the UTF-8 string.
     /// Overload that accepts a runtime Type for polymorphic scenarios.
     /// </summary>
-    public static string SerializeToString(object value, Type type, JsonSerializerOptions? options = null)
+    public string SerializeToString(object value, Type type, JsonSerializerOptions? options = null)
     {
         var bufferWriter = new ArrayBufferWriter<byte>();
 
@@ -69,7 +80,7 @@ public static class JsonSerializationHelper
     /// Serializes an object to JSON UTF-8 bytes and writes to an ArrayBufferWriter.
     /// Allows caller to reuse the buffer or convert to string as needed.
     /// </summary>
-    public static void SerializeToBuffer<T>(T value, ArrayBufferWriter<byte> buffer, JsonSerializerOptions? options = null)
+    public void SerializeToBuffer<T>(T value, ArrayBufferWriter<byte> buffer, JsonSerializerOptions? options = null)
     {
         using var writer = new Utf8JsonWriter(buffer);
         JsonSerializer.Serialize(writer, value, options);
@@ -80,14 +91,14 @@ public static class JsonSerializationHelper
     /// Uses stack allocation for small JSON, pooled buffers for larger JSON.
     /// Most efficient option for deserialization hot paths.
     /// </summary>
-    public static T? DeserializeFromString<T>(string json, JsonSerializerOptions? options = null)
+    public T? DeserializeFromString<T>(string json, JsonSerializerOptions? options = null)
     {
         if (string.IsNullOrEmpty(json))
             return default;
 
         var maxByteCount = Encoding.UTF8.GetMaxByteCount(json.Length);
 
-        if (maxByteCount <= PooledBufferHelper.SmallBufferThreshold)
+        if (maxByteCount <= _bufferPool.SmallBufferThreshold)
         {
             // Use stack allocation for small JSON (<= 1KB)
             Span<byte> utf8Bytes = stackalloc byte[maxByteCount];
@@ -99,7 +110,7 @@ public static class JsonSerializationHelper
         else
         {
             // Use pooled buffer for larger JSON
-            using var pooledBuffer = PooledBufferHelper.Rent(maxByteCount);
+            using var pooledBuffer = _bufferPool.Rent(maxByteCount);
             var bytesWritten = Encoding.UTF8.GetBytes(json, pooledBuffer.Span);
 
             var reader = new Utf8JsonReader(pooledBuffer.Span.Slice(0, bytesWritten));
@@ -111,14 +122,14 @@ public static class JsonSerializationHelper
     /// Deserializes JSON from a UTF-8 string to a specific type using pooled buffers.
     /// Uses stack allocation for small JSON, pooled buffers for larger JSON.
     /// </summary>
-    public static object? DeserializeFromString(string json, Type type, JsonSerializerOptions? options = null)
+    public object? DeserializeFromString(string json, Type type, JsonSerializerOptions? options = null)
     {
         if (string.IsNullOrEmpty(json))
             return null;
 
         var maxByteCount = Encoding.UTF8.GetMaxByteCount(json.Length);
 
-        if (maxByteCount <= PooledBufferHelper.SmallBufferThreshold)
+        if (maxByteCount <= _bufferPool.SmallBufferThreshold)
         {
             // Use stack allocation for small JSON (<= 1KB)
             Span<byte> utf8Bytes = stackalloc byte[maxByteCount];
@@ -130,7 +141,7 @@ public static class JsonSerializationHelper
         else
         {
             // Use pooled buffer for larger JSON
-            using var pooledBuffer = PooledBufferHelper.Rent(maxByteCount);
+            using var pooledBuffer = _bufferPool.Rent(maxByteCount);
             var bytesWritten = Encoding.UTF8.GetBytes(json, pooledBuffer.Span);
 
             var reader = new Utf8JsonReader(pooledBuffer.Span.Slice(0, bytesWritten));
@@ -142,7 +153,7 @@ public static class JsonSerializationHelper
     /// Gets the size in bytes of the JSON representation without creating a string.
     /// Useful for validation and metrics.
     /// </summary>
-    public static int GetJsonByteCount<T>(T value, JsonSerializerOptions? options = null)
+    public int GetJsonByteCount<T>(T value, JsonSerializerOptions? options = null)
     {
         var bufferWriter = new ArrayBufferWriter<byte>();
 

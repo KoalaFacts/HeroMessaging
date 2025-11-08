@@ -4,10 +4,10 @@ using System.Buffers;
 namespace HeroMessaging.Utilities;
 
 /// <summary>
-/// Helper for managing pooled buffers using ArrayPool to reduce allocations.
+/// Default implementation of IBufferPoolManager using ArrayPool.
 /// Provides RAII-style buffer management with automatic return to pool.
 /// </summary>
-public static class PooledBufferHelper
+public sealed class DefaultBufferPoolManager : IBufferPoolManager
 {
     /// <summary>
     /// Shared ArrayPool instance for all pooled buffers.
@@ -18,17 +18,17 @@ public static class PooledBufferHelper
     /// <summary>
     /// Small buffer threshold (1KB) - use stack allocation when possible.
     /// </summary>
-    public const int SmallBufferThreshold = 1024;
+    public int SmallBufferThreshold => 1024;
 
     /// <summary>
     /// Medium buffer threshold (64KB) - typical message size.
     /// </summary>
-    public const int MediumBufferThreshold = 64 * 1024;
+    public int MediumBufferThreshold => 64 * 1024;
 
     /// <summary>
     /// Large buffer threshold (1MB) - use pooling but consider chunking.
     /// </summary>
-    public const int LargeBufferThreshold = 1024 * 1024;
+    public int LargeBufferThreshold => 1024 * 1024;
 
     /// <summary>
     /// Rents a buffer from the pool with the specified minimum size.
@@ -36,7 +36,7 @@ public static class PooledBufferHelper
     /// </summary>
     /// <param name="minimumSize">Minimum required buffer size</param>
     /// <returns>Disposable wrapper around pooled buffer</returns>
-    public static PooledBuffer Rent(int minimumSize)
+    public PooledBuffer Rent(int minimumSize)
     {
         var buffer = Pool.Rent(minimumSize);
         return new PooledBuffer(buffer, minimumSize);
@@ -46,7 +46,7 @@ public static class PooledBufferHelper
     /// Rents a buffer and copies source data into it.
     /// Useful when you need to work with pooled copy of existing data.
     /// </summary>
-    public static PooledBuffer RentAndCopy(ReadOnlySpan<byte> source)
+    public PooledBuffer RentAndCopy(ReadOnlySpan<byte> source)
     {
         var buffer = Rent(source.Length);
         source.CopyTo(buffer.Span);
@@ -54,10 +54,25 @@ public static class PooledBufferHelper
     }
 
     /// <summary>
+    /// Helper to determine the best buffering strategy based on size.
+    /// </summary>
+    public BufferingStrategy GetStrategy(int size)
+    {
+        if (size <= SmallBufferThreshold)
+            return BufferingStrategy.StackAlloc;
+        else if (size <= MediumBufferThreshold)
+            return BufferingStrategy.Pooled;
+        else if (size <= LargeBufferThreshold)
+            return BufferingStrategy.PooledWithChunking;
+        else
+            return BufferingStrategy.StreamBased;
+    }
+
+    /// <summary>
     /// Returns a buffer to the pool manually.
     /// Prefer using PooledBuffer.Dispose() for automatic return.
     /// </summary>
-    public static void Return(byte[] buffer, bool clearArray = false)
+    internal static void Return(byte[] buffer, bool clearArray = false)
     {
         Pool.Return(buffer, clearArray);
     }
@@ -111,7 +126,7 @@ public static class PooledBufferHelper
         {
             if (!_disposed && _array != null)
             {
-                Pool.Return(_array, clearArray: false);
+                DefaultBufferPoolManager.Return(_array, clearArray: false);
                 _array = null;
                 _disposed = true;
             }
@@ -125,55 +140,10 @@ public static class PooledBufferHelper
         {
             if (!_disposed && _array != null)
             {
-                Pool.Return(_array, clearArray);
+                DefaultBufferPoolManager.Return(_array, clearArray);
                 _array = null;
                 _disposed = true;
             }
         }
-    }
-
-    /// <summary>
-    /// Helper to determine the best buffering strategy based on size.
-    /// </summary>
-    public static BufferingStrategy GetStrategy(int size)
-    {
-        if (size <= SmallBufferThreshold)
-            return BufferingStrategy.StackAlloc;
-        else if (size <= MediumBufferThreshold)
-            return BufferingStrategy.Pooled;
-        else if (size <= LargeBufferThreshold)
-            return BufferingStrategy.PooledWithChunking;
-        else
-            return BufferingStrategy.StreamBased;
-    }
-
-    /// <summary>
-    /// Buffering strategies for different message sizes.
-    /// </summary>
-    public enum BufferingStrategy
-    {
-        /// <summary>
-        /// Use stack allocation (stackalloc) for small buffers (<=1KB).
-        /// Zero heap allocation, fastest, but limited size.
-        /// </summary>
-        StackAlloc,
-
-        /// <summary>
-        /// Use ArrayPool for medium buffers (1KB-64KB).
-        /// Reduces allocations, good for most messages.
-        /// </summary>
-        Pooled,
-
-        /// <summary>
-        /// Use ArrayPool with chunking for large buffers (64KB-1MB).
-        /// Process in chunks to avoid large contiguous allocations.
-        /// </summary>
-        PooledWithChunking,
-
-        /// <summary>
-        /// Use stream-based approach for very large data (>1MB).
-        /// Consider RecyclableMemoryStream or file-based storage.
-        /// </summary>
-        StreamBased
     }
 }

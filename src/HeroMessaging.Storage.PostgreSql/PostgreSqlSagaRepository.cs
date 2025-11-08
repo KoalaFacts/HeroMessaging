@@ -29,18 +29,21 @@ public class PostgreSqlSagaRepository<TSaga> : ISagaRepository<TSaga>, IDisposab
     private Task? _initializationTask;
     private readonly SemaphoreSlim _initLock = new(1, 1);
     private bool _disposed;
+    private readonly IJsonSerializer _jsonSerializer;
 
     /// <summary>
     /// Initializes a new instance of the PostgreSqlSagaRepository
     /// </summary>
     /// <param name="options">Configuration options for PostgreSQL storage</param>
     /// <param name="timeProvider">Time provider for testable time-based operations</param>
+    /// <param name="jsonSerializer">JSON serializer for saga data</param>
     /// <exception cref="ArgumentNullException">Thrown when options or timeProvider is null</exception>
     /// <exception cref="ArgumentException">Thrown when connection string is invalid or identifiers contain invalid characters</exception>
-    public PostgreSqlSagaRepository(PostgreSqlStorageOptions options, TimeProvider timeProvider)
+    public PostgreSqlSagaRepository(PostgreSqlStorageOptions options, TimeProvider timeProvider, IJsonSerializer jsonSerializer)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+        _jsonSerializer = jsonSerializer ?? throw new ArgumentNullException(nameof(jsonSerializer));
 
         // Validate connection string
         if (string.IsNullOrWhiteSpace(options.ConnectionString))
@@ -170,7 +173,7 @@ public class PostgreSqlSagaRepository<TSaga> : ISagaRepository<TSaga>, IDisposab
         if (await reader.ReadAsync(cancellationToken))
         {
             var sagaData = reader.GetString(0);
-            return JsonSerializationHelper.DeserializeFromString<TSaga>(sagaData, SharedJsonOptions);
+            return _jsonSerializer.DeserializeFromString<TSaga>(sagaData, SharedJsonOptions);
         }
 
         return null;
@@ -213,7 +216,7 @@ public class PostgreSqlSagaRepository<TSaga> : ISagaRepository<TSaga>, IDisposab
         while (await reader.ReadAsync(cancellationToken))
         {
             var sagaData = reader.GetString(0);
-            var saga = JsonSerializationHelper.DeserializeFromString<TSaga>(sagaData, SharedJsonOptions);
+            var saga = _jsonSerializer.DeserializeFromString<TSaga>(sagaData, SharedJsonOptions);
             if (saga != null)
             {
                 sagas.Add(saga);
@@ -262,7 +265,7 @@ public class PostgreSqlSagaRepository<TSaga> : ISagaRepository<TSaga>, IDisposab
         command.Parameters.AddWithValue("@UpdatedAt", saga.UpdatedAt);
         command.Parameters.AddWithValue("@IsCompleted", saga.IsCompleted);
         command.Parameters.AddWithValue("@Version", saga.Version);
-        command.Parameters.AddWithValue("@SagaData", JsonSerializationHelper.SerializeToString(saga, SharedJsonOptions));
+        command.Parameters.AddWithValue("@SagaData", _jsonSerializer.SerializeToString(saga, SharedJsonOptions));
 
         try
         {
@@ -359,7 +362,7 @@ public class PostgreSqlSagaRepository<TSaga> : ISagaRepository<TSaga>, IDisposab
             updateCommand.Parameters.AddWithValue("@UpdatedAt", saga.UpdatedAt);
             updateCommand.Parameters.AddWithValue("@IsCompleted", saga.IsCompleted);
             updateCommand.Parameters.AddWithValue("@Version", saga.Version);
-            updateCommand.Parameters.AddWithValue("@SagaData", JsonSerializationHelper.SerializeToString(saga, SharedJsonOptions));
+            updateCommand.Parameters.AddWithValue("@SagaData", _jsonSerializer.SerializeToString(saga, SharedJsonOptions));
 
             await updateCommand.ExecuteNonQueryAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
@@ -439,7 +442,7 @@ public class PostgreSqlSagaRepository<TSaga> : ISagaRepository<TSaga>, IDisposab
         while (await reader.ReadAsync(cancellationToken))
         {
             var sagaData = reader.GetString(0);
-            var saga = JsonSerializationHelper.DeserializeFromString<TSaga>(sagaData, SharedJsonOptions);
+            var saga = _jsonSerializer.DeserializeFromString<TSaga>(sagaData, SharedJsonOptions);
             if (saga != null)
             {
                 sagas.Add(saga);

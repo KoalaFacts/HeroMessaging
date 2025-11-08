@@ -19,16 +19,19 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
     private readonly IJsonOptionsProvider _jsonOptionsProvider;
     private readonly string _tableName;
     private readonly TimeProvider _timeProvider;
+    private readonly IJsonSerializer _jsonSerializer;
 
     public PostgreSqlOutboxStorage(
         PostgreSqlStorageOptions options,
         TimeProvider timeProvider,
+        IJsonSerializer jsonSerializer,
         IDbConnectionProvider<NpgsqlConnection, NpgsqlTransaction>? connectionProvider = null,
         IDbSchemaInitializer? schemaInitializer = null,
         IJsonOptionsProvider? jsonOptionsProvider = null)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+        _jsonSerializer = jsonSerializer ?? throw new ArgumentNullException(nameof(jsonSerializer));
         _tableName = _options.GetFullTableName(_options.OutboxTableName);
 
         // Use provided dependencies or create defaults
@@ -46,10 +49,12 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
         NpgsqlConnection connection,
         NpgsqlTransaction? transaction,
         TimeProvider timeProvider,
+        IJsonSerializer jsonSerializer,
         IJsonOptionsProvider? jsonOptionsProvider = null)
     {
         _connectionProvider = new PostgreSqlConnectionProvider(connection, transaction);
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+        _jsonSerializer = jsonSerializer ?? throw new ArgumentNullException(nameof(jsonSerializer));
         _jsonOptionsProvider = jsonOptionsProvider ?? new DefaultJsonOptionsProvider();
 
         // Use default options when using shared connection
@@ -109,7 +114,7 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
             using var command = new NpgsqlCommand(sql, connection, transaction);
             command.Parameters.AddWithValue("id", entryId);
             command.Parameters.AddWithValue("message_type", message.GetType().FullName ?? "Unknown");
-            command.Parameters.AddWithValue("payload", JsonSerializationHelper.SerializeToString(message, _jsonOptionsProvider.GetOptions()));
+            command.Parameters.AddWithValue("payload", _jsonSerializer.SerializeToString(message, _jsonOptionsProvider.GetOptions()));
             command.Parameters.AddWithValue("destination", (object?)options.Destination ?? DBNull.Value);
             command.Parameters.AddWithValue("status", "Pending");
             command.Parameters.AddWithValue("retry_count", 0);
@@ -195,7 +200,7 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
                 var nextRetryAt = reader.IsDBNull(9) ? (DateTime?)null : reader.GetDateTime(9);
                 var lastError = reader.IsDBNull(10) ? null : reader.GetString(10);
 
-                var message = JsonSerializationHelper.DeserializeFromString<IMessage>(payload, _jsonOptionsProvider.GetOptions());
+                var message = _jsonSerializer.DeserializeFromString<IMessage>(payload, _jsonOptionsProvider.GetOptions());
 
                 entries.Add(new OutboxEntry
                 {

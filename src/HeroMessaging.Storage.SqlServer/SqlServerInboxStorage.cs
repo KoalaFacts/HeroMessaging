@@ -20,16 +20,19 @@ public class SqlServerInboxStorage : IInboxStorage
     private readonly IJsonOptionsProvider _jsonOptionsProvider;
     private readonly string _tableName;
     private readonly TimeProvider _timeProvider;
+    private readonly IJsonSerializer _jsonSerializer;
 
     public SqlServerInboxStorage(
         SqlServerStorageOptions options,
         TimeProvider timeProvider,
+        IJsonSerializer jsonSerializer,
         IDbConnectionProvider<SqlConnection, SqlTransaction>? connectionProvider = null,
         IDbSchemaInitializer? schemaInitializer = null,
         IJsonOptionsProvider? jsonOptionsProvider = null)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+        _jsonSerializer = jsonSerializer ?? throw new ArgumentNullException(nameof(jsonSerializer));
         _tableName = _options.GetFullTableName(_options.InboxTableName);
 
         // Use provided dependencies or create defaults
@@ -47,10 +50,12 @@ public class SqlServerInboxStorage : IInboxStorage
         SqlConnection connection,
         SqlTransaction? transaction,
         TimeProvider timeProvider,
+        IJsonSerializer jsonSerializer,
         IJsonOptionsProvider? jsonOptionsProvider = null)
     {
         _connectionProvider = new SqlServerConnectionProvider(connection, transaction);
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+        _jsonSerializer = jsonSerializer ?? throw new ArgumentNullException(nameof(jsonSerializer));
         _jsonOptionsProvider = jsonOptionsProvider ?? new DefaultJsonOptionsProvider();
 
         // Use default options when using shared connection
@@ -118,7 +123,7 @@ public class SqlServerInboxStorage : IInboxStorage
             using var command = new SqlCommand(sql, connection, transaction);
             command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = messageId;
             command.Parameters.Add("@MessageType", SqlDbType.NVarChar, 500).Value = message.GetType().FullName ?? "Unknown";
-            command.Parameters.Add("@Payload", SqlDbType.NVarChar, -1).Value = JsonSerializationHelper.SerializeToString(message, _jsonOptionsProvider.GetOptions());
+            command.Parameters.Add("@Payload", SqlDbType.NVarChar, -1).Value = _jsonSerializer.SerializeToString(message, _jsonOptionsProvider.GetOptions());
             command.Parameters.Add("@Source", SqlDbType.NVarChar, 200).Value = (object?)options.Source ?? DBNull.Value;
             command.Parameters.Add("@Status", SqlDbType.NVarChar, 50).Value = "Pending";
             command.Parameters.Add("@ReceivedAt", SqlDbType.DateTime2).Value = now;
@@ -201,7 +206,7 @@ public class SqlServerInboxStorage : IInboxStorage
                 var deduplicationWindowMinutes = reader.IsDBNull(8) ? (int?)null : reader.GetInt32(8);
 
                 // Deserialize message (simplified - in production would need type resolution)
-                var message = JsonSerializationHelper.DeserializeFromString<IMessage>(payload, _jsonOptionsProvider.GetOptions());
+                var message = _jsonSerializer.DeserializeFromString<IMessage>(payload, _jsonOptionsProvider.GetOptions());
 
                 return new InboxEntry
                 {
@@ -346,7 +351,7 @@ public class SqlServerInboxStorage : IInboxStorage
                 var requireIdempotency = reader.GetBoolean(8);
                 var deduplicationWindowMinutes = reader.IsDBNull(9) ? (int?)null : reader.GetInt32(9);
 
-                var message = JsonSerializationHelper.DeserializeFromString<IMessage>(payload, _jsonOptionsProvider.GetOptions());
+                var message = _jsonSerializer.DeserializeFromString<IMessage>(payload, _jsonOptionsProvider.GetOptions());
 
                 entries.Add(new InboxEntry
                 {
