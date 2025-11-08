@@ -48,10 +48,11 @@ HeroMessaging is a modern, extensible messaging framework for .NET that provides
 
 ### Source Generators
 
-**Reduce boilerplate by 80-90%** with Roslyn source generators that generate code at compile-time:
+**Reduce boilerplate by 80-95%** with Roslyn source generators that generate code at compile-time:
 
 - **Message Validator Generator** - Auto-generate validation from data annotations
 - **Message Builder Generator** - Fluent builders for test data creation
+- **Sophisticated Test Data Builder** - Advanced test builders with auto-randomization & object mothers
 - **Idempotency Key Generator** - Deterministic deduplication keys
 - **Handler Registration Generator** - Auto-discover and register all handlers
 - **Saga DSL Generator** - Declarative state machine definitions

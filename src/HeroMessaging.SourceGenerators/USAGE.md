@@ -7,6 +7,7 @@ Complete guide to using HeroMessaging's Roslyn source generators to reduce boile
 - [Installation](#installation)
 - [Message Validator Generator](#message-validator-generator)
 - [Message Builder Generator](#message-builder-generator)
+- [Sophisticated Test Data Builder Generator](#sophisticated-test-data-builder-generator)
 - [Idempotency Key Generator](#idempotency-key-generator)
 - [Handler Registration Generator](#handler-registration-generator)
 - [Saga DSL Generator](#saga-dsl-generator)
@@ -376,6 +377,475 @@ var largeOrder = baseBuilder
     .WithTotalAmount(5000.00m)
     .Build();
 ```
+
+---
+
+## Sophisticated Test Data Builder Generator
+
+Generates advanced test data builders with auto-randomization, object mothers, and collection support. More powerful than basic [GenerateBuilder] with realistic fake data generation.
+
+### Step-by-Step Usage
+
+#### 1. Mark Your Model with Attribute
+
+```csharp
+using HeroMessaging.SourceGenerators;
+
+namespace MyApp.Models;
+
+[GenerateTestDataBuilder]
+public record Order
+{
+    [RandomString(Prefix = "ORD-", Length = 8)]
+    public string OrderId { get; init; } = string.Empty;
+
+    [RandomEmail(Domain = "example.com")]
+    public string CustomerEmail { get; init; } = string.Empty;
+
+    [RandomDecimal(Min = 1.00, Max = 10000.00, DecimalPlaces = 2)]
+    public decimal Amount { get; init; }
+
+    [RandomInt(Min = 1, Max = 100)]
+    public int Quantity { get; init; }
+
+    [RandomDateTime(DaysFromNow = -90, DaysToNow = 0)]
+    public DateTime OrderDate { get; init; }
+
+    [RandomEnum]
+    public OrderStatus Status { get; init; }
+
+    [RandomCollection(MinCount = 1, MaxCount = 5)]
+    public List<OrderItem> Items { get; init; } = new();
+}
+
+public record OrderItem
+{
+    [RandomString(Prefix = "PROD-", Length = 6)]
+    public string ProductId { get; init; } = string.Empty;
+
+    [RandomInt(Min = 1, Max = 10)]
+    public int Quantity { get; init; }
+
+    [RandomDecimal(Min = 1.00, Max = 500.00)]
+    public decimal UnitPrice { get; init; }
+}
+```
+
+#### 2. Generated Test Data Builder
+
+```csharp
+// Generated: TestData.Order.g.cs
+public static partial class TestData
+{
+    public static OrderBuilder Order() => new OrderBuilder();
+
+    public class OrderBuilder
+    {
+        private string _orderId;
+        private string _customerEmail;
+        private decimal _amount;
+        private int _quantity;
+        private DateTime _orderDate;
+        private OrderStatus _status;
+        private List<OrderItem> _items;
+
+        // With methods for all properties
+        public OrderBuilder WithOrderId(string value) { ... }
+        public OrderBuilder WithCustomerEmail(string value) { ... }
+        // ... etc
+
+        // Auto-randomization based on attributes
+        public OrderBuilder WithRandomData()
+        {
+            _orderId = "ORD-" + GenerateRandomString(8);  // Uses [RandomString]
+            _customerEmail = "user" + Random.Next(1000, 9999) + "@example.com";  // [RandomEmail]
+            _amount = Math.Round((decimal)(Random.NextDouble() * 9999), 2);  // [RandomDecimal]
+            _quantity = Random.Next(1, 101);  // [RandomInt]
+            _orderDate = DateTime.UtcNow.AddDays(Random.Next(-90, 1));  // [RandomDateTime]
+            _status = (OrderStatus)Random.Next(0, EnumValues.Length);  // [RandomEnum]
+
+            // Auto-populate collection with random items
+            _items = new List<OrderItem>();
+            var count = Random.Next(1, 6);  // [RandomCollection]
+            for (int i = 0; i < count; i++)
+            {
+                _items.Add(TestData.OrderItem().WithRandomData().Build());
+            }
+
+            return this;
+        }
+
+        public Order Build() { ... }
+
+        // Collection builders
+        public List<Order> CreateMany(int count)
+        {
+            var items = new List<Order>();
+            for (int i = 0; i < count; i++)
+            {
+                items.Add(new OrderBuilder().WithRandomData().Build());
+            }
+            return items;
+        }
+    }
+}
+```
+
+#### 3. Basic Usage - Auto-Randomization
+
+```csharp
+// Create order with all random data
+var order = TestData.Order()
+    .WithRandomData()
+    .Build();
+
+// Results in:
+// OrderId: "ORD-AB12CD34"
+// CustomerEmail: "user5678@example.com"
+// Amount: 4537.82m
+// Quantity: 47
+// OrderDate: DateTime.UtcNow.AddDays(-23)
+// Status: OrderStatus.Created
+// Items: 3 random items
+```
+
+#### 4. Override Specific Fields
+
+```csharp
+// Randomize most fields, but override specific ones
+var order = TestData.Order()
+    .WithRandomData()  // Fill with random data
+    .WithOrderId("ORD-SPECIFIC")  // Override just what you need
+    .WithAmount(999.99m)
+    .Build();
+
+// Results in:
+// OrderId: "ORD-SPECIFIC" (overridden)
+// CustomerEmail: "user1234@example.com" (random)
+// Amount: 999.99m (overridden)
+// Quantity: 23 (random)
+// ...
+```
+
+#### 5. Create Collections
+
+```csharp
+// Create 10 random orders
+var orders = TestData.Order().CreateMany(10);
+
+// All orders have unique random data
+foreach (var order in orders)
+{
+    Console.WriteLine($"{order.OrderId}: {order.Amount:C}");
+}
+
+// Output:
+// ORD-A1B2C3D4: $2,345.67
+// ORD-E5F6G7H8: $876.54
+// ORD-I9J0K1L2: $5,432.10
+// ...
+```
+
+#### 6. Object Mother Pattern (Predefined Scenarios)
+
+Define common test scenarios in your model:
+
+```csharp
+[GenerateTestDataBuilder]
+public record Order
+{
+    // Properties...
+
+    [BuilderScenario("Valid")]
+    public static Order ValidScenario() => new()
+    {
+        OrderId = "ORD-VALID",
+        CustomerEmail = "[email protected]",
+        Amount = 99.99m,
+        Quantity = 1,
+        Status = OrderStatus.Created,
+        Items = new() { /* ... */ }
+    };
+
+    [BuilderScenario("Expensive")]
+    public static Order ExpensiveScenario() => new()
+    {
+        OrderId = "ORD-VIP",
+        Amount = 9999.99m,
+        Quantity = 10,
+        Status = OrderStatus.Created
+    };
+
+    [BuilderScenario("Invalid")]
+    public static Order InvalidScenario() => new()
+    {
+        OrderId = "",  // Invalid
+        Amount = -50m,  // Invalid
+        Quantity = 0  // Invalid
+    };
+}
+
+// Generated builder methods:
+var validOrder = TestData.ValidOrder().Build();
+var expensiveOrder = TestData.ExpensiveOrder().Build();
+var invalidOrder = TestData.InvalidOrder().Build();
+
+// Still customizable:
+var customValid = TestData.ValidOrder()
+    .WithAmount(149.99m)
+    .Build();
+```
+
+#### 7. Random Attribute Options
+
+**RandomString:**
+```csharp
+[RandomString(Prefix = "ORD-", Suffix = "-2025", Length = 8, CharSet = RandomStringCharSet.Alphanumeric)]
+public string OrderId { get; init; }
+// Generates: "ORD-A1B2C3D4-2025"
+
+[RandomString(Length = 6, CharSet = RandomStringCharSet.Numeric)]
+public string InvoiceNumber { get; init; }
+// Generates: "123456"
+```
+
+**RandomEmail:**
+```csharp
+[RandomEmail(Domain = "mycompany.com")]
+public string Email { get; init; }
+// Generates: "user5678@mycompany.com"
+```
+
+**RandomInt:**
+```csharp
+[RandomInt(Min = 1, Max = 100)]
+public int Quantity { get; init; }
+// Generates: 1-100
+
+[RandomInt(Min = 18, Max = 65)]
+public int Age { get; init; }
+// Generates: 18-65
+```
+
+**RandomDecimal:**
+```csharp
+[RandomDecimal(Min = 0.01, Max = 10000.00, DecimalPlaces = 2)]
+public decimal Price { get; init; }
+// Generates: 0.01 - 10000.00 with 2 decimal places
+
+[RandomDecimal(Min = 0.001, Max = 1.000, DecimalPlaces = 3)]
+public decimal Percentage { get; init; }
+// Generates: 0.001 - 1.000 with 3 decimal places
+```
+
+**RandomDateTime:**
+```csharp
+[RandomDateTime(DaysFromNow = -365, DaysToNow = 0)]
+public DateTime CreatedDate { get; init; }
+// Generates: Random date in past year
+
+[RandomDateTime(DaysFromNow = 0, DaysToNow = 30)]
+public DateTime DueDate { get; init; }
+// Generates: Random date in next 30 days
+
+[RandomDateTime(DaysFromNow = -7, DaysToNow = 7, UseUtc = true)]
+public DateTime ModifiedDate { get; init; }
+// Generates: Random date ± 7 days from now (UTC)
+```
+
+**RandomGuid:**
+```csharp
+[RandomGuid(Format = "N")]  // 32 digits
+public string TransactionId { get; init; }
+// Generates: "00000000000000000000000000000000"
+
+[RandomGuid(Format = "D")]  // Hyphens (default)
+public string CorrelationId { get; init; }
+// Generates: "00000000-0000-0000-0000-000000000000"
+```
+
+**RandomEnum:**
+```csharp
+[RandomEnum]
+public OrderStatus Status { get; init; }
+// Generates: Random value from OrderStatus enum
+
+[RandomEnum(Exclude = "Cancelled,Deleted")]
+public OrderStatus ActiveStatus { get; init; }
+// Generates: Random value excluding Cancelled and Deleted
+```
+
+**RandomCollection:**
+```csharp
+[RandomCollection(MinCount = 1, MaxCount = 10)]
+public List<OrderItem> Items { get; init; }
+// Generates: 1-10 random OrderItems automatically
+
+[RandomCollection(MinCount = 0, MaxCount = 3)]
+public List<string> Tags { get; init; }
+// Generates: 0-3 random tags
+```
+
+#### 8. In Unit Tests
+
+```csharp
+[Fact]
+public void ProcessOrder_WithValidOrder_Succeeds()
+{
+    // Arrange - Quick random test data
+    var order = TestData.Order()
+        .WithRandomData()
+        .WithStatus(OrderStatus.Created)
+        .Build();
+
+    var processor = new OrderProcessor();
+
+    // Act
+    var result = processor.Process(order);
+
+    // Assert
+    Assert.True(result.Success);
+    Assert.NotEmpty(order.OrderId);
+    Assert.True(order.Amount > 0);
+}
+
+[Theory]
+[InlineData(10)]
+[InlineData(50)]
+[InlineData(100)]
+public void ProcessBatch_WithMultipleOrders_ProcessesAll(int count)
+{
+    // Arrange - Create multiple random orders easily
+    var orders = TestData.Order().CreateMany(count);
+
+    var processor = new BatchProcessor();
+
+    // Act
+    var result = processor.ProcessBatch(orders);
+
+    // Assert
+    Assert.Equal(count, result.ProcessedCount);
+}
+
+[Fact]
+public void ValidateOrder_WithInvalidData_ReturnErrors()
+{
+    // Arrange - Use predefined invalid scenario
+    var invalidOrder = TestData.InvalidOrder().Build();
+
+    var validator = new OrderValidator();
+
+    // Act
+    var result = validator.Validate(invalidOrder);
+
+    // Assert
+    Assert.False(result.IsValid);
+    Assert.Contains("OrderId is required", result.Errors);
+    Assert.Contains("Amount must be positive", result.Errors);
+}
+```
+
+#### 9. Test Fixtures and Reusable Builders
+
+```csharp
+public class OrderTestFixtures
+{
+    // Create reusable test data patterns
+    public static Order SmallOrder() =>
+        TestData.Order()
+            .WithRandomData()
+            .WithAmount(50.00m)
+            .WithQuantity(1)
+            .Build();
+
+    public static Order LargeOrder() =>
+        TestData.Order()
+            .WithRandomData()
+            .WithAmount(5000.00m)
+            .WithQuantity(100)
+            .Build();
+
+    public static Order PaidOrder() =>
+        TestData.Order()
+            .WithRandomData()
+            .WithStatus(OrderStatus.Paid)
+            .Build();
+
+    public static List<Order> MixedOrders() =>
+        new List<Order>
+        {
+            SmallOrder(),
+            LargeOrder(),
+            TestData.Order().WithRandomData().WithStatus(OrderStatus.Cancelled).Build()
+        };
+}
+
+// Use in tests:
+var order = OrderTestFixtures.SmallOrder();
+var orders = OrderTestFixtures.MixedOrders();
+```
+
+### Benefits Over Basic Builder
+
+**Basic Builder ([GenerateBuilder]):**
+- Manual value assignment
+- No randomization
+- Requires setting every property
+- No collection support
+- No test scenarios
+
+**Sophisticated Test Data Builder ([GenerateTestDataBuilder]):**
+- ✅ Auto-randomization with realistic data
+- ✅ Attribute-based constraints
+- ✅ Collection creation (CreateMany)
+- ✅ Object Mother patterns (predefined scenarios)
+- ✅ Quick test data generation
+- ✅ Type-safe random generation
+- ✅ Minimal test code
+
+### Comparison
+
+**Before (Manual Test Data):**
+
+```csharp
+// Every test needs this boilerplate
+var order = new Order
+{
+    OrderId = "ORD-" + Guid.NewGuid().ToString().Substring(0, 8),
+    CustomerEmail = "test" + Random.Next(1000, 9999) + "@example.com",
+    Amount = (decimal)(Random.NextDouble() * 1000),
+    Quantity = Random.Next(1, 100),
+    OrderDate = DateTime.UtcNow.AddDays(-Random.Next(0, 90)),
+    Status = OrderStatus.Created,
+    Items = new List<OrderItem>
+    {
+        new() { ProductId = "PROD-1", Quantity = 1, UnitPrice = 99.99m },
+        new() { ProductId = "PROD-2", Quantity = 2, UnitPrice = 49.99m }
+    }
+};
+
+// Create 10 orders - need loop
+var orders = new List<Order>();
+for (int i = 0; i < 10; i++)
+{
+    orders.Add(new Order { /* repeat all above */ });
+}
+```
+
+**After (Generated Builder):**
+
+```csharp
+// One line
+var order = TestData.Order().WithRandomData().Build();
+
+// Collections - one line
+var orders = TestData.Order().CreateMany(10);
+
+// Scenarios - one line
+var validOrder = TestData.ValidOrder().Build();
+```
+
+**Savings: 95% less test code!**
 
 ---
 
@@ -1950,11 +2420,12 @@ The HeroMessaging Source Generators provide:
 
 1. **Message Validator Generator** - Validation from data annotations
 2. **Message Builder Generator** - Fluent test data builders
-3. **Idempotency Key Generator** - Deterministic deduplication keys
-4. **Handler Registration Generator** - Auto-discovery of all handlers
-5. **Saga DSL Generator** - Declarative state machine definitions
-6. **Method Logging Generator** - Auto-generate entry/exit/duration/error logging
-7. **Metrics Instrumentation Generator** - Auto-generate OpenTelemetry metrics
+3. **Sophisticated Test Data Builder Generator** - Advanced test builders with auto-randomization
+4. **Idempotency Key Generator** - Deterministic deduplication keys
+5. **Handler Registration Generator** - Auto-discovery of all handlers
+6. **Saga DSL Generator** - Declarative state machine definitions
+7. **Method Logging Generator** - Auto-generate entry/exit/duration/error logging
+8. **Metrics Instrumentation Generator** - Auto-generate OpenTelemetry metrics
 
 ### Quick Reference
 
@@ -1968,6 +2439,19 @@ var result = MyCommandValidator.Validate(cmd);
 [GenerateBuilder]
 public record MyEvent { string Id { get; init; } }
 var evt = MyEventBuilder.New().WithId("123").Build();
+
+// Sophisticated Test Data Building (with auto-randomization)
+[GenerateTestDataBuilder]
+public record Order
+{
+    [RandomString(Prefix = "ORD-", Length = 8)]
+    public string OrderId { get; init; }
+
+    [RandomDecimal(Min = 1.00, Max = 10000.00)]
+    public decimal Amount { get; init; }
+}
+var order = TestData.Order().WithRandomData().Build();
+var orders = TestData.Order().CreateMany(10);
 
 // Idempotency
 [GenerateIdempotencyKey(nameof(Id))]
