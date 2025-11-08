@@ -5,6 +5,7 @@ using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System.Threading;
 using System.Threading.Tasks.Dataflow;
 
 namespace HeroMessaging.Processing;
@@ -18,7 +19,7 @@ public class EventBus : IEventBus, IProcessor
     private long _publishedCount;
     private long _failedCount;
     private int _registeredHandlers;
-    private readonly object _metricsLock = new();
+    private readonly Lock _metricsLock = new();
     private readonly TimeProvider _timeProvider;
 
     public bool IsRunning { get; private set; } = true;

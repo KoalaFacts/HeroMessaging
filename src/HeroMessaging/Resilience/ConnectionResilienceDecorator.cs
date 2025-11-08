@@ -3,6 +3,7 @@ using HeroMessaging.Utilities;
 using Microsoft.Extensions.Logging;
 using System.Data;
 using System.Data.Common;
+using System.Threading;
 
 namespace HeroMessaging.Resilience;
 
@@ -251,7 +252,7 @@ internal class ConnectionCircuitBreaker(CircuitBreakerOptions options, ILogger l
     private ConnectionCircuitState _state = ConnectionCircuitState.Closed;
     private DateTime _lastFailureTime;
     private int _failureCount;
-    private readonly object _lock = new();
+    private readonly Lock _lock = new();
 
     public async Task<bool> CanExecuteAsync()
     {

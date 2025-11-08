@@ -1,3 +1,4 @@
+using System.Threading;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Tests.TestUtilities;
 using Xunit;
@@ -407,14 +408,14 @@ public class PipelineTests : IAsyncDisposable
         private double _intermittentFailureRate = 0.0;
         private bool _includeRetry = false;
         private readonly Random _random = new(42); // Seeded for deterministic test behavior
-        private readonly object _randomLock = new();
+        private readonly Lock _randomLock = new();
         private readonly Dictionary<string, PipelineMetric> _metrics = new(StringComparer.OrdinalIgnoreCase);
-        private readonly object _metricsLock = new();
+        private readonly Lock _metricsLock = new();
         private readonly List<string> _processingSteps = new();
         private readonly HashSet<string> _executedSteps = new();
-        private readonly object _executedStepsLock = new();
+        private readonly Lock _executedStepsLock = new();
         private readonly Dictionary<Guid, IMessage> _storage = new();
-        private readonly object _storageLock = new();
+        private readonly Lock _storageLock = new();
 
         public async Task InitializeAsync(string serialization, string storage,
             bool includeObservability = false, bool includeResilience = false,

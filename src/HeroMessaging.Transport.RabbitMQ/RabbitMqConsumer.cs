@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System.Diagnostics;
+using System.Threading;
 
 namespace HeroMessaging.Transport.RabbitMQ;
 
@@ -23,7 +24,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
     private bool _isActive;
     private long _messagesProcessed;
     private long _messagesFailed;
-    private readonly object _stateLock = new();
+    private readonly Lock _stateLock = new();
 
     /// <inheritdoc/>
     public string ConsumerId { get; }

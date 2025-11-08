@@ -1,3 +1,4 @@
+using System.Threading;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Tests.TestUtilities;
 using Xunit;
@@ -422,7 +423,7 @@ public class ObservabilityTests : IAsyncDisposable
     private class TestMetricsCollector : IAsyncDisposable
     {
         private readonly Dictionary<string, Metric> _metrics = new(StringComparer.OrdinalIgnoreCase);
-        private readonly object _syncRoot = new();
+        private readonly Lock _syncRoot = new();
 
         public void RecordMetric(string name, double value, Dictionary<string, string>? tags = null)
         {

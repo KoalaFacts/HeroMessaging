@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Threading;
 using HeroMessaging.Abstractions.Policies;
 
 namespace HeroMessaging.Policies;
@@ -144,7 +145,7 @@ public sealed class TokenBucketRateLimiter : IRateLimiter, IDisposable
     {
         private readonly TokenBucketOptions _options;
         private readonly TimeProvider _timeProvider;
-        private readonly object _lock = new();
+        private readonly Lock _lock = new();
 
         private double _availableTokens;
         private DateTimeOffset _lastRefillTime;

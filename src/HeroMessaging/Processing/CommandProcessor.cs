@@ -4,6 +4,7 @@ using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Utilities;
 using Microsoft.Extensions.Logging;
 using System.Diagnostics;
+using System.Threading;
 using System.Threading.Tasks.Dataflow;
 
 namespace HeroMessaging.Processing;
@@ -16,7 +17,7 @@ public class CommandProcessor : ICommandProcessor, IProcessor
     private long _processedCount;
     private long _failedCount;
     private readonly List<long> _durations = new();
-    private readonly object _metricsLock = new();
+    private readonly Lock _metricsLock = new();
 
     public bool IsRunning { get; private set; } = true;
 
