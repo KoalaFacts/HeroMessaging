@@ -1,6 +1,7 @@
 using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Storage;
+using HeroMessaging.Utilities;
 using Microsoft.Data.SqlClient;
 using System.Data;
 using System.Text.Json;
@@ -144,7 +145,7 @@ public class SqlServerQueueStorage : IQueueStorage
             command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = entryId;
             command.Parameters.Add("@QueueName", SqlDbType.NVarChar, 200).Value = queueName;
             command.Parameters.Add("@MessageType", SqlDbType.NVarChar, 500).Value = message.GetType().FullName ?? "Unknown";
-            command.Parameters.Add("@Payload", SqlDbType.NVarChar, -1).Value = JsonSerializer.Serialize(message, _jsonOptions);
+            command.Parameters.Add("@Payload", SqlDbType.NVarChar, -1).Value = JsonSerializationHelper.SerializeToString(message, _jsonOptions);
             command.Parameters.Add("@Priority", SqlDbType.Int).Value = options?.Priority ?? 0;
             command.Parameters.Add("@EnqueuedAt", SqlDbType.DateTime2).Value = now;
             command.Parameters.Add("@VisibleAt", SqlDbType.DateTime2).Value = visibleAt;
@@ -230,7 +231,7 @@ public class SqlServerQueueStorage : IQueueStorage
 
                 if (transaction == null) localTransaction.Commit();
 
-                var message = JsonSerializer.Deserialize<IMessage>(payload, _jsonOptions);
+                var message = JsonSerializationHelper.DeserializeFromString<IMessage>(payload, _jsonOptions);
 
                 return new QueueEntry
                 {
@@ -294,7 +295,7 @@ public class SqlServerQueueStorage : IQueueStorage
                 var dequeueCount = reader.GetInt32(6);
                 var delayMinutes = reader.IsDBNull(7) ? (int?)null : reader.GetInt32(7);
 
-                var message = JsonSerializer.Deserialize<IMessage>(payload, _jsonOptions);
+                var message = JsonSerializationHelper.DeserializeFromString<IMessage>(payload, _jsonOptions);
 
                 entries.Add(new QueueEntry
                 {

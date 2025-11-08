@@ -1,5 +1,6 @@
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Storage;
+using HeroMessaging.Utilities;
 using Microsoft.Data.SqlClient;
 using System.Data;
 using System.Text.Json;
@@ -138,12 +139,12 @@ public class SqlServerMessageStorage : IMessageStorage
         using var command = new SqlCommand(sql, connection);
         command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = messageId;
         command.Parameters.Add("@MessageType", SqlDbType.NVarChar, 500).Value = message.GetType().FullName ?? "Unknown";
-        command.Parameters.Add("@Payload", SqlDbType.NVarChar, -1).Value = JsonSerializer.Serialize(message, _jsonOptions);
+        command.Parameters.Add("@Payload", SqlDbType.NVarChar, -1).Value = JsonSerializationHelper.SerializeToString(message, _jsonOptions);
         command.Parameters.Add("@Timestamp", SqlDbType.DateTime2).Value = message.Timestamp;
         command.Parameters.Add("@CorrelationId", SqlDbType.NVarChar, 100).Value = DBNull.Value;
         command.Parameters.Add("@Collection", SqlDbType.NVarChar, 100).Value = (object?)options?.Collection ?? DBNull.Value;
         command.Parameters.Add("@Metadata", SqlDbType.NVarChar, -1).Value = options?.Metadata != null
-            ? JsonSerializer.Serialize(options.Metadata, _jsonOptions)
+            ? JsonSerializationHelper.SerializeToString(options.Metadata, _jsonOptions)
             : DBNull.Value;
         command.Parameters.Add("@ExpiresAt", SqlDbType.DateTime2).Value = (object?)expiresAt ?? DBNull.Value;
         command.Parameters.Add("@CreatedAt", SqlDbType.DateTime2).Value = _timeProvider.GetUtcNow().DateTime;
@@ -170,7 +171,7 @@ public class SqlServerMessageStorage : IMessageStorage
         if (await reader.ReadAsync(cancellationToken))
         {
             var payload = reader.GetString(0);
-            return JsonSerializer.Deserialize<T>(payload, _jsonOptions);
+            return JsonSerializationHelper.DeserializeFromString<T>(payload, _jsonOptions);
         }
 
         return default;
@@ -268,7 +269,7 @@ public class SqlServerMessageStorage : IMessageStorage
         using var command = new SqlCommand(sql, connection);
         command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = messageId;
         command.Parameters.Add("@MessageType", SqlDbType.NVarChar, 500).Value = message.GetType().FullName ?? "Unknown";
-        command.Parameters.Add("@Payload", SqlDbType.NVarChar, -1).Value = JsonSerializer.Serialize(message, _jsonOptions);
+        command.Parameters.Add("@Payload", SqlDbType.NVarChar, -1).Value = JsonSerializationHelper.SerializeToString(message, _jsonOptions);
         command.Parameters.Add("@Timestamp", SqlDbType.DateTime2).Value = message.Timestamp;
         command.Parameters.Add("@CorrelationId", SqlDbType.NVarChar, 100).Value = DBNull.Value;
 
@@ -374,7 +375,7 @@ public class SqlServerMessageStorage : IMessageStorage
             var messageType = message.GetType();
             command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = messageId;
             command.Parameters.Add("@MessageType", SqlDbType.NVarChar, 500).Value = messageType.AssemblyQualifiedName ?? "Unknown";
-            command.Parameters.Add("@Payload", SqlDbType.NVarChar, -1).Value = JsonSerializer.Serialize(message, messageType, _jsonOptions);
+            command.Parameters.Add("@Payload", SqlDbType.NVarChar, -1).Value = JsonSerializationHelper.SerializeToString(message, messageType, _jsonOptions);
             command.Parameters.Add("@Timestamp", SqlDbType.DateTime2).Value = message.Timestamp;
             command.Parameters.Add("@CorrelationId", SqlDbType.NVarChar, 100).Value = (object?)message.CorrelationId ?? DBNull.Value;
             command.Parameters.Add("@CreatedAt", SqlDbType.DateTime2).Value = _timeProvider.GetUtcNow().DateTime;
@@ -431,7 +432,7 @@ public class SqlServerMessageStorage : IMessageStorage
                     throw new InvalidOperationException($"Unable to resolve message type: {messageTypeName}");
                 }
 
-                var message = JsonSerializer.Deserialize(payload, messageType, _jsonOptions);
+                var message = JsonSerializationHelper.DeserializeFromString(payload, messageType, _jsonOptions);
                 return message as IMessage;
             }
 

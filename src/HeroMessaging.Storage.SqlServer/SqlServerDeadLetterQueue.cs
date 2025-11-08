@@ -1,5 +1,6 @@
 using HeroMessaging.Abstractions.ErrorHandling;
 using HeroMessaging.Abstractions.Messages;
+using HeroMessaging.Utilities;
 using Microsoft.Data.SqlClient;
 using System.Data;
 using System.Text.Json;
@@ -88,7 +89,7 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
 
         using var command = new SqlCommand(sql, connection);
         command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = deadLetterId;
-        command.Parameters.Add("@MessagePayload", SqlDbType.NVarChar, -1).Value = JsonSerializer.Serialize(message, _jsonOptions);
+        command.Parameters.Add("@MessagePayload", SqlDbType.NVarChar, -1).Value = JsonSerializationHelper.SerializeToString(message, _jsonOptions);
         command.Parameters.Add("@MessageType", SqlDbType.NVarChar, 500).Value = message.GetType().FullName ?? "Unknown";
         command.Parameters.Add("@Reason", SqlDbType.NVarChar, -1).Value = context.Reason;
         command.Parameters.Add("@Component", SqlDbType.NVarChar, 200).Value = context.Component;
@@ -98,7 +99,7 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
         command.Parameters.Add("@CreatedAt", SqlDbType.DateTime2).Value = _timeProvider.GetUtcNow().DateTime;
         command.Parameters.Add("@ExceptionMessage", SqlDbType.NVarChar, -1).Value = (object?)context.Exception?.Message ?? DBNull.Value;
         command.Parameters.Add("@Metadata", SqlDbType.NVarChar, -1).Value =
-            context.Metadata.Any() ? JsonSerializer.Serialize(context.Metadata, _jsonOptions) : (object)DBNull.Value;
+            context.Metadata.Any() ? JsonSerializationHelper.SerializeToString(context.Metadata, _jsonOptions) : (object)DBNull.Value;
 
         await command.ExecuteNonQueryAsync(cancellationToken);
         return deadLetterId;
@@ -130,13 +131,13 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
         while (await reader.ReadAsync(cancellationToken))
         {
             var messagePayload = reader.GetString(1);
-            var message = JsonSerializer.Deserialize<T>(messagePayload, _jsonOptions);
+            var message = JsonSerializationHelper.DeserializeFromString<T>(messagePayload, _jsonOptions);
 
             if (message != null)
             {
                 var metadataJson = reader.IsDBNull(11) ? null : reader.GetString(11);
                 var metadata = !string.IsNullOrEmpty(metadataJson)
-                    ? JsonSerializer.Deserialize<Dictionary<string, object>>(metadataJson, _jsonOptions) ?? new()
+                    ? JsonSerializationHelper.DeserializeFromString<Dictionary<string, object>>(metadataJson, _jsonOptions) ?? new()
                     : new Dictionary<string, object>();
 
                 entries.Add(new DeadLetterEntry<T>

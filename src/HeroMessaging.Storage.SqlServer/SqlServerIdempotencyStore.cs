@@ -1,6 +1,7 @@
 using System.Data;
 using System.Text.Json;
 using HeroMessaging.Abstractions.Idempotency;
+using HeroMessaging.Utilities;
 using Microsoft.Data.SqlClient;
 
 namespace HeroMessaging.Storage.SqlServer;
@@ -330,7 +331,7 @@ public sealed class SqlServerIdempotencyStore : IIdempotencyStore
 
         try
         {
-            return JsonSerializer.Serialize(result, _jsonOptions);
+            return JsonSerializationHelper.SerializeToString(result, _jsonOptions);
         }
         catch (Exception ex)
         {
@@ -352,7 +353,7 @@ public sealed class SqlServerIdempotencyStore : IIdempotencyStore
 
         try
         {
-            return JsonSerializer.Deserialize<object>(json, _jsonOptions);
+            return JsonSerializationHelper.DeserializeFromString<object>(json, _jsonOptions);
         }
         catch (Exception ex)
         {

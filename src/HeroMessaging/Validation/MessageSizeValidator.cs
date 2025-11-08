@@ -1,6 +1,8 @@
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Validation;
 using HeroMessaging.Utilities;
+using System;
+using System.Buffers;
 using System.Text.Json;
 
 namespace HeroMessaging.Validation;
@@ -17,8 +19,8 @@ public class MessageSizeValidator(int maxSizeInBytes = 1024 * 1024) : IMessageVa
     {
         try
         {
-            var json = JsonSerializer.Serialize(message);
-            var sizeInBytes = System.Text.Encoding.UTF8.GetByteCount(json);
+            // Use span-based helper for zero-allocation byte count
+            var sizeInBytes = JsonSerializationHelper.GetJsonByteCount(message);
 
             if (sizeInBytes > _maxSizeInBytes)
             {

@@ -1,6 +1,7 @@
 using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Storage;
+using HeroMessaging.Utilities;
 using Microsoft.Data.SqlClient;
 using System.Data;
 using System.Text.Json;
@@ -117,7 +118,7 @@ public class SqlServerInboxStorage : IInboxStorage
             using var command = new SqlCommand(sql, connection, transaction);
             command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = messageId;
             command.Parameters.Add("@MessageType", SqlDbType.NVarChar, 500).Value = message.GetType().FullName ?? "Unknown";
-            command.Parameters.Add("@Payload", SqlDbType.NVarChar, -1).Value = JsonSerializer.Serialize(message, _jsonOptionsProvider.GetOptions());
+            command.Parameters.Add("@Payload", SqlDbType.NVarChar, -1).Value = JsonSerializationHelper.SerializeToString(message, _jsonOptionsProvider.GetOptions());
             command.Parameters.Add("@Source", SqlDbType.NVarChar, 200).Value = (object?)options.Source ?? DBNull.Value;
             command.Parameters.Add("@Status", SqlDbType.NVarChar, 50).Value = "Pending";
             command.Parameters.Add("@ReceivedAt", SqlDbType.DateTime2).Value = now;
@@ -200,7 +201,7 @@ public class SqlServerInboxStorage : IInboxStorage
                 var deduplicationWindowMinutes = reader.IsDBNull(8) ? (int?)null : reader.GetInt32(8);
 
                 // Deserialize message (simplified - in production would need type resolution)
-                var message = JsonSerializer.Deserialize<IMessage>(payload, _jsonOptionsProvider.GetOptions());
+                var message = JsonSerializationHelper.DeserializeFromString<IMessage>(payload, _jsonOptionsProvider.GetOptions());
 
                 return new InboxEntry
                 {
@@ -345,7 +346,7 @@ public class SqlServerInboxStorage : IInboxStorage
                 var requireIdempotency = reader.GetBoolean(8);
                 var deduplicationWindowMinutes = reader.IsDBNull(9) ? (int?)null : reader.GetInt32(9);
 
-                var message = JsonSerializer.Deserialize<IMessage>(payload, _jsonOptionsProvider.GetOptions());
+                var message = JsonSerializationHelper.DeserializeFromString<IMessage>(payload, _jsonOptionsProvider.GetOptions());
 
                 entries.Add(new InboxEntry
                 {
