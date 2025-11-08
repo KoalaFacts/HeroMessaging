@@ -365,10 +365,44 @@ jobs:
             -p:IncludeSymbols=true \
             -p:SymbolPackageFormat=snupkg
 
+      - name: Generate SBOM (Software Bill of Materials)
+        run: |
+          echo "📋 Generating SBOM for supply chain security..."
+
+          # Install Microsoft SBOM tool
+          dotnet tool install --global Microsoft.Sbom.DotNetTool || dotnet tool update --global Microsoft.Sbom.DotNetTool
+
+          # Generate SBOM for the main project
+          sbom-tool generate \
+            -b ./src/HeroMessaging \
+            -bc ./src/HeroMessaging \
+            -pn HeroMessaging \
+            -pv ${{ steps.build-number.outputs.full-version }} \
+            -ps "KoalaFacts" \
+            -nsb https://github.com/KoalaFacts/HeroMessaging \
+            -m ./release-packages/sbom
+
+          # Generate SBOM for abstractions
+          sbom-tool generate \
+            -b ./src/HeroMessaging.Abstractions \
+            -bc ./src/HeroMessaging.Abstractions \
+            -pn HeroMessaging.Abstractions \
+            -pv ${{ steps.build-number.outputs.full-version }} \
+            -ps "KoalaFacts" \
+            -nsb https://github.com/KoalaFacts/HeroMessaging \
+            -m ./release-packages/sbom-abstractions
+
+          echo "✅ SBOM generated successfully"
+          ls -lh ./release-packages/sbom*/
+          ls -lh ./release-packages/sbom*/**/*.spdx.json || echo "SPDX files location may vary"
+
       - name: List packages
         run: |
           echo "📦 Packages created:"
           ls -lh ./release-packages/
+          echo ""
+          echo "📋 SBOM files:"
+          find ./release-packages -name "*.spdx.json" -o -name "_manifest" | head -10
           echo ""
           echo "Commit SHA: ${GITHUB_SHA}"
           echo "Short SHA: ${GITHUB_SHA:0:7}"
@@ -387,4 +421,11 @@ jobs:
         with:
           name: release-packages-latest
           path: ./release-packages/*
+          retention-days: 90
+
+      - name: Upload SBOM artifacts
+        uses: actions/upload-artifact@v5
+        with:
+          name: sbom-${{ github.sha }}
+          path: ./release-packages/sbom*/**/*
           retention-days: 90

@@ -1,0 +1,162 @@
+name: Security Scanning
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run security scans daily at 4 AM UTC
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Secret scanning using gitleaks
+  secret-scan:
+    name: Secret Scanning
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0  # Full history for better detection
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }} # Only needed for commercial use
+
+      - name: Upload security scan results
+        uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: gitleaks-report
+          path: results.sarif
+          retention-days: 30
+
+  # Dependency vulnerability scanning
+  dependency-scan:
+    name: Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Run dotnet list package --vulnerable
+        id: vulnerable-scan
+        continue-on-error: true
+        run: |
+          echo "Checking for vulnerable packages..."
+          dotnet list package --vulnerable --include-transitive 2>&1 | tee vulnerable-packages.txt
+
+          # Check if vulnerabilities were found
+          if grep -q "has the following vulnerable packages" vulnerable-packages.txt; then
+            echo "found=true" >> $GITHUB_OUTPUT
+            echo "⚠️ Vulnerable packages detected!"
+          else
+            echo "found=false" >> $GITHUB_OUTPUT
+            echo "✅ No vulnerable packages found"
+          fi
+
+      - name: Upload vulnerability report
+        uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: vulnerability-report
+          path: vulnerable-packages.txt
+          retention-days: 30
+
+      - name: Comment on PR with vulnerabilities
+        if: github.event_name == 'pull_request' && steps.vulnerable-scan.outputs.found == 'true'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('vulnerable-packages.txt', 'utf8');
+
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## ⚠️ Vulnerable Dependencies Detected
+
+            \`\`\`
+            ${report}
+            \`\`\`
+
+            Please update vulnerable packages before merging.`
+            });
+
+      - name: Fail if critical vulnerabilities found
+        if: steps.vulnerable-scan.outputs.found == 'true'
+        run: |
+          echo "❌ Critical vulnerabilities found in dependencies"
+          echo "Review the vulnerability report and update affected packages"
+          exit 1
+
+  # Security summary
+  security-summary:
+    name: Security Summary
+    needs: [secret-scan, dependency-scan]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Generate security summary
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << 'EOF'
+          ## 🔒 Security Scan Results
+
+          | Scan Type | Status |
+          |-----------|--------|
+          | Secret Scanning | ${{ needs.secret-scan.result == 'success' && '✅ Passed' || '❌ Failed' }} |
+          | Dependency Vulnerabilities | ${{ needs.dependency-scan.result == 'success' && '✅ Passed' || '❌ Failed' }} |
+
+          ### Security Best Practices
+
+          - ✅ Dependabot enabled for automated dependency updates
+          - ✅ Secret scanning with Gitleaks
+          - ✅ Vulnerability scanning for NuGet packages
+          - 🔐 Enable GitHub Advanced Security for additional protection
+
+          ---
+          _Security scans run automatically on every push and daily at 4 AM UTC_
+          EOF
+
+      - name: Check overall security status
+        run: |
+          SECRET_SCAN="${{ needs.secret-scan.result }}"
+          DEPENDENCY_SCAN="${{ needs.dependency-scan.result }}"
+
+          echo "Secret Scan: $SECRET_SCAN"
+          echo "Dependency Scan: $DEPENDENCY_SCAN"
+
+          if [[ "$SECRET_SCAN" != "success" ]] || [[ "$DEPENDENCY_SCAN" != "success" ]]; then
+            echo "❌ Security scans failed - review results above"
+            exit 1
+          fi
+
+          echo "✅ All security scans passed"

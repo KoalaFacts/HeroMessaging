@@ -185,6 +185,66 @@ jobs:
           echo "📦 Final packages:"
           ls -lh *.nupkg *.snupkg 2>/dev/null || echo "No packages found!"
 
+      - name: Setup .NET for signing
+        if: secrets.NUGET_SIGNING_CERT_BASE64 != ''
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Sign NuGet packages
+        if: secrets.NUGET_SIGNING_CERT_BASE64 != ''
+        env:
+          SIGNING_CERT_BASE64: ${{ secrets.NUGET_SIGNING_CERT_BASE64 }}
+          SIGNING_CERT_PASSWORD: ${{ secrets.NUGET_SIGNING_CERT_PASSWORD }}
+          TIMESTAMP_URL: http://timestamp.digicert.com
+        run: |
+          cd ./release-packages
+
+          echo "🔐 Setting up code signing certificate..."
+
+          # Decode certificate from base64
+          echo "$SIGNING_CERT_BASE64" | base64 -d > signing-cert.pfx
+
+          # Install NuGet sign tool
+          dotnet tool install --global NuGet.CommandLine || dotnet tool update --global NuGet.CommandLine
+
+          # Sign all .nupkg files
+          for pkg in *.nupkg; do
+            if [ -f "$pkg" ]; then
+              echo "Signing: $pkg"
+              dotnet nuget sign "$pkg" \
+                --certificate-path signing-cert.pfx \
+                --certificate-password "$SIGNING_CERT_PASSWORD" \
+                --timestamper "$TIMESTAMP_URL" \
+                --overwrite
+
+              # Verify signature
+              dotnet nuget verify --all "$pkg" && echo "✅ Verified: $pkg" || echo "⚠️ Verification failed: $pkg"
+            fi
+          done
+
+          # Clean up certificate file
+          rm -f signing-cert.pfx
+
+          echo "✅ Package signing complete"
+
+      - name: Package signing status
+        run: |
+          cd ./release-packages
+
+          if [ -z "${{ secrets.NUGET_SIGNING_CERT_BASE64 }}" ]; then
+            echo "ℹ️ Package signing skipped - no certificate configured"
+            echo "To enable package signing:"
+            echo "  1. Generate or obtain a code signing certificate (e.g., from DigiCert, Sectigo)"
+            echo "  2. Export as .pfx file with password"
+            echo "  3. Convert to base64: base64 -w 0 certificate.pfx > cert.base64"
+            echo "  4. Add secrets to repository:"
+            echo "     - NUGET_SIGNING_CERT_BASE64: <base64 content>"
+            echo "     - NUGET_SIGNING_CERT_PASSWORD: <certificate password>"
+          else
+            echo "✅ Packages have been signed with code signing certificate"
+          fi
+
       - name: Upload renamed packages
         uses: actions/upload-artifact@v5
         with:

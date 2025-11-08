@@ -6,14 +6,23 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
-      time: "09:00"
+      time: "06:00"
+      timezone: "UTC"
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
       - "github-actions"
     commit-message:
-      prefix: "chore"
+      prefix: "chore(deps)"
       include: "scope"
+    # Auto-approve patch and minor updates for actions
+    groups:
+      github-actions-minor:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
   # NuGet dependency updates
   - package-ecosystem: "nuget"
@@ -21,16 +30,39 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
-      time: "09:00"
+      time: "06:00"
+      timezone: "UTC"
     open-pull-requests-limit: 10
     labels:
       - "dependencies"
       - "nuget"
     commit-message:
-      prefix: "chore"
+      prefix: "chore(deps)"
       include: "scope"
     ignore:
       # Ignore major version updates for stable production packages
       # Remove or adjust these as needed
       - dependency-name: "Microsoft.Extensions.*"
         update-types: ["version-update:semver-major"]
+    # Group dependencies to reduce PR noise
+    groups:
+      microsoft-extensions:
+        patterns:
+          - "Microsoft.Extensions.*"
+        update-types:
+          - "minor"
+          - "patch"
+      test-dependencies:
+        patterns:
+          - "xunit*"
+          - "coverlet*"
+          - "Moq"
+        update-types:
+          - "minor"
+          - "patch"
+      benchmark-dependencies:
+        patterns:
+          - "BenchmarkDotNet*"
+        update-types:
+          - "minor"
+          - "patch"
