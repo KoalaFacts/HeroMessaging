@@ -24,8 +24,4 @@
 		<ProjectReference Include="..\..\src\HeroMessaging.Security\HeroMessaging.Security.csproj" />
 	</ItemGroup>
 
-	<ItemGroup>
-		<Using Include="Xunit" />
-	</ItemGroup>
-
 </Project>

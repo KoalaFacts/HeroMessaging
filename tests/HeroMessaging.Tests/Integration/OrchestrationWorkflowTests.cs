@@ -3,7 +3,7 @@ using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Sagas;
 using HeroMessaging.Orchestration;
 using HeroMessaging.Tests.Helpers;
-using HeroMessaging.Tests.TestUtilities;
+using HeroMessaging.Tests.TestUtilities.Sagas;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
