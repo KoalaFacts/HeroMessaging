@@ -58,6 +58,7 @@ HeroMessaging is a modern, extensible messaging framework for .NET that provides
 - **Saga DSL Generator** - Declarative state machine definitions
 - **Method Logging Generator** - Auto-generate entry/exit/duration/error logging
 - **Metrics Instrumentation Generator** - Auto-generate OpenTelemetry metrics
+- **Contract Testing Generator** - Auto-generate backward compatibility tests
 
 **Quick Example:**
 

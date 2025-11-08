@@ -13,6 +13,7 @@ Complete guide to using HeroMessaging's Roslyn source generators to reduce boile
 - [Saga DSL Generator](#saga-dsl-generator)
 - [Method Logging Generator](#method-logging-generator)
 - [Metrics Instrumentation Generator](#metrics-instrumentation-generator)
+- [Contract Testing Generator](#contract-testing-generator)
 - [Troubleshooting](#troubleshooting)
 - [Best Practices](#best-practices)
 
@@ -2152,6 +2153,448 @@ private async partial Task<Order> ProcessOrderCore(string orderId, decimal amoun
 
 ---
 
+## Contract Testing Generator
+
+Automatically generates contract tests for messages to ensure backward compatibility and prevent breaking changes.
+
+### Step-by-Step Usage
+
+#### 1. Mark Message with Attribute
+
+```csharp
+using HeroMessaging.SourceGenerators;
+
+namespace MyApp.Messages;
+
+[GenerateContractTests(Version = "v1.0")]
+[ContractVersion("v1.0", ChangeDescription = "Initial version")]
+public record OrderCreatedEvent
+{
+    [ContractRequired]
+    public string OrderId { get; init; } = string.Empty;
+
+    [ContractRequired]
+    public string CustomerId { get; init; } = string.Empty;
+
+    [ContractRequired]
+    public decimal TotalAmount { get; init; }
+
+    public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
+
+    // Sample for testing
+    [ContractSample("ValidOrder")]
+    public static OrderCreatedEvent ValidSample() => new()
+    {
+        OrderId = "ORD-12345",
+        CustomerId = "CUST-999",
+        TotalAmount = 299.99m,
+        CreatedAt = DateTime.UtcNow
+    };
+}
+```
+
+#### 2. Generated Contract Tests
+
+```csharp
+// Generated: OrderCreatedEvent.ContractTests.g.cs
+public class OrderCreatedEventContractTests
+{
+    // Schema Snapshot Test
+    [Fact]
+    public void OrderCreatedEvent_SchemaSnapshot_HasNotChanged()
+    {
+        // Verifies properties haven't been added/removed/renamed/retyped
+        var expectedProperties = new[]
+        {
+            ("OrderId", typeof(string)),
+            ("CustomerId", typeof(string)),
+            ("TotalAmount", typeof(decimal)),
+            ("CreatedAt", typeof(DateTime))
+        };
+
+        var actualProperties = typeof(OrderCreatedEvent)
+            .GetProperties()
+            .Select(p => (p.Name, p.PropertyType))
+            .OrderBy(p => p.Name)
+            .ToArray();
+
+        Assert.Equal(expectedProperties, actualProperties);
+        // Test FAILS if schema changes!
+    }
+
+    // Required Properties Test
+    [Fact]
+    public void OrderCreatedEvent_RequiredProperties_ArePresent()
+    {
+        // Breaking change: Required properties must not be removed
+        Assert.NotNull(typeof(OrderCreatedEvent).GetProperty("OrderId"));
+        Assert.NotNull(typeof(OrderCreatedEvent).GetProperty("CustomerId"));
+        Assert.NotNull(typeof(OrderCreatedEvent).GetProperty("TotalAmount"));
+    }
+
+    // Roundtrip Serialization Test
+    [Fact]
+    public void OrderCreatedEvent_ValidOrder_RoundtripSerialization_Succeeds()
+    {
+        var original = OrderCreatedEvent.ValidSample();
+
+        var json = JsonSerializer.Serialize(original);
+        var deserialized = JsonSerializer.Deserialize<OrderCreatedEvent>(json);
+
+        Assert.Equal(original.OrderId, deserialized.OrderId);
+        Assert.Equal(original.TotalAmount, deserialized.TotalAmount);
+    }
+
+    // Backward Compatibility Test
+    [Fact]
+    public void OrderCreatedEvent_CanDeserialize_MinimalValidJson()
+    {
+        // Old messages with just required fields should still work
+        var minimalJson = @"{
+          ""orderId"": ""ORD-123"",
+          ""customerId"": ""CUST-456"",
+          ""totalAmount"": 99.99
+        }";
+
+        var deserialized = JsonSerializer.Deserialize<OrderCreatedEvent>(minimalJson);
+        Assert.NotNull(deserialized);
+    }
+
+    // Forward Compatibility Test
+    [Fact]
+    public void OrderCreatedEvent_CanDeserialize_WithExtraFields()
+    {
+        // Should ignore fields from newer versions
+        var jsonWithExtra = @"{
+          ""orderId"": ""ORD-123"",
+          ""customerId"": ""CUST-456"",
+          ""totalAmount"": 99.99,
+          ""futureField"": ""should-be-ignored""
+        }";
+
+        var deserialized = JsonSerializer.Deserialize<OrderCreatedEvent>(jsonWithExtra);
+        Assert.NotNull(deserialized);  // No exception!
+    }
+}
+```
+
+#### 3. Safe Schema Evolution (Non-Breaking)
+
+**Adding Optional Fields (v1.0 → v1.1):**
+
+```csharp
+[GenerateContractTests(Version = "v1.1")]
+[ContractVersion("v1.1",
+    ChangeDescription = "Added optional ShippingAddress field")]
+public record OrderCreatedEvent
+{
+    // Original required fields - MUST NOT REMOVE
+    [ContractRequired]
+    public string OrderId { get; init; } = string.Empty;
+
+    [ContractRequired]
+    public string CustomerId { get; init; } = string.Empty;
+
+    [ContractRequired]
+    public decimal TotalAmount { get; init; }
+
+    public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
+
+    // NEW: Optional field added in v1.1 (backward compatible)
+    public string? ShippingAddress { get; init; }  // Old messages work without this
+
+    [ContractSample("ValidOrder")]
+    public static OrderCreatedEvent ValidSample() => new()
+    {
+        OrderId = "ORD-12345",
+        CustomerId = "CUST-999",
+        TotalAmount = 299.99m,
+        ShippingAddress = "123 Main St"  // New field
+    };
+}
+
+// Contract tests pass! Old v1.0 messages still deserialize correctly
+```
+
+#### 4. Deprecating Fields (v1.1 → v1.2)
+
+```csharp
+[GenerateContractTests(Version = "v1.2")]
+[ContractVersion("v1.2",
+    ChangeDescription = "Deprecated CustomerId, added CustomerReference")]
+public record OrderCreatedEvent
+{
+    [ContractRequired]
+    public string OrderId { get; init; } = string.Empty;
+
+    // DEPRECATED: Use CustomerReference instead
+    [ContractDeprecated(
+        SinceVersion = "v1.2",
+        Reason = "Replaced by CustomerReference",
+        ReplacedBy = nameof(CustomerReference))]
+    public string? CustomerId { get; init; }  // Made optional
+
+    // NEW: Replacement for CustomerId
+    public CustomerRef? CustomerReference { get; init; }
+
+    [ContractRequired]
+    public decimal TotalAmount { get; init; }
+
+    [ContractSample("NewFormat")]
+    public static OrderCreatedEvent NewFormatSample() => new()
+    {
+        OrderId = "ORD-12345",
+        CustomerReference = new CustomerRef { Id = "CUST-999" },
+        TotalAmount = 299.99m
+    };
+
+    [ContractSample("LegacyFormat")]
+    public static OrderCreatedEvent LegacyFormatSample() => new()
+    {
+        OrderId = "ORD-12345",
+        CustomerId = "CUST-999",  // Still supported!
+        TotalAmount = 299.99m
+    };
+}
+```
+
+#### 5. Breaking Changes (v2.0)
+
+```csharp
+[GenerateContractTests(Version = "v2.0")]
+[ContractVersion("v2.0",
+    ChangeDescription = "BREAKING: Removed CustomerId, changed TotalAmount to Money type")]
+[BreakingChangeRule("Removed deprecated CustomerId")]
+[BreakingChangeRule("Changed TotalAmount from decimal to Money")]
+public record OrderCreatedEvent
+{
+    [ContractRequired]
+    public string OrderId { get; init; } = string.Empty;
+
+    // CustomerId completely removed (breaking!)
+
+    [ContractRequired]
+    public CustomerRef CustomerReference { get; init; } = new();
+
+    // Type changed (breaking!)
+    [AllowTypeChange("decimal", "Money",
+        Reason = "Upgraded to support multi-currency")]
+    [ContractRequired]
+    public Money TotalAmount { get; init; } = new();
+
+    [ContractSample("ValidOrder")]
+    public static OrderCreatedEvent ValidSample() => new()
+    {
+        OrderId = "ORD-12345",
+        CustomerReference = new CustomerRef { Id = "CUST-999" },
+        TotalAmount = new Money { Amount = 299.99m, Currency = "USD" }
+    };
+}
+
+// Contract tests create NEW baseline for v2.0
+// Old v1.x tests continue to exist for compatibility testing
+```
+
+#### 6. Multiple Samples
+
+```csharp
+[GenerateContractTests]
+public record OrderCreatedEvent
+{
+    // ... properties ...
+
+    [ContractSample("SmallOrder")]
+    public static OrderCreatedEvent SmallSample() => new()
+    {
+        OrderId = "ORD-001",
+        TotalAmount = 10.00m
+    };
+
+    [ContractSample("LargeOrder")]
+    public static OrderCreatedEvent LargeSample() => new()
+    {
+        OrderId = "ORD-999",
+        TotalAmount = 10000.00m
+    };
+
+    [ContractSample("MinimalOrder")]
+    public static OrderCreatedEvent MinimalSample() => new()
+    {
+        OrderId = "ORD-MIN",
+        TotalAmount = 0.01m
+    };
+}
+
+// Generates separate roundtrip test for each sample
+```
+
+### What Contract Tests Verify
+
+#### 1. Schema Stability
+- Properties haven't been added/removed
+- Property types haven't changed
+- Property names haven't been renamed
+
+#### 2. Required Fields
+- Required properties are still present
+- Tests fail if required field is removed
+
+#### 3. Serialization
+- Messages can be serialized to JSON
+- Messages can be deserialized from JSON
+- Roundtrip preserves all data
+
+#### 4. Backward Compatibility
+- Old messages (minimal fields) still deserialize
+- New code can read old messages
+
+#### 5. Forward Compatibility
+- New messages (extra fields) don't break old code
+- Old code ignores unknown fields
+
+### Safe vs Breaking Changes
+
+**✅ Safe Changes (Non-Breaking):**
+- Add new optional property
+- Deprecate property (but keep it)
+- Add new enum value (at end)
+- Widen type (int32 → int64) with `[AllowTypeChange]`
+- Add new method/sample
+- Change documentation
+
+**❌ Breaking Changes (Require Major Version):**
+- Remove property
+- Rename property
+- Change property type
+- Make optional property required
+- Remove enum value
+- Change serialization format
+
+### CI/CD Integration
+
+**In GitHub Actions:**
+
+```yaml
+name: Contract Tests
+
+on:
+  pull_request:
+    paths:
+      - 'src/MyApp.Messages/**'
+
+jobs:
+  contract-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Run Contract Tests
+        run: dotnet test --filter "FullyQualifiedName~ContractTests"
+
+      - name: Check for Breaking Changes
+        run: |
+          # Fail if contract tests failed
+          if [ $? -ne 0 ]; then
+            echo "❌ Contract tests failed - BREAKING CHANGES detected!"
+            echo "Review changes to message schemas carefully."
+            exit 1
+          fi
+```
+
+**In Pull Requests:**
+
+```markdown
+## Message Schema Changes
+
+Contract Test Status: ✅ Passing (No breaking changes)
+
+### Changes:
+- Added optional `ShippingAddress` field to `OrderCreatedEvent`
+- This is backward compatible - old messages still deserialize
+
+### Verification:
+- ✅ Schema snapshot test passed
+- ✅ Roundtrip serialization passed
+- ✅ Backward compatibility test passed
+- ✅ Forward compatibility test passed
+```
+
+### Best Practices
+
+#### 1. Always Mark Required Fields
+
+```csharp
+// Good - Explicitly marks required fields
+[ContractRequired]
+public string OrderId { get; init; }
+
+// Bad - Contract test can't distinguish required vs optional
+public string OrderId { get; init; }
+```
+
+#### 2. Provide Multiple Samples
+
+```csharp
+// Good - Multiple scenarios covered
+[ContractSample("Valid")]
+public static OrderCreatedEvent ValidSample() => ...
+
+[ContractSample("Minimal")]
+public static OrderCreatedEvent MinimalSample() => ...
+
+[ContractSample("Edge")]
+public static OrderCreatedEvent EdgeSample() => ...
+```
+
+#### 3. Version All Messages
+
+```csharp
+// Good - Tracks version history
+[GenerateContractTests(Version = "v1.0")]
+[ContractVersion("v1.0",
+    ChangeDescription = "Initial version",
+    IntroducedDate = "2025-11-08")]
+```
+
+#### 4. Document Breaking Changes
+
+```csharp
+// Good - Documents rules clearly
+[BreakingChangeRule("Cannot remove OrderId property")]
+[BreakingChangeRule("Cannot change TotalAmount type")]
+public record OrderCreatedEvent { ... }
+```
+
+#### 5. Test in CI/CD
+
+```bash
+# Run only contract tests
+dotnet test --filter "FullyQualifiedName~ContractTests"
+
+# Fail build on contract breakage
+dotnet test --filter "FullyQualifiedName~ContractTests" || exit 1
+```
+
+### Benefits
+
+**Before (No Contract Testing):**
+- Breaking changes discovered in production
+- No way to verify backward compatibility
+- Manual testing of serialization
+- API evolution is risky
+- No documentation of message schemas
+
+**After (With Contract Testing):**
+- Breaking changes caught in CI/CD
+- Automatic backward compatibility verification
+- Generated serialization tests
+- Safe API evolution with version tracking
+- Living documentation of contracts
+
+**Savings:** Prevents production incidents, reduces testing time, documents APIs automatically.
+
+---
+
 ## Troubleshooting
 
 ### Generated Files Not Appearing
@@ -2426,6 +2869,7 @@ The HeroMessaging Source Generators provide:
 6. **Saga DSL Generator** - Declarative state machine definitions
 7. **Method Logging Generator** - Auto-generate entry/exit/duration/error logging
 8. **Metrics Instrumentation Generator** - Auto-generate OpenTelemetry metrics
+9. **Contract Testing Generator** - Auto-generate backward compatibility tests
 
 ### Quick Reference
 
@@ -2491,6 +2935,18 @@ private async partial Task<Order> ProcessOrderCore(string orderId) { ... }
 [InstrumentMethod(InstrumentationType.Counter | InstrumentationType.Histogram)]
 public partial Task<Order> ProcessOrderAsync(string orderId);
 private async partial Task<Order> ProcessOrderCore(string orderId) { ... }
+
+// Contract Testing (backward compatibility)
+[GenerateContractTests(Version = "v1.0")]
+public record OrderCreatedEvent
+{
+    [ContractRequired]
+    public string OrderId { get; init; }
+
+    [ContractSample("Valid")]
+    public static OrderCreatedEvent ValidSample() => ...
+}
+// Generates schema snapshot, roundtrip, and compatibility tests
 ```
 
 For more details, see [README.md](README.md) and individual generator files in `Generators/`.
