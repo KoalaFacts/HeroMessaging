@@ -38,7 +38,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        framework: [net8.0, net9.0]
+        framework: [net8.0, net9.0, net10.0]
 
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
@@ -55,6 +55,7 @@ jobs:
           dotnet-version: |
             8.0.x
             9.0.x
+            10.0.x
           dotnet-quality: 'ga'
 
       - name: Cache NuGet packages
@@ -126,18 +127,16 @@ jobs:
         run: dotnet restore
 
       - name: Build benchmarks
-        continue-on-error: true
         run: dotnet build tests/HeroMessaging.Benchmarks --configuration Release --no-restore
 
       - name: Download baseline benchmarks
         uses: actions/download-artifact@v6
-        continue-on-error: true
+        continue-on-error: true  # Baseline may not exist on first run
         with:
           name: performance-baseline
           path: ./benchmark-baseline
 
       - name: Run performance benchmarks
-        continue-on-error: true
         run: |
           dotnet run \
             --project tests/HeroMessaging.Benchmarks \
@@ -147,7 +146,7 @@ jobs:
             --job short
 
       - name: Analyze performance regression
-        continue-on-error: true
+        continue-on-error: true  # Informational only - don't fail CI
         run: |
           dotnet run \
             --project tests/HeroMessaging.Benchmarks \
@@ -259,15 +258,23 @@ jobs:
             exit 1
           fi
 
-          # Coverage reporting (threshold check disabled for now)
+          # Coverage threshold check (constitutional requirement: 80% minimum)
           COVERAGE=${{ steps.coverage.outputs.coverage }}
 
           if [[ "$UNIT_TESTS_PASSED" == "skipped" ]]; then
             echo "⚠️ No coverage data (no unit tests ran)"
           else
             echo "📊 Coverage: $COVERAGE%"
-            echo "ℹ️ Coverage threshold check is disabled - focusing on getting tests green first"
-            echo "ℹ️ Future target: 80% coverage (per CLAUDE.md)"
+            echo "📋 Threshold: 80% (per CLAUDE.md constitutional requirement)"
+
+            # Check if coverage meets 80% threshold
+            if (( $(echo "$COVERAGE < 80" | bc -l) )); then
+              echo "❌ Coverage below 80% threshold: $COVERAGE%"
+              echo "Constitutional requirement: 80% minimum coverage (100% for public APIs)"
+              exit 1
+            else
+              echo "✅ Coverage meets 80% threshold"
+            fi
           fi
 
           echo "✅ All quality gates passed"
@@ -308,8 +315,10 @@ jobs:
       - name: Generate build number
         id: build-number
         run: |
-          # Extract base version from project file
-          BASE_VERSION=$(grep -oP '<Version>\K[^<]+' src/HeroMessaging/HeroMessaging.csproj || echo "0.0.0")
+          # Extract base version from project file with fallback
+          BASE_VERSION=$(grep -oP '<Version>\K[^<]+' src/HeroMessaging/HeroMessaging.csproj 2>/dev/null || \
+                        grep '<Version>' src/HeroMessaging/HeroMessaging.csproj 2>/dev/null | sed -n 's/.*<Version>\(.*\)<\/Version>.*/\1/p' || \
+                        echo "0.0.0")
 
           # Extract and sanitize branch name (replace / with -)
           BRANCH_NAME="${GITHUB_REF#refs/heads/}"
@@ -356,10 +365,44 @@ jobs:
             -p:IncludeSymbols=true \
             -p:SymbolPackageFormat=snupkg
 
+      - name: Generate SBOM (Software Bill of Materials)
+        run: |
+          echo "📋 Generating SBOM for supply chain security..."
+
+          # Install Microsoft SBOM tool
+          dotnet tool install --global Microsoft.Sbom.DotNetTool || dotnet tool update --global Microsoft.Sbom.DotNetTool
+
+          # Generate SBOM for the main project
+          sbom-tool generate \
+            -b ./src/HeroMessaging \
+            -bc ./src/HeroMessaging \
+            -pn HeroMessaging \
+            -pv ${{ steps.build-number.outputs.full-version }} \
+            -ps "KoalaFacts" \
+            -nsb https://github.com/KoalaFacts/HeroMessaging \
+            -m ./release-packages/sbom
+
+          # Generate SBOM for abstractions
+          sbom-tool generate \
+            -b ./src/HeroMessaging.Abstractions \
+            -bc ./src/HeroMessaging.Abstractions \
+            -pn HeroMessaging.Abstractions \
+            -pv ${{ steps.build-number.outputs.full-version }} \
+            -ps "KoalaFacts" \
+            -nsb https://github.com/KoalaFacts/HeroMessaging \
+            -m ./release-packages/sbom-abstractions
+
+          echo "✅ SBOM generated successfully"
+          ls -lh ./release-packages/sbom*/
+          ls -lh ./release-packages/sbom*/**/*.spdx.json || echo "SPDX files location may vary"
+
       - name: List packages
         run: |
           echo "📦 Packages created:"
           ls -lh ./release-packages/
+          echo ""
+          echo "📋 SBOM files:"
+          find ./release-packages -name "*.spdx.json" -o -name "_manifest" | head -10
           echo ""
           echo "Commit SHA: ${GITHUB_SHA}"
           echo "Short SHA: ${GITHUB_SHA:0:7}"
@@ -378,4 +421,11 @@ jobs:
         with:
           name: release-packages-latest
           path: ./release-packages/*
+          retention-days: 90
+
+      - name: Upload SBOM artifacts
+        uses: actions/upload-artifact@v5
+        with:
+          name: sbom-${{ github.sha }}
+          path: ./release-packages/sbom*/**/*
           retention-days: 90

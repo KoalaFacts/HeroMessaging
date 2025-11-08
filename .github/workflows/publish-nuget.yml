@@ -150,14 +150,56 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
+      - name: Validate packages
+        run: |
+          echo "Validating NuGet packages..."
+          for pkg in ./packages/*.nupkg; do
+            if [ -f "$pkg" ]; then
+              echo "Validating: $pkg"
+              # Basic validation - check if package is valid
+              unzip -t "$pkg" > /dev/null 2>&1 || {
+                echo "❌ Invalid package: $pkg"
+                exit 1
+              }
+              echo "✅ Valid: $pkg"
+            fi
+          done
+          echo "All packages validated successfully"
+
       # Trusted Publishing - Secure, keyless authentication via OIDC
       # Setup instructions: .github/NUGET_TRUSTED_PUBLISHING.md
-      - name: Publish to NuGet.org
+      - name: Publish to NuGet.org (with retry)
         run: |
-          dotnet nuget push "./packages/*.nupkg" \
-            --source https://api.nuget.org/v3/index.json \
-            --skip-duplicate \
-            --no-symbols
+          # Function to push with exponential backoff retry
+          push_with_retry() {
+            local max_attempts=5
+            local timeout=2
+            local attempt=1
+
+            while [ $attempt -le $max_attempts ]; do
+              echo "Attempt $attempt of $max_attempts..."
+
+              if dotnet nuget push "./packages/*.nupkg" \
+                --source https://api.nuget.org/v3/index.json \
+                --skip-duplicate; then
+                echo "✅ Successfully published to NuGet.org"
+                return 0
+              fi
+
+              if [ $attempt -lt $max_attempts ]; then
+                echo "⚠️ Push failed, retrying in ${timeout}s..."
+                sleep $timeout
+                timeout=$((timeout * 2))  # Exponential backoff
+              fi
+
+              attempt=$((attempt + 1))
+            done
+
+            echo "❌ Failed to publish after $max_attempts attempts"
+            return 1
+          }
+
+          push_with_retry
 
       - name: Summary
         run: |
@@ -196,12 +238,39 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
-      - name: Publish to GitHub Packages
+      - name: Publish to GitHub Packages (with retry)
         run: |
-          dotnet nuget push "./packages/*.nupkg" \
-            --source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json \
-            --api-key ${{ secrets.GITHUB_TOKEN }} \
-            --skip-duplicate
+          # Function to push with exponential backoff retry
+          push_with_retry() {
+            local max_attempts=5
+            local timeout=2
+            local attempt=1
+
+            while [ $attempt -le $max_attempts ]; do
+              echo "Attempt $attempt of $max_attempts..."
+
+              if dotnet nuget push "./packages/*.nupkg" \
+                --source https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json \
+                --api-key ${{ secrets.GITHUB_TOKEN }} \
+                --skip-duplicate; then
+                echo "✅ Successfully published to GitHub Packages"
+                return 0
+              fi
+
+              if [ $attempt -lt $max_attempts ]; then
+                echo "⚠️ Push failed, retrying in ${timeout}s..."
+                sleep $timeout
+                timeout=$((timeout * 2))  # Exponential backoff
+              fi
+
+              attempt=$((attempt + 1))
+            done
+
+            echo "❌ Failed to publish after $max_attempts attempts"
+            return 1
+          }
+
+          push_with_retry
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
