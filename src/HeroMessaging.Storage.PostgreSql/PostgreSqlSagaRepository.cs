@@ -1,4 +1,5 @@
 using HeroMessaging.Abstractions.Sagas;
+using HeroMessaging.Utilities;
 using Npgsql;
 using System.Data;
 using System.Text.Json;
@@ -169,7 +170,7 @@ public class PostgreSqlSagaRepository<TSaga> : ISagaRepository<TSaga>, IDisposab
         if (await reader.ReadAsync(cancellationToken))
         {
             var sagaData = reader.GetString(0);
-            return JsonSerializer.Deserialize<TSaga>(sagaData, SharedJsonOptions);
+            return JsonSerializationHelper.DeserializeFromString<TSaga>(sagaData, SharedJsonOptions);
         }
 
         return null;
@@ -212,7 +213,7 @@ public class PostgreSqlSagaRepository<TSaga> : ISagaRepository<TSaga>, IDisposab
         while (await reader.ReadAsync(cancellationToken))
         {
             var sagaData = reader.GetString(0);
-            var saga = JsonSerializer.Deserialize<TSaga>(sagaData, SharedJsonOptions);
+            var saga = JsonSerializationHelper.DeserializeFromString<TSaga>(sagaData, SharedJsonOptions);
             if (saga != null)
             {
                 sagas.Add(saga);
@@ -261,7 +262,7 @@ public class PostgreSqlSagaRepository<TSaga> : ISagaRepository<TSaga>, IDisposab
         command.Parameters.AddWithValue("@UpdatedAt", saga.UpdatedAt);
         command.Parameters.AddWithValue("@IsCompleted", saga.IsCompleted);
         command.Parameters.AddWithValue("@Version", saga.Version);
-        command.Parameters.AddWithValue("@SagaData", JsonSerializer.Serialize(saga, SharedJsonOptions));
+        command.Parameters.AddWithValue("@SagaData", JsonSerializationHelper.SerializeToString(saga, SharedJsonOptions));
 
         try
         {
@@ -358,7 +359,7 @@ public class PostgreSqlSagaRepository<TSaga> : ISagaRepository<TSaga>, IDisposab
             updateCommand.Parameters.AddWithValue("@UpdatedAt", saga.UpdatedAt);
             updateCommand.Parameters.AddWithValue("@IsCompleted", saga.IsCompleted);
             updateCommand.Parameters.AddWithValue("@Version", saga.Version);
-            updateCommand.Parameters.AddWithValue("@SagaData", JsonSerializer.Serialize(saga, SharedJsonOptions));
+            updateCommand.Parameters.AddWithValue("@SagaData", JsonSerializationHelper.SerializeToString(saga, SharedJsonOptions));
 
             await updateCommand.ExecuteNonQueryAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
@@ -438,7 +439,7 @@ public class PostgreSqlSagaRepository<TSaga> : ISagaRepository<TSaga>, IDisposab
         while (await reader.ReadAsync(cancellationToken))
         {
             var sagaData = reader.GetString(0);
-            var saga = JsonSerializer.Deserialize<TSaga>(sagaData, SharedJsonOptions);
+            var saga = JsonSerializationHelper.DeserializeFromString<TSaga>(sagaData, SharedJsonOptions);
             if (saga != null)
             {
                 sagas.Add(saga);

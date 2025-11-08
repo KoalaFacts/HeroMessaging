@@ -1,6 +1,7 @@
 using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Storage;
+using HeroMessaging.Utilities;
 using Npgsql;
 using System.Data;
 using System.Text.Json;
@@ -135,7 +136,7 @@ public class PostgreSqlQueueStorage : IQueueStorage
             command.Parameters.AddWithValue("id", entryId);
             command.Parameters.AddWithValue("queue_name", queueName);
             command.Parameters.AddWithValue("message_type", message.GetType().FullName ?? "Unknown");
-            command.Parameters.AddWithValue("payload", JsonSerializer.Serialize(message, _jsonOptions));
+            command.Parameters.AddWithValue("payload", JsonSerializationHelper.SerializeToString(message, _jsonOptions));
             command.Parameters.AddWithValue("priority", options?.Priority ?? 0);
             command.Parameters.AddWithValue("enqueued_at", now);
             command.Parameters.AddWithValue("visible_at", visibleAt);
@@ -223,7 +224,7 @@ public class PostgreSqlQueueStorage : IQueueStorage
 
                 if (transaction == null) await localTransaction.CommitAsync(cancellationToken);
 
-                var message = JsonSerializer.Deserialize<IMessage>(payload, _jsonOptions);
+                var message = JsonSerializationHelper.DeserializeFromString<IMessage>(payload, _jsonOptions);
 
                 return new QueueEntry
                 {
@@ -288,7 +289,7 @@ public class PostgreSqlQueueStorage : IQueueStorage
                 var dequeueCount = reader.GetInt32(6);
                 var delayMinutes = reader.IsDBNull(7) ? (int?)null : reader.GetInt32(7);
 
-                var message = JsonSerializer.Deserialize<IMessage>(payload, _jsonOptions);
+                var message = JsonSerializationHelper.DeserializeFromString<IMessage>(payload, _jsonOptions);
 
                 entries.Add(new QueueEntry
                 {

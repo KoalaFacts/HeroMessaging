@@ -1,6 +1,7 @@
 using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Storage;
+using HeroMessaging.Utilities;
 using Npgsql;
 using System.Text.Json;
 
@@ -108,7 +109,7 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
             using var command = new NpgsqlCommand(sql, connection, transaction);
             command.Parameters.AddWithValue("id", entryId);
             command.Parameters.AddWithValue("message_type", message.GetType().FullName ?? "Unknown");
-            command.Parameters.AddWithValue("payload", JsonSerializer.Serialize(message, _jsonOptionsProvider.GetOptions()));
+            command.Parameters.AddWithValue("payload", JsonSerializationHelper.SerializeToString(message, _jsonOptionsProvider.GetOptions()));
             command.Parameters.AddWithValue("destination", (object?)options.Destination ?? DBNull.Value);
             command.Parameters.AddWithValue("status", "Pending");
             command.Parameters.AddWithValue("retry_count", 0);
@@ -194,7 +195,7 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
                 var nextRetryAt = reader.IsDBNull(9) ? (DateTime?)null : reader.GetDateTime(9);
                 var lastError = reader.IsDBNull(10) ? null : reader.GetString(10);
 
-                var message = JsonSerializer.Deserialize<IMessage>(payload, _jsonOptionsProvider.GetOptions());
+                var message = JsonSerializationHelper.DeserializeFromString<IMessage>(payload, _jsonOptionsProvider.GetOptions());
 
                 entries.Add(new OutboxEntry
                 {

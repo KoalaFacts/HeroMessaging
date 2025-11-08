@@ -1,5 +1,6 @@
 using System.Text.Json;
 using HeroMessaging.Abstractions.Idempotency;
+using HeroMessaging.Utilities;
 using Npgsql;
 
 namespace HeroMessaging.Storage.PostgreSql;
@@ -337,7 +338,7 @@ public sealed class PostgreSqlIdempotencyStore : IIdempotencyStore
 
         try
         {
-            return JsonSerializer.Serialize(result, _jsonOptions);
+            return JsonSerializationHelper.SerializeToString(result, _jsonOptions);
         }
         catch (Exception ex)
         {
@@ -359,7 +360,7 @@ public sealed class PostgreSqlIdempotencyStore : IIdempotencyStore
 
         try
         {
-            return JsonSerializer.Deserialize<object>(json, _jsonOptions);
+            return JsonSerializationHelper.DeserializeFromString<object>(json, _jsonOptions);
         }
         catch (Exception ex)
         {

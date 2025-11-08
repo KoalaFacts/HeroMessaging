@@ -1,6 +1,7 @@
 using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Storage;
+using HeroMessaging.Utilities;
 using Npgsql;
 using System.Text.Json;
 
@@ -116,7 +117,7 @@ public class PostgreSqlInboxStorage : IInboxStorage
             using var command = new NpgsqlCommand(sql, connection, transaction);
             command.Parameters.AddWithValue("id", messageId);
             command.Parameters.AddWithValue("message_type", message.GetType().FullName ?? "Unknown");
-            command.Parameters.AddWithValue("payload", JsonSerializer.Serialize(message, _jsonOptionsProvider.GetOptions()));
+            command.Parameters.AddWithValue("payload", JsonSerializationHelper.SerializeToString(message, _jsonOptionsProvider.GetOptions()));
             command.Parameters.AddWithValue("source", (object?)options.Source ?? DBNull.Value);
             command.Parameters.AddWithValue("status", "Pending");
             command.Parameters.AddWithValue("received_at", now);
@@ -205,7 +206,7 @@ public class PostgreSqlInboxStorage : IInboxStorage
                 var requireIdempotency = reader.GetBoolean(7);
                 var deduplicationWindowMinutes = reader.IsDBNull(8) ? (int?)null : reader.GetInt32(8);
 
-                var message = JsonSerializer.Deserialize<IMessage>(payload, _jsonOptionsProvider.GetOptions());
+                var message = JsonSerializationHelper.DeserializeFromString<IMessage>(payload, _jsonOptionsProvider.GetOptions());
 
                 return new InboxEntry
                 {
@@ -349,7 +350,7 @@ public class PostgreSqlInboxStorage : IInboxStorage
                 var requireIdempotency = reader.GetBoolean(8);
                 var deduplicationWindowMinutes = reader.IsDBNull(9) ? (int?)null : reader.GetInt32(9);
 
-                var message = JsonSerializer.Deserialize<IMessage>(payload, _jsonOptionsProvider.GetOptions());
+                var message = JsonSerializationHelper.DeserializeFromString<IMessage>(payload, _jsonOptionsProvider.GetOptions());
 
                 entries.Add(new InboxEntry
                 {
