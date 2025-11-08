@@ -11,7 +11,7 @@ Development guidelines for Claude Code and AI assistants. Last updated: 2025-11-
 6. **Task Verification Protocol**: Every task must be verified before marking as finished
 
 ## Active Technologies
-- **Language**: C# 12, .NET multi-target (netstandard2.0, net6.0-net10.0)
+- **Language**: C# 12, .NET multi-target (net8.0, net9.0, net10.0)
 - **Testing**: Xunit.v3, BenchmarkDotNet, Coverlet, ReportGenerator
 - **Build**: MSBuild, Directory.Build.props for shared configuration
 - **CI/CD**: GitHub Actions with cross-platform matrix testing
@@ -51,8 +51,9 @@ reportgenerator -reports:**/coverage.cobertura.xml -targetdir:coverage-report
 dotnet run --project tests/HeroMessaging.Benchmarks --configuration Release
 
 # Multi-framework testing
-dotnet test --framework net6.0
-dotnet test --framework netstandard2.0
+dotnet test --framework net8.0
+dotnet test --framework net9.0
+dotnet test --framework net10.0
 ```
 
 ## Code Style & Quality Standards
