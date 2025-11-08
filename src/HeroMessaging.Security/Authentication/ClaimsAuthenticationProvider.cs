@@ -1,3 +1,4 @@
+using System;
 using System.Security.Claims;
 using HeroMessaging.Abstractions.Security;
 
@@ -40,7 +41,7 @@ public sealed class ClaimsAuthenticationProvider : IAuthenticationProvider
     /// <summary>
     /// Registers an API key with a simple identity
     /// </summary>
-    public void RegisterApiKey(string apiKey, string name, params Claim[] claims)
+    public void RegisterApiKey(string apiKey, string name, params ReadOnlySpan<Claim> claims)
     {
         if (string.IsNullOrWhiteSpace(apiKey))
             throw new ArgumentException("API key cannot be empty", nameof(apiKey));
@@ -48,7 +49,7 @@ public sealed class ClaimsAuthenticationProvider : IAuthenticationProvider
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name cannot be empty", nameof(name));
 
-        var identity = new ClaimsIdentity(claims, _scheme, ClaimTypes.Name, ClaimTypes.Role);
+        var identity = new ClaimsIdentity(claims.ToArray(), _scheme, ClaimTypes.Name, ClaimTypes.Role);
         identity.AddClaim(new Claim(ClaimTypes.Name, name));
 
         var principal = new ClaimsPrincipal(identity);

@@ -92,7 +92,7 @@ public class HeroMessagingBuilder(IServiceCollection services) : IHeroMessagingB
         return this;
     }
 
-    public IHeroMessagingBuilder ScanAssemblies(params Assembly[] assemblies)
+    public IHeroMessagingBuilder ScanAssemblies(params IEnumerable<Assembly> assemblies)
     {
         _assemblies.AddRange(assemblies);
         return this;
