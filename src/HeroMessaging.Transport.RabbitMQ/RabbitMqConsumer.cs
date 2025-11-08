@@ -191,7 +191,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
                 MessageId = messageId,
                 CorrelationId = ea.BasicProperties.CorrelationId,
                 ContentType = ea.BasicProperties.ContentType,
-                Body = ea.Body.ToArray(),
+                Body = ea.Body,
                 MessageType = ea.BasicProperties.Type ?? "Unknown",
                 Headers = headers.ToImmutableDictionary()
             };
