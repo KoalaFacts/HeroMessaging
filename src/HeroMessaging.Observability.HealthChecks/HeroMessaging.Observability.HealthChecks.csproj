@@ -13,8 +13,4 @@
     <ProjectReference Include="..\HeroMessaging.Abstractions\HeroMessaging.Abstractions.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="PolySharp" Version="1.15.0" />
-  </ItemGroup>
-
 </Project>
