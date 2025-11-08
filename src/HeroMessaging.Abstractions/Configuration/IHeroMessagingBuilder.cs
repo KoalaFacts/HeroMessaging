@@ -7,6 +7,11 @@ namespace HeroMessaging.Abstractions.Configuration;
 
 public interface IHeroMessagingBuilder
 {
+    /// <summary>
+    /// Gets the service collection for direct service registration
+    /// </summary>
+    IServiceCollection Services { get; }
+
     IHeroMessagingBuilder WithMediator();
 
     IHeroMessagingBuilder WithEventBus();

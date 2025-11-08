@@ -89,7 +89,7 @@ public sealed class RabbitMqTransport : IMessageTransport
         }
         catch (Exception ex)
         {
-            ChangeState(TransportState.Failed, $"Failed to connect to RabbitMQ: {ex.Message}");
+            ChangeState(TransportState.Faulted, $"Failed to connect to RabbitMQ: {ex.Message}");
             OnError(ex, "Connection failed");
             throw;
         }
@@ -276,9 +276,11 @@ public sealed class RabbitMqTransport : IMessageTransport
                 _instrumentation.AddEvent(activity, "publish.start");
 
                 // Publish to topic exchange (use topic name as exchange)
+                // Try to get routing key from headers, default to "#" (broadcast)
+                var routingKey = envelope.Headers.TryGetValue("RoutingKey", out var rk) ? rk?.ToString() ?? "#" : "#";
                 channel.BasicPublish(
                     exchange: topic.Name,
-                    routingKey: envelope.RoutingKey ?? "#", // Broadcast by default
+                    routingKey: routingKey,
                     basicProperties: properties,
                     body: envelope.Body);
 
@@ -382,10 +384,10 @@ public sealed class RabbitMqTransport : IMessageTransport
 
                 var exchangeType = exchange.Type switch
                 {
-                    ExchangeType.Direct => "direct",
-                    ExchangeType.Fanout => "fanout",
-                    ExchangeType.Topic => "topic",
-                    ExchangeType.Headers => "headers",
+                    HeroMessaging.Abstractions.Transport.ExchangeType.Direct => "direct",
+                    HeroMessaging.Abstractions.Transport.ExchangeType.Fanout => "fanout",
+                    HeroMessaging.Abstractions.Transport.ExchangeType.Topic => "topic",
+                    HeroMessaging.Abstractions.Transport.ExchangeType.Headers => "headers",
                     _ => "topic"
                 };
 

@@ -392,6 +392,8 @@ public sealed class IdempotencyPipelineIntegrationTests
             _services = services;
         }
 
+        public IServiceCollection Services => _services;
+
         public IServiceCollection Build() => _services;
 
         public IHeroMessagingBuilder WithMediator() => this;

@@ -135,7 +135,7 @@ public class ConsumerOptions
 /// <summary>
 /// Consumer metrics
 /// </summary>
-public class ConsumerMetrics : ComponentMetrics
+public class ConsumerMetrics : ComponentMetricsBase
 {
     /// <summary>
     /// Total messages received

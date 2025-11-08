@@ -4,7 +4,7 @@ namespace HeroMessaging.Abstractions.Transport;
 /// Base class for component metrics with common patterns
 /// Consolidates success rate calculation and error tracking
 /// </summary>
-public abstract class ComponentMetrics
+public abstract class ComponentMetricsBase
 {
     /// <summary>
     /// Total number of successful operations

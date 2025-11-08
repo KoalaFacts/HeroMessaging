@@ -3,7 +3,7 @@ namespace HeroMessaging.Abstractions.Transport;
 /// <summary>
 /// Base class for transport configuration options
 /// </summary>
-public abstract class TransportOptions
+public abstract class TransportOptionsBase
 {
     /// <summary>
     /// Transport name (e.g., "RabbitMQ", "AzureServiceBus")
@@ -75,7 +75,7 @@ public abstract class TransportOptions
 /// <summary>
 /// Options for in-memory transport
 /// </summary>
-public class InMemoryTransportOptions : TransportOptions
+public class InMemoryTransportOptions : TransportOptionsBase
 {
     [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     public InMemoryTransportOptions()
@@ -113,7 +113,7 @@ public class InMemoryTransportOptions : TransportOptions
 /// <summary>
 /// Options for RabbitMQ transport
 /// </summary>
-public class RabbitMqTransportOptions : TransportOptions
+public class RabbitMqTransportOptions : TransportOptionsBase
 {
     [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     public RabbitMqTransportOptions()
@@ -186,7 +186,7 @@ public class RabbitMqTransportOptions : TransportOptions
 /// <summary>
 /// Options for Azure Service Bus transport
 /// </summary>
-public class AzureServiceBusTransportOptions : TransportOptions
+public class AzureServiceBusTransportOptions : TransportOptionsBase
 {
     [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     public AzureServiceBusTransportOptions()
@@ -244,7 +244,7 @@ public enum AzureServiceBusTransportType
 /// <summary>
 /// Options for Amazon SQS/SNS transport
 /// </summary>
-public class AmazonSqsTransportOptions : TransportOptions
+public class AmazonSqsTransportOptions : TransportOptionsBase
 {
     [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     public AmazonSqsTransportOptions()
@@ -307,7 +307,7 @@ public class AmazonSqsTransportOptions : TransportOptions
 /// <summary>
 /// Options for Apache Kafka transport
 /// </summary>
-public class KafkaTransportOptions : TransportOptions
+public class KafkaTransportOptions : TransportOptionsBase
 {
     [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     public KafkaTransportOptions()

@@ -5,7 +5,7 @@ namespace HeroMessaging.ArchitectureTests;
 /// </summary>
 public class NamingConventionTests
 {
-    private static readonly Assembly AbstractionsAssembly = typeof(Abstractions.IMessage).Assembly;
+    private static readonly Assembly AbstractionsAssembly = typeof(Abstractions.Messages.IMessage).Assembly;
     private static readonly Assembly CoreAssembly = typeof(HeroMessagingService).Assembly;
 
     [Fact]
@@ -30,6 +30,7 @@ public class NamingConventionTests
         var result = Types.InAssemblies(new[] { AbstractionsAssembly, CoreAssembly })
             .That().ImplementInterface(typeof(Abstractions.Commands.ICommand))
             .Or().Inherit(typeof(Abstractions.Commands.ICommand<>))
+            .And().AreNotInterfaces() // Exclude interface definitions themselves
             .Should().HaveNameEndingWith("Command")
             .GetResult();
 
@@ -123,16 +124,21 @@ public class NamingConventionTests
     [Trait("Category", "Architecture")]
     public void ExtensionClasses_ShouldHaveExtensionsInName()
     {
-        // Arrange & Act
-        var result = Types.InAssemblies(new[] { AbstractionsAssembly, CoreAssembly })
+        // Arrange & Act - Get all static classes that end with Extensions
+        var extensionClasses = Types.InAssemblies(new[] { AbstractionsAssembly, CoreAssembly })
             .That().AreClasses()
             .And().AreStatic()
-            .And().HaveName(name => name.EndsWith("Extensions", StringComparison.Ordinal), "ends with Extensions")
-            .Should().BePublic()
-            .GetResult();
+            .GetTypes()
+            .Where(t => t.Name.EndsWith("Extensions", StringComparison.Ordinal))
+            .ToList();
 
-        // Assert - This checks that classes ending with "Extensions" are public static
-        Assert.True(result.IsSuccessful, FormatFailureMessage(result, "Extension classes should be public static"));
+        // Assert - All extension classes should be public
+        var nonPublicExtensions = extensionClasses
+            .Where(t => !t.IsPublic)
+            .Select(t => t.FullName)
+            .ToList();
+
+        Assert.Empty(nonPublicExtensions);
     }
 
     [Fact]
@@ -157,7 +163,7 @@ public class NamingConventionTests
         Assert.Empty(violations);
     }
 
-    private static string FormatFailureMessage(TestResult result, string context)
+    private static string FormatFailureMessage(NetArchTestResult result, string context)
     {
         if (result.IsSuccessful)
             return string.Empty;

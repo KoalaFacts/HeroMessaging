@@ -169,10 +169,10 @@ public class QueueProcessor(
                 switch (entry.Message)
                 {
                     case ICommand command:
-                        await messaging.Send(command);
+                        await messaging.SendAsync(command);
                         break;
                     case IEvent @event:
-                        await messaging.Publish(@event);
+                        await messaging.PublishAsync(@event);
                         break;
                     default:
                         _logger.LogWarning("Unknown message type in queue: {MessageType}", entry.Message.GetType().Name);

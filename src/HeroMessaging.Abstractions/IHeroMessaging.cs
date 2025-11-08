@@ -7,34 +7,34 @@ namespace HeroMessaging.Abstractions;
 
 public interface IHeroMessaging
 {
-    Task Send(ICommand command, CancellationToken cancellationToken = default);
+    Task SendAsync(ICommand command, CancellationToken cancellationToken = default);
 
-    Task<TResponse> Send<TResponse>(ICommand<TResponse> command, CancellationToken cancellationToken = default);
+    Task<TResponse> SendAsync<TResponse>(ICommand<TResponse> command, CancellationToken cancellationToken = default);
 
-    Task<TResponse> Send<TResponse>(IQuery<TResponse> query, CancellationToken cancellationToken = default);
+    Task<TResponse> SendAsync<TResponse>(IQuery<TResponse> query, CancellationToken cancellationToken = default);
 
-    Task Publish(IEvent @event, CancellationToken cancellationToken = default);
+    Task PublishAsync(IEvent @event, CancellationToken cancellationToken = default);
 
-    Task Enqueue(IMessage message, string queueName, EnqueueOptions? options = null, CancellationToken cancellationToken = default);
+    Task EnqueueAsync(IMessage message, string queueName, EnqueueOptions? options = null, CancellationToken cancellationToken = default);
 
-    Task StartQueue(string queueName, CancellationToken cancellationToken = default);
+    Task StartQueueAsync(string queueName, CancellationToken cancellationToken = default);
 
-    Task StopQueue(string queueName, CancellationToken cancellationToken = default);
+    Task StopQueueAsync(string queueName, CancellationToken cancellationToken = default);
 
-    Task PublishToOutbox(IMessage message, OutboxOptions? options = null, CancellationToken cancellationToken = default);
+    Task PublishToOutboxAsync(IMessage message, OutboxOptions? options = null, CancellationToken cancellationToken = default);
 
-    Task ProcessIncoming(IMessage message, InboxOptions? options = null, CancellationToken cancellationToken = default);
+    Task ProcessIncomingAsync(IMessage message, InboxOptions? options = null, CancellationToken cancellationToken = default);
 
     MessagingMetrics GetMetrics();
 
     MessagingHealth GetHealth();
 }
 
-public class EnqueueOptions
+public record EnqueueOptions
 {
-    public int Priority { get; set; } = 0;
-    public TimeSpan? Delay { get; set; }
-    public Dictionary<string, object>? Metadata { get; set; }
+    public int Priority { get; init; } = 0;
+    public TimeSpan? Delay { get; init; }
+    public Dictionary<string, object>? Metadata { get; init; }
 }
 
 public class OutboxOptions

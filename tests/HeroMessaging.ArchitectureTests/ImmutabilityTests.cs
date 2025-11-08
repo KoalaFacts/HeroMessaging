@@ -6,7 +6,7 @@ namespace HeroMessaging.ArchitectureTests;
 /// </summary>
 public class ImmutabilityTests
 {
-    private static readonly Assembly AbstractionsAssembly = typeof(Abstractions.IMessage).Assembly;
+    private static readonly Assembly AbstractionsAssembly = typeof(Abstractions.Messages.IMessage).Assembly;
     private static readonly Assembly CoreAssembly = typeof(HeroMessagingService).Assembly;
 
     [Fact]
@@ -88,7 +88,7 @@ public class ImmutabilityTests
     {
         // Arrange & Act
         var result = Types.InAssemblies(new[] { AbstractionsAssembly, CoreAssembly })
-            .That().ImplementInterface(typeof(Abstractions.IMessage))
+            .That().ImplementInterface(typeof(Abstractions.Messages.IMessage))
             .And().AreClasses()
             .Should().BeSealed()
             .Or().BeAbstract()

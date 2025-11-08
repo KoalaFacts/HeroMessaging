@@ -3,6 +3,7 @@ using HeroMessaging.Abstractions.Transport;
 using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Threading;
 
@@ -50,7 +51,9 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
         ITransportInstrumentation? instrumentation = null)
     {
         ConsumerId = consumerId ?? throw new ArgumentNullException(nameof(consumerId));
-        Source = source ?? throw new ArgumentNullException(nameof(source));
+        if (string.IsNullOrEmpty(source.Name))
+            throw new ArgumentException("Source address name cannot be null or empty", nameof(source));
+        Source = source;
         _channel = channel ?? throw new ArgumentNullException(nameof(channel));
         _handler = handler ?? throw new ArgumentNullException(nameof(handler));
         _options = options ?? throw new ArgumentNullException(nameof(options));
@@ -137,13 +140,9 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
     {
         return new ConsumerMetrics
         {
-            ConsumerId = ConsumerId,
-            Source = Source.Name,
-            IsActive = _isActive,
             MessagesProcessed = _messagesProcessed,
             MessagesFailed = _messagesFailed,
-            MessagesPerSecond = 0, // Could calculate over time window
-            AverageProcessingTime = TimeSpan.Zero // Could track
+            AverageProcessingDuration = TimeSpan.Zero // Could track with stopwatch
         };
     }
 
@@ -297,13 +296,14 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
         }
     }
 
-    private void OnConsumerShutdown(object? sender, ShutdownEventArgs e)
+    private Task OnConsumerShutdown(object? sender, ShutdownEventArgs e)
     {
         _logger.LogWarning(
             "Consumer {ConsumerId} shutdown: ReplyCode: {ReplyCode}, ReplyText: {ReplyText}",
             ConsumerId, e.ReplyCode, e.ReplyText);
 
         _isActive = false;
+        return Task.CompletedTask;
     }
 
     /// <summary>

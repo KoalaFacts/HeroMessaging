@@ -45,7 +45,7 @@ public interface IMessageConverter<TMessage> : IMessageConverter
 /// Base class for implementing message converters
 /// </summary>
 /// <typeparam name="TMessage">The message type</typeparam>
-public abstract class MessageConverter<TMessage> : IMessageConverter<TMessage>
+public abstract class MessageConverterBase<TMessage> : IMessageConverter<TMessage>
     where TMessage : class, IMessage
 {
     public Type MessageType => typeof(TMessage);

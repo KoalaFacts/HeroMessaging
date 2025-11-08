@@ -358,6 +358,8 @@ public sealed class IdempotencyBuilderTests
             _services = services;
         }
 
+        public IServiceCollection Services => _services;
+
         public IServiceCollection Build() => _services;
 
         public IHeroMessagingBuilder WithMediator() => this;

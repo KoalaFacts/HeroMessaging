@@ -1,9 +1,9 @@
 using HeroMessaging.Abstractions.Idempotency;
-using HeroMessaging.Storage.SqlServer;
 using HeroMessaging.Utilities;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
-namespace Microsoft.Extensions.DependencyInjection;
+namespace HeroMessaging.Storage.SqlServer;
 
 /// <summary>
 /// Extension methods for configuring SQL Server idempotency storage.

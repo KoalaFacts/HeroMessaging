@@ -40,7 +40,7 @@ public class HandlerDesignTests
         {
             var mutableFields = handler.GetFields(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance)
                 .Where(f => !f.IsInitOnly && !f.IsLiteral) // Non-readonly, non-const
-                .Where(f => !f.Name.StartsWith("<")) // Exclude compiler-generated
+                .Where(f => !f.Name.StartsWith('<')) // Exclude compiler-generated
                 .ToList();
 
             Assert.Empty(mutableFields);
@@ -178,7 +178,7 @@ public class HandlerDesignTests
                               f.Name.Contains("next", StringComparison.OrdinalIgnoreCase));
     }
 
-    private static string FormatFailureMessage(TestResult result)
+    private static string FormatFailureMessage(NetArchTestResult result)
     {
         if (result.IsSuccessful)
             return string.Empty;

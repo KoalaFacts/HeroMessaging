@@ -31,7 +31,7 @@ internal sealed class RabbitMqConnectionPool : IAsyncDisposable
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
         // Create connection factory
-        _connectionFactory = new ConnectionFactory
+        var factory = new ConnectionFactory
         {
             HostName = _options.Host,
             Port = _options.Port,
@@ -48,12 +48,14 @@ internal sealed class RabbitMqConnectionPool : IAsyncDisposable
 
         if (_options.UseSsl)
         {
-            _connectionFactory.Ssl = new SslOption
+            factory.Ssl = new SslOption
             {
                 Enabled = true,
                 ServerName = _options.Host
             };
         }
+
+        _connectionFactory = factory;
 
         // Start health check timer (every 30 seconds)
         _healthCheckTimer = new Timer(
@@ -279,7 +281,12 @@ internal sealed class RabbitMqConnectionPool : IAsyncDisposable
 
         _logger.LogInformation("Disposing RabbitMQ connection pool...");
 
+#if NETSTANDARD2_0
+        _healthCheckTimer.Dispose();
+        await Task.CompletedTask;
+#else
         await _healthCheckTimer.DisposeAsync();
+#endif
         _createConnectionLock.Dispose();
 
         // Close all connections

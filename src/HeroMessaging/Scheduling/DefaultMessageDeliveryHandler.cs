@@ -100,7 +100,7 @@ public sealed class DefaultMessageDeliveryHandler : IMessageDeliveryHandler
         // Send command without response
         if (message is Abstractions.Commands.ICommand command)
         {
-            await _messaging.Send(command, cancellationToken);
+            await _messaging.SendAsync(command, cancellationToken);
         }
     }
 
@@ -109,17 +109,17 @@ public sealed class DefaultMessageDeliveryHandler : IMessageDeliveryHandler
         // If destination is specified, enqueue to that queue
         if (!string.IsNullOrEmpty(destination))
         {
-            await _messaging.Enqueue(message, destination, cancellationToken: cancellationToken);
+            await _messaging.EnqueueAsync(message, destination, cancellationToken: cancellationToken);
         }
         // Otherwise, check if it's an event and publish
         else if (message is Abstractions.Events.IEvent @event)
         {
-            await _messaging.Publish(@event, cancellationToken);
+            await _messaging.PublishAsync(@event, cancellationToken);
         }
         else
         {
             // Default: enqueue to a default scheduled messages queue
-            await _messaging.Enqueue(message, "scheduled-messages", cancellationToken: cancellationToken);
+            await _messaging.EnqueueAsync(message, "scheduled-messages", cancellationToken: cancellationToken);
         }
     }
 

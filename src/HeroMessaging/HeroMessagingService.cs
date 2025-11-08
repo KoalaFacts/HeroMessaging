@@ -26,31 +26,31 @@ public class HeroMessagingService(
 
     private readonly MessagingMetrics _metrics = new();
 
-    public async Task Send(ICommand command, CancellationToken cancellationToken = default)
+    public async Task SendAsync(ICommand command, CancellationToken cancellationToken = default)
     {
         _metrics.CommandsSent++;
         await _commandProcessor.Send(command, cancellationToken);
     }
 
-    public async Task<TResponse> Send<TResponse>(ICommand<TResponse> command, CancellationToken cancellationToken = default)
+    public async Task<TResponse> SendAsync<TResponse>(ICommand<TResponse> command, CancellationToken cancellationToken = default)
     {
         _metrics.CommandsSent++;
         return await _commandProcessor.Send(command, cancellationToken);
     }
 
-    public async Task<TResponse> Send<TResponse>(IQuery<TResponse> query, CancellationToken cancellationToken = default)
+    public async Task<TResponse> SendAsync<TResponse>(IQuery<TResponse> query, CancellationToken cancellationToken = default)
     {
         _metrics.QueriesSent++;
         return await _queryProcessor.Send(query, cancellationToken);
     }
 
-    public async Task Publish(IEvent @event, CancellationToken cancellationToken = default)
+    public async Task PublishAsync(IEvent @event, CancellationToken cancellationToken = default)
     {
         _metrics.EventsPublished++;
         await _eventBus.Publish(@event, cancellationToken);
     }
 
-    public async Task Enqueue(IMessage message, string queueName, EnqueueOptions? options = null, CancellationToken cancellationToken = default)
+    public async Task EnqueueAsync(IMessage message, string queueName, EnqueueOptions? options = null, CancellationToken cancellationToken = default)
     {
         if (_queueProcessor == null)
             throw new InvalidOperationException("Queue functionality is not enabled. Call WithQueues() during configuration.");
@@ -59,7 +59,7 @@ public class HeroMessagingService(
         await _queueProcessor.Enqueue(message, queueName, options, cancellationToken);
     }
 
-    public async Task StartQueue(string queueName, CancellationToken cancellationToken = default)
+    public async Task StartQueueAsync(string queueName, CancellationToken cancellationToken = default)
     {
         if (_queueProcessor == null)
             throw new InvalidOperationException("Queue functionality is not enabled. Call WithQueues() during configuration.");
@@ -67,7 +67,7 @@ public class HeroMessagingService(
         await _queueProcessor.StartQueue(queueName, cancellationToken);
     }
 
-    public async Task StopQueue(string queueName, CancellationToken cancellationToken = default)
+    public async Task StopQueueAsync(string queueName, CancellationToken cancellationToken = default)
     {
         if (_queueProcessor == null)
             throw new InvalidOperationException("Queue functionality is not enabled. Call WithQueues() during configuration.");
@@ -75,7 +75,7 @@ public class HeroMessagingService(
         await _queueProcessor.StopQueue(queueName, cancellationToken);
     }
 
-    public async Task PublishToOutbox(IMessage message, OutboxOptions? options = null, CancellationToken cancellationToken = default)
+    public async Task PublishToOutboxAsync(IMessage message, OutboxOptions? options = null, CancellationToken cancellationToken = default)
     {
         if (_outboxProcessor == null)
             throw new InvalidOperationException("Outbox functionality is not enabled. Call WithOutbox() during configuration.");
@@ -84,7 +84,7 @@ public class HeroMessagingService(
         await _outboxProcessor.PublishToOutbox(message, options, cancellationToken);
     }
 
-    public async Task ProcessIncoming(IMessage message, InboxOptions? options = null, CancellationToken cancellationToken = default)
+    public async Task ProcessIncomingAsync(IMessage message, InboxOptions? options = null, CancellationToken cancellationToken = default)
     {
         if (_inboxProcessor == null)
             throw new InvalidOperationException("Inbox functionality is not enabled. Call WithInbox() during configuration.");

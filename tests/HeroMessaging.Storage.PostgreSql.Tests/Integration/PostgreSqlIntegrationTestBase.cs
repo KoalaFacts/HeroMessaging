@@ -44,6 +44,7 @@ public abstract class PostgreSqlIntegrationTestBase : IAsyncLifetime
         {
             throw new InvalidOperationException("Test not initialized");
         }
-        return new PostgreSqlMessageStorage(Options, timeProvider ?? TimeProvider.System);
+        var jsonSerializer = new HeroMessaging.Utilities.DefaultJsonSerializer(new HeroMessaging.Utilities.DefaultBufferPoolManager());
+        return new PostgreSqlMessageStorage(Options, timeProvider ?? TimeProvider.System, jsonSerializer);
     }
 }

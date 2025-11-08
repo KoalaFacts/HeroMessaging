@@ -9,7 +9,7 @@ public interface ITransportBuilder
     /// <summary>
     /// Configure transport options
     /// </summary>
-    ITransportBuilder WithOptions(Action<TransportOptions> configure);
+    ITransportBuilder WithOptions(Action<TransportOptionsBase> configure);
 
     /// <summary>
     /// Configure topology
@@ -32,7 +32,7 @@ public interface ITransportBuilder
 /// </summary>
 /// <typeparam name="TOptions">Transport options type</typeparam>
 public interface ITransportBuilder<TOptions> : ITransportBuilder
-    where TOptions : TransportOptions
+    where TOptions : TransportOptionsBase
 {
     /// <summary>
     /// Configure transport-specific options
@@ -140,7 +140,7 @@ public interface ITransportConfiguration
     /// <summary>
     /// Add a transport with the specified options
     /// </summary>
-    ITransportBuilder AddTransport(TransportOptions options);
+    ITransportBuilder AddTransport(TransportOptionsBase options);
 
     /// <summary>
     /// Set the default transport

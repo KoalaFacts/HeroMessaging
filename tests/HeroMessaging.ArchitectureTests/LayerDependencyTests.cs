@@ -6,7 +6,7 @@ namespace HeroMessaging.ArchitectureTests;
 /// </summary>
 public class LayerDependencyTests
 {
-    private static readonly Assembly AbstractionsAssembly = typeof(Abstractions.IMessage).Assembly;
+    private static readonly Assembly AbstractionsAssembly = typeof(Abstractions.Messages.IMessage).Assembly;
 
     [Fact]
     [Trait("Category", "Architecture")]
@@ -14,15 +14,15 @@ public class LayerDependencyTests
     {
         // Arrange & Act
         var result = Types.InAssembly(AbstractionsAssembly)
-            .ShouldNot()
-            .HaveDependencyOn("HeroMessaging.Storage.SqlServer")
-            .And().ShouldNot().HaveDependencyOn("HeroMessaging.Storage.PostgreSql")
-            .And().ShouldNot().HaveDependencyOn("HeroMessaging.Serialization.Json")
-            .And().ShouldNot().HaveDependencyOn("HeroMessaging.Serialization.MessagePack")
-            .And().ShouldNot().HaveDependencyOn("HeroMessaging.Serialization.Protobuf")
-            .And().ShouldNot().HaveDependencyOn("HeroMessaging.Transport.RabbitMQ")
-            .And().ShouldNot().HaveDependencyOn("HeroMessaging.Observability.OpenTelemetry")
-            .And().ShouldNot().HaveDependencyOn("HeroMessaging.Observability.HealthChecks")
+            .Should()
+            .NotHaveDependencyOn("HeroMessaging.Storage.SqlServer")
+            .And().NotHaveDependencyOn("HeroMessaging.Storage.PostgreSql")
+            .And().NotHaveDependencyOn("HeroMessaging.Serialization.Json")
+            .And().NotHaveDependencyOn("HeroMessaging.Serialization.MessagePack")
+            .And().NotHaveDependencyOn("HeroMessaging.Serialization.Protobuf")
+            .And().NotHaveDependencyOn("HeroMessaging.Transport.RabbitMQ")
+            .And().NotHaveDependencyOn("HeroMessaging.Observability.OpenTelemetry")
+            .And().NotHaveDependencyOn("HeroMessaging.Observability.HealthChecks")
             .GetResult();
 
         // Assert
@@ -37,10 +37,10 @@ public class LayerDependencyTests
         var result = Types.InAssembly(AbstractionsAssembly)
             .That()
             .ResideInNamespace("HeroMessaging.Abstractions")
-            .ShouldNot()
-            .HaveDependencyOn("HeroMessaging.Processing")
-            .And().ShouldNot().HaveDependencyOn("HeroMessaging.Sagas")
-            .And().ShouldNot().HaveDependencyOn("HeroMessaging.Scheduling")
+            .Should()
+            .NotHaveDependencyOn("HeroMessaging.Processing")
+            .And().NotHaveDependencyOn("HeroMessaging.Sagas")
+            .And().NotHaveDependencyOn("HeroMessaging.Scheduling")
             .GetResult();
 
         // Assert
@@ -52,18 +52,18 @@ public class LayerDependencyTests
     public void StoragePlugins_ShouldOnlyDependOnAbstractions()
     {
         // Arrange
-        var sqlServerAssembly = typeof(Storage.SqlServer.SqlServerDbConnectionProvider).Assembly;
-        var postgresAssembly = typeof(Storage.PostgreSql.PostgreSqlDbConnectionProvider).Assembly;
+        var sqlServerAssembly = typeof(Storage.SqlServer.SqlServerConnectionProvider).Assembly;
+        var postgresAssembly = typeof(Storage.PostgreSql.PostgreSqlConnectionProvider).Assembly;
 
         // Act
         var sqlServerResult = Types.InAssembly(sqlServerAssembly)
-            .ShouldNot().HaveDependencyOn("HeroMessaging.Storage.PostgreSql")
-            .And().ShouldNot().HaveDependencyOn("HeroMessaging.Transport.RabbitMQ")
+            .Should().NotHaveDependencyOn("HeroMessaging.Storage.PostgreSql")
+            .And().NotHaveDependencyOn("HeroMessaging.Transport.RabbitMQ")
             .GetResult();
 
         var postgresResult = Types.InAssembly(postgresAssembly)
-            .ShouldNot().HaveDependencyOn("HeroMessaging.Storage.SqlServer")
-            .And().ShouldNot().HaveDependencyOn("HeroMessaging.Transport.RabbitMQ")
+            .Should().NotHaveDependencyOn("HeroMessaging.Storage.SqlServer")
+            .And().NotHaveDependencyOn("HeroMessaging.Transport.RabbitMQ")
             .GetResult();
 
         // Assert
@@ -82,18 +82,18 @@ public class LayerDependencyTests
 
         // Act
         var jsonResult = Types.InAssembly(jsonAssembly)
-            .ShouldNot().HaveDependencyOn("HeroMessaging.Serialization.MessagePack")
-            .And().ShouldNot().HaveDependencyOn("HeroMessaging.Serialization.Protobuf")
+            .Should().NotHaveDependencyOn("HeroMessaging.Serialization.MessagePack")
+            .And().NotHaveDependencyOn("HeroMessaging.Serialization.Protobuf")
             .GetResult();
 
         var messagePackResult = Types.InAssembly(messagePack)
-            .ShouldNot().HaveDependencyOn("HeroMessaging.Serialization.Json")
-            .And().ShouldNot().HaveDependencyOn("HeroMessaging.Serialization.Protobuf")
+            .Should().NotHaveDependencyOn("HeroMessaging.Serialization.Json")
+            .And().NotHaveDependencyOn("HeroMessaging.Serialization.Protobuf")
             .GetResult();
 
         var protobufResult = Types.InAssembly(protobuf)
-            .ShouldNot().HaveDependencyOn("HeroMessaging.Serialization.Json")
-            .And().ShouldNot().HaveDependencyOn("HeroMessaging.Serialization.MessagePack")
+            .Should().NotHaveDependencyOn("HeroMessaging.Serialization.Json")
+            .And().NotHaveDependencyOn("HeroMessaging.Serialization.MessagePack")
             .GetResult();
 
         // Assert
@@ -110,12 +110,12 @@ public class LayerDependencyTests
 
         var pluginAssemblies = new[]
         {
-            ("SqlServer", typeof(Storage.SqlServer.SqlServerDbConnectionProvider).Assembly),
-            ("PostgreSql", typeof(Storage.PostgreSql.PostgreSqlDbConnectionProvider).Assembly),
+            ("SqlServer", typeof(Storage.SqlServer.SqlServerConnectionProvider).Assembly),
+            ("PostgreSql", typeof(Storage.PostgreSql.PostgreSqlConnectionProvider).Assembly),
             ("Json", typeof(Serialization.Json.JsonMessageSerializer).Assembly),
             ("MessagePack", typeof(Serialization.MessagePack.MessagePackMessageSerializer).Assembly),
             ("Protobuf", typeof(Serialization.Protobuf.ProtobufMessageSerializer).Assembly),
-            ("RabbitMQ", typeof(Transport.RabbitMQ.RabbitMQTransport).Assembly),
+            ("RabbitMQ", typeof(Transport.RabbitMQ.RabbitMqTransport).Assembly),
             ("OpenTelemetry", typeof(Observability.OpenTelemetry.HeroMessagingInstrumentation).Assembly),
             ("HealthChecks", typeof(Observability.HealthChecks.TransportHealthCheck).Assembly),
         };
@@ -131,7 +131,7 @@ public class LayerDependencyTests
         }
     }
 
-    private static string FormatFailureMessage(TestResult result)
+    private static string FormatFailureMessage(NetArchTestResult result)
     {
         if (result.IsSuccessful)
             return string.Empty;

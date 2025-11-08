@@ -5,7 +5,7 @@ using HeroMessaging.Abstractions.Policies;
 namespace HeroMessaging.Policies;
 
 // Extension method to provide Task.Delay with TimeProvider for .NET 6 and netstandard2.0
-internal static class TimeProviderExtensions
+public static class TimeProviderExtensions
 {
 #if !NET8_0_OR_GREATER
     public static Task Delay(this TimeProvider timeProvider, TimeSpan delay, CancellationToken cancellationToken)

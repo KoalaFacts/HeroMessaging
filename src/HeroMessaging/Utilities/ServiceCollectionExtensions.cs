@@ -3,9 +3,9 @@ using Microsoft.Extensions.DependencyInjection;
 namespace HeroMessaging.Utilities;
 
 /// <summary>
-/// Internal extension methods for IServiceCollection to support decorator pattern
+/// Extension methods for IServiceCollection to support decorator pattern
 /// </summary>
-internal static class ServiceCollectionExtensions
+public static class ServiceCollectionExtensions
 {
     /// <summary>
     /// Decorates an existing service registration with a decorator implementation
