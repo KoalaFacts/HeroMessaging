@@ -2,6 +2,7 @@ using System.Data;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using HeroMessaging.Abstractions.Sagas;
+using HeroMessaging.Utilities;
 using Microsoft.Data.SqlClient;
 
 namespace HeroMessaging.Storage.SqlServer;
@@ -28,6 +29,7 @@ public class SqlServerSagaRepository<TSaga> : ISagaRepository<TSaga>, IDisposabl
     private Task? _initializationTask;
     private readonly SemaphoreSlim _initLock = new(1, 1);
     private bool _disposed;
+    private readonly IJsonSerializer _jsonSerializer;
 
     /// <summary>
     /// Initializes a new instance of the SqlServerSagaRepository
@@ -36,10 +38,11 @@ public class SqlServerSagaRepository<TSaga> : ISagaRepository<TSaga>, IDisposabl
     /// <param name="timeProvider">Time provider for testable time-based operations</param>
     /// <exception cref="ArgumentNullException">Thrown when options or timeProvider is null</exception>
     /// <exception cref="ArgumentException">Thrown when connection string is invalid or identifiers contain invalid characters</exception>
-    public SqlServerSagaRepository(SqlServerStorageOptions options, TimeProvider timeProvider)
+    public SqlServerSagaRepository(SqlServerStorageOptions options, TimeProvider timeProvider, IJsonSerializer jsonSerializer)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+        _jsonSerializer = jsonSerializer ?? throw new ArgumentNullException(nameof(jsonSerializer));
 
         // Validate connection string
         if (string.IsNullOrWhiteSpace(options.ConnectionString))
@@ -175,7 +178,7 @@ public class SqlServerSagaRepository<TSaga> : ISagaRepository<TSaga>, IDisposabl
         if (await reader.ReadAsync(cancellationToken))
         {
             var sagaData = reader.GetString(0);
-            return JsonSerializer.Deserialize<TSaga>(sagaData, SharedJsonOptions);
+            return _jsonSerializer.DeserializeFromString<TSaga>(sagaData, SharedJsonOptions);
         }
 
         return null;
@@ -217,7 +220,7 @@ public class SqlServerSagaRepository<TSaga> : ISagaRepository<TSaga>, IDisposabl
         while (await reader.ReadAsync(cancellationToken))
         {
             var sagaData = reader.GetString(0);
-            var saga = JsonSerializer.Deserialize<TSaga>(sagaData, SharedJsonOptions);
+            var saga = _jsonSerializer.DeserializeFromString<TSaga>(sagaData, SharedJsonOptions);
             if (saga != null)
             {
                 sagas.Add(saga);
@@ -266,7 +269,7 @@ public class SqlServerSagaRepository<TSaga> : ISagaRepository<TSaga>, IDisposabl
         command.Parameters.Add("@UpdatedAt", SqlDbType.DateTime2).Value = saga.UpdatedAt;
         command.Parameters.Add("@IsCompleted", SqlDbType.Bit).Value = saga.IsCompleted;
         command.Parameters.Add("@Version", SqlDbType.Int).Value = saga.Version;
-        command.Parameters.Add("@SagaData", SqlDbType.NVarChar, -1).Value = JsonSerializer.Serialize(saga, SharedJsonOptions);
+        command.Parameters.Add("@SagaData", SqlDbType.NVarChar, -1).Value = _jsonSerializer.SerializeToString(saga, SharedJsonOptions);
 
         try
         {
@@ -357,7 +360,7 @@ public class SqlServerSagaRepository<TSaga> : ISagaRepository<TSaga>, IDisposabl
             updateCommand.Parameters.Add("@UpdatedAt", SqlDbType.DateTime2).Value = saga.UpdatedAt;
             updateCommand.Parameters.Add("@IsCompleted", SqlDbType.Bit).Value = saga.IsCompleted;
             updateCommand.Parameters.Add("@Version", SqlDbType.Int).Value = saga.Version;
-            updateCommand.Parameters.Add("@SagaData", SqlDbType.NVarChar, -1).Value = JsonSerializer.Serialize(saga, SharedJsonOptions);
+            updateCommand.Parameters.Add("@SagaData", SqlDbType.NVarChar, -1).Value = _jsonSerializer.SerializeToString(saga, SharedJsonOptions);
 
             await updateCommand.ExecuteNonQueryAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
@@ -436,7 +439,7 @@ public class SqlServerSagaRepository<TSaga> : ISagaRepository<TSaga>, IDisposabl
         while (await reader.ReadAsync(cancellationToken))
         {
             var sagaData = reader.GetString(0);
-            var saga = JsonSerializer.Deserialize<TSaga>(sagaData, SharedJsonOptions);
+            var saga = _jsonSerializer.DeserializeFromString<TSaga>(sagaData, SharedJsonOptions);
             if (saga != null)
             {
                 sagas.Add(saga);

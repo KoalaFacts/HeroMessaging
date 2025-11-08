@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using HeroMessaging.Abstractions.Policies;
 
 namespace HeroMessaging.Policies;
 
@@ -73,7 +72,7 @@ public class CircuitBreakerRetryPolicy(
         private int _failureCount;
         private DateTime _openedAt;
         private bool _isOpen;
-        private readonly object _lock = new();
+        private readonly Lock _lock = new();
         private readonly TimeProvider _timeProvider = timeProvider;
 
         public int FailureCount => _failureCount;

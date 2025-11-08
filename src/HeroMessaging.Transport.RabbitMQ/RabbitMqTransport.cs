@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Threading;
 
 namespace HeroMessaging.Transport.RabbitMQ;
 
@@ -21,7 +22,7 @@ public sealed class RabbitMqTransport : IMessageTransport
     private readonly ConcurrentDictionary<string, RabbitMqChannelPool> _channelPools = new();
     private readonly ConcurrentDictionary<string, RabbitMqConsumer> _consumers = new();
     private TransportState _state = TransportState.Disconnected;
-    private readonly object _stateLock = new();
+    private readonly Lock _stateLock = new();
     private readonly SemaphoreSlim _connectLock = new(1, 1);
     private readonly TimeProvider _timeProvider;
 

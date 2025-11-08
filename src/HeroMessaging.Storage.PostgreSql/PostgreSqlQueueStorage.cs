@@ -3,6 +3,7 @@ using System.Text.Json;
 using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Storage;
+using HeroMessaging.Utilities;
 using Npgsql;
 
 namespace HeroMessaging.Storage.PostgreSql;
@@ -20,13 +21,15 @@ public class PostgreSqlQueueStorage : IQueueStorage
     private readonly string _tableName;
     private readonly TimeProvider _timeProvider;
     private readonly JsonSerializerOptions _jsonOptions;
+    private readonly IJsonSerializer _jsonSerializer;
 
-    public PostgreSqlQueueStorage(PostgreSqlStorageOptions options, TimeProvider timeProvider)
+    public PostgreSqlQueueStorage(PostgreSqlStorageOptions options, TimeProvider timeProvider, IJsonSerializer jsonSerializer)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _connectionString = options.ConnectionString ?? throw new ArgumentNullException(nameof(options.ConnectionString));
         _tableName = _options.GetFullTableName(_options.QueueTableName);
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+        _jsonSerializer = jsonSerializer ?? throw new ArgumentNullException(nameof(jsonSerializer));
 
         _jsonOptions = new JsonSerializerOptions
         {
@@ -40,12 +43,13 @@ public class PostgreSqlQueueStorage : IQueueStorage
         }
     }
 
-    public PostgreSqlQueueStorage(NpgsqlConnection connection, NpgsqlTransaction? transaction, TimeProvider timeProvider)
+    public PostgreSqlQueueStorage(NpgsqlConnection connection, NpgsqlTransaction? transaction, TimeProvider timeProvider, IJsonSerializer jsonSerializer)
     {
         _sharedConnection = connection ?? throw new ArgumentNullException(nameof(connection));
         _sharedTransaction = transaction;
         _connectionString = connection.ConnectionString ?? string.Empty;
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+        _jsonSerializer = jsonSerializer ?? throw new ArgumentNullException(nameof(jsonSerializer));
 
         // Use default options when using shared connection
         _options = new PostgreSqlStorageOptions { ConnectionString = connection.ConnectionString! };
@@ -135,7 +139,7 @@ public class PostgreSqlQueueStorage : IQueueStorage
             command.Parameters.AddWithValue("id", entryId);
             command.Parameters.AddWithValue("queue_name", queueName);
             command.Parameters.AddWithValue("message_type", message.GetType().FullName ?? "Unknown");
-            command.Parameters.AddWithValue("payload", JsonSerializer.Serialize(message, _jsonOptions));
+            command.Parameters.AddWithValue("payload", _jsonSerializer.SerializeToString(message, _jsonOptions));
             command.Parameters.AddWithValue("priority", options?.Priority ?? 0);
             command.Parameters.AddWithValue("enqueued_at", now);
             command.Parameters.AddWithValue("visible_at", visibleAt);
@@ -223,7 +227,7 @@ public class PostgreSqlQueueStorage : IQueueStorage
 
                 if (transaction == null) await localTransaction.CommitAsync(cancellationToken);
 
-                var message = JsonSerializer.Deserialize<IMessage>(payload, _jsonOptions);
+                var message = _jsonSerializer.DeserializeFromString<IMessage>(payload, _jsonOptions);
 
                 return new QueueEntry
                 {
@@ -288,7 +292,7 @@ public class PostgreSqlQueueStorage : IQueueStorage
                 var dequeueCount = reader.GetInt32(6);
                 var delayMinutes = reader.IsDBNull(7) ? (int?)null : reader.GetInt32(7);
 
-                var message = JsonSerializer.Deserialize<IMessage>(payload, _jsonOptions);
+                var message = _jsonSerializer.DeserializeFromString<IMessage>(payload, _jsonOptions);
 
                 entries.Add(new QueueEntry
                 {

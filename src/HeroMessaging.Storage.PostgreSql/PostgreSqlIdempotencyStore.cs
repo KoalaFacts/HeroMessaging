@@ -1,5 +1,6 @@
 using System.Text.Json;
 using HeroMessaging.Abstractions.Idempotency;
+using HeroMessaging.Utilities;
 using Npgsql;
 
 namespace HeroMessaging.Storage.PostgreSql;
@@ -62,19 +63,21 @@ public sealed class PostgreSqlIdempotencyStore : IIdempotencyStore
     private readonly string _connectionString;
     private readonly TimeProvider _timeProvider;
     private readonly JsonSerializerOptions _jsonOptions;
+    private readonly IJsonSerializer _jsonSerializer;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PostgreSqlIdempotencyStore"/> class.
     /// </summary>
     /// <param name="connectionString">The PostgreSQL connection string.</param>
     /// <param name="timeProvider">The time provider for timestamp management and expiration checks.</param>
+    /// <param name="jsonSerializer">The JSON serializer for result serialization.</param>
     /// <exception cref="ArgumentNullException">
     /// Thrown when <paramref name="connectionString"/> or <paramref name="timeProvider"/> is null.
     /// </exception>
     /// <exception cref="ArgumentException">
     /// Thrown when <paramref name="connectionString"/> is empty or whitespace.
     /// </exception>
-    public PostgreSqlIdempotencyStore(string connectionString, TimeProvider timeProvider)
+    public PostgreSqlIdempotencyStore(string connectionString, TimeProvider timeProvider, IJsonSerializer jsonSerializer)
     {
         if (connectionString == null)
             throw new ArgumentNullException(nameof(connectionString));
@@ -83,6 +86,7 @@ public sealed class PostgreSqlIdempotencyStore : IIdempotencyStore
 
         _connectionString = connectionString;
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+        _jsonSerializer = jsonSerializer ?? throw new ArgumentNullException(nameof(jsonSerializer));
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
@@ -337,7 +341,7 @@ public sealed class PostgreSqlIdempotencyStore : IIdempotencyStore
 
         try
         {
-            return JsonSerializer.Serialize(result, _jsonOptions);
+            return _jsonSerializer.SerializeToString(result, _jsonOptions);
         }
         catch (Exception ex)
         {
@@ -359,7 +363,7 @@ public sealed class PostgreSqlIdempotencyStore : IIdempotencyStore
 
         try
         {
-            return JsonSerializer.Deserialize<object>(json, _jsonOptions);
+            return _jsonSerializer.DeserializeFromString<object>(json, _jsonOptions);
         }
         catch (Exception ex)
         {

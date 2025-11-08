@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Threading;
 using System.Threading.Channels;
 using HeroMessaging.Abstractions.Transport;
 
@@ -14,7 +15,7 @@ internal class InMemoryQueue : IDisposable, IAsyncDisposable
     private readonly ConcurrentDictionary<string, InMemoryConsumer> _consumers = new();
     private readonly CancellationTokenSource _cts = new();
     private Task? _processingTask;
-    private readonly object _processingTaskLock = new();
+    private readonly Lock _processingTaskLock = new();
     private int _consumerIndex;
     private long _messageCount;
     private long _depth;

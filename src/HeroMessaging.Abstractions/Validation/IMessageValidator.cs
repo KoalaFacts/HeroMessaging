@@ -38,9 +38,9 @@ public readonly record struct ValidationResult
     public static ValidationResult Success() => new() { IsValid = true, Errors = ImmutableArray<string>.Empty };
 
     /// <summary>
-    /// Creates a failed validation result with errors
+    /// Creates a failed validation result with errors.
     /// </summary>
-    public static ValidationResult Failure(params string[] errors) => new() { IsValid = false, Errors = errors.ToImmutableArray() };
+    public static ValidationResult Failure(params ReadOnlySpan<string> errors) => new() { IsValid = false, Errors = [.. errors] };
 }
 
 /// <summary>

@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Threading;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Scheduling;
 
@@ -23,7 +24,7 @@ public sealed class InMemoryScheduler : IMessageScheduler, IDisposable
     private readonly ConcurrentDictionary<Guid, ScheduledEntry> _scheduledMessages;
     private readonly ConcurrentBag<Task> _backgroundTasks = new();
     private readonly CancellationTokenSource _disposeCts = new();
-    private readonly object _disposeLock = new();
+    private readonly Lock _disposeLock = new();
     private bool _disposed;
 
     public InMemoryScheduler(IMessageDeliveryHandler deliveryHandler)

@@ -43,7 +43,7 @@ public static class HeroMessagingServiceCollectionExtensions
     /// </summary>
     public static IServiceCollection AddHeroMessagingDevelopment(
         this IServiceCollection services,
-        params Assembly[] assemblies)
+        params IEnumerable<Assembly> assemblies)
     {
         return services.AddHeroMessaging(builder => builder
             .Development()
@@ -59,7 +59,7 @@ public static class HeroMessagingServiceCollectionExtensions
     public static IServiceCollection AddHeroMessagingProduction(
         this IServiceCollection services,
         string connectionString,
-        params Assembly[] assemblies)
+        params IEnumerable<Assembly> assemblies)
     {
         return services.AddHeroMessaging(builder => builder
             .Production(connectionString)
@@ -74,7 +74,7 @@ public static class HeroMessagingServiceCollectionExtensions
     public static IServiceCollection AddHeroMessagingMicroservice(
         this IServiceCollection services,
         string connectionString,
-        params Assembly[] assemblies)
+        params IEnumerable<Assembly> assemblies)
     {
         return services.AddHeroMessaging(builder => builder
             .Microservice(connectionString)
@@ -89,7 +89,7 @@ public static class HeroMessagingServiceCollectionExtensions
     public static IServiceCollection AddHeroMessagingCustom(
         this IServiceCollection services,
         Action<IHeroMessagingBuilder> configure,
-        params Assembly[] assemblies)
+        params IEnumerable<Assembly> assemblies)
     {
         return services.AddHeroMessaging(builder =>
         {
@@ -123,7 +123,7 @@ public static class HeroMessagingHostBuilderExtensions
     /// </summary>
     public static IHostBuilder UseHeroMessagingDevelopment(
         this IHostBuilder hostBuilder,
-        params Assembly[] assemblies)
+        params IEnumerable<Assembly> assemblies)
     {
         return hostBuilder.ConfigureServices((context, services) =>
         {
@@ -137,7 +137,7 @@ public static class HeroMessagingHostBuilderExtensions
     public static IHostBuilder UseHeroMessagingProduction(
         this IHostBuilder hostBuilder,
         string connectionString,
-        params Assembly[] assemblies)
+        params IEnumerable<Assembly> assemblies)
     {
         return hostBuilder.ConfigureServices((context, services) =>
         {

@@ -27,7 +27,7 @@ public interface IHeroMessagingBuilder
 
     IHeroMessagingBuilder ScanAssembly(Assembly assembly);
 
-    IHeroMessagingBuilder ScanAssemblies(params Assembly[] assemblies);
+    IHeroMessagingBuilder ScanAssemblies(params IEnumerable<Assembly> assemblies);
 
     IHeroMessagingBuilder ConfigureProcessing(Action<ProcessingOptions> configure);
 

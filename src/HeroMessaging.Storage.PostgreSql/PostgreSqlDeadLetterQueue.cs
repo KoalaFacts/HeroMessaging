@@ -1,6 +1,7 @@
 using System.Text.Json;
 using HeroMessaging.Abstractions.ErrorHandling;
 using HeroMessaging.Abstractions.Messages;
+using HeroMessaging.Utilities;
 using Npgsql;
 using NpgsqlTypes;
 
@@ -15,12 +16,14 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
     private readonly JsonSerializerOptions _jsonOptions;
     private readonly string _tableName;
     private readonly TimeProvider _timeProvider;
+    private readonly IJsonSerializer _jsonSerializer;
 
-    public PostgreSqlDeadLetterQueue(PostgreSqlStorageOptions options, TimeProvider timeProvider)
+    public PostgreSqlDeadLetterQueue(PostgreSqlStorageOptions options, TimeProvider timeProvider, IJsonSerializer jsonSerializer)
     {
         _options = options;
         _tableName = _options.GetFullTableName(_options.DeadLetterTableName);
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+        _jsonSerializer = jsonSerializer ?? throw new ArgumentNullException(nameof(jsonSerializer));
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
@@ -95,7 +98,7 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         };
 
         command.Parameters.AddWithValue("@id", deadLetterId);
-        command.Parameters.AddWithValue("@message_payload", NpgsqlDbType.Jsonb, JsonSerializer.Serialize(message, _jsonOptions));
+        command.Parameters.AddWithValue("@message_payload", NpgsqlDbType.Jsonb, _jsonSerializer.SerializeToString(message, _jsonOptions));
         command.Parameters.AddWithValue("@message_type", message.GetType().FullName ?? "Unknown");
         command.Parameters.AddWithValue("@reason", context.Reason);
         command.Parameters.AddWithValue("@component", context.Component);
@@ -105,7 +108,7 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         command.Parameters.AddWithValue("@created_at", _timeProvider.GetUtcNow().DateTime);
         command.Parameters.AddWithValue("@exception_message", context.Exception?.Message ?? (object)DBNull.Value);
         command.Parameters.AddWithValue("@metadata", NpgsqlDbType.Jsonb,
-            context.Metadata.Any() ? JsonSerializer.Serialize(context.Metadata, _jsonOptions) : (object)DBNull.Value);
+            context.Metadata.Any() ? _jsonSerializer.SerializeToString(context.Metadata, _jsonOptions) : (object)DBNull.Value);
 
         await command.ExecuteNonQueryAsync(cancellationToken);
         return deadLetterId;
@@ -141,13 +144,13 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         while (await reader.ReadAsync(cancellationToken))
         {
             var messagePayload = reader.GetString(1);
-            var message = JsonSerializer.Deserialize<T>(messagePayload, _jsonOptions);
+            var message = _jsonSerializer.DeserializeFromString<T>(messagePayload, _jsonOptions);
 
             if (message != null)
             {
                 var metadataJson = reader.IsDBNull(11) ? null : reader.GetString(11);
                 var metadata = !string.IsNullOrEmpty(metadataJson)
-                    ? JsonSerializer.Deserialize<Dictionary<string, object>>(metadataJson, _jsonOptions) ?? new()
+                    ? _jsonSerializer.DeserializeFromString<Dictionary<string, object>>(metadataJson, _jsonOptions) ?? new()
                     : new Dictionary<string, object>();
 
                 entries.Add(new DeadLetterEntry<T>
