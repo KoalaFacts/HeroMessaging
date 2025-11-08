@@ -47,11 +47,14 @@ public class ContractTestGenerator : IIncrementalGenerator
         var typeDecl = (TypeDeclarationSyntax)context.Node;
 
         // Check for [GenerateContractTests] attribute
-        var hasAttribute = typeDecl.AttributeLists
+        var contractAttr = typeDecl.AttributeLists
             .SelectMany(al => al.Attributes)
-            .Any(a => a.Name.ToString().Contains("GenerateContractTests"));
+            .FirstOrDefault(a => a.Name.ToString().Contains("GenerateContractTests"));
 
-        if (!hasAttribute) return null;
+        if (contractAttr is null) return null;
+
+        // Extract version from attribute
+        var version = GetAttributeArgument(contractAttr, "Version") ?? "v1.0";
 
         var namespaceDecl = typeDecl.FirstAncestorOrSelf<NamespaceDeclarationSyntax>();
         var namespaceName = namespaceDecl?.Name.ToString() ?? "Global";
@@ -108,8 +111,23 @@ public class ContractTestGenerator : IIncrementalGenerator
             TypeName = typeDecl.Identifier.Text,
             Properties = properties,
             Samples = samples,
-            Version = "v1.0" // TODO: Extract from attribute
+            Version = version
         };
+    }
+
+    private static string? GetAttributeArgument(AttributeSyntax attr, string argName)
+    {
+        if (attr.ArgumentList == null) return null;
+
+        foreach (var arg in attr.ArgumentList.Arguments)
+        {
+            if (arg.NameEquals?.Name.Identifier.Text == argName)
+            {
+                return arg.Expression.ToString().Trim('"');
+            }
+        }
+
+        return null;
     }
 
     private static string? GetAttributeStringArgument(AttributeSyntax attr, int position)

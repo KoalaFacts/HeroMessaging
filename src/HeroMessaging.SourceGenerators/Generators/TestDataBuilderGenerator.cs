@@ -239,7 +239,7 @@ public static partial class TestData
         }
 
         sb.AppendLine();
-        sb.AppendLine("        public {info.TypeName}Builder()");
+        sb.AppendLine($"        public {info.TypeName}Builder()");
         sb.AppendLine("        {");
         sb.AppendLine("            _sequence++;");
 
@@ -290,23 +290,23 @@ public static partial class TestData
                 sb.AppendLine($"                {prop.Name} = _{ToCamelCase(prop.Name)},");
         }
 
-        sb.AppendLine(@"            };
-        }
+        sb.AppendLine($@"            }};
+        }}
 
         /// <summary>
         /// Creates multiple instances with random data.
         /// </summary>
         public List<{info.TypeName}> CreateMany(int count)
-        {
+        {{
             var items = new List<{info.TypeName}>();
             for (int i = 0; i < count; i++)
-            {
+            {{
                 items.Add(new {info.TypeName}Builder().WithRandomData().Build());
-            }
+            }}
             return items;
-        }
-    }
-}");
+        }}
+    }}
+}}");
 
         return sb.ToString();
     }
