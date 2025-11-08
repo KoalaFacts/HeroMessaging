@@ -20,4 +20,10 @@
     <Using Include="System.IO" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Exclude JsonSpanSerializer - requires C# 13 ref struct interfaces not yet available -->
+    <Compile Remove="JsonSpanSerializer.cs" />
+    <None Include="JsonSpanSerializer.cs" />
+  </ItemGroup>
+
 </Project>

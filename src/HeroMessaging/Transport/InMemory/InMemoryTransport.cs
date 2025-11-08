@@ -35,7 +35,11 @@ public class InMemoryTransport(
     private readonly ConcurrentDictionary<string, InMemoryTopic> _topics = new();
     private readonly ConcurrentDictionary<string, InMemoryConsumer> _consumers = new();
     private TransportState _state = TransportState.Disconnected;
+#if NET9_0_OR_GREATER
     private readonly Lock _stateLock = new();
+#else
+    private readonly object _stateLock = new();
+#endif
     private readonly SemaphoreSlim _connectLock = new(1, 1);
     private readonly TimeProvider _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 

@@ -34,4 +34,10 @@
 		<None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
 	</ItemGroup>
 
+	<ItemGroup>
+		<!-- Exclude Examples from compilation - they are documentation only -->
+		<Compile Remove="Examples\**\*.cs" />
+		<None Include="Examples\**\*.cs" />
+	</ItemGroup>
+
 </Project>

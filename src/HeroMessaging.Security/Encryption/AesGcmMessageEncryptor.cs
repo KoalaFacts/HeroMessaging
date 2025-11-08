@@ -10,14 +10,14 @@ public sealed class AesGcmMessageEncryptor : IMessageEncryptor
 {
     private const int KeySize = 32; // 256 bits
     private const int NonceSize = 12; // 96 bits (recommended for GCM)
-    private const int TagSize = 16; // 128 bits
+    private const int TagSizeValue = 16; // 128 bits
 
     private readonly byte[] _key;
     private readonly string? _keyId;
 
     public string Algorithm => "AES-256-GCM";
     public int IVSize => NonceSize;
-    public int TagSize => AesGcmMessageEncryptor.TagSize;
+    public int TagSize => TagSizeValue;
 
     /// <summary>
     /// Creates a new AES-GCM encryptor with the specified key

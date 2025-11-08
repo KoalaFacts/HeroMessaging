@@ -24,7 +24,11 @@ public sealed class InMemoryScheduler : IMessageScheduler, IDisposable
     private readonly ConcurrentDictionary<Guid, ScheduledEntry> _scheduledMessages;
     private readonly ConcurrentBag<Task> _backgroundTasks = new();
     private readonly CancellationTokenSource _disposeCts = new();
+#if NET9_0_OR_GREATER
     private readonly Lock _disposeLock = new();
+#else
+    private readonly object _disposeLock = new();
+#endif
     private bool _disposed;
 
     public InMemoryScheduler(IMessageDeliveryHandler deliveryHandler)

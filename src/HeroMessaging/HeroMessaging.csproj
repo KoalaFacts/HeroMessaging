@@ -26,4 +26,11 @@
 	<ItemGroup>
 		<ProjectReference Include="..\HeroMessaging.Abstractions\HeroMessaging.Abstractions.csproj" />
 	</ItemGroup>
+
+	<ItemGroup>
+		<!-- Exclude SpanMessageValidator - requires C# 13 ref struct interfaces not yet available -->
+		<Compile Remove="Validation\SpanMessageValidator.cs" />
+		<None Include="Validation\SpanMessageValidator.cs" />
+	</ItemGroup>
+
 </Project>

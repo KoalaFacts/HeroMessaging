@@ -7,9 +7,10 @@ namespace HeroMessaging.Serialization.Json;
 /// <summary>
 /// Zero-allocation JSON serializer using ref struct and Span APIs.
 /// Implements ISpanSerDes interface to demonstrate C# 13 ref struct interface feature.
+/// NOTE: ISpanSerDes interface not yet available - awaiting C# 13 support
 /// </summary>
 /// <typeparam name="T">The message type to serialize/deserialize</typeparam>
-public ref struct JsonSpanSerializer<T> : ISpanSerDes<T>
+public ref struct JsonSpanSerializer<T> // : ISpanSerDes<T> - Commented out until C# 13
 {
     private readonly JsonSerializerOptions? _options;
 
