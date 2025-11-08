@@ -16,6 +16,8 @@ public sealed class AesGcmMessageEncryptor : IMessageEncryptor
     private readonly string? _keyId;
 
     public string Algorithm => "AES-256-GCM";
+    public int IVSize => NonceSize;
+    public int TagSize => AesGcmMessageEncryptor.TagSize;
 
     /// <summary>
     /// Creates a new AES-GCM encryptor with the specified key
@@ -154,6 +156,111 @@ public sealed class AesGcmMessageEncryptor : IMessageEncryptor
         catch (CryptographicException ex)
         {
             throw new EncryptionException("Failed to decrypt message. The message may have been tampered with.", ex);
+        }
+    }
+
+    public int Encrypt(ReadOnlySpan<byte> plaintext, Span<byte> ciphertext, Span<byte> iv, Span<byte> tag, SecurityContext context)
+    {
+        if (ciphertext.Length < plaintext.Length)
+            throw new ArgumentException("Ciphertext buffer must be at least as large as plaintext", nameof(ciphertext));
+
+        if (iv.Length < NonceSize)
+            throw new ArgumentException($"IV buffer must be at least {NonceSize} bytes", nameof(iv));
+
+        if (tag.Length < TagSize)
+            throw new ArgumentException($"Tag buffer must be at least {TagSize} bytes", nameof(tag));
+
+        try
+        {
+            // Generate random nonce
+            RandomNumberGenerator.Fill(iv.Slice(0, NonceSize));
+
+#if NETSTANDARD2_0
+            throw new PlatformNotSupportedException(
+                "AES-GCM is not available in .NET Standard 2.0. " +
+                "Please target .NET 6.0 or later for AES-GCM support.");
+#elif NET8_0_OR_GREATER
+            using (var aes = new AesGcm(_key, TagSize))
+            {
+                aes.Encrypt(iv.Slice(0, NonceSize), plaintext, ciphertext.Slice(0, plaintext.Length), tag.Slice(0, TagSize));
+            }
+#else
+            using (var aes = new AesGcm(_key))
+            {
+                aes.Encrypt(iv.Slice(0, NonceSize), plaintext, ciphertext.Slice(0, plaintext.Length), tag.Slice(0, TagSize));
+            }
+#endif
+
+            return plaintext.Length;
+        }
+        catch (CryptographicException ex)
+        {
+            throw new EncryptionException("Failed to encrypt message", ex);
+        }
+    }
+
+    public bool TryEncrypt(ReadOnlySpan<byte> plaintext, Span<byte> ciphertext, Span<byte> iv, Span<byte> tag, SecurityContext context, out int bytesWritten)
+    {
+        try
+        {
+            bytesWritten = Encrypt(plaintext, ciphertext, iv, tag, context);
+            return true;
+        }
+        catch
+        {
+            bytesWritten = 0;
+            return false;
+        }
+    }
+
+    public int Decrypt(ReadOnlySpan<byte> ciphertext, ReadOnlySpan<byte> iv, ReadOnlySpan<byte> tag, Span<byte> plaintext, SecurityContext context)
+    {
+        if (plaintext.Length < ciphertext.Length)
+            throw new ArgumentException("Plaintext buffer must be at least as large as ciphertext", nameof(plaintext));
+
+        if (iv.Length < NonceSize)
+            throw new ArgumentException($"IV must be at least {NonceSize} bytes", nameof(iv));
+
+        if (tag.Length < TagSize)
+            throw new ArgumentException($"Tag must be at least {TagSize} bytes", nameof(tag));
+
+        try
+        {
+#if NETSTANDARD2_0
+            throw new PlatformNotSupportedException(
+                "AES-GCM is not available in .NET Standard 2.0. " +
+                "Please target .NET 6.0 or later for AES-GCM support.");
+#elif NET8_0_OR_GREATER
+            using (var aes = new AesGcm(_key, TagSize))
+            {
+                aes.Decrypt(iv.Slice(0, NonceSize), ciphertext, tag.Slice(0, TagSize), plaintext.Slice(0, ciphertext.Length));
+            }
+#else
+            using (var aes = new AesGcm(_key))
+            {
+                aes.Decrypt(iv.Slice(0, NonceSize), ciphertext, tag.Slice(0, TagSize), plaintext.Slice(0, ciphertext.Length));
+            }
+#endif
+
+            return ciphertext.Length;
+        }
+        catch (CryptographicException ex)
+        {
+            throw new EncryptionException("Failed to decrypt message. The message may have been tampered with.", ex);
+        }
+    }
+
+    public bool TryDecrypt(ReadOnlySpan<byte> ciphertext, ReadOnlySpan<byte> iv, ReadOnlySpan<byte> tag, Span<byte> plaintext, SecurityContext context, out int bytesWritten)
+    {
+        try
+        {
+            bytesWritten = Decrypt(ciphertext, iv, tag, plaintext, context);
+            return true;
+        }
+        catch
+        {
+            bytesWritten = 0;
+            return false;
         }
     }
 }

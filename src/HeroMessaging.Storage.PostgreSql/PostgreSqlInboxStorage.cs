@@ -1,6 +1,7 @@
 using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Storage;
+using HeroMessaging.Utilities;
 using Npgsql;
 using System.Text.Json;
 
@@ -18,16 +19,19 @@ public class PostgreSqlInboxStorage : IInboxStorage
     private readonly IJsonOptionsProvider _jsonOptionsProvider;
     private readonly string _tableName;
     private readonly TimeProvider _timeProvider;
+    private readonly IJsonSerializer _jsonSerializer;
 
     public PostgreSqlInboxStorage(
         PostgreSqlStorageOptions options,
         TimeProvider timeProvider,
+        IJsonSerializer jsonSerializer,
         IDbConnectionProvider<NpgsqlConnection, NpgsqlTransaction>? connectionProvider = null,
         IDbSchemaInitializer? schemaInitializer = null,
         IJsonOptionsProvider? jsonOptionsProvider = null)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+        _jsonSerializer = jsonSerializer ?? throw new ArgumentNullException(nameof(jsonSerializer));
         _tableName = _options.GetFullTableName(_options.InboxTableName);
 
         // Use provided dependencies or create defaults
@@ -45,10 +49,12 @@ public class PostgreSqlInboxStorage : IInboxStorage
         NpgsqlConnection connection,
         NpgsqlTransaction? transaction,
         TimeProvider timeProvider,
+        IJsonSerializer jsonSerializer,
         IJsonOptionsProvider? jsonOptionsProvider = null)
     {
         _connectionProvider = new PostgreSqlConnectionProvider(connection, transaction);
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+        _jsonSerializer = jsonSerializer ?? throw new ArgumentNullException(nameof(jsonSerializer));
         _jsonOptionsProvider = jsonOptionsProvider ?? new DefaultJsonOptionsProvider();
 
         // Use default options when using shared connection
@@ -116,7 +122,7 @@ public class PostgreSqlInboxStorage : IInboxStorage
             using var command = new NpgsqlCommand(sql, connection, transaction);
             command.Parameters.AddWithValue("id", messageId);
             command.Parameters.AddWithValue("message_type", message.GetType().FullName ?? "Unknown");
-            command.Parameters.AddWithValue("payload", JsonSerializer.Serialize(message, _jsonOptionsProvider.GetOptions()));
+            command.Parameters.AddWithValue("payload", _jsonSerializer.SerializeToString(message, _jsonOptionsProvider.GetOptions()));
             command.Parameters.AddWithValue("source", (object?)options.Source ?? DBNull.Value);
             command.Parameters.AddWithValue("status", "Pending");
             command.Parameters.AddWithValue("received_at", now);
@@ -205,7 +211,7 @@ public class PostgreSqlInboxStorage : IInboxStorage
                 var requireIdempotency = reader.GetBoolean(7);
                 var deduplicationWindowMinutes = reader.IsDBNull(8) ? (int?)null : reader.GetInt32(8);
 
-                var message = JsonSerializer.Deserialize<IMessage>(payload, _jsonOptionsProvider.GetOptions());
+                var message = _jsonSerializer.DeserializeFromString<IMessage>(payload, _jsonOptionsProvider.GetOptions());
 
                 return new InboxEntry
                 {
@@ -349,7 +355,7 @@ public class PostgreSqlInboxStorage : IInboxStorage
                 var requireIdempotency = reader.GetBoolean(8);
                 var deduplicationWindowMinutes = reader.IsDBNull(9) ? (int?)null : reader.GetInt32(9);
 
-                var message = JsonSerializer.Deserialize<IMessage>(payload, _jsonOptionsProvider.GetOptions());
+                var message = _jsonSerializer.DeserializeFromString<IMessage>(payload, _jsonOptionsProvider.GetOptions());
 
                 entries.Add(new InboxEntry
                 {

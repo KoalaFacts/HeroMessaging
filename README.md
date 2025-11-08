@@ -46,6 +46,114 @@ HeroMessaging is a modern, extensible messaging framework for .NET that provides
 - `HeroMessaging.Observability.OpenTelemetry` - Distributed tracing and metrics
 - `HeroMessaging.Observability.HealthChecks` - ASP.NET Core health monitoring
 
+### Source Generators
+
+**Reduce boilerplate by 80-95%** with Roslyn source generators that generate code at compile-time:
+
+- **Message Validator Generator** - Auto-generate validation from data annotations
+- **Message Builder Generator** - Fluent builders for test data creation
+- **Sophisticated Test Data Builder** - Advanced test builders with auto-randomization & object mothers
+- **Idempotency Key Generator** - Deterministic deduplication keys
+- **Handler Registration Generator** - Auto-discover and register all handlers
+- **Saga DSL Generator** - Declarative state machine definitions
+- **Method Logging Generator** - Auto-generate entry/exit/duration/error logging
+- **Metrics Instrumentation Generator** - Auto-generate OpenTelemetry metrics
+- **Contract Testing Generator** - Auto-generate backward compatibility tests
+
+**Quick Example:**
+
+```csharp
+// Define message with attributes
+[GenerateValidator]
+[GenerateBuilder]
+[GenerateIdempotencyKey(nameof(OrderId))]
+public record CreateOrderCommand
+{
+    [Required]
+    [StringLength(50, MinimumLength = 5)]
+    public string OrderId { get; init; } = string.Empty;
+
+    [Range(0.01, 1000000)]
+    public decimal Amount { get; init; }
+}
+
+// Use generated code
+var command = CreateOrderCommandBuilder.New()
+    .WithOrderId("ORD-12345")
+    .WithAmount(299.99m)
+    .Build();
+
+var validationResult = CreateOrderCommandValidator.Validate(command);
+var idempotencyKey = command.GetIdempotencyKey();
+```
+
+**Saga DSL Example:**
+
+```csharp
+[GenerateSaga]
+public partial class OrderSaga : SagaBase<OrderSagaData>
+{
+    [InitialState]
+    [SagaState("Created")]
+    public class Created
+    {
+        [On<OrderCreatedEvent>]
+        public async Task OnOrderCreated(OrderCreatedEvent evt)
+        {
+            Data.OrderId = evt.OrderId;
+            TransitionTo("PaymentPending");
+        }
+    }
+
+    [SagaState("PaymentPending")]
+    public class PaymentPending
+    {
+        [On<PaymentProcessedEvent>]
+        public async Task OnPaymentProcessed(PaymentProcessedEvent evt)
+        {
+            Complete();
+        }
+
+        [OnTimeout(300)]
+        public async Task OnTimeout() => Fail("Payment timeout");
+
+        [Compensate]
+        public async Task RefundPayment()
+        {
+            // Compensation logic
+        }
+    }
+}
+```
+
+**Logging & Metrics Example:**
+
+```csharp
+// Eliminate 90% of logging/metrics boilerplate
+[LogMethod(LogLevel.Information)]
+[InstrumentMethod(InstrumentationType.Counter | InstrumentationType.Histogram,
+    MetricName = "orders.processed")]
+public partial Task<Order> ProcessOrderAsync(string orderId, decimal amount);
+
+// Implementation in Core method - generator adds logging & metrics automatically
+private async partial Task<Order> ProcessOrderCore(string orderId, decimal amount)
+{
+    var order = new Order { OrderId = orderId, Amount = amount };
+    await _repository.SaveAsync(order);
+    return order;
+}
+
+// Generated code automatically includes:
+// - Entry/exit logging with parameters
+// - Duration tracking
+// - Error logging with stack traces
+// - OpenTelemetry metrics (counter + histogram)
+// - Distributed tracing spans
+// - Exception tagging
+```
+
+📖 **[Complete Source Generators Usage Guide](src/HeroMessaging.SourceGenerators/USAGE.md)**
+
 ## Quick Start
 
 ### Installation

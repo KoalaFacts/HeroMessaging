@@ -1,3 +1,5 @@
+using System;
+
 namespace HeroMessaging.Abstractions.Security;
 
 /// <summary>
@@ -6,7 +8,7 @@ namespace HeroMessaging.Abstractions.Security;
 public interface IMessageSigner
 {
     /// <summary>
-    /// Signs the message data
+    /// Signs the message data (async, allocates array)
     /// </summary>
     /// <param name="data">The data to sign</param>
     /// <param name="context">Security context for signing metadata</param>
@@ -18,7 +20,7 @@ public interface IMessageSigner
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Verifies the message signature
+    /// Verifies the message signature (async)
     /// </summary>
     /// <param name="data">The data that was signed</param>
     /// <param name="signature">The signature to verify</param>
@@ -30,6 +32,35 @@ public interface IMessageSigner
         MessageSignature signature,
         SecurityContext context,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Signs the message data to a destination span (zero-allocation synchronous).
+    /// Returns the number of bytes written to the signature buffer.
+    /// </summary>
+    /// <param name="data">The data to sign</param>
+    /// <param name="signature">Destination for the signature bytes</param>
+    /// <param name="context">Security context</param>
+    /// <returns>Number of bytes written to signature</returns>
+    int Sign(ReadOnlySpan<byte> data, Span<byte> signature, SecurityContext context);
+
+    /// <summary>
+    /// Try to sign the message data to a destination span.
+    /// </summary>
+    bool TrySign(ReadOnlySpan<byte> data, Span<byte> signature, SecurityContext context, out int bytesWritten);
+
+    /// <summary>
+    /// Verifies the message signature from spans (zero-allocation synchronous).
+    /// </summary>
+    /// <param name="data">The data that was signed</param>
+    /// <param name="signature">The signature bytes to verify</param>
+    /// <param name="context">Security context</param>
+    /// <returns>True if signature is valid, false otherwise</returns>
+    bool Verify(ReadOnlySpan<byte> data, ReadOnlySpan<byte> signature, SecurityContext context);
+
+    /// <summary>
+    /// Gets the signature size in bytes for this algorithm.
+    /// </summary>
+    int SignatureSize { get; }
 
     /// <summary>
     /// Gets the signing algorithm identifier

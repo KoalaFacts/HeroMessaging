@@ -1,6 +1,7 @@
 using System.Data;
 using System.Text.Json;
 using HeroMessaging.Abstractions.Idempotency;
+using HeroMessaging.Utilities;
 using Microsoft.Data.SqlClient;
 
 namespace HeroMessaging.Storage.SqlServer;
@@ -54,6 +55,7 @@ public sealed class SqlServerIdempotencyStore : IIdempotencyStore
     private readonly string _connectionString;
     private readonly TimeProvider _timeProvider;
     private readonly JsonSerializerOptions _jsonOptions;
+    private readonly IJsonSerializer _jsonSerializer;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SqlServerIdempotencyStore"/> class.
@@ -66,7 +68,7 @@ public sealed class SqlServerIdempotencyStore : IIdempotencyStore
     /// <exception cref="ArgumentException">
     /// Thrown when <paramref name="connectionString"/> is empty or whitespace.
     /// </exception>
-    public SqlServerIdempotencyStore(string connectionString, TimeProvider timeProvider)
+    public SqlServerIdempotencyStore(string connectionString, TimeProvider timeProvider, IJsonSerializer jsonSerializer)
     {
         if (connectionString == null)
             throw new ArgumentNullException(nameof(connectionString));
@@ -75,6 +77,7 @@ public sealed class SqlServerIdempotencyStore : IIdempotencyStore
 
         _connectionString = connectionString;
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+        _jsonSerializer = jsonSerializer ?? throw new ArgumentNullException(nameof(jsonSerializer));
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
@@ -330,7 +333,7 @@ public sealed class SqlServerIdempotencyStore : IIdempotencyStore
 
         try
         {
-            return JsonSerializer.Serialize(result, _jsonOptions);
+            return _jsonSerializer.SerializeToString(result, _jsonOptions);
         }
         catch (Exception ex)
         {
@@ -352,7 +355,7 @@ public sealed class SqlServerIdempotencyStore : IIdempotencyStore
 
         try
         {
-            return JsonSerializer.Deserialize<object>(json, _jsonOptions);
+            return _jsonSerializer.DeserializeFromString<object>(json, _jsonOptions);
         }
         catch (Exception ex)
         {

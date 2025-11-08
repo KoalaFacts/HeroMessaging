@@ -2,6 +2,7 @@ using HeroMessaging.Abstractions.Observability;
 using HeroMessaging.Abstractions.Transport;
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Threading;
 using System.Threading.Channels;
 
 namespace HeroMessaging.Transport.InMemory;
@@ -37,7 +38,7 @@ public class InMemoryTransport(
     private readonly ConcurrentDictionary<string, InMemoryTopic> _topics = new();
     private readonly ConcurrentDictionary<string, InMemoryConsumer> _consumers = new();
     private TransportState _state = TransportState.Disconnected;
-    private readonly object _stateLock = new();
+    private readonly Lock _stateLock = new();
     private readonly SemaphoreSlim _connectLock = new(1, 1);
     private readonly TimeProvider _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 

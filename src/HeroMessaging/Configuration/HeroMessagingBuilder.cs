@@ -7,6 +7,7 @@ using HeroMessaging.Abstractions.Storage;
 using HeroMessaging.ErrorHandling;
 using HeroMessaging.Processing;
 using HeroMessaging.Storage;
+using HeroMessaging.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.Reflection;
@@ -92,7 +93,7 @@ public class HeroMessagingBuilder(IServiceCollection services) : IHeroMessagingB
         return this;
     }
 
-    public IHeroMessagingBuilder ScanAssemblies(params Assembly[] assemblies)
+    public IHeroMessagingBuilder ScanAssemblies(params IEnumerable<Assembly> assemblies)
     {
         _assemblies.AddRange(assemblies);
         return this;
@@ -182,6 +183,18 @@ public class HeroMessagingBuilder(IServiceCollection services) : IHeroMessagingB
         if (!_services.Any(s => s.ServiceType == typeof(TimeProvider)))
         {
             _services.AddSingleton(TimeProvider.System);
+        }
+
+        // Register core utilities for JSON serialization and buffer pooling
+        if (!_services.Any(s => s.ServiceType == typeof(IBufferPoolManager)))
+        {
+            _services.AddSingleton<IBufferPoolManager, DefaultBufferPoolManager>();
+        }
+
+        if (!_services.Any(s => s.ServiceType == typeof(IJsonSerializer)))
+        {
+            _services.AddSingleton<IJsonSerializer>(sp =>
+                new DefaultJsonSerializer(sp.GetRequiredService<IBufferPoolManager>()));
         }
 
         _services.AddSingleton(_processingOptions);

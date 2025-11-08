@@ -1,10 +1,12 @@
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using System;
+using System.Linq;
 
 namespace HeroMessaging.Observability.HealthChecks;
 
-public class CompositeHealthCheck(params string[] checkNames) : IHealthCheck
+public class CompositeHealthCheck(params IEnumerable<string> checkNames) : IHealthCheck
 {
-    private readonly string[] _checkNames = checkNames ?? throw new ArgumentNullException(nameof(checkNames));
+    private readonly string[] _checkNames = checkNames?.ToArray() ?? throw new ArgumentNullException(nameof(checkNames));
 
     public Task<HealthCheckResult> CheckHealthAsync(
         HealthCheckContext context,

@@ -9,10 +9,12 @@ namespace HeroMessaging.Security.Signing;
 public sealed class HmacSha256MessageSigner : IMessageSigner
 {
     private const int KeySize = 32; // 256 bits recommended for HMAC-SHA256
+    private const int HashSize = 32; // SHA256 produces 32 bytes
     private readonly byte[] _key;
     private readonly string? _keyId;
 
     public string Algorithm => "HMAC-SHA256";
+    public int SignatureSize => HashSize;
 
     /// <summary>
     /// Creates a new HMAC-SHA256 signer with the specified key
@@ -103,6 +105,68 @@ public sealed class HmacSha256MessageSigner : IMessageSigner
         catch (CryptographicException ex)
         {
             throw new SignatureVerificationException("Failed to verify signature", ex);
+        }
+    }
+
+    public int Sign(ReadOnlySpan<byte> data, Span<byte> signature, SecurityContext context)
+    {
+        if (signature.Length < HashSize)
+            throw new ArgumentException($"Signature buffer must be at least {HashSize} bytes", nameof(signature));
+
+        try
+        {
+            using (var hmac = new HMACSHA256(_key))
+            {
+                if (!hmac.TryComputeHash(data, signature, out var bytesWritten))
+                {
+                    throw new SecurityException("Failed to compute HMAC signature");
+                }
+                return bytesWritten;
+            }
+        }
+        catch (CryptographicException ex)
+        {
+            throw new SecurityException("Failed to sign message", ex);
+        }
+    }
+
+    public bool TrySign(ReadOnlySpan<byte> data, Span<byte> signature, SecurityContext context, out int bytesWritten)
+    {
+        try
+        {
+            bytesWritten = Sign(data, signature, context);
+            return true;
+        }
+        catch
+        {
+            bytesWritten = 0;
+            return false;
+        }
+    }
+
+    public bool Verify(ReadOnlySpan<byte> data, ReadOnlySpan<byte> signature, SecurityContext context)
+    {
+        if (signature.Length != HashSize)
+            return false;
+
+        try
+        {
+            Span<byte> expectedSignature = stackalloc byte[HashSize];
+
+            using (var hmac = new HMACSHA256(_key))
+            {
+                if (!hmac.TryComputeHash(data, expectedSignature, out _))
+                {
+                    return false;
+                }
+            }
+
+            // Use built-in constant-time comparison to prevent timing attacks
+            return CryptographicOperations.FixedTimeEquals(expectedSignature, signature);
+        }
+        catch (CryptographicException)
+        {
+            return false;
         }
     }
 

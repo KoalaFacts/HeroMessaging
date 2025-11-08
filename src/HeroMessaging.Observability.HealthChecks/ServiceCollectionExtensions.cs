@@ -128,7 +128,7 @@ public static class ServiceCollectionExtensions
     public static IHealthChecksBuilder AddCompositeHealthCheck(
         this IHealthChecksBuilder builder,
         string name,
-        params string[] checkNames)
+        params IEnumerable<string> checkNames)
     {
         builder.Add(new HealthCheckRegistration(
             name,

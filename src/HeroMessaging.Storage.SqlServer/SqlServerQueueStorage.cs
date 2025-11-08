@@ -1,6 +1,7 @@
 using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Storage;
+using HeroMessaging.Utilities;
 using Microsoft.Data.SqlClient;
 using System.Data;
 using System.Text.Json;
@@ -20,13 +21,15 @@ public class SqlServerQueueStorage : IQueueStorage
     private readonly string _tableName;
     private readonly TimeProvider _timeProvider;
     private readonly JsonSerializerOptions _jsonOptions;
+    private readonly IJsonSerializer _jsonSerializer;
 
-    public SqlServerQueueStorage(SqlServerStorageOptions options, TimeProvider timeProvider)
+    public SqlServerQueueStorage(SqlServerStorageOptions options, TimeProvider timeProvider, IJsonSerializer jsonSerializer)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _connectionString = options.ConnectionString ?? throw new ArgumentNullException(nameof(options.ConnectionString));
         _tableName = _options.GetFullTableName(_options.QueueTableName);
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+        _jsonSerializer = jsonSerializer ?? throw new ArgumentNullException(nameof(jsonSerializer));
 
         _jsonOptions = new JsonSerializerOptions
         {
@@ -40,12 +43,13 @@ public class SqlServerQueueStorage : IQueueStorage
         }
     }
 
-    public SqlServerQueueStorage(SqlConnection connection, SqlTransaction? transaction, TimeProvider timeProvider)
+    public SqlServerQueueStorage(SqlConnection connection, SqlTransaction? transaction, TimeProvider timeProvider, IJsonSerializer jsonSerializer)
     {
         _sharedConnection = connection ?? throw new ArgumentNullException(nameof(connection));
         _sharedTransaction = transaction;
         _connectionString = connection.ConnectionString;
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+        _jsonSerializer = jsonSerializer ?? throw new ArgumentNullException(nameof(jsonSerializer));
 
         // Use default options when using shared connection
         _options = new SqlServerStorageOptions { ConnectionString = connection.ConnectionString };
@@ -144,7 +148,7 @@ public class SqlServerQueueStorage : IQueueStorage
             command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = entryId;
             command.Parameters.Add("@QueueName", SqlDbType.NVarChar, 200).Value = queueName;
             command.Parameters.Add("@MessageType", SqlDbType.NVarChar, 500).Value = message.GetType().FullName ?? "Unknown";
-            command.Parameters.Add("@Payload", SqlDbType.NVarChar, -1).Value = JsonSerializer.Serialize(message, _jsonOptions);
+            command.Parameters.Add("@Payload", SqlDbType.NVarChar, -1).Value = _jsonSerializer.SerializeToString(message, _jsonOptions);
             command.Parameters.Add("@Priority", SqlDbType.Int).Value = options?.Priority ?? 0;
             command.Parameters.Add("@EnqueuedAt", SqlDbType.DateTime2).Value = now;
             command.Parameters.Add("@VisibleAt", SqlDbType.DateTime2).Value = visibleAt;
@@ -230,7 +234,7 @@ public class SqlServerQueueStorage : IQueueStorage
 
                 if (transaction == null) localTransaction.Commit();
 
-                var message = JsonSerializer.Deserialize<IMessage>(payload, _jsonOptions);
+                var message = _jsonSerializer.DeserializeFromString<IMessage>(payload, _jsonOptions);
 
                 return new QueueEntry
                 {
@@ -294,7 +298,7 @@ public class SqlServerQueueStorage : IQueueStorage
                 var dequeueCount = reader.GetInt32(6);
                 var delayMinutes = reader.IsDBNull(7) ? (int?)null : reader.GetInt32(7);
 
-                var message = JsonSerializer.Deserialize<IMessage>(payload, _jsonOptions);
+                var message = _jsonSerializer.DeserializeFromString<IMessage>(payload, _jsonOptions);
 
                 entries.Add(new QueueEntry
                 {

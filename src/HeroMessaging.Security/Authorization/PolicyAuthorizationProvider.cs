@@ -1,3 +1,4 @@
+using System;
 using System.Security.Claims;
 using HeroMessaging.Abstractions.Security;
 
@@ -38,7 +39,7 @@ public sealed class PolicyAuthorizationProvider : IAuthorizationProvider
     /// <summary>
     /// Registers a role-based policy
     /// </summary>
-    public void RequireRole(string messageType, string operation, params string[] roles)
+    public void RequireRole(string messageType, string operation, params ReadOnlySpan<string> roles)
     {
         var policyName = GetPolicyName(messageType, operation);
         var policy = new AuthorizationPolicy(policyName)
@@ -51,7 +52,7 @@ public sealed class PolicyAuthorizationProvider : IAuthorizationProvider
     /// <summary>
     /// Registers a claim-based policy
     /// </summary>
-    public void RequireClaim(string messageType, string operation, string claimType, params string[] allowedValues)
+    public void RequireClaim(string messageType, string operation, string claimType, params ReadOnlySpan<string> allowedValues)
     {
         var policyName = GetPolicyName(messageType, operation);
         var policy = new AuthorizationPolicy(policyName)
@@ -183,9 +184,9 @@ public sealed class AuthorizationPolicy
     /// <summary>
     /// Requires the user to be in one of the specified roles
     /// </summary>
-    public AuthorizationPolicy RequireRole(params string[] roles)
+    public AuthorizationPolicy RequireRole(params ReadOnlySpan<string> roles)
     {
-        if (roles == null || roles.Length == 0)
+        if (roles.Length == 0)
             throw new ArgumentException("At least one role is required", nameof(roles));
 
         foreach (var role in roles)
@@ -200,7 +201,7 @@ public sealed class AuthorizationPolicy
     /// <summary>
     /// Requires the user to have a specific claim
     /// </summary>
-    public AuthorizationPolicy RequireClaim(string claimType, params string[] allowedValues)
+    public AuthorizationPolicy RequireClaim(string claimType, params ReadOnlySpan<string> allowedValues)
     {
         if (string.IsNullOrWhiteSpace(claimType))
             throw new ArgumentException("Claim type cannot be empty", nameof(claimType));
@@ -210,7 +211,7 @@ public sealed class AuthorizationPolicy
             _requiredClaims[claimType] = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         }
 
-        if (allowedValues != null && allowedValues.Length > 0)
+        if (allowedValues.Length > 0)
         {
             foreach (var value in allowedValues)
             {

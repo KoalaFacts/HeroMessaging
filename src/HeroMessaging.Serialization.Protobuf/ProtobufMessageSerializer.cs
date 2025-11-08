@@ -1,6 +1,8 @@
 using HeroMessaging.Abstractions.Serialization;
 using ProtoBuf;
 using ProtoBuf.Meta;
+using System;
+using System.Buffers;
 
 namespace HeroMessaging.Serialization.Protobuf;
 
@@ -74,6 +76,60 @@ public class ProtobufMessageSerializer(
         using var stream = new MemoryStream(data);
         var result = _typeModel.Deserialize(stream, null, messageType);
         return result;
+    }
+
+    public int Serialize<T>(T message, Span<byte> destination)
+    {
+        if (message == null) return 0;
+
+        using var stream = new MemoryStream();
+        _typeModel.Serialize(stream, message);
+
+        var bytesWritten = (int)stream.Position;
+        if (bytesWritten > destination.Length)
+        {
+            throw new ArgumentException($"Destination buffer too small. Required: {bytesWritten}, Available: {destination.Length}");
+        }
+
+        stream.Position = 0;
+        stream.Read(destination);
+        return bytesWritten;
+    }
+
+    public bool TrySerialize<T>(T message, Span<byte> destination, out int bytesWritten)
+    {
+        try
+        {
+            bytesWritten = Serialize(message, destination);
+            return true;
+        }
+        catch
+        {
+            bytesWritten = 0;
+            return false;
+        }
+    }
+
+    public int GetRequiredBufferSize<T>(T message)
+    {
+        // Protobuf is compact - estimate 2KB for most messages
+        return 2048;
+    }
+
+    public T Deserialize<T>(ReadOnlySpan<byte> data) where T : class
+    {
+        if (data.IsEmpty) return default(T)!;
+
+        using var stream = new MemoryStream(data.ToArray());
+        return _typeModel.Deserialize<T>(stream)!;
+    }
+
+    public object? Deserialize(ReadOnlySpan<byte> data, Type messageType)
+    {
+        if (data.IsEmpty) return null;
+
+        using var stream = new MemoryStream(data.ToArray());
+        return _typeModel.Deserialize(stream, null, messageType);
     }
 }
 
@@ -179,5 +235,86 @@ public class TypedProtobufMessageSerializer(
 
         var result = _typeModel.DeserializeWithLengthPrefix(stream, null, messageType, PrefixStyle.Base128, 0);
         return result;
+    }
+
+    public int Serialize<T>(T message, Span<byte> destination)
+    {
+        if (message == null) return 0;
+
+        using var stream = new MemoryStream();
+
+        if (_options.IncludeTypeInformation && message != null)
+        {
+            var typeName = message.GetType().AssemblyQualifiedName ?? "";
+            Serializer.SerializeWithLengthPrefix(stream, typeName, PrefixStyle.Base128);
+        }
+
+        _typeModel.SerializeWithLengthPrefix(stream, message, typeof(T), PrefixStyle.Base128, 0);
+
+        var bytesWritten = (int)stream.Position;
+        if (bytesWritten > destination.Length)
+        {
+            throw new ArgumentException($"Destination buffer too small. Required: {bytesWritten}, Available: {destination.Length}");
+        }
+
+        stream.Position = 0;
+        stream.Read(destination);
+        return bytesWritten;
+    }
+
+    public bool TrySerialize<T>(T message, Span<byte> destination, out int bytesWritten)
+    {
+        try
+        {
+            bytesWritten = Serialize(message, destination);
+            return true;
+        }
+        catch
+        {
+            bytesWritten = 0;
+            return false;
+        }
+    }
+
+    public int GetRequiredBufferSize<T>(T message)
+    {
+        // Protobuf with type info - estimate 2KB + overhead for type names
+        return 2048 + 256;
+    }
+
+    public T Deserialize<T>(ReadOnlySpan<byte> data) where T : class
+    {
+        if (data.IsEmpty) return default(T)!;
+
+        using var stream = new MemoryStream(data.ToArray());
+
+        if (_options.IncludeTypeInformation)
+        {
+            Serializer.DeserializeWithLengthPrefix<string>(stream, PrefixStyle.Base128);
+        }
+
+        return (T?)_typeModel.DeserializeWithLengthPrefix(stream, null, typeof(T), PrefixStyle.Base128, 0)!;
+    }
+
+    public object? Deserialize(ReadOnlySpan<byte> data, Type messageType)
+    {
+        if (data.IsEmpty) return null;
+
+        using var stream = new MemoryStream(data.ToArray());
+
+        if (_options.IncludeTypeInformation)
+        {
+            var typeName = Serializer.DeserializeWithLengthPrefix<string>(stream, PrefixStyle.Base128);
+            if (!string.IsNullOrEmpty(typeName))
+            {
+                var actualType = Type.GetType(typeName);
+                if (actualType != null)
+                {
+                    messageType = actualType;
+                }
+            }
+        }
+
+        return _typeModel.DeserializeWithLengthPrefix(stream, null, messageType, PrefixStyle.Base128, 0);
     }
 }

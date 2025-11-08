@@ -1,6 +1,8 @@
 using HeroMessaging.Abstractions.Serialization;
 using MessagePack;
 using MessagePack.Resolvers;
+using System;
+using System.Buffers;
 using System.IO.Compression;
 
 namespace HeroMessaging.Serialization.MessagePack;
@@ -71,6 +73,59 @@ public class MessagePackMessageSerializer(SerializationOptions? options = null, 
 
         var result = MessagePackSerializer.Deserialize(messageType, data, _messagePackOptions, cancellationToken);
         return result;
+    }
+
+    public int Serialize<T>(T message, Span<byte> destination)
+    {
+        if (message == null) return 0;
+
+        var bufferWriter = new ArrayBufferWriter<byte>(destination.Length);
+        MessagePackSerializer.Serialize(bufferWriter, message, _messagePackOptions);
+
+        var written = bufferWriter.WrittenSpan;
+        if (written.Length > destination.Length)
+        {
+            throw new ArgumentException($"Destination buffer too small. Required: {written.Length}, Available: {destination.Length}");
+        }
+
+        written.CopyTo(destination);
+        return written.Length;
+    }
+
+    public bool TrySerialize<T>(T message, Span<byte> destination, out int bytesWritten)
+    {
+        try
+        {
+            bytesWritten = Serialize(message, destination);
+            return true;
+        }
+        catch
+        {
+            bytesWritten = 0;
+            return false;
+        }
+    }
+
+    public int GetRequiredBufferSize<T>(T message)
+    {
+        // MessagePack is typically compact - estimate 2KB for most messages
+        return 2048;
+    }
+
+    public T Deserialize<T>(ReadOnlySpan<byte> data) where T : class
+    {
+        if (data.IsEmpty) return default(T)!;
+
+        var memory = new ReadOnlyMemory<byte>(data.ToArray());
+        return MessagePackSerializer.Deserialize<T>(memory, _messagePackOptions)!;
+    }
+
+    public object? Deserialize(ReadOnlySpan<byte> data, Type messageType)
+    {
+        if (data.IsEmpty) return null;
+
+        var memory = new ReadOnlyMemory<byte>(data.ToArray());
+        return MessagePackSerializer.Deserialize(messageType, memory, _messagePackOptions);
     }
 
     private static MessagePackSerializerOptions CreateDefaultOptions()
@@ -176,6 +231,59 @@ public class ContractMessagePackSerializer(SerializationOptions? options = null,
 
         var result = MessagePackSerializer.Deserialize(messageType, data, _messagePackOptions, cancellationToken);
         return result;
+    }
+
+    public int Serialize<T>(T message, Span<byte> destination)
+    {
+        if (message == null) return 0;
+
+        var bufferWriter = new ArrayBufferWriter<byte>(destination.Length);
+        MessagePackSerializer.Serialize(bufferWriter, message, _messagePackOptions);
+
+        var written = bufferWriter.WrittenSpan;
+        if (written.Length > destination.Length)
+        {
+            throw new ArgumentException($"Destination buffer too small. Required: {written.Length}, Available: {destination.Length}");
+        }
+
+        written.CopyTo(destination);
+        return written.Length;
+    }
+
+    public bool TrySerialize<T>(T message, Span<byte> destination, out int bytesWritten)
+    {
+        try
+        {
+            bytesWritten = Serialize(message, destination);
+            return true;
+        }
+        catch
+        {
+            bytesWritten = 0;
+            return false;
+        }
+    }
+
+    public int GetRequiredBufferSize<T>(T message)
+    {
+        // MessagePack is typically compact - estimate 2KB for most messages
+        return 2048;
+    }
+
+    public T Deserialize<T>(ReadOnlySpan<byte> data) where T : class
+    {
+        if (data.IsEmpty) return default(T)!;
+
+        var memory = new ReadOnlyMemory<byte>(data.ToArray());
+        return MessagePackSerializer.Deserialize<T>(memory, _messagePackOptions)!;
+    }
+
+    public object? Deserialize(ReadOnlySpan<byte> data, Type messageType)
+    {
+        if (data.IsEmpty) return null;
+
+        var memory = new ReadOnlyMemory<byte>(data.ToArray());
+        return MessagePackSerializer.Deserialize(messageType, memory, _messagePackOptions);
     }
 
     private static MessagePackSerializerOptions CreateDefaultOptions()
