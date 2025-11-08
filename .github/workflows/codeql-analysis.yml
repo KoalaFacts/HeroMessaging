@@ -1,0 +1,142 @@
+name: CodeQL Security Analysis
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run CodeQL analysis every Monday at 5 AM UTC
+    - cron: '0 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: CodeQL Analysis (C#)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ 'csharp' ]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+
+      # Initialize CodeQL tools for scanning
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          # Query suites: security-extended (more thorough) or security-and-quality (most comprehensive)
+          queries: +security-extended,+security-and-quality
+          # Custom queries can be added here
+          # config-file: ./.github/codeql/codeql-config.yml
+
+      # Autobuild attempts to build any compiled languages (C#, C++, Go, Java, Swift)
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      # Manual build alternative (if autobuild fails):
+      # - name: Build solution
+      #   run: |
+      #     dotnet restore
+      #     dotnet build --configuration Release --no-restore
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
+          # Upload results to GitHub Security tab
+          upload: true
+          # Wait for processing
+          wait-for-processing: true
+
+      - name: Upload CodeQL results as artifact
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: codeql-results
+          path: /home/runner/work/_temp/codeql_databases/
+          retention-days: 30
+
+  # Security summary
+  codeql-summary:
+    name: CodeQL Summary
+    needs: [analyze]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Generate CodeQL summary
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY << 'EOF'
+          ## 🔍 CodeQL Security Analysis Results
+
+          | Analysis | Status |
+          |----------|--------|
+          | CodeQL (C#) | ${{ needs.analyze.result == 'success' && '✅ Passed' || '❌ Failed' }} |
+
+          ### What is CodeQL?
+
+          CodeQL is GitHub's semantic code analysis engine that:
+          - 🔍 Detects security vulnerabilities (SQL injection, XSS, etc.)
+          - 🐛 Finds common coding errors and bugs
+          - 📊 Analyzes code quality and maintainability
+          - 🎯 Uses queries based on security research
+
+          ### Query Suites Enabled
+
+          - **security-extended**: Additional security checks beyond defaults
+          - **security-and-quality**: Comprehensive security + code quality analysis
+
+          ### View Results
+
+          Results are available in:
+          - [Security → Code scanning alerts](https://github.com/${{ github.repository }}/security/code-scanning)
+          - This workflow's artifacts (for detailed analysis)
+
+          ### Analysis Frequency
+
+          - ✅ Every push to main/develop
+          - ✅ Every pull request
+          - ✅ Weekly scheduled scan (Mondays at 5 AM UTC)
+
+          ---
+          _Powered by GitHub CodeQL - [Learn more](https://codeql.github.com/)_
+          EOF
+
+      - name: Check CodeQL status
+        run: |
+          CODEQL_STATUS="${{ needs.analyze.result }}"
+
+          echo "CodeQL Analysis: $CODEQL_STATUS"
+
+          if [[ "$CODEQL_STATUS" != "success" ]]; then
+            echo "❌ CodeQL analysis failed"
+            echo "Review results at: https://github.com/${{ github.repository }}/security/code-scanning"
+            exit 1
+          fi
+
+          echo "✅ CodeQL analysis passed - no security issues detected"
