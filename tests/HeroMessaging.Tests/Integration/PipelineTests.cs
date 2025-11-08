@@ -408,14 +408,30 @@ public class PipelineTests : IAsyncDisposable
         private double _intermittentFailureRate = 0.0;
         private bool _includeRetry = false;
         private readonly Random _random = new(42); // Seeded for deterministic test behavior
+#if NET9_0_OR_GREATER
         private readonly Lock _randomLock = new();
+#else
+        private readonly object _randomLock = new();
+#endif
         private readonly Dictionary<string, PipelineMetric> _metrics = new(StringComparer.OrdinalIgnoreCase);
+#if NET9_0_OR_GREATER
         private readonly Lock _metricsLock = new();
+#else
+        private readonly object _metricsLock = new();
+#endif
         private readonly List<string> _processingSteps = new();
         private readonly HashSet<string> _executedSteps = new();
+#if NET9_0_OR_GREATER
         private readonly Lock _executedStepsLock = new();
+#else
+        private readonly object _executedStepsLock = new();
+#endif
         private readonly Dictionary<Guid, IMessage> _storage = new();
+#if NET9_0_OR_GREATER
         private readonly Lock _storageLock = new();
+#else
+        private readonly object _storageLock = new();
+#endif
 
         public async Task InitializeAsync(string serialization, string storage,
             bool includeObservability = false, bool includeResilience = false,

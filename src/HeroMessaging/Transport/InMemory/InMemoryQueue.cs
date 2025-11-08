@@ -15,7 +15,11 @@ internal class InMemoryQueue : IDisposable, IAsyncDisposable
     private readonly ConcurrentDictionary<string, InMemoryConsumer> _consumers = new();
     private readonly CancellationTokenSource _cts = new();
     private Task? _processingTask;
+#if NET9_0_OR_GREATER
     private readonly Lock _processingTaskLock = new();
+#else
+    private readonly object _processingTaskLock = new();
+#endif
     private int _consumerIndex;
     private long _messageCount;
     private long _depth;

@@ -251,7 +251,11 @@ internal class ConnectionCircuitBreaker(CircuitBreakerOptions options, ILogger l
     private ConnectionCircuitState _state = ConnectionCircuitState.Closed;
     private DateTime _lastFailureTime;
     private int _failureCount;
+#if NET9_0_OR_GREATER
     private readonly Lock _lock = new();
+#else
+    private readonly object _lock = new();
+#endif
 
     public async Task<bool> CanExecuteAsync()
     {

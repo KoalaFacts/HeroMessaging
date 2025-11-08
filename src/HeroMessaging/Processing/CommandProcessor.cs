@@ -16,7 +16,11 @@ public class CommandProcessor : ICommandProcessor, IProcessor
     private long _processedCount;
     private long _failedCount;
     private readonly List<long> _durations = new();
+#if NET9_0_OR_GREATER
     private readonly Lock _metricsLock = new();
+#else
+    private readonly object _metricsLock = new();
+#endif
 
     public bool IsRunning { get; private set; } = true;
 

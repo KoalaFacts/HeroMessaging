@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.IO.Compression;
 using HeroMessaging.Abstractions.Serialization;
 using MessagePack;

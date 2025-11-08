@@ -11,7 +11,7 @@ namespace HeroMessaging.Tests.Unit.Utilities;
 /// </summary>
 public class DefaultJsonSerializerTests
 {
-    private readonly IBufferPoolManager _bufferPool;
+    private readonly DefaultBufferPoolManager _bufferPool;
     private readonly IJsonSerializer _serializer;
 
     public DefaultJsonSerializerTests()

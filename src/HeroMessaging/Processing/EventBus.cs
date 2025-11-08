@@ -18,7 +18,11 @@ public class EventBus : IEventBus, IProcessor
     private long _publishedCount;
     private long _failedCount;
     private int _registeredHandlers;
+#if NET9_0_OR_GREATER
     private readonly Lock _metricsLock = new();
+#else
+    private readonly object _metricsLock = new();
+#endif
     private readonly TimeProvider _timeProvider;
 
     public bool IsRunning { get; private set; } = true;

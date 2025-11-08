@@ -24,7 +24,7 @@ public class PostgreSqlMessageStorage : IMessageStorage
     public PostgreSqlMessageStorage(PostgreSqlStorageOptions options, TimeProvider timeProvider, IJsonSerializer jsonSerializer)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
-        _connectionString = options.ConnectionString ?? throw new ArgumentNullException(nameof(options.ConnectionString));
+        _connectionString = options.ConnectionString ?? throw new ArgumentNullException(nameof(options), "ConnectionString cannot be null");
         _tableName = _options.GetFullTableName(_options.MessagesTableName);
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         _jsonSerializer = jsonSerializer ?? throw new ArgumentNullException(nameof(jsonSerializer));

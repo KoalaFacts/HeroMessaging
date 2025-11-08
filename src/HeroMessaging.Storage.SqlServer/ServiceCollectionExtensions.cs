@@ -2,6 +2,7 @@ using HeroMessaging.Abstractions.Configuration;
 using HeroMessaging.Abstractions.ErrorHandling;
 using HeroMessaging.Abstractions.Sagas;
 using HeroMessaging.Abstractions.Storage;
+using HeroMessaging.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace HeroMessaging.Storage.SqlServer;
@@ -28,9 +29,9 @@ public static class ServiceCollectionExtensions
         var services = builder as IServiceCollection ?? throw new InvalidOperationException("Builder must implement IServiceCollection");
 
         services.AddSingleton(options);
-        services.AddSingleton<IMessageStorage>(sp => new SqlServerMessageStorage(options, sp.GetRequiredService<TimeProvider>()));
-        services.AddSingleton<IOutboxStorage>(sp => new SqlServerOutboxStorage(options, sp.GetRequiredService<TimeProvider>()));
-        services.AddSingleton<IDeadLetterQueue>(sp => new SqlServerDeadLetterQueue(options, sp.GetRequiredService<TimeProvider>()));
+        services.AddSingleton<IMessageStorage>(sp => new SqlServerMessageStorage(options, sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<IJsonSerializer>()));
+        services.AddSingleton<IOutboxStorage>(sp => new SqlServerOutboxStorage(options, sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<IJsonSerializer>()));
+        services.AddSingleton<IDeadLetterQueue>(sp => new SqlServerDeadLetterQueue(options, sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<IJsonSerializer>()));
 
         return builder;
     }
@@ -51,7 +52,7 @@ public static class ServiceCollectionExtensions
     public static IHeroMessagingBuilder UseSqlServerMessageStorage(this IHeroMessagingBuilder builder, SqlServerStorageOptions options)
     {
         var services = builder as IServiceCollection ?? throw new InvalidOperationException("Builder must implement IServiceCollection");
-        services.AddSingleton<IMessageStorage>(sp => new SqlServerMessageStorage(options, sp.GetRequiredService<TimeProvider>()));
+        services.AddSingleton<IMessageStorage>(sp => new SqlServerMessageStorage(options, sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<IJsonSerializer>()));
         return builder;
     }
 
@@ -61,7 +62,7 @@ public static class ServiceCollectionExtensions
     public static IHeroMessagingBuilder UseSqlServerOutbox(this IHeroMessagingBuilder builder, SqlServerStorageOptions options)
     {
         var services = builder as IServiceCollection ?? throw new InvalidOperationException("Builder must implement IServiceCollection");
-        services.AddSingleton<IOutboxStorage>(sp => new SqlServerOutboxStorage(options, sp.GetRequiredService<TimeProvider>()));
+        services.AddSingleton<IOutboxStorage>(sp => new SqlServerOutboxStorage(options, sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<IJsonSerializer>()));
         return builder;
     }
 
@@ -71,7 +72,7 @@ public static class ServiceCollectionExtensions
     public static IHeroMessagingBuilder UseSqlServerDeadLetterQueue(this IHeroMessagingBuilder builder, SqlServerStorageOptions options)
     {
         var services = builder as IServiceCollection ?? throw new InvalidOperationException("Builder must implement IServiceCollection");
-        services.AddSingleton<IDeadLetterQueue>(sp => new SqlServerDeadLetterQueue(options, sp.GetRequiredService<TimeProvider>()));
+        services.AddSingleton<IDeadLetterQueue>(sp => new SqlServerDeadLetterQueue(options, sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<IJsonSerializer>()));
         return builder;
     }
 
@@ -82,7 +83,7 @@ public static class ServiceCollectionExtensions
         where TSaga : class, ISaga
     {
         var services = builder as IServiceCollection ?? throw new InvalidOperationException("Builder must implement IServiceCollection");
-        services.AddSingleton<ISagaRepository<TSaga>>(sp => new SqlServerSagaRepository<TSaga>(options, sp.GetRequiredService<TimeProvider>()));
+        services.AddSingleton<ISagaRepository<TSaga>>(sp => new SqlServerSagaRepository<TSaga>(options, sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<IJsonSerializer>()));
         return builder;
     }
 
@@ -96,7 +97,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ISagaRepository<TSaga>>(sp =>
         {
             var options = sp.GetRequiredService<SqlServerStorageOptions>();
-            return new SqlServerSagaRepository<TSaga>(options, sp.GetRequiredService<TimeProvider>());
+            return new SqlServerSagaRepository<TSaga>(options, sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<IJsonSerializer>());
         });
         return builder;
     }

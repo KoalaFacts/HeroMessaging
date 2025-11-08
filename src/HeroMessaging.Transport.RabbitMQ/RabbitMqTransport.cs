@@ -22,7 +22,11 @@ public sealed class RabbitMqTransport : IMessageTransport
     private readonly ConcurrentDictionary<string, RabbitMqChannelPool> _channelPools = new();
     private readonly ConcurrentDictionary<string, RabbitMqConsumer> _consumers = new();
     private TransportState _state = TransportState.Disconnected;
+#if NET9_0_OR_GREATER
     private readonly Lock _stateLock = new();
+#else
+    private readonly object _stateLock = new();
+#endif
     private readonly SemaphoreSlim _connectLock = new(1, 1);
     private readonly TimeProvider _timeProvider;
 

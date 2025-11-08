@@ -1,5 +1,6 @@
 using HeroMessaging.Abstractions.Idempotency;
 using HeroMessaging.Storage.PostgreSql;
+using HeroMessaging.Utilities;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Microsoft.Extensions.DependencyInjection;
@@ -72,7 +73,8 @@ public static class ExtensionsToServiceCollectionForPostgreSql
         services.TryAddSingleton<IIdempotencyStore>(sp =>
         {
             var timeProvider = sp.GetService<TimeProvider>() ?? TimeProvider.System;
-            return new PostgreSqlIdempotencyStore(connectionString, timeProvider);
+            var jsonSerializer = sp.GetRequiredService<IJsonSerializer>();
+            return new PostgreSqlIdempotencyStore(connectionString, timeProvider, jsonSerializer);
         });
 
         return services;

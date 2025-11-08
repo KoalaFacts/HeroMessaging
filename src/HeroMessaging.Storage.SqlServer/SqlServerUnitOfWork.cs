@@ -1,5 +1,6 @@
 using System.Data;
 using HeroMessaging.Abstractions.Storage;
+using HeroMessaging.Utilities;
 using Microsoft.Data.SqlClient;
 
 namespace HeroMessaging.Storage.SqlServer;
@@ -14,22 +15,24 @@ public class SqlServerUnitOfWork : IUnitOfWork
     private readonly List<string> _savepoints = new();
     private bool _disposed;
     private readonly TimeProvider _timeProvider;
+    private readonly IJsonSerializer _jsonSerializer;
 
     private readonly Lazy<IOutboxStorage> _outboxStorage;
     private readonly Lazy<IInboxStorage> _inboxStorage;
     private readonly Lazy<IQueueStorage> _queueStorage;
     private readonly Lazy<IMessageStorage> _messageStorage;
 
-    public SqlServerUnitOfWork(string connectionString, TimeProvider timeProvider)
+    public SqlServerUnitOfWork(string connectionString, TimeProvider timeProvider, IJsonSerializer? jsonSerializer = null)
     {
         _connection = new SqlConnection(connectionString);
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+        _jsonSerializer = jsonSerializer ?? new DefaultJsonSerializer(new DefaultBufferPoolManager());
 
         // Initialize storage implementations lazily with the shared connection/transaction
-        _outboxStorage = new Lazy<IOutboxStorage>(() => new SqlServerOutboxStorage(_connection, _transaction, _timeProvider));
-        _inboxStorage = new Lazy<IInboxStorage>(() => new SqlServerInboxStorage(_connection, _transaction, _timeProvider));
-        _queueStorage = new Lazy<IQueueStorage>(() => new SqlServerQueueStorage(_connection, _transaction, _timeProvider));
-        _messageStorage = new Lazy<IMessageStorage>(() => new SqlServerMessageStorage(_connection, _transaction, _timeProvider));
+        _outboxStorage = new Lazy<IOutboxStorage>(() => new SqlServerOutboxStorage(_connection, _transaction, _timeProvider, _jsonSerializer));
+        _inboxStorage = new Lazy<IInboxStorage>(() => new SqlServerInboxStorage(_connection, _transaction, _timeProvider, _jsonSerializer));
+        _queueStorage = new Lazy<IQueueStorage>(() => new SqlServerQueueStorage(_connection, _transaction, _timeProvider, _jsonSerializer));
+        _messageStorage = new Lazy<IMessageStorage>(() => new SqlServerMessageStorage(_connection, _transaction, _timeProvider, _jsonSerializer));
     }
 
     public IsolationLevel IsolationLevel => _transaction?.IsolationLevel ?? IsolationLevel.Unspecified;

@@ -24,7 +24,11 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
     private bool _isActive;
     private long _messagesProcessed;
     private long _messagesFailed;
+#if NET9_0_OR_GREATER
     private readonly Lock _stateLock = new();
+#else
+    private readonly object _stateLock = new();
+#endif
 
     /// <inheritdoc/>
     public string ConsumerId { get; }

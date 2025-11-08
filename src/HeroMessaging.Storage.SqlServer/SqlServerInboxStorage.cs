@@ -36,7 +36,7 @@ public class SqlServerInboxStorage : IInboxStorage
         _tableName = _options.GetFullTableName(_options.InboxTableName);
 
         // Use provided dependencies or create defaults
-        _connectionProvider = connectionProvider ?? new SqlServerConnectionProvider(options.ConnectionString ?? throw new ArgumentNullException(nameof(options.ConnectionString)));
+        _connectionProvider = connectionProvider ?? new SqlServerConnectionProvider(options.ConnectionString ?? throw new ArgumentNullException(nameof(options), "ConnectionString cannot be null"));
         _jsonOptionsProvider = jsonOptionsProvider ?? new DefaultJsonOptionsProvider();
         _schemaInitializer = schemaInitializer ?? new SqlServerSchemaInitializer(_connectionProvider);
 

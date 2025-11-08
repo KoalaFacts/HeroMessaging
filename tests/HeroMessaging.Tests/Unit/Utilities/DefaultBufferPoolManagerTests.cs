@@ -10,7 +10,7 @@ namespace HeroMessaging.Tests.Unit.Utilities;
 /// </summary>
 public class DefaultBufferPoolManagerTests
 {
-    private readonly IBufferPoolManager _bufferPool;
+    private readonly DefaultBufferPoolManager _bufferPool;
 
     public DefaultBufferPoolManagerTests()
     {

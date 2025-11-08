@@ -173,7 +173,16 @@ public sealed class AesGcmMessageEncryptor : IMessageEncryptor
         try
         {
             // Generate random nonce
+#if NETSTANDARD2_0
+            var nonceArray = new byte[NonceSize];
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                rng.GetBytes(nonceArray);
+            }
+            nonceArray.CopyTo(iv.Slice(0, NonceSize));
+#else
             RandomNumberGenerator.Fill(iv.Slice(0, NonceSize));
+#endif
 
 #if NETSTANDARD2_0
             throw new PlatformNotSupportedException(

@@ -145,7 +145,11 @@ public sealed class TokenBucketRateLimiter : IRateLimiter, IDisposable
     {
         private readonly TokenBucketOptions _options;
         private readonly TimeProvider _timeProvider;
+#if NET9_0_OR_GREATER
         private readonly Lock _lock = new();
+#else
+        private readonly object _lock = new();
+#endif
 
         private double _availableTokens;
         private DateTimeOffset _lastRefillTime;
