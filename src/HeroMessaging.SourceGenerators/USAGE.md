@@ -10,6 +10,8 @@ Complete guide to using HeroMessaging's Roslyn source generators to reduce boile
 - [Idempotency Key Generator](#idempotency-key-generator)
 - [Handler Registration Generator](#handler-registration-generator)
 - [Saga DSL Generator](#saga-dsl-generator)
+- [Method Logging Generator](#method-logging-generator)
+- [Metrics Instrumentation Generator](#metrics-instrumentation-generator)
 - [Troubleshooting](#troubleshooting)
 - [Best Practices](#best-practices)
 
@@ -1180,6 +1182,506 @@ public class OrderSagaTests
 
 ---
 
+## Method Logging Generator
+
+Automatically generates logging code for methods, eliminating repetitive entry/exit/duration/error logging.
+
+### Step-by-Step Usage
+
+#### 1. Define Partial Method with Attribute
+
+```csharp
+using HeroMessaging.SourceGenerators;
+using Microsoft.Extensions.Logging;
+
+namespace MyApp.Services;
+
+public partial class OrderService
+{
+    private readonly ILogger<OrderService> _logger;
+    private readonly IOrderRepository _repository;
+
+    public OrderService(ILogger<OrderService> logger, IOrderRepository repository)
+    {
+        _logger = logger;
+        _repository = repository;
+    }
+
+    // Define partial method with [LogMethod]
+    [LogMethod(LogLevel.Information)]
+    public partial Task<Order> CreateOrderAsync(string orderId, decimal amount);
+
+    // Implementation goes in Core method
+    private async partial Task<Order> CreateOrderCore(string orderId, decimal amount)
+    {
+        var order = new Order { OrderId = orderId, Amount = amount };
+        await _repository.SaveAsync(order);
+        return order;
+    }
+}
+```
+
+#### 2. Generated Code
+
+The generator creates the logging wrapper:
+
+```csharp
+// Generated: OrderService.CreateOrderAsync.Logging.g.cs
+public partial class OrderService
+{
+    public async partial Task<Order> CreateOrderAsync(string orderId, decimal amount)
+    {
+        using var activity = Activity.Current?.Source.StartActivity("OrderService.CreateOrderAsync");
+        var stopwatch = Stopwatch.StartNew();
+
+        _logger.LogInformation("Entering CreateOrderAsync with orderId={OrderId}, amount={Amount}",
+            orderId, amount);
+
+        try
+        {
+            var result = await CreateOrderCore(orderId, amount);
+
+            stopwatch.Stop();
+            _logger.LogInformation("Completed CreateOrderAsync in {DurationMs}ms",
+                stopwatch.ElapsedMilliseconds);
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            stopwatch.Stop();
+            _logger.LogError(ex, "Failed CreateOrderAsync after {DurationMs}ms",
+                stopwatch.ElapsedMilliseconds);
+            throw;
+        }
+    }
+}
+```
+
+#### 3. Protecting Sensitive Data
+
+Use `[NoLog]` to exclude sensitive parameters from logs:
+
+```csharp
+[LogMethod(LogLevel.Information)]
+public partial Task<PaymentResult> ProcessPaymentAsync(
+    string orderId,
+    decimal amount,
+    [NoLog] string creditCardNumber,  // Won't be logged
+    string paymentMethod);
+
+private async partial Task<PaymentResult> ProcessPaymentCore(
+    string orderId,
+    decimal amount,
+    string creditCardNumber,
+    string paymentMethod)
+{
+    // Payment processing logic
+    var result = await _gateway.ChargeAsync(creditCardNumber, amount);
+    return result;
+}
+
+// Generated log message:
+// "Entering ProcessPaymentAsync with orderId={OrderId}, amount={Amount}, paymentMethod={PaymentMethod}"
+// Notice creditCardNumber is excluded
+```
+
+#### 4. Custom Log Messages
+
+Override default messages with custom templates:
+
+```csharp
+[LogMethod(LogLevel.Warning,
+    EntryMessage = "Cancelling order {orderId} due to customer request",
+    ExitMessage = "Order {orderId} cancelled successfully in {DurationMs}ms")]
+public partial Task CancelOrderAsync(string orderId);
+
+private async partial Task CancelOrderCore(string orderId)
+{
+    var order = await _repository.GetByIdAsync(orderId);
+    order.Status = OrderStatus.Cancelled;
+    await _repository.UpdateAsync(order);
+}
+```
+
+#### 5. Controlling What Gets Logged
+
+```csharp
+// Minimal logging for high-frequency operations
+[LogMethod(LogLevel.Trace,
+    LogParameters = false,      // Don't log parameters
+    LogDuration = false,        // Don't log duration
+    CreateActivity = false)]    // Don't create tracing span
+public partial Task RecordViewAsync(string productId);
+
+// Log parameters but not large objects
+[LogMethod(LogLevel.Information,
+    LogParameters = false)]  // Skip large batch list
+public partial Task ProcessBatchAsync(string customerId, List<Order> orders);
+
+// Log everything including result
+[LogMethod(LogLevel.Debug,
+    LogResult = true)]  // Include return value in log
+public partial Task<string> GenerateReportAsync(string reportId);
+```
+
+#### 6. Different Log Levels
+
+```csharp
+// Information for business operations
+[LogMethod(LogLevel.Information)]
+public partial Task CreateOrderAsync(string orderId);
+
+// Trace for queries (reduce log noise)
+[LogMethod(LogLevel.Trace)]
+public partial Task<Order?> GetOrderAsync(string orderId);
+
+// Warning for operations that might need attention
+[LogMethod(LogLevel.Warning)]
+public partial Task RetryFailedOrderAsync(string orderId);
+
+// Error for critical operations
+[LogMethod(LogLevel.Error)]
+public partial Task HandleCriticalFailureAsync(string orderId);
+```
+
+### Benefits
+
+**Before (Manual Logging):**
+
+```csharp
+public async Task<Order> CreateOrderAsync(string orderId, decimal amount)
+{
+    using var activity = Activity.Current?.Source.StartActivity("CreateOrder");
+    var stopwatch = Stopwatch.StartNew();
+
+    _logger.LogInformation("Creating order {OrderId} with amount {Amount}", orderId, amount);
+
+    try
+    {
+        var order = new Order { OrderId = orderId, Amount = amount };
+        await _repository.SaveAsync(order);
+
+        stopwatch.Stop();
+        _logger.LogInformation("Created order {OrderId} in {DurationMs}ms",
+            orderId, stopwatch.ElapsedMilliseconds);
+
+        return order;
+    }
+    catch (Exception ex)
+    {
+        stopwatch.Stop();
+        _logger.LogError(ex, "Failed creating order {OrderId} after {DurationMs}ms",
+            orderId, stopwatch.ElapsedMilliseconds);
+        throw;
+    }
+}
+```
+
+**After (Generated):**
+
+```csharp
+[LogMethod(LogLevel.Information)]
+public partial Task<Order> CreateOrderAsync(string orderId, decimal amount);
+
+private async partial Task<Order> CreateOrderCore(string orderId, decimal amount)
+{
+    var order = new Order { OrderId = orderId, Amount = amount };
+    await _repository.SaveAsync(order);
+    return order;
+}
+```
+
+**Savings:** 90% less code, consistent logging pattern across all methods.
+
+---
+
+## Metrics Instrumentation Generator
+
+Automatically generates OpenTelemetry metrics instrumentation for methods with counters, histograms, and tags.
+
+### Step-by-Step Usage
+
+#### 1. Enable Metrics for a Class
+
+```csharp
+using HeroMessaging.SourceGenerators;
+using System.Diagnostics.Metrics;
+
+namespace MyApp.Services;
+
+[GenerateMetrics(MeterName = "MyApp.OrderService")]
+public partial class OrderService
+{
+    private readonly IOrderRepository _repository;
+
+    public OrderService(IOrderRepository repository)
+    {
+        _repository = repository;
+    }
+}
+```
+
+#### 2. Instrument a Method
+
+```csharp
+[InstrumentMethod(InstrumentationType.Counter | InstrumentationType.Histogram,
+    MetricName = "orders.processed",
+    Description = "Order processing metrics")]
+public partial Task<Order> ProcessOrderAsync(string orderId, decimal amount);
+
+private async partial Task<Order> ProcessOrderCore(string orderId, decimal amount)
+{
+    var order = new Order { OrderId = orderId, Amount = amount };
+    await _repository.SaveAsync(order);
+    return order;
+}
+```
+
+#### 3. Generated Metrics Infrastructure
+
+```csharp
+// Generated: OrderService.Metrics.g.cs
+public partial class OrderService
+{
+    private static readonly Meter _meter = new Meter("MyApp.OrderService", "1.0.0");
+
+    private static readonly Counter<long> _methodCallsCounter =
+        _meter.CreateCounter<long>("method.calls", "count", "Total method calls");
+
+    private static readonly Counter<long> _methodErrorsCounter =
+        _meter.CreateCounter<long>("method.errors", "count", "Total method errors");
+
+    private static readonly Histogram<double> _methodDurationHistogram =
+        _meter.CreateHistogram<double>("method.duration", "ms", "Method execution duration");
+}
+```
+
+#### 4. Generated Method Instrumentation
+
+```csharp
+// Generated: OrderService.ProcessOrderAsync.Metrics.g.cs
+public partial class OrderService
+{
+    public async partial Task<Order> ProcessOrderAsync(string orderId, decimal amount)
+    {
+        var tags = new TagList
+        {
+            { "method", "ProcessOrderAsync" },
+            { "class", "OrderService" }
+        };
+
+        var stopwatch = Stopwatch.StartNew();
+        _methodCallsCounter.Add(1, tags);
+
+        try
+        {
+            var result = await ProcessOrderCore(orderId, amount);
+
+            stopwatch.Stop();
+            tags.Add("status", "success");
+            _methodDurationHistogram.Record(stopwatch.ElapsedMilliseconds, tags);
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            stopwatch.Stop();
+            tags.Add("status", "error");
+            tags.Add("error_type", ex.GetType().Name);
+
+            _methodErrorsCounter.Add(1, tags);
+            _methodDurationHistogram.Record(stopwatch.ElapsedMilliseconds, tags);
+
+            throw;
+        }
+    }
+}
+```
+
+#### 5. Controlling Metric Cardinality with Tags
+
+Use `[MetricTag]` to explicitly choose which parameters become metric dimensions:
+
+```csharp
+[InstrumentMethod(InstrumentationType.Counter | InstrumentationType.Histogram,
+    MetricName = "payments.processed")]
+public partial Task<PaymentResult> ProcessPaymentAsync(
+    [MetricTag] string paymentMethod,    // Becomes metric tag (low cardinality)
+    [MetricTag] string currency,         // Becomes metric tag
+    string orderId,                       // NOT a tag (high cardinality)
+    decimal amount);                      // NOT a tag (continuous value)
+
+// Generated tags:
+// { "method", "ProcessPaymentAsync" }
+// { "payment_method", "credit_card" }
+// { "currency", "USD" }
+// { "status", "success" }
+```
+
+#### 6. Different Instrumentation Types
+
+**Counter Only** (for simple counting):
+
+```csharp
+[InstrumentMethod(InstrumentationType.Counter,
+    MetricName = "orders.viewed")]
+public partial Task RecordOrderViewAsync(string orderId);
+
+// Generates counter only, no histogram
+```
+
+**Histogram Only** (for duration/size measurements):
+
+```csharp
+[InstrumentMethod(InstrumentationType.Histogram,
+    MetricName = "query.duration",
+    Unit = "ms")]
+public partial Task<List<Order>> SearchOrdersAsync(string query);
+
+// Generates histogram only, no counter
+```
+
+**All Metrics** (counter + histogram + gauge):
+
+```csharp
+[InstrumentMethod(InstrumentationType.All,
+    MetricName = "cache.operations")]
+public partial Task UpdateCacheAsync(string key, object value);
+
+// Generates all metric types
+```
+
+#### 7. Custom Metric Names and Descriptions
+
+```csharp
+[InstrumentMethod(InstrumentationType.Counter | InstrumentationType.Histogram,
+    MetricName = "inventory.reserved",          // Custom name
+    Description = "Inventory reservation operations",
+    Unit = "items")]                            // Custom unit
+public partial Task<int> ReserveInventoryAsync(
+    [MetricTag] string warehouseId,
+    [MetricTag] string productId,
+    int quantity);
+```
+
+#### 8. Combining with Logging
+
+```csharp
+// Use both generators together
+[LogMethod(LogLevel.Information)]
+[InstrumentMethod(InstrumentationType.Counter | InstrumentationType.Histogram,
+    MetricName = "orders.processed")]
+public partial Task<Order> ProcessOrderAsync(string orderId, decimal amount);
+
+private async partial Task<Order> ProcessOrderCore(string orderId, decimal amount)
+{
+    // Your business logic here
+    var order = new Order { OrderId = orderId, Amount = amount };
+    await _repository.SaveAsync(order);
+    return order;
+}
+
+// Generated code includes BOTH logging and metrics instrumentation
+```
+
+### Observability Integration
+
+#### OpenTelemetry Setup
+
+```csharp
+// Program.cs
+using OpenTelemetry.Metrics;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddOpenTelemetry()
+    .WithMetrics(metrics =>
+    {
+        metrics.AddMeter("MyApp.OrderService");  // Match MeterName in [GenerateMetrics]
+        metrics.AddPrometheusExporter();
+        metrics.AddOtlpExporter();
+    });
+```
+
+#### Querying Metrics
+
+```promql
+# Prometheus/Grafana queries
+
+# Total orders processed
+sum(rate(method_calls{method="ProcessOrderAsync"}[5m]))
+
+# Error rate
+sum(rate(method_errors{method="ProcessOrderAsync"}[5m])) /
+sum(rate(method_calls{method="ProcessOrderAsync"}[5m]))
+
+# P95 latency
+histogram_quantile(0.95, method_duration{method="ProcessOrderAsync"})
+
+# Requests by payment method
+sum by (payment_method) (method_calls{method="ProcessPaymentAsync"})
+```
+
+### Benefits
+
+**Before (Manual Metrics):**
+
+```csharp
+public async Task<Order> ProcessOrderAsync(string orderId, decimal amount)
+{
+    var tags = new TagList
+    {
+        { "method", "ProcessOrder" },
+        { "class", "OrderService" }
+    };
+
+    var stopwatch = Stopwatch.StartNew();
+    _methodCallsCounter.Add(1, tags);
+
+    try
+    {
+        var order = new Order { OrderId = orderId, Amount = amount };
+        await _repository.SaveAsync(order);
+
+        stopwatch.Stop();
+        tags.Add("status", "success");
+        _methodDurationHistogram.Record(stopwatch.ElapsedMilliseconds, tags);
+
+        return order;
+    }
+    catch (Exception ex)
+    {
+        stopwatch.Stop();
+        tags.Add("status", "error");
+        tags.Add("error_type", ex.GetType().Name);
+
+        _methodErrorsCounter.Add(1, tags);
+        _methodDurationHistogram.Record(stopwatch.ElapsedMilliseconds, tags);
+
+        throw;
+    }
+}
+```
+
+**After (Generated):**
+
+```csharp
+[InstrumentMethod(InstrumentationType.Counter | InstrumentationType.Histogram)]
+public partial Task<Order> ProcessOrderAsync(string orderId, decimal amount);
+
+private async partial Task<Order> ProcessOrderCore(string orderId, decimal amount)
+{
+    var order = new Order { OrderId = orderId, Amount = amount };
+    await _repository.SaveAsync(order);
+    return order;
+}
+```
+
+**Savings:** 85% less code, consistent metrics across all methods, automatic error tracking.
+
+---
+
 ## Troubleshooting
 
 ### Generated Files Not Appearing
@@ -1451,6 +1953,8 @@ The HeroMessaging Source Generators provide:
 3. **Idempotency Key Generator** - Deterministic deduplication keys
 4. **Handler Registration Generator** - Auto-discovery of all handlers
 5. **Saga DSL Generator** - Declarative state machine definitions
+6. **Method Logging Generator** - Auto-generate entry/exit/duration/error logging
+7. **Metrics Instrumentation Generator** - Auto-generate OpenTelemetry metrics
 
 ### Quick Reference
 
@@ -1486,6 +1990,23 @@ public partial class MySaga : SagaBase<MyData>
         public async Task Handle(MyEvent evt) { ... }
     }
 }
+
+// Logging
+[LogMethod(LogLevel.Information)]
+public partial Task<Order> ProcessOrderAsync(string orderId);
+private async partial Task<Order> ProcessOrderCore(string orderId) { ... }
+
+// Metrics
+[GenerateMetrics(MeterName = "MyApp.OrderService")]
+[InstrumentMethod(InstrumentationType.Counter | InstrumentationType.Histogram)]
+public partial Task<Order> ProcessOrderAsync(string orderId);
+private async partial Task<Order> ProcessOrderCore(string orderId) { ... }
+
+// Combined (Logging + Metrics)
+[LogMethod(LogLevel.Information)]
+[InstrumentMethod(InstrumentationType.Counter | InstrumentationType.Histogram)]
+public partial Task<Order> ProcessOrderAsync(string orderId);
+private async partial Task<Order> ProcessOrderCore(string orderId) { ... }
 ```
 
 For more details, see [README.md](README.md) and individual generator files in `Generators/`.

@@ -48,13 +48,15 @@ HeroMessaging is a modern, extensible messaging framework for .NET that provides
 
 ### Source Generators
 
-**Reduce boilerplate by 80%** with Roslyn source generators that generate code at compile-time:
+**Reduce boilerplate by 80-90%** with Roslyn source generators that generate code at compile-time:
 
 - **Message Validator Generator** - Auto-generate validation from data annotations
 - **Message Builder Generator** - Fluent builders for test data creation
 - **Idempotency Key Generator** - Deterministic deduplication keys
 - **Handler Registration Generator** - Auto-discover and register all handlers
 - **Saga DSL Generator** - Declarative state machine definitions
+- **Method Logging Generator** - Auto-generate entry/exit/duration/error logging
+- **Metrics Instrumentation Generator** - Auto-generate OpenTelemetry metrics
 
 **Quick Example:**
 
@@ -120,6 +122,32 @@ public partial class OrderSaga : SagaBase<OrderSagaData>
         }
     }
 }
+```
+
+**Logging & Metrics Example:**
+
+```csharp
+// Eliminate 90% of logging/metrics boilerplate
+[LogMethod(LogLevel.Information)]
+[InstrumentMethod(InstrumentationType.Counter | InstrumentationType.Histogram,
+    MetricName = "orders.processed")]
+public partial Task<Order> ProcessOrderAsync(string orderId, decimal amount);
+
+// Implementation in Core method - generator adds logging & metrics automatically
+private async partial Task<Order> ProcessOrderCore(string orderId, decimal amount)
+{
+    var order = new Order { OrderId = orderId, Amount = amount };
+    await _repository.SaveAsync(order);
+    return order;
+}
+
+// Generated code automatically includes:
+// - Entry/exit logging with parameters
+// - Duration tracking
+// - Error logging with stack traces
+// - OpenTelemetry metrics (counter + histogram)
+// - Distributed tracing spans
+// - Exception tagging
 ```
 
 📖 **[Complete Source Generators Usage Guide](src/HeroMessaging.SourceGenerators/USAGE.md)**
