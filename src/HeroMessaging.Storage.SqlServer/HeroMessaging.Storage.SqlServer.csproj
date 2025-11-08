@@ -5,9 +5,10 @@
     <Description>SQL Server storage plugin for HeroMessaging. Provides persistent inbox, outbox, and saga repository implementations using Microsoft SQL Server.</Description>
     <PackageTags>messaging;storage;sqlserver;persistence;saga;inbox;outbox</PackageTags>
   </PropertyGroup>
-  
+
   <ItemGroup>
     <ProjectReference Include="..\HeroMessaging.Abstractions\HeroMessaging.Abstractions.csproj" />
+    <ProjectReference Include="..\HeroMessaging\HeroMessaging.csproj" />
   </ItemGroup>
 
   <ItemGroup>
