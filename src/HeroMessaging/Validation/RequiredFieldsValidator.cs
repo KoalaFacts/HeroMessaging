@@ -1,7 +1,7 @@
+using System.Reflection;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Validation;
 using HeroMessaging.Utilities;
-using System.Reflection;
 
 namespace HeroMessaging.Validation;
 

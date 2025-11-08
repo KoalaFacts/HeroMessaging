@@ -1,5 +1,4 @@
 using HeroMessaging.Abstractions.Transport;
-using HeroMessaging.Observability.HealthChecks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Moq;

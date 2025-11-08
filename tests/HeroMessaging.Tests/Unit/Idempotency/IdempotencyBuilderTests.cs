@@ -6,7 +6,6 @@ using HeroMessaging.Idempotency.Decorators;
 using HeroMessaging.Idempotency.KeyGeneration;
 using HeroMessaging.Idempotency.Storage;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Xunit;
 
 namespace HeroMessaging.Tests.Unit.Idempotency;

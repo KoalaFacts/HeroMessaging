@@ -1,8 +1,8 @@
+using System.Data;
+using System.Text.Json;
 using HeroMessaging.Abstractions.ErrorHandling;
 using HeroMessaging.Abstractions.Messages;
 using Microsoft.Data.SqlClient;
-using System.Data;
-using System.Text.Json;
 
 namespace HeroMessaging.Storage.SqlServer;
 

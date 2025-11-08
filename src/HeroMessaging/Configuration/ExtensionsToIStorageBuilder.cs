@@ -1,5 +1,4 @@
 using HeroMessaging.Configuration; // For StorageOptions
-using HeroMessaging.Storage;
 
 namespace HeroMessaging.Abstractions.Configuration; // Matching target interface namespace
 

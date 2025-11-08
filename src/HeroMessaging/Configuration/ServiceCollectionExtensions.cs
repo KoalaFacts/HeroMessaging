@@ -1,6 +1,6 @@
+using System.Reflection;
 using HeroMessaging.Abstractions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using System.Reflection;
 #if !NETSTANDARD2_0
 using Microsoft.Extensions.Hosting;
 #endif

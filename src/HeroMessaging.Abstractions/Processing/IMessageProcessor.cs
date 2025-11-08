@@ -1,6 +1,6 @@
-using HeroMessaging.Abstractions.Messages;
 using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
+using HeroMessaging.Abstractions.Messages;
 
 namespace HeroMessaging.Abstractions.Processing;
 

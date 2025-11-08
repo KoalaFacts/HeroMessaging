@@ -1,7 +1,7 @@
+using System.Collections.Concurrent;
 using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Storage;
-using System.Collections.Concurrent;
 
 namespace HeroMessaging.Storage;
 

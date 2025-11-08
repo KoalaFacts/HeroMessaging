@@ -1,5 +1,5 @@
-using HeroMessaging.Abstractions.Policies;
 using System.Collections.Concurrent;
+using HeroMessaging.Abstractions.Policies;
 
 namespace HeroMessaging.Policies;
 

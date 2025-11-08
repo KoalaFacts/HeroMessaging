@@ -1,5 +1,3 @@
-using HeroMessaging.Abstractions.Messages;
-
 namespace HeroMessaging.Abstractions.Transport;
 
 /// <summary>

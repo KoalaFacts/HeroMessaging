@@ -1,8 +1,8 @@
+using System.Text.Json;
 using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Storage;
 using Npgsql;
-using System.Text.Json;
 
 namespace HeroMessaging.Storage.PostgreSql;
 

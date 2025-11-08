@@ -6,7 +6,6 @@ using HeroMessaging.Configuration;
 using HeroMessaging.Idempotency.Decorators;
 using HeroMessaging.Idempotency.Storage;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
 using Xunit;
 

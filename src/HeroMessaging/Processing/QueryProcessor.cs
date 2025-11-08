@@ -1,10 +1,10 @@
+using System.Diagnostics;
+using System.Threading.Tasks.Dataflow;
 using HeroMessaging.Abstractions.Handlers;
 using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Abstractions.Queries;
 using HeroMessaging.Utilities;
 using Microsoft.Extensions.Logging;
-using System.Diagnostics;
-using System.Threading.Tasks.Dataflow;
 
 namespace HeroMessaging.Processing;
 

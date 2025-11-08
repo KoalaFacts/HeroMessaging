@@ -1,4 +1,3 @@
-using HeroMessaging.Observability.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Xunit;
 

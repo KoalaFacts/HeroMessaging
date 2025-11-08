@@ -1,7 +1,7 @@
+using System.Diagnostics;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Processing;
 using Microsoft.Extensions.Logging;
-using System.Diagnostics;
 
 namespace HeroMessaging.Processing.Decorators;
 

@@ -1,6 +1,6 @@
-using HeroMessaging.Abstractions.Transport;
 using System.Collections.Concurrent;
 using System.Threading.Channels;
+using HeroMessaging.Abstractions.Transport;
 
 namespace HeroMessaging.Transport.InMemory;
 
@@ -129,11 +129,7 @@ internal class InMemoryQueue : IDisposable, IAsyncDisposable
                 }
             }
         }
-        catch (OperationCanceledException)
-        {
-            // Normal shutdown
-        }
-        catch (Exception)
+        catch
         {
             // Processing loop error - in real implementation we'd log this
         }
@@ -152,11 +148,7 @@ internal class InMemoryQueue : IDisposable, IAsyncDisposable
                 // Properly await the task completion
                 await _processingTask.ConfigureAwait(false);
             }
-            catch (OperationCanceledException)
-            {
-                // Expected during cancellation
-            }
-            catch (Exception)
+            catch
             {
                 // Ignore exceptions during disposal
             }

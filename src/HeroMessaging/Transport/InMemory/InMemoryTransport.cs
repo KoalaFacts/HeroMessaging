@@ -1,8 +1,6 @@
+using System.Collections.Concurrent;
 using HeroMessaging.Abstractions.Observability;
 using HeroMessaging.Abstractions.Transport;
-using System.Collections.Concurrent;
-using System.Diagnostics;
-using System.Threading.Channels;
 
 namespace HeroMessaging.Transport.InMemory;
 

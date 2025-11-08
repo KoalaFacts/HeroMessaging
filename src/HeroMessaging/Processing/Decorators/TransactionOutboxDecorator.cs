@@ -1,7 +1,7 @@
+using System.Data;
 using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Storage;
-using System.Data;
 
 namespace HeroMessaging.Processing.Decorators;
 

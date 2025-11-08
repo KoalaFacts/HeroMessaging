@@ -1,7 +1,7 @@
+using System.Text.Json;
 using HeroMessaging.Abstractions.Serialization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using System.Text.Json;
 
 namespace HeroMessaging.Serialization.Json;
 

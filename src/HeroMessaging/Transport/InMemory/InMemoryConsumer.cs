@@ -1,7 +1,7 @@
-using HeroMessaging.Abstractions.Observability;
-using HeroMessaging.Abstractions.Transport;
 using System.Diagnostics;
 using System.Threading.Channels;
+using HeroMessaging.Abstractions.Observability;
+using HeroMessaging.Abstractions.Transport;
 
 namespace HeroMessaging.Transport.InMemory;
 

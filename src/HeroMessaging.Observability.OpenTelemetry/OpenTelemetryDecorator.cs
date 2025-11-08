@@ -1,7 +1,7 @@
+using System.Diagnostics;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Processing.Decorators;
-using System.Diagnostics;
 
 namespace HeroMessaging.Observability.OpenTelemetry;
 

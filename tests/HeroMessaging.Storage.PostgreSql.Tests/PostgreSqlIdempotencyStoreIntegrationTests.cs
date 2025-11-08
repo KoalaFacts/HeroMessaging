@@ -1,7 +1,5 @@
 using HeroMessaging.Abstractions.Idempotency;
-using HeroMessaging.Storage.PostgreSql;
 using Microsoft.Extensions.Time.Testing;
-using Testcontainers.PostgreSql;
 using Xunit;
 
 namespace HeroMessaging.Storage.PostgreSql.Tests;

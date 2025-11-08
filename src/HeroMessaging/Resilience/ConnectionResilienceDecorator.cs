@@ -1,8 +1,8 @@
+using System.Data;
+using System.Data.Common;
 using HeroMessaging.Abstractions.Storage;
 using HeroMessaging.Utilities;
 using Microsoft.Extensions.Logging;
-using System.Data;
-using System.Data.Common;
 
 namespace HeroMessaging.Resilience;
 

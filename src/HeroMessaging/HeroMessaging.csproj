@@ -1,59 +1,36 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  
-  <PropertyGroup>
-    <AssemblyName>HeroMessaging</AssemblyName>
-    <RootNamespace>HeroMessaging</RootNamespace>
-    <PackageId>HeroMessaging</PackageId>
-    <Description>Lightweight, high-performance messaging library for .NET with saga orchestration, CQRS support, and pluggable infrastructure. Features include in-process messaging, inbox/outbox patterns, state machine-based sagas, and extensible serialization/storage/transport layers.</Description>
-    <PackageTags>messaging;mediator;cqrs;eventbus;queue;outbox;inbox;saga;orchestration;choreography;state-machine;distributed-transactions</PackageTags>
-  </PropertyGroup>
 
-  <!-- Include README in package -->
-  <ItemGroup>
-    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
-  </ItemGroup>
-  
-  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
-    <PackageReference Include="System.Threading.Tasks.Dataflow" Version="9.0.10" />
-    <PackageReference Include="System.Threading.Channels" Version="9.0.10" />
-    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="9.0.10" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.10" />
-    <PackageReference Include="Microsoft.Extensions.Options" Version="9.0.10" />
-    <PackageReference Include="System.Text.Json" Version="9.0.10" />
-    <PackageReference Include="System.Text.Encodings.Web" Version="9.0.10" />
-    <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.6.3" />
-    <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
-    <PackageReference Include="Microsoft.Bcl.TimeProvider" Version="9.0.10" />
-  </ItemGroup>
+	<PropertyGroup>
+		<AssemblyName>HeroMessaging</AssemblyName>
+		<RootNamespace>HeroMessaging</RootNamespace>
+		<PackageId>HeroMessaging</PackageId>
+		<Description>Lightweight, high-performance messaging library for .NET with saga orchestration, CQRS support, and pluggable infrastructure. Features include in-process messaging, inbox/outbox patterns, state machine-based sagas, and extensible serialization/storage/transport layers.</Description>
+		<PackageTags>messaging;mediator;cqrs;eventbus;queue;outbox;inbox;saga;orchestration;choreography;state-machine;distributed-transactions</PackageTags>
+	</PropertyGroup>
 
-  <ItemGroup Condition="'$(TargetFramework)' == 'net6.0' OR '$(TargetFramework)' == 'net7.0'">
-    <PackageReference Include="System.Threading.Tasks.Dataflow" Version="9.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="9.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Options" Version="9.0.0" />
-    <PackageReference Include="Microsoft.Bcl.TimeProvider" Version="9.0.10" />
-  </ItemGroup>
+	<!-- Include README in package -->
+	<ItemGroup>
+		<None Include="..\..\README.md" Pack="true" PackagePath="\" />
+	</ItemGroup>
 
-  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0' OR '$(TargetFramework)' == 'net9.0'">
-    <PackageReference Include="System.Threading.Tasks.Dataflow" Version="9.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="9.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Options" Version="9.0.0" />
-    <!-- No TimeProvider package needed - built into .NET 8+ -->
-  </ItemGroup>
-  
-  <ItemGroup>
-    <PackageReference Include="PolySharp" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\HeroMessaging.Abstractions\HeroMessaging.Abstractions.csproj" />
-  </ItemGroup>
+	<ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+		<PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
+		<PackageReference Include="System.Threading.Channels" Version="9.0.10" />
+		<PackageReference Include="System.Collections.Immutable" Version="9.0.10" />
+		<PackageReference Include="System.Text.Encodings.Web" Version="9.0.10" />
+		<PackageReference Include="System.Text.Json" Version="9.0.10" />
+		<PackageReference Include="System.Threading.Tasks.Extensions" Version="4.6.3" />
+		<PackageReference Include="Microsoft.Bcl.TimeProvider" Version="9.0.10" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Update="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.10" />
-    <PackageReference Update="Microsoft.Extensions.Logging.Abstractions" Version="9.0.10" />
-    <PackageReference Update="PolySharp" Version="1.15.0">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-    <PackageReference Update="System.Collections.Immutable" Version="9.0.10" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.10" />
+		<PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="9.0.10" />
+		<PackageReference Include="Microsoft.Extensions.Options" Version="9.0.10" />
+		<PackageReference Include="System.Threading.Tasks.Dataflow" Version="9.0.10" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\HeroMessaging.Abstractions\HeroMessaging.Abstractions.csproj" />
+	</ItemGroup>
 </Project>

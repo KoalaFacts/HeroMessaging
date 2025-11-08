@@ -1,5 +1,4 @@
 using HeroMessaging.Abstractions.Sagas;
-using HeroMessaging.Storage.SqlServer;
 using Microsoft.Extensions.Time.Testing;
 using Testcontainers.MsSql;
 using Xunit;

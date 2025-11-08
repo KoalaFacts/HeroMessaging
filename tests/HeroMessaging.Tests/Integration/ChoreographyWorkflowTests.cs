@@ -1,5 +1,4 @@
 using HeroMessaging.Abstractions;
-using HeroMessaging.Abstractions.Commands;
 using HeroMessaging.Abstractions.Events;
 using HeroMessaging.Abstractions.Handlers;
 using HeroMessaging.Abstractions.Messages;

@@ -1,6 +1,6 @@
+using System.Data;
 using HeroMessaging.Abstractions.Storage;
 using Microsoft.Data.SqlClient;
-using System.Data;
 
 namespace HeroMessaging.Storage.SqlServer;
 

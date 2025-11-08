@@ -1,6 +1,6 @@
+using System.Data;
 using HeroMessaging.Abstractions.Storage;
 using Npgsql;
-using System.Data;
 
 namespace HeroMessaging.Storage.PostgreSql;
 

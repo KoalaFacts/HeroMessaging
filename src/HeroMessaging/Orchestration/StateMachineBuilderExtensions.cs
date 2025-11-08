@@ -1,6 +1,5 @@
 using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Events;
-using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Sagas;
 
 namespace HeroMessaging.Orchestration;

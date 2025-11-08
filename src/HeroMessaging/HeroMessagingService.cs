@@ -4,7 +4,6 @@ using HeroMessaging.Abstractions.Events;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Queries;
 using HeroMessaging.Processing;
-using Microsoft.Extensions.Logging;
 
 namespace HeroMessaging;
 

@@ -1,8 +1,6 @@
 using HeroMessaging.Abstractions.Idempotency;
-using HeroMessaging.Storage.SqlServer;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Time.Testing;
-using Testcontainers.MsSql;
 using Xunit;
 
 namespace HeroMessaging.Storage.SqlServer.Tests;

@@ -1,3 +1,4 @@
+using System.Threading.Tasks.Dataflow;
 using HeroMessaging.Abstractions.ErrorHandling;
 using HeroMessaging.Abstractions.Events;
 using HeroMessaging.Abstractions.Handlers;
@@ -5,7 +6,6 @@ using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using System.Threading.Tasks.Dataflow;
 
 namespace HeroMessaging.Processing;
 

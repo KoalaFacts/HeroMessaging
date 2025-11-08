@@ -1,5 +1,5 @@
-using Microsoft.Extensions.Logging;
 using System.Threading.Tasks.Dataflow;
+using Microsoft.Extensions.Logging;
 
 namespace HeroMessaging.Abstractions.Processing;
 

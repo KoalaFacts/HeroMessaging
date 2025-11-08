@@ -1,7 +1,6 @@
-using HeroMessaging.Abstractions.Serialization;
-using HeroMessaging.Serialization.Json;
-using HeroMessaging.Tests.TestUtilities;
 using System.Text;
+using HeroMessaging.Abstractions.Serialization;
+using HeroMessaging.Tests.TestUtilities;
 using Xunit;
 
 namespace HeroMessaging.Serialization.Json.Tests.Integration;

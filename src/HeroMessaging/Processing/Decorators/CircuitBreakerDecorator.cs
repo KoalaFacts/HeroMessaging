@@ -1,8 +1,8 @@
+using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Processing;
 using Microsoft.Extensions.Logging;
-using System.Collections.Concurrent;
-using System.Runtime.CompilerServices;
 
 namespace HeroMessaging.Processing.Decorators;
 

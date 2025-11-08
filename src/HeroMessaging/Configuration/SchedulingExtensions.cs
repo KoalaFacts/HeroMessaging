@@ -1,5 +1,4 @@
 using HeroMessaging.Abstractions.Scheduling;
-using HeroMessaging.Configuration;
 using HeroMessaging.Scheduling;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
