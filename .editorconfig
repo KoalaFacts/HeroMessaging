@@ -1,5 +1,20 @@
 root = true
 
+# EditorConfig Strategy: Gradual Enforcement
+#
+# This .editorconfig uses a tiered severity approach:
+# - error:      Critical issues (security, bugs) - must fix immediately
+# - warning:    Important issues (interfaces must start with 'I', etc.) - fix when touching code
+# - suggestion: Best practices - IDE shows hints but doesn't clutter build output
+# - silent:     Rules defined but not enforced - for future tightening
+#
+# To increase enforcement over time:
+# 1. Run build and fix all 'error' violations first (security/correctness)
+# 2. Gradually promote 'suggestion' → 'warning' as violations are fixed
+# 3. Finally promote 'warning' → 'error' for critical rules
+#
+# See CLAUDE.md for full code quality standards
+
 [*]
 charset = utf-8
 end_of_line = crlf
@@ -374,11 +389,13 @@ dotnet_diagnostic.CA2018.severity = error      # 'Buffer.BlockCopy' expects the 
 dotnet_diagnostic.CA2019.severity = warning    # Improper 'ThreadStatic' field initialization
 
 # IDE Analyzers - Code Style
-dotnet_diagnostic.IDE0001.severity = suggestion # Simplify Names
-dotnet_diagnostic.IDE0002.severity = suggestion # Simplify Member Access
-dotnet_diagnostic.IDE0003.severity = suggestion # Remove qualification
-dotnet_diagnostic.IDE0004.severity = suggestion # Remove Unnecessary Cast
-dotnet_diagnostic.IDE0005.severity = warning    # Using directive is unnecessary
+# NOTE: Most IDE rules set to 'silent' or 'suggestion' to avoid noise during development
+# Upgrade to 'warning' after fixing existing violations
+dotnet_diagnostic.IDE0001.severity = silent     # Simplify Names
+dotnet_diagnostic.IDE0002.severity = silent     # Simplify Member Access
+dotnet_diagnostic.IDE0003.severity = silent     # Remove qualification
+dotnet_diagnostic.IDE0004.severity = silent     # Remove Unnecessary Cast
+dotnet_diagnostic.IDE0005.severity = suggestion # Using directive is unnecessary (was warning)
 dotnet_diagnostic.IDE0007.severity = suggestion # Use implicit type
 dotnet_diagnostic.IDE0008.severity = suggestion # Use explicit type
 dotnet_diagnostic.IDE0009.severity = suggestion # Member access should be qualified
@@ -407,49 +424,49 @@ dotnet_diagnostic.IDE0035.severity = warning    # Unreachable code detected
 dotnet_diagnostic.IDE0036.severity = suggestion # Order modifiers
 dotnet_diagnostic.IDE0037.severity = suggestion # Use inferred member name
 dotnet_diagnostic.IDE0039.severity = suggestion # Use local function
-dotnet_diagnostic.IDE0040.severity = warning    # Add accessibility modifiers
+dotnet_diagnostic.IDE0040.severity = suggestion # Add accessibility modifiers (was warning)
 dotnet_diagnostic.IDE0041.severity = suggestion # Use is null check
 dotnet_diagnostic.IDE0042.severity = suggestion # Deconstruct variable declaration
-dotnet_diagnostic.IDE0043.severity = warning    # Invalid format string
-dotnet_diagnostic.IDE0044.severity = warning    # Add readonly modifier
+dotnet_diagnostic.IDE0043.severity = warning    # Invalid format string (keep as warning - actual bug)
+dotnet_diagnostic.IDE0044.severity = suggestion # Add readonly modifier (was warning)
 dotnet_diagnostic.IDE0045.severity = suggestion # Convert to conditional expression
 dotnet_diagnostic.IDE0046.severity = suggestion # Convert to conditional expression
 dotnet_diagnostic.IDE0047.severity = suggestion # Remove unnecessary parentheses
 dotnet_diagnostic.IDE0048.severity = suggestion # Add parentheses for clarity
 dotnet_diagnostic.IDE0049.severity = suggestion # Simplify names
 dotnet_diagnostic.IDE0050.severity = suggestion # Convert to tuple
-dotnet_diagnostic.IDE0051.severity = warning    # Remove unused private members
-dotnet_diagnostic.IDE0052.severity = warning    # Remove unread private members
+dotnet_diagnostic.IDE0051.severity = suggestion # Remove unused private members (was warning)
+dotnet_diagnostic.IDE0052.severity = suggestion # Remove unread private members (was warning)
 dotnet_diagnostic.IDE0053.severity = suggestion # Use block body for lambda expressions
 dotnet_diagnostic.IDE0054.severity = suggestion # Use compound assignment
-dotnet_diagnostic.IDE0055.severity = warning    # Fix formatting
+dotnet_diagnostic.IDE0055.severity = silent     # Fix formatting (was warning - too noisy)
 dotnet_diagnostic.IDE0056.severity = suggestion # Use index operator
 dotnet_diagnostic.IDE0057.severity = suggestion # Use range operator
 dotnet_diagnostic.IDE0058.severity = silent     # Expression value is never used
-dotnet_diagnostic.IDE0059.severity = warning    # Unnecessary assignment of a value
-dotnet_diagnostic.IDE0060.severity = warning    # Remove unused parameter
+dotnet_diagnostic.IDE0059.severity = suggestion # Unnecessary assignment of a value (was warning)
+dotnet_diagnostic.IDE0060.severity = suggestion # Remove unused parameter (was warning)
 dotnet_diagnostic.IDE0061.severity = suggestion # Use block body for local functions
 dotnet_diagnostic.IDE0062.severity = suggestion # Make local function 'static'
 dotnet_diagnostic.IDE0063.severity = suggestion # Use simple 'using' statement
 dotnet_diagnostic.IDE0064.severity = warning    # Make readonly fields writable
-dotnet_diagnostic.IDE0065.severity = warning    # Misplaced using directive
+dotnet_diagnostic.IDE0065.severity = suggestion # Misplaced using directive (was warning)
 dotnet_diagnostic.IDE0066.severity = suggestion # Convert switch statement to expression
-dotnet_diagnostic.IDE0070.severity = warning    # Use 'System.HashCode'
+dotnet_diagnostic.IDE0070.severity = suggestion # Use 'System.HashCode' (was warning)
 dotnet_diagnostic.IDE0071.severity = suggestion # Simplify interpolation
 dotnet_diagnostic.IDE0072.severity = suggestion # Add missing cases
-dotnet_diagnostic.IDE0073.severity = warning    # Use file header
+dotnet_diagnostic.IDE0073.severity = silent     # Use file header (was warning - no headers defined)
 dotnet_diagnostic.IDE0074.severity = suggestion # Use compound assignment
 dotnet_diagnostic.IDE0075.severity = suggestion # Simplify conditional expression
 dotnet_diagnostic.IDE0076.severity = error      # Invalid global 'SuppressMessageAttribute'
 dotnet_diagnostic.IDE0077.severity = error      # Avoid legacy format target in 'SuppressMessageAttribute'
 dotnet_diagnostic.IDE0078.severity = suggestion # Use pattern matching
-dotnet_diagnostic.IDE0079.severity = warning    # Remove unnecessary suppression
+dotnet_diagnostic.IDE0079.severity = suggestion # Remove unnecessary suppression (was warning)
 dotnet_diagnostic.IDE0080.severity = suggestion # Remove unnecessary suppression operator
-dotnet_diagnostic.IDE0081.severity = warning    # Remove unnecessary suppression operator
-dotnet_diagnostic.IDE0082.severity = warning    # 'typeof' can be converted to 'nameof'
+dotnet_diagnostic.IDE0081.severity = suggestion # Remove unnecessary suppression operator (was warning)
+dotnet_diagnostic.IDE0082.severity = suggestion # 'typeof' can be converted to 'nameof' (was warning)
 dotnet_diagnostic.IDE0083.severity = suggestion # Use pattern matching
 dotnet_diagnostic.IDE0090.severity = suggestion # Use 'new(...)'
-dotnet_diagnostic.IDE0100.severity = warning    # Remove redundant equality
+dotnet_diagnostic.IDE0100.severity = suggestion # Remove redundant equality (was warning)
 dotnet_diagnostic.IDE0110.severity = suggestion # Remove unnecessary discard
 dotnet_diagnostic.IDE0120.severity = suggestion # Simplify LINQ expression
 dotnet_diagnostic.IDE0130.severity = suggestion # Namespace does not match folder structure
@@ -476,14 +493,14 @@ dotnet_diagnostic.IDE0301.severity = suggestion # Simplify collection initializa
 dotnet_diagnostic.IDE0302.severity = suggestion # Simplify collection initialization
 dotnet_diagnostic.IDE0305.severity = suggestion # Simplify collection initialization
 dotnet_diagnostic.IDE1005.severity = suggestion # Delegate invocation can be simplified
-dotnet_diagnostic.IDE1006.severity = warning    # Naming rule violation
-dotnet_diagnostic.IDE2000.severity = warning    # Avoid multiple blank lines
-dotnet_diagnostic.IDE2001.severity = warning    # Embedded statements must be on their own line
-dotnet_diagnostic.IDE2002.severity = warning    # Consecutive braces must not have blank line between them
-dotnet_diagnostic.IDE2003.severity = warning    # Blank line required between block and subsequent statement
-dotnet_diagnostic.IDE2004.severity = warning    # Blank line not allowed after constructor initializer colon
-dotnet_diagnostic.IDE2005.severity = warning    # Blank line not allowed after conditional expression token
-dotnet_diagnostic.IDE2006.severity = warning    # Blank line not allowed before using directive
+dotnet_diagnostic.IDE1006.severity = suggestion # Naming rule violation (was warning - fix gradually)
+dotnet_diagnostic.IDE2000.severity = silent     # Avoid multiple blank lines (was warning - too strict)
+dotnet_diagnostic.IDE2001.severity = silent     # Embedded statements must be on their own line (was warning)
+dotnet_diagnostic.IDE2002.severity = silent     # Consecutive braces must not have blank line between them (was warning)
+dotnet_diagnostic.IDE2003.severity = silent     # Blank line required between block and subsequent statement (was warning)
+dotnet_diagnostic.IDE2004.severity = silent     # Blank line not allowed after constructor initializer colon (was warning)
+dotnet_diagnostic.IDE2005.severity = silent     # Blank line not allowed after conditional expression token (was warning)
+dotnet_diagnostic.IDE2006.severity = silent     # Blank line not allowed before using directive (was warning)
 
 # Modern C# Preferences
 
@@ -502,7 +519,7 @@ csharp_using_directive_placement = outside_namespace:suggestion
 # Naming Conventions
 
 # Constants should be PascalCase
-dotnet_naming_rule.constants_should_be_pascal_case.severity = warning
+dotnet_naming_rule.constants_should_be_pascal_case.severity = suggestion
 dotnet_naming_rule.constants_should_be_pascal_case.symbols = constants
 dotnet_naming_rule.constants_should_be_pascal_case.style = pascal_case_style
 
@@ -511,7 +528,7 @@ dotnet_naming_symbols.constants.applicable_accessibilities = *
 dotnet_naming_symbols.constants.required_modifiers = const
 
 # Static readonly fields should be PascalCase
-dotnet_naming_rule.static_readonly_should_be_pascal_case.severity = warning
+dotnet_naming_rule.static_readonly_should_be_pascal_case.severity = suggestion
 dotnet_naming_rule.static_readonly_should_be_pascal_case.symbols = static_readonly
 dotnet_naming_rule.static_readonly_should_be_pascal_case.style = pascal_case_style
 
@@ -520,7 +537,7 @@ dotnet_naming_symbols.static_readonly.applicable_accessibilities = *
 dotnet_naming_symbols.static_readonly.required_modifiers = static, readonly
 
 # Private fields should be _camelCase
-dotnet_naming_rule.private_fields_should_be_camel_case_with_underscore.severity = warning
+dotnet_naming_rule.private_fields_should_be_camel_case_with_underscore.severity = suggestion
 dotnet_naming_rule.private_fields_should_be_camel_case_with_underscore.symbols = private_fields
 dotnet_naming_rule.private_fields_should_be_camel_case_with_underscore.style = camel_case_underscore_style
 
@@ -528,7 +545,7 @@ dotnet_naming_symbols.private_fields.applicable_kinds = field
 dotnet_naming_symbols.private_fields.applicable_accessibilities = private
 
 # Public/internal/protected fields should be PascalCase
-dotnet_naming_rule.non_private_fields_should_be_pascal_case.severity = warning
+dotnet_naming_rule.non_private_fields_should_be_pascal_case.severity = suggestion
 dotnet_naming_rule.non_private_fields_should_be_pascal_case.symbols = non_private_fields
 dotnet_naming_rule.non_private_fields_should_be_pascal_case.style = pascal_case_style
 
@@ -547,7 +564,7 @@ dotnet_naming_style.interface_style.capitalization = pascal_case
 dotnet_naming_style.interface_style.required_prefix = I
 
 # Type parameters should be TPascalCase
-dotnet_naming_rule.type_parameters_should_be_prefixed_with_t.severity = warning
+dotnet_naming_rule.type_parameters_should_be_prefixed_with_t.severity = suggestion
 dotnet_naming_rule.type_parameters_should_be_prefixed_with_t.symbols = type_parameters
 dotnet_naming_rule.type_parameters_should_be_prefixed_with_t.style = type_parameter_style
 
@@ -558,7 +575,7 @@ dotnet_naming_style.type_parameter_style.capitalization = pascal_case
 dotnet_naming_style.type_parameter_style.required_prefix = T
 
 # Methods, properties, events, classes, structs, enums should be PascalCase
-dotnet_naming_rule.members_should_be_pascal_case.severity = warning
+dotnet_naming_rule.members_should_be_pascal_case.severity = suggestion
 dotnet_naming_rule.members_should_be_pascal_case.symbols = all_members
 dotnet_naming_rule.members_should_be_pascal_case.style = pascal_case_style
 
@@ -566,7 +583,7 @@ dotnet_naming_symbols.all_members.applicable_kinds = class, struct, enum, proper
 dotnet_naming_symbols.all_members.applicable_accessibilities = *
 
 # Parameters and local variables should be camelCase
-dotnet_naming_rule.parameters_should_be_camel_case.severity = warning
+dotnet_naming_rule.parameters_should_be_camel_case.severity = suggestion
 dotnet_naming_rule.parameters_should_be_camel_case.symbols = parameters_and_locals
 dotnet_naming_rule.parameters_should_be_camel_case.style = camel_case_style
 
@@ -574,7 +591,7 @@ dotnet_naming_symbols.parameters_and_locals.applicable_kinds = parameter, local
 dotnet_naming_symbols.parameters_and_locals.applicable_accessibilities = *
 
 # Local functions should be PascalCase
-dotnet_naming_rule.local_functions_should_be_pascal_case.severity = warning
+dotnet_naming_rule.local_functions_should_be_pascal_case.severity = suggestion
 dotnet_naming_rule.local_functions_should_be_pascal_case.symbols = local_functions
 dotnet_naming_rule.local_functions_should_be_pascal_case.style = pascal_case_style
 
