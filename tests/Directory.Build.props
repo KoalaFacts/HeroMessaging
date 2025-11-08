@@ -10,6 +10,7 @@
     <!-- CA1813: Unsealed attributes are fine for test attributes -->
     <!-- CA1819: Array properties are acceptable in test data -->
     <!-- CA1024: Methods that look like properties are fine in tests -->
-    <NoWarn>$(NoWarn);CA1002;CA1034;CA1051;CA1813;CA1819;CA1024</NoWarn>
+    <!-- CS1591: Missing XML documentation is acceptable for test code -->
+    <NoWarn>$(NoWarn);CA1002;CA1034;CA1051;CA1813;CA1819;CA1024;CS1591</NoWarn>
   </PropertyGroup>
 </Project>
