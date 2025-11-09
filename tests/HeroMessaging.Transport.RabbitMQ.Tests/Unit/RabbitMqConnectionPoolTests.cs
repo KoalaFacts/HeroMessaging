@@ -52,7 +52,7 @@ public class RabbitMqConnectionPoolTests : IAsyncLifetime
     public async Task GetConnectionAsync_FirstCall_CreatesNewConnection()
     {
         // Arrange
-        _connectionPool = new RabbitMqConnectionPool(_options!, _mockLogger!.Object);
+        _connectionPool = new RabbitMqConnectionPool(_options!, _mockLogger!.Object, TimeProvider.System);
 
         // Act - Note: We can't easily test this without refactoring to inject IConnectionFactory
         // For now, this test documents the limitation
@@ -66,7 +66,7 @@ public class RabbitMqConnectionPoolTests : IAsyncLifetime
     public void Constructor_WithValidOptions_InitializesSuccessfully()
     {
         // Act
-        _connectionPool = new RabbitMqConnectionPool(_options!, _mockLogger!.Object);
+        _connectionPool = new RabbitMqConnectionPool(_options!, _mockLogger!.Object, TimeProvider.System);
 
         // Assert
         Assert.NotNull(_connectionPool);
@@ -81,7 +81,7 @@ public class RabbitMqConnectionPoolTests : IAsyncLifetime
     {
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
-            new RabbitMqConnectionPool(null!, _mockLogger!.Object));
+            new RabbitMqConnectionPool(null!, _mockLogger!.Object, TimeProvider.System));
     }
 
     [Fact]
@@ -89,14 +89,14 @@ public class RabbitMqConnectionPoolTests : IAsyncLifetime
     {
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
-            new RabbitMqConnectionPool(_options!, null!));
+            new RabbitMqConnectionPool(_options!, null!, TimeProvider.System));
     }
 
     [Fact]
     public async Task DisposeAsync_WhenCalled_DisposesCleanly()
     {
         // Arrange
-        _connectionPool = new RabbitMqConnectionPool(_options!, _mockLogger!.Object);
+        _connectionPool = new RabbitMqConnectionPool(_options!, _mockLogger!.Object, TimeProvider.System);
 
         // Act
         await _connectionPool.DisposeAsync();
@@ -111,7 +111,7 @@ public class RabbitMqConnectionPoolTests : IAsyncLifetime
     public async Task DisposeAsync_CalledMultipleTimes_DoesNotThrow()
     {
         // Arrange
-        _connectionPool = new RabbitMqConnectionPool(_options!, _mockLogger!.Object);
+        _connectionPool = new RabbitMqConnectionPool(_options!, _mockLogger!.Object, TimeProvider.System);
 
         // Act
         await _connectionPool.DisposeAsync();
@@ -125,7 +125,7 @@ public class RabbitMqConnectionPoolTests : IAsyncLifetime
     public void GetStatistics_InitialState_ReturnsZeros()
     {
         // Arrange
-        _connectionPool = new RabbitMqConnectionPool(_options!, _mockLogger!.Object);
+        _connectionPool = new RabbitMqConnectionPool(_options!, _mockLogger!.Object, TimeProvider.System);
 
         // Act
         var stats = _connectionPool.GetStatistics();
@@ -140,7 +140,7 @@ public class RabbitMqConnectionPoolTests : IAsyncLifetime
     public void ReleaseConnection_WithNullConnection_DoesNotThrow()
     {
         // Arrange
-        _connectionPool = new RabbitMqConnectionPool(_options!, _mockLogger!.Object);
+        _connectionPool = new RabbitMqConnectionPool(_options!, _mockLogger!.Object, TimeProvider.System);
 
         // Act & Assert - should not throw
         _connectionPool.ReleaseConnection(null!);
@@ -150,7 +150,7 @@ public class RabbitMqConnectionPoolTests : IAsyncLifetime
     public async Task GetConnectionAsync_AfterDispose_ThrowsObjectDisposedException()
     {
         // Arrange
-        _connectionPool = new RabbitMqConnectionPool(_options!, _mockLogger!.Object);
+        _connectionPool = new RabbitMqConnectionPool(_options!, _mockLogger!.Object, TimeProvider.System);
         await _connectionPool.DisposeAsync();
 
         // Act & Assert

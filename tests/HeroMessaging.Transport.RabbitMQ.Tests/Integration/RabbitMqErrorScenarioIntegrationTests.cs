@@ -57,7 +57,7 @@ public class RabbitMqErrorScenarioIntegrationTests : RabbitMqIntegrationTestBase
 
         var largeEnvelope = new TransportEnvelope
         {
-            MessageId = Guid.NewGuid(),
+            MessageId = Guid.NewGuid().ToString(),
             ContentType = "application/octet-stream",
             Body = largeContent
         };
@@ -69,7 +69,7 @@ public class RabbitMqErrorScenarioIntegrationTests : RabbitMqIntegrationTestBase
             new TransportAddress(queueName, TransportAddressType.Queue),
             async (envelope, context, ct) =>
             {
-                receivedBody = envelope.Body;
+                receivedBody = envelope.Body.ToArray();
                 messageReceived.TrySetResult(true);
                 await Task.CompletedTask;
             });
@@ -196,14 +196,14 @@ public class RabbitMqErrorScenarioIntegrationTests : RabbitMqIntegrationTestBase
             new TransportAddress(queueName, TransportAddressType.Queue),
             async (envelope, context, ct) =>
             {
-                receivedBody = envelope.Body;
+                receivedBody = envelope.Body.ToArray();
                 messageReceived.TrySetResult(true);
                 await Task.CompletedTask;
             });
 
         var emptyEnvelope = new TransportEnvelope
         {
-            MessageId = Guid.NewGuid(),
+            MessageId = Guid.NewGuid().ToString(),
             ContentType = "application/octet-stream",
             Body = Array.Empty<byte>()
         };

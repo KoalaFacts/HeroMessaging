@@ -51,7 +51,7 @@ public abstract class RabbitMqIntegrationTestBase : IAsyncLifetime
         };
 
         // Create transport
-        Transport = new RabbitMqTransport(Options, LoggerFactory);
+        Transport = new RabbitMqTransport(Options, LoggerFactory, TimeProvider.System);
 
         // Connect to RabbitMQ
         await Transport.ConnectAsync();
@@ -88,14 +88,10 @@ public abstract class RabbitMqIntegrationTestBase : IAsyncLifetime
     {
         return new TransportEnvelope
         {
-            MessageId = Guid.NewGuid(),
+            MessageId = Guid.NewGuid().ToString(),
             CorrelationId = Guid.NewGuid().ToString(),
             ContentType = "text/plain",
-            Body = System.Text.Encoding.UTF8.GetBytes(content),
-            Headers = new Dictionary<string, object>
-            {
-                ["TestHeader"] = "TestValue"
-            }
-        };
+            Body = System.Text.Encoding.UTF8.GetBytes(content)
+        }.WithHeader("TestHeader", "TestValue");
     }
 }
