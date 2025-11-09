@@ -27,11 +27,11 @@ public class TransactionOutboxProcessorDecorator(
             cancellationToken);
     }
 
-    public Task Start(CancellationToken cancellationToken = default) =>
-        _inner.Start(cancellationToken);
+    public Task StartAsync(CancellationToken cancellationToken = default) =>
+        _inner.StartAsync(cancellationToken);
 
-    public Task Stop() =>
-        _inner.Stop();
+    public Task StopAsync() =>
+        _inner.StopAsync();
 }
 
 /// <summary>
@@ -56,11 +56,11 @@ public class TransactionInboxProcessorDecorator(
             cancellationToken);
     }
 
-    public Task Start(CancellationToken cancellationToken = default) =>
-        _inner.Start(cancellationToken);
+    public Task StartAsync(CancellationToken cancellationToken = default) =>
+        _inner.StartAsync(cancellationToken);
 
-    public Task Stop() =>
-        _inner.Stop();
+    public Task StopAsync() =>
+        _inner.StopAsync();
 
     public Task<long> GetUnprocessedCount(CancellationToken cancellationToken = default) =>
         _inner.GetUnprocessedCount(cancellationToken);

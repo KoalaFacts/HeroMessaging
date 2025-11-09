@@ -71,7 +71,7 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         await command.ExecuteNonQueryAsync();
     }
 
-    public async Task<string> SendToDeadLetter<T>(T message, DeadLetterContext context, CancellationToken cancellationToken = default)
+    public async Task<string> SendToDeadLetterAsync<T>(T message, DeadLetterContext context, CancellationToken cancellationToken = default)
         where T : IMessage
     {
         var deadLetterId = Guid.NewGuid().ToString();
@@ -114,7 +114,7 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         return deadLetterId;
     }
 
-    public async Task<IEnumerable<DeadLetterEntry<T>>> GetDeadLetters<T>(int limit = 100, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<DeadLetterEntry<T>>> GetDeadLettersAsync<T>(int limit = 100, CancellationToken cancellationToken = default)
         where T : IMessage
     {
         using var connection = new NpgsqlConnection(_options.ConnectionString);
@@ -177,7 +177,7 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         return entries;
     }
 
-    public async Task<bool> Retry<T>(string deadLetterId, CancellationToken cancellationToken = default)
+    public async Task<bool> RetryAsync<T>(string deadLetterId, CancellationToken cancellationToken = default)
         where T : IMessage
     {
         using var connection = new NpgsqlConnection(_options.ConnectionString);
@@ -203,7 +203,7 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         return result > 0;
     }
 
-    public async Task<bool> Discard(string deadLetterId, CancellationToken cancellationToken = default)
+    public async Task<bool> DiscardAsync(string deadLetterId, CancellationToken cancellationToken = default)
     {
         using var connection = new NpgsqlConnection(_options.ConnectionString);
         await connection.OpenAsync(cancellationToken);
@@ -228,7 +228,7 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         return result > 0;
     }
 
-    public async Task<long> GetDeadLetterCount(CancellationToken cancellationToken = default)
+    public async Task<long> GetDeadLetterCountAsync(CancellationToken cancellationToken = default)
     {
         using var connection = new NpgsqlConnection(_options.ConnectionString);
         await connection.OpenAsync(cancellationToken);
@@ -246,7 +246,7 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         return Convert.ToInt64(result ?? 0);
     }
 
-    public async Task<DeadLetterStatistics> GetStatistics(CancellationToken cancellationToken = default)
+    public async Task<DeadLetterStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default)
     {
         using var connection = new NpgsqlConnection(_options.ConnectionString);
         await connection.OpenAsync(cancellationToken);

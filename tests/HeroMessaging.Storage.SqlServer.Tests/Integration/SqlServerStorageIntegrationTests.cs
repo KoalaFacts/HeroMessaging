@@ -1,3 +1,4 @@
+using HeroMessaging.Abstractions.Storage;
 using HeroMessaging.Tests.TestUtilities;
 using Xunit;
 
@@ -18,8 +19,8 @@ public class SqlServerStorageIntegrationTests : SqlServerIntegrationTestBase
         var message = TestMessageBuilder.CreateValidMessage("SQL Server test message");
 
         // Act
-        await storage.StoreAsync(message);
-        var retrievedMessage = await storage.RetrieveAsync(message.MessageId);
+        await storage.StoreAsync(message, (MessageStorageOptions?)null);
+        var retrievedMessage = await storage.RetrieveAsync(message.MessageId, (IStorageTransaction?)null);
 
         // Assert
         Assert.NotNull(retrievedMessage);
@@ -75,8 +76,8 @@ public class SqlServerStorageIntegrationTests : SqlServerIntegrationTestBase
         var largeMessage = TestMessageBuilder.CreateLargeMessage(1_000_000); // 1MB message
 
         // Act
-        await storage.StoreAsync(largeMessage);
-        var retrievedMessage = await storage.RetrieveAsync(largeMessage.MessageId);
+        await storage.StoreAsync(largeMessage, (MessageStorageOptions?)null);
+        var retrievedMessage = await storage.RetrieveAsync(largeMessage.MessageId, (IStorageTransaction?)null);
 
         // Assert
         Assert.NotNull(retrievedMessage);
@@ -93,7 +94,7 @@ public class SqlServerStorageIntegrationTests : SqlServerIntegrationTestBase
         var message = TestMessageBuilder.CreateValidMessage("Delete test message");
 
         // Act
-        await storage.StoreAsync(message);
+        await storage.StoreAsync(message, (MessageStorageOptions?)null);
 
         // Verify it exists
         var retrievedBeforeDelete = await storage.RetrieveAsync(message.MessageId);

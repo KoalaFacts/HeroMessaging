@@ -131,7 +131,7 @@ public class SqlServerMessageStorage : IMessageStorage
         await command.ExecuteNonQueryAsync();
     }
 
-    public async Task<string> Store(IMessage message, MessageStorageOptions? options = null, CancellationToken cancellationToken = default)
+    public async Task<string> StoreAsync(IMessage message, MessageStorageOptions? options = null, CancellationToken cancellationToken = default)
     {
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
@@ -163,7 +163,7 @@ public class SqlServerMessageStorage : IMessageStorage
         return messageId;
     }
 
-    public async Task<T?> Retrieve<T>(string messageId, CancellationToken cancellationToken = default) where T : IMessage
+    public async Task<T?> RetrieveAsync<T>(string messageId, CancellationToken cancellationToken = default) where T : IMessage
     {
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
@@ -187,7 +187,7 @@ public class SqlServerMessageStorage : IMessageStorage
         return default;
     }
 
-    public async Task<IEnumerable<T>> Query<T>(MessageQuery query, CancellationToken cancellationToken = default) where T : IMessage
+    public async Task<IEnumerable<T>> QueryAsync<T>(MessageQuery query, CancellationToken cancellationToken = default) where T : IMessage
     {
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
@@ -248,7 +248,7 @@ public class SqlServerMessageStorage : IMessageStorage
         return messages;
     }
 
-    public async Task<bool> Delete(string messageId, CancellationToken cancellationToken = default)
+    public async Task<bool> DeleteAsync(string messageId, CancellationToken cancellationToken = default)
     {
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
@@ -262,7 +262,7 @@ public class SqlServerMessageStorage : IMessageStorage
         return result > 0;
     }
 
-    public async Task<bool> Update(string messageId, IMessage message, CancellationToken cancellationToken = default)
+    public async Task<bool> UpdateAsync(string messageId, IMessage message, CancellationToken cancellationToken = default)
     {
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
@@ -287,7 +287,7 @@ public class SqlServerMessageStorage : IMessageStorage
         return result > 0;
     }
 
-    public async Task<bool> Exists(string messageId, CancellationToken cancellationToken = default)
+    public async Task<bool> ExistsAsync(string messageId, CancellationToken cancellationToken = default)
     {
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
@@ -305,7 +305,7 @@ public class SqlServerMessageStorage : IMessageStorage
         return Convert.ToInt64(result ?? 0) > 0;
     }
 
-    public async Task<long> Count(MessageQuery? query = null, CancellationToken cancellationToken = default)
+    public async Task<long> CountAsync(MessageQuery? query = null, CancellationToken cancellationToken = default)
     {
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
@@ -344,7 +344,7 @@ public class SqlServerMessageStorage : IMessageStorage
         return Convert.ToInt64(result ?? 0);
     }
 
-    public async Task Clear(CancellationToken cancellationToken = default)
+    public async Task ClearAsync(CancellationToken cancellationToken = default)
     {
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);

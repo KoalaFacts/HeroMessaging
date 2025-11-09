@@ -11,7 +11,7 @@ public class InMemoryDeadLetterQueue(ILogger<InMemoryDeadLetterQueue> logger, Ti
     private readonly ILogger<InMemoryDeadLetterQueue> _logger = logger;
     private readonly TimeProvider _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
-    public Task<string> SendToDeadLetter<T>(T message, DeadLetterContext context, CancellationToken cancellationToken = default) where T : IMessage
+    public Task<string> SendToDeadLetterAsync<T>(T message, DeadLetterContext context, CancellationToken cancellationToken = default) where T : IMessage
     {
         var entry = new DeadLetterEntry<T>
         {
@@ -30,7 +30,7 @@ public class InMemoryDeadLetterQueue(ILogger<InMemoryDeadLetterQueue> logger, Ti
         return Task.FromResult(entry.Id);
     }
 
-    public Task<IEnumerable<DeadLetterEntry<T>>> GetDeadLetters<T>(int limit = 100, CancellationToken cancellationToken = default) where T : IMessage
+    public Task<IEnumerable<DeadLetterEntry<T>>> GetDeadLettersAsync<T>(int limit = 100, CancellationToken cancellationToken = default) where T : IMessage
     {
         var entries = _deadLetters.Values
             .OfType<DeadLetterEntry<T>>()
@@ -41,7 +41,7 @@ public class InMemoryDeadLetterQueue(ILogger<InMemoryDeadLetterQueue> logger, Ti
         return Task.FromResult(entries);
     }
 
-    public Task<bool> Retry<T>(string deadLetterId, CancellationToken cancellationToken = default) where T : IMessage
+    public Task<bool> RetryAsync<T>(string deadLetterId, CancellationToken cancellationToken = default) where T : IMessage
     {
         if (_deadLetters.TryGetValue(deadLetterId, out var entry))
         {
@@ -58,7 +58,7 @@ public class InMemoryDeadLetterQueue(ILogger<InMemoryDeadLetterQueue> logger, Ti
         return Task.FromResult(false);
     }
 
-    public Task<bool> Discard(string deadLetterId, CancellationToken cancellationToken = default)
+    public Task<bool> DiscardAsync(string deadLetterId, CancellationToken cancellationToken = default)
     {
         if (_deadLetters.TryGetValue(deadLetterId, out var entry))
         {
@@ -75,7 +75,7 @@ public class InMemoryDeadLetterQueue(ILogger<InMemoryDeadLetterQueue> logger, Ti
         return Task.FromResult(false);
     }
 
-    public Task<long> GetDeadLetterCount(CancellationToken cancellationToken = default)
+    public Task<long> GetDeadLetterCountAsync(CancellationToken cancellationToken = default)
     {
         var count = _deadLetters.Values
             .Cast<dynamic>()
@@ -84,7 +84,7 @@ public class InMemoryDeadLetterQueue(ILogger<InMemoryDeadLetterQueue> logger, Ti
         return Task.FromResult((long)count);
     }
 
-    public Task<DeadLetterStatistics> GetStatistics(CancellationToken cancellationToken = default)
+    public Task<DeadLetterStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default)
     {
         var allEntries = _deadLetters.Values.Cast<dynamic>().ToList();
 

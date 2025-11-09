@@ -4,21 +4,21 @@ namespace HeroMessaging.Abstractions.Storage;
 
 public interface IMessageStorage
 {
-    Task<string> Store(IMessage message, MessageStorageOptions? options = null, CancellationToken cancellationToken = default);
+    Task<string> StoreAsync(IMessage message, MessageStorageOptions? options = null, CancellationToken cancellationToken = default);
 
-    Task<T?> Retrieve<T>(string messageId, CancellationToken cancellationToken = default) where T : IMessage;
+    Task<T?> RetrieveAsync<T>(string messageId, CancellationToken cancellationToken = default) where T : IMessage;
 
-    Task<IEnumerable<T>> Query<T>(MessageQuery query, CancellationToken cancellationToken = default) where T : IMessage;
+    Task<IEnumerable<T>> QueryAsync<T>(MessageQuery query, CancellationToken cancellationToken = default) where T : IMessage;
 
-    Task<bool> Delete(string messageId, CancellationToken cancellationToken = default);
+    Task<bool> DeleteAsync(string messageId, CancellationToken cancellationToken = default);
 
-    Task<bool> Update(string messageId, IMessage message, CancellationToken cancellationToken = default);
+    Task<bool> UpdateAsync(string messageId, IMessage message, CancellationToken cancellationToken = default);
 
-    Task<bool> Exists(string messageId, CancellationToken cancellationToken = default);
+    Task<bool> ExistsAsync(string messageId, CancellationToken cancellationToken = default);
 
-    Task<long> Count(MessageQuery? query = null, CancellationToken cancellationToken = default);
+    Task<long> CountAsync(MessageQuery? query = null, CancellationToken cancellationToken = default);
 
-    Task Clear(CancellationToken cancellationToken = default);
+    Task ClearAsync(CancellationToken cancellationToken = default);
 
     Task StoreAsync(IMessage message, IStorageTransaction? transaction = null, CancellationToken cancellationToken = default);
 

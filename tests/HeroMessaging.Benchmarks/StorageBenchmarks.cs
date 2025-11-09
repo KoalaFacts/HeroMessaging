@@ -53,7 +53,7 @@ public class StorageBenchmarks
             Timestamp = DateTime.UtcNow
         };
         await _messageStorage.StoreAsync(message);
-        await _messageStorage.RetrieveAsync(id);
+        await _messageStorage.RetrieveAsync<IMessage>(id.ToString());
     }
 
     /// <summary>

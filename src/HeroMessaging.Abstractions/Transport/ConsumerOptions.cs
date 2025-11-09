@@ -3,42 +3,42 @@ namespace HeroMessaging.Abstractions.Transport;
 /// <summary>
 /// Options for configuring message consumers
 /// </summary>
-public class ConsumerOptions
+public record ConsumerOptions
 {
     /// <summary>
     /// Consumer identifier (auto-generated if not specified)
     /// </summary>
-    public string? ConsumerId { get; set; }
+    public string? ConsumerId { get; init; }
 
     /// <summary>
     /// Consumer group name (for competing consumers)
     /// </summary>
-    public string? ConsumerGroup { get; set; }
+    public string? ConsumerGroup { get; init; }
 
     /// <summary>
     /// Maximum number of concurrent messages to process
     /// </summary>
-    public int ConcurrentMessageLimit { get; set; } = 1;
+    public int ConcurrentMessageLimit { get; init; } = 1;
 
     /// <summary>
     /// Prefetch count (number of messages to fetch ahead)
     /// </summary>
-    public ushort PrefetchCount { get; set; } = 10;
+    public ushort PrefetchCount { get; init; } = 10;
 
     /// <summary>
     /// Whether to automatically acknowledge messages after successful processing
     /// </summary>
-    public bool AutoAcknowledge { get; set; } = true;
+    public bool AutoAcknowledge { get; init; } = true;
 
     /// <summary>
     /// Whether to requeue messages on failure
     /// </summary>
-    public bool RequeueOnFailure { get; set; } = true;
+    public bool RequeueOnFailure { get; init; } = true;
 
     /// <summary>
     /// Retry policy for failed message processing
     /// </summary>
-    public RetryPolicy MessageRetryPolicy { get; set; } = new()
+    public RetryPolicy MessageRetryPolicy { get; init; } = new()
     {
         MaxAttempts = 3,
         InitialDelay = TimeSpan.FromSeconds(5),
@@ -49,32 +49,32 @@ public class ConsumerOptions
     /// <summary>
     /// Message lock duration (for brokers that support message locking)
     /// </summary>
-    public TimeSpan? MessageLockDuration { get; set; }
+    public TimeSpan? MessageLockDuration { get; init; }
 
     /// <summary>
     /// Whether to enable batching
     /// </summary>
-    public bool EnableBatching { get; set; }
+    public bool EnableBatching { get; init; }
 
     /// <summary>
     /// Maximum batch size
     /// </summary>
-    public int MaxBatchSize { get; set; } = 100;
+    public int MaxBatchSize { get; init; } = 100;
 
     /// <summary>
     /// Batch timeout
     /// </summary>
-    public TimeSpan BatchTimeout { get; set; } = TimeSpan.FromSeconds(1);
+    public TimeSpan BatchTimeout { get; init; } = TimeSpan.FromSeconds(1);
 
     /// <summary>
     /// Whether to start consuming immediately
     /// </summary>
-    public bool StartImmediately { get; set; } = true;
+    public bool StartImmediately { get; init; } = true;
 
     /// <summary>
     /// Custom properties for transport-specific configuration
     /// </summary>
-    public Dictionary<string, object>? Properties { get; set; }
+    public Dictionary<string, object>? Properties { get; init; }
 
     /// <summary>
     /// Create default consumer options

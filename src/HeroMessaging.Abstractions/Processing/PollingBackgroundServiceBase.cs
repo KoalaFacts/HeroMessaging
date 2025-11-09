@@ -35,7 +35,7 @@ public abstract class PollingBackgroundServiceBase<TWorkItem>
     /// <summary>
     /// Starts the background polling service
     /// </summary>
-    public Task Start(CancellationToken cancellationToken = default)
+    public Task StartAsync(CancellationToken cancellationToken = default)
     {
         if (_cancellationTokenSource != null)
             return Task.CompletedTask;
@@ -50,7 +50,7 @@ public abstract class PollingBackgroundServiceBase<TWorkItem>
     /// <summary>
     /// Stops the background polling service
     /// </summary>
-    public async Task Stop()
+    public async Task StopAsync()
     {
         _cancellationTokenSource?.Cancel();
         _processingBlock.Complete();

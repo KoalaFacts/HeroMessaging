@@ -22,20 +22,20 @@ public class QueueProcessor(
 
     public async Task Enqueue(IMessage message, string queueName, EnqueueOptions? options = null, CancellationToken cancellationToken = default)
     {
-        if (!await _queueStorage.QueueExists(queueName, cancellationToken))
+        if (!await _queueStorage.QueueExistsAsync(queueName, cancellationToken))
         {
-            await _queueStorage.CreateQueue(queueName, null, cancellationToken);
+            await _queueStorage.CreateQueueAsync(queueName, null, cancellationToken);
         }
 
-        await _queueStorage.Enqueue(queueName, message, options, cancellationToken);
+        await _queueStorage.EnqueueAsync(queueName, message, options, cancellationToken);
         _logger.LogDebug("Message enqueued to {QueueName} with priority {Priority}", queueName, options?.Priority ?? 0);
     }
 
     public async Task StartQueue(string queueName, CancellationToken cancellationToken = default)
     {
-        if (!await _queueStorage.QueueExists(queueName, cancellationToken))
+        if (!await _queueStorage.QueueExistsAsync(queueName, cancellationToken))
         {
-            await _queueStorage.CreateQueue(queueName, null, cancellationToken);
+            await _queueStorage.CreateQueueAsync(queueName, null, cancellationToken);
         }
 
         var worker = _workers.GetOrAdd(queueName, _ => new QueueWorker(
@@ -57,7 +57,7 @@ public class QueueProcessor(
 
     public async Task<long> GetQueueDepth(string queueName, CancellationToken cancellationToken = default)
     {
-        return await _queueStorage.GetQueueDepth(queueName, cancellationToken);
+        return await _queueStorage.GetQueueDepthAsync(queueName, cancellationToken);
     }
 
     private class QueueWorker
@@ -130,7 +130,7 @@ public class QueueProcessor(
             {
                 try
                 {
-                    var entry = await _storage.Dequeue(_queueName, cancellationToken);
+                    var entry = await _storage.DequeueAsync(_queueName, cancellationToken);
                     if (entry != null)
                     {
                         await _processingBlock.SendAsync(entry, cancellationToken);
@@ -179,7 +179,7 @@ public class QueueProcessor(
                         break;
                 }
 
-                await _storage.Acknowledge(_queueName, entry.Id);
+                await _storage.AcknowledgeAsync(_queueName, entry.Id);
                 _logger.LogDebug("Message {MessageId} processed successfully from queue {QueueName}",
                     entry.Message.MessageId, _queueName);
             }
@@ -188,7 +188,7 @@ public class QueueProcessor(
                 _logger.LogError(ex, "Error processing message {MessageId} from queue {QueueName}",
                     entry.Message.MessageId, _queueName);
 
-                await _storage.Reject(_queueName, entry.Id, requeue: entry.DequeueCount < 3);
+                await _storage.RejectAsync(_queueName, entry.Id, requeue: entry.DequeueCount < 3);
             }
         }
     }

@@ -95,7 +95,7 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
         await _schemaInitializer.ExecuteSchemaScriptAsync(createTableSql);
     }
 
-    public async Task<OutboxEntry> Add(IMessage message, OutboxOptions options, CancellationToken cancellationToken = default)
+    public async Task<OutboxEntry> AddAsync(IMessage message, OutboxOptions options, CancellationToken cancellationToken = default)
     {
         var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
         var transaction = _connectionProvider.GetTransaction();
@@ -138,7 +138,7 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
         }
     }
 
-    public async Task<IEnumerable<OutboxEntry>> GetPending(OutboxQuery query, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<OutboxEntry>> GetPendingAsync(OutboxQuery query, CancellationToken cancellationToken = default)
     {
         var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
         var transaction = _connectionProvider.GetTransaction();
@@ -227,7 +227,7 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
         }
     }
 
-    public async Task<IEnumerable<OutboxEntry>> GetPending(int limit = 100, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<OutboxEntry>> GetPendingAsync(int limit = 100, CancellationToken cancellationToken = default)
     {
         var query = new OutboxQuery
         {
@@ -235,10 +235,10 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
             Limit = limit
         };
 
-        return await GetPending(query, cancellationToken);
+        return await GetPendingAsync(query, cancellationToken);
     }
 
-    public async Task<bool> MarkProcessed(string entryId, CancellationToken cancellationToken = default)
+    public async Task<bool> MarkProcessedAsync(string entryId, CancellationToken cancellationToken = default)
     {
         var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
         var transaction = _connectionProvider.GetTransaction();
@@ -265,7 +265,7 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
         }
     }
 
-    public async Task<bool> MarkFailed(string entryId, string error, CancellationToken cancellationToken = default)
+    public async Task<bool> MarkFailedAsync(string entryId, string error, CancellationToken cancellationToken = default)
     {
         var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
         var transaction = _connectionProvider.GetTransaction();
@@ -293,7 +293,7 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
         }
     }
 
-    public async Task<bool> UpdateRetryCount(string entryId, int retryCount, DateTime? nextRetry = null, CancellationToken cancellationToken = default)
+    public async Task<bool> UpdateRetryCountAsync(string entryId, int retryCount, DateTime? nextRetry = null, CancellationToken cancellationToken = default)
     {
         var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
         var transaction = _connectionProvider.GetTransaction();
@@ -320,7 +320,7 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
         }
     }
 
-    public async Task<long> GetPendingCount(CancellationToken cancellationToken = default)
+    public async Task<long> GetPendingCountAsync(CancellationToken cancellationToken = default)
     {
         var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
         var transaction = _connectionProvider.GetTransaction();
@@ -339,7 +339,7 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
         }
     }
 
-    public async Task<IEnumerable<OutboxEntry>> GetFailed(int limit = 100, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<OutboxEntry>> GetFailedAsync(int limit = 100, CancellationToken cancellationToken = default)
     {
         var query = new OutboxQuery
         {
@@ -347,6 +347,6 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
             Limit = limit
         };
 
-        return await GetPending(query, cancellationToken);
+        return await GetPendingAsync(query, cancellationToken);
     }
 }

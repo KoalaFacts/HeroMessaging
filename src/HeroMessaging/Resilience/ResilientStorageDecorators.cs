@@ -13,52 +13,52 @@ public class ResilientMessageStorageDecorator(
     private readonly IMessageStorage _inner = inner ?? throw new ArgumentNullException(nameof(inner));
     private readonly IConnectionResiliencePolicy _resiliencePolicy = resiliencePolicy ?? throw new ArgumentNullException(nameof(resiliencePolicy));
 
-    public async Task<string> Store(IMessage message, MessageStorageOptions? options = null, CancellationToken cancellationToken = default)
+    public async Task<string> StoreAsync(IMessage message, MessageStorageOptions? options = null, CancellationToken cancellationToken = default)
     {
         return await _resiliencePolicy.ExecuteAsync(async () =>
-            await _inner.Store(message, options, cancellationToken), "StoreMessage", cancellationToken);
+            await _inner.StoreAsync(message, options, cancellationToken), "StoreMessage", cancellationToken);
     }
 
-    public async Task<T?> Retrieve<T>(string messageId, CancellationToken cancellationToken = default) where T : IMessage
+    public async Task<T?> RetrieveAsync<T>(string messageId, CancellationToken cancellationToken = default) where T : IMessage
     {
         return await _resiliencePolicy.ExecuteAsync(async () =>
-            await _inner.Retrieve<T>(messageId, cancellationToken), "RetrieveMessage", cancellationToken);
+            await _inner.RetrieveAsync<T>(messageId, cancellationToken), "RetrieveMessage", cancellationToken);
     }
 
-    public async Task<IEnumerable<T>> Query<T>(MessageQuery query, CancellationToken cancellationToken = default) where T : IMessage
+    public async Task<IEnumerable<T>> QueryAsync<T>(MessageQuery query, CancellationToken cancellationToken = default) where T : IMessage
     {
         return await _resiliencePolicy.ExecuteAsync(async () =>
-            await _inner.Query<T>(query, cancellationToken), "QueryMessages", cancellationToken);
+            await _inner.QueryAsync<T>(query, cancellationToken), "QueryMessages", cancellationToken);
     }
 
-    public async Task<bool> Delete(string messageId, CancellationToken cancellationToken = default)
+    public async Task<bool> DeleteAsync(string messageId, CancellationToken cancellationToken = default)
     {
         return await _resiliencePolicy.ExecuteAsync(async () =>
-            await _inner.Delete(messageId, cancellationToken), "DeleteMessage", cancellationToken);
+            await _inner.DeleteAsync(messageId, cancellationToken), "DeleteMessage", cancellationToken);
     }
 
-    public async Task<bool> Update(string messageId, IMessage message, CancellationToken cancellationToken = default)
+    public async Task<bool> UpdateAsync(string messageId, IMessage message, CancellationToken cancellationToken = default)
     {
         return await _resiliencePolicy.ExecuteAsync(async () =>
-            await _inner.Update(messageId, message, cancellationToken), "UpdateMessage", cancellationToken);
+            await _inner.UpdateAsync(messageId, message, cancellationToken), "UpdateMessage", cancellationToken);
     }
 
-    public async Task<bool> Exists(string messageId, CancellationToken cancellationToken = default)
+    public async Task<bool> ExistsAsync(string messageId, CancellationToken cancellationToken = default)
     {
         return await _resiliencePolicy.ExecuteAsync(async () =>
-            await _inner.Exists(messageId, cancellationToken), "MessageExists", cancellationToken);
+            await _inner.ExistsAsync(messageId, cancellationToken), "MessageExists", cancellationToken);
     }
 
-    public async Task<long> Count(MessageQuery? query = null, CancellationToken cancellationToken = default)
+    public async Task<long> CountAsync(MessageQuery? query = null, CancellationToken cancellationToken = default)
     {
         return await _resiliencePolicy.ExecuteAsync(async () =>
-            await _inner.Count(query, cancellationToken), "CountMessages", cancellationToken);
+            await _inner.CountAsync(query, cancellationToken), "CountMessages", cancellationToken);
     }
 
-    public async Task Clear(CancellationToken cancellationToken = default)
+    public async Task ClearAsync(CancellationToken cancellationToken = default)
     {
         await _resiliencePolicy.ExecuteAsync(async () =>
-            await _inner.Clear(cancellationToken), "ClearMessages", cancellationToken);
+            await _inner.ClearAsync(cancellationToken), "ClearMessages", cancellationToken);
     }
 
     public async Task StoreAsync(IMessage message, IStorageTransaction? transaction = null, CancellationToken cancellationToken = default)
@@ -102,52 +102,52 @@ public class ResilientOutboxStorageDecorator(
     private readonly IOutboxStorage _inner = inner ?? throw new ArgumentNullException(nameof(inner));
     private readonly IConnectionResiliencePolicy _resiliencePolicy = resiliencePolicy ?? throw new ArgumentNullException(nameof(resiliencePolicy));
 
-    public async Task<OutboxEntry> Add(IMessage message, Abstractions.OutboxOptions options, CancellationToken cancellationToken = default)
+    public async Task<OutboxEntry> AddAsync(IMessage message, Abstractions.OutboxOptions options, CancellationToken cancellationToken = default)
     {
         return await _resiliencePolicy.ExecuteAsync(async () =>
-            await _inner.Add(message, options, cancellationToken), "AddOutboxMessage", cancellationToken);
+            await _inner.AddAsync(message, options, cancellationToken), "AddOutboxMessage", cancellationToken);
     }
 
-    public async Task<IEnumerable<OutboxEntry>> GetPending(OutboxQuery query, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<OutboxEntry>> GetPendingAsync(OutboxQuery query, CancellationToken cancellationToken = default)
     {
         return await _resiliencePolicy.ExecuteAsync(async () =>
-            await _inner.GetPending(query, cancellationToken), "GetPendingOutboxMessages", cancellationToken);
+            await _inner.GetPendingAsync(query, cancellationToken), "GetPendingOutboxMessages", cancellationToken);
     }
 
-    public async Task<IEnumerable<OutboxEntry>> GetPending(int limit = 100, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<OutboxEntry>> GetPendingAsync(int limit = 100, CancellationToken cancellationToken = default)
     {
         return await _resiliencePolicy.ExecuteAsync(async () =>
-            await _inner.GetPending(limit, cancellationToken), "GetPendingOutboxMessages", cancellationToken);
+            await _inner.GetPendingAsync(limit, cancellationToken), "GetPendingOutboxMessages", cancellationToken);
     }
 
-    public async Task<bool> MarkProcessed(string entryId, CancellationToken cancellationToken = default)
+    public async Task<bool> MarkProcessedAsync(string entryId, CancellationToken cancellationToken = default)
     {
         return await _resiliencePolicy.ExecuteAsync(async () =>
-            await _inner.MarkProcessed(entryId, cancellationToken), "MarkOutboxProcessed", cancellationToken);
+            await _inner.MarkProcessedAsync(entryId, cancellationToken), "MarkOutboxProcessed", cancellationToken);
     }
 
-    public async Task<bool> MarkFailed(string entryId, string error, CancellationToken cancellationToken = default)
+    public async Task<bool> MarkFailedAsync(string entryId, string error, CancellationToken cancellationToken = default)
     {
         return await _resiliencePolicy.ExecuteAsync(async () =>
-            await _inner.MarkFailed(entryId, error, cancellationToken), "MarkOutboxFailed", cancellationToken);
+            await _inner.MarkFailedAsync(entryId, error, cancellationToken), "MarkOutboxFailed", cancellationToken);
     }
 
-    public async Task<bool> UpdateRetryCount(string entryId, int retryCount, DateTime? nextRetry = null, CancellationToken cancellationToken = default)
+    public async Task<bool> UpdateRetryCountAsync(string entryId, int retryCount, DateTime? nextRetry = null, CancellationToken cancellationToken = default)
     {
         return await _resiliencePolicy.ExecuteAsync(async () =>
-            await _inner.UpdateRetryCount(entryId, retryCount, nextRetry, cancellationToken), "UpdateOutboxRetryCount", cancellationToken);
+            await _inner.UpdateRetryCountAsync(entryId, retryCount, nextRetry, cancellationToken), "UpdateOutboxRetryCount", cancellationToken);
     }
 
-    public async Task<long> GetPendingCount(CancellationToken cancellationToken = default)
+    public async Task<long> GetPendingCountAsync(CancellationToken cancellationToken = default)
     {
         return await _resiliencePolicy.ExecuteAsync(async () =>
-            await _inner.GetPendingCount(cancellationToken), "GetOutboxPendingCount", cancellationToken);
+            await _inner.GetPendingCountAsync(cancellationToken), "GetOutboxPendingCount", cancellationToken);
     }
 
-    public async Task<IEnumerable<OutboxEntry>> GetFailed(int limit = 100, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<OutboxEntry>> GetFailedAsync(int limit = 100, CancellationToken cancellationToken = default)
     {
         return await _resiliencePolicy.ExecuteAsync(async () =>
-            await _inner.GetFailed(limit, cancellationToken), "GetFailedOutboxMessages", cancellationToken);
+            await _inner.GetFailedAsync(limit, cancellationToken), "GetFailedOutboxMessages", cancellationToken);
     }
 }
 
@@ -161,58 +161,58 @@ public class ResilientInboxStorageDecorator(
     private readonly IInboxStorage _inner = inner ?? throw new ArgumentNullException(nameof(inner));
     private readonly IConnectionResiliencePolicy _resiliencePolicy = resiliencePolicy ?? throw new ArgumentNullException(nameof(resiliencePolicy));
 
-    public async Task<InboxEntry?> Add(IMessage message, Abstractions.InboxOptions options, CancellationToken cancellationToken = default)
+    public async Task<InboxEntry?> AddAsync(IMessage message, Abstractions.InboxOptions options, CancellationToken cancellationToken = default)
     {
         return await _resiliencePolicy.ExecuteAsync(async () =>
-            await _inner.Add(message, options, cancellationToken), "AddInboxMessage", cancellationToken);
+            await _inner.AddAsync(message, options, cancellationToken), "AddInboxMessage", cancellationToken);
     }
 
-    public async Task<bool> IsDuplicate(string messageId, TimeSpan? window = null, CancellationToken cancellationToken = default)
+    public async Task<bool> IsDuplicateAsync(string messageId, TimeSpan? window = null, CancellationToken cancellationToken = default)
     {
         return await _resiliencePolicy.ExecuteAsync(async () =>
-            await _inner.IsDuplicate(messageId, window, cancellationToken), "CheckInboxDuplicate", cancellationToken);
+            await _inner.IsDuplicateAsync(messageId, window, cancellationToken), "CheckInboxDuplicate", cancellationToken);
     }
 
-    public async Task<InboxEntry?> Get(string messageId, CancellationToken cancellationToken = default)
+    public async Task<InboxEntry?> GetAsync(string messageId, CancellationToken cancellationToken = default)
     {
         return await _resiliencePolicy.ExecuteAsync(async () =>
-            await _inner.Get(messageId, cancellationToken), "GetInboxMessage", cancellationToken);
+            await _inner.GetAsync(messageId, cancellationToken), "GetInboxMessage", cancellationToken);
     }
 
-    public async Task<bool> MarkProcessed(string messageId, CancellationToken cancellationToken = default)
+    public async Task<bool> MarkProcessedAsync(string messageId, CancellationToken cancellationToken = default)
     {
         return await _resiliencePolicy.ExecuteAsync(async () =>
-            await _inner.MarkProcessed(messageId, cancellationToken), "MarkInboxProcessed", cancellationToken);
+            await _inner.MarkProcessedAsync(messageId, cancellationToken), "MarkInboxProcessed", cancellationToken);
     }
 
-    public async Task<bool> MarkFailed(string messageId, string error, CancellationToken cancellationToken = default)
+    public async Task<bool> MarkFailedAsync(string messageId, string error, CancellationToken cancellationToken = default)
     {
         return await _resiliencePolicy.ExecuteAsync(async () =>
-            await _inner.MarkFailed(messageId, error, cancellationToken), "MarkInboxFailed", cancellationToken);
+            await _inner.MarkFailedAsync(messageId, error, cancellationToken), "MarkInboxFailed", cancellationToken);
     }
 
-    public async Task<IEnumerable<InboxEntry>> GetPending(InboxQuery query, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<InboxEntry>> GetPendingAsync(InboxQuery query, CancellationToken cancellationToken = default)
     {
         return await _resiliencePolicy.ExecuteAsync(async () =>
-            await _inner.GetPending(query, cancellationToken), "GetPendingInboxMessages", cancellationToken);
+            await _inner.GetPendingAsync(query, cancellationToken), "GetPendingInboxMessages", cancellationToken);
     }
 
-    public async Task<IEnumerable<InboxEntry>> GetUnprocessed(int limit = 100, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<InboxEntry>> GetUnprocessedAsync(int limit = 100, CancellationToken cancellationToken = default)
     {
         return await _resiliencePolicy.ExecuteAsync(async () =>
-            await _inner.GetUnprocessed(limit, cancellationToken), "GetUnprocessedInboxMessages", cancellationToken);
+            await _inner.GetUnprocessedAsync(limit, cancellationToken), "GetUnprocessedInboxMessages", cancellationToken);
     }
 
-    public async Task<long> GetUnprocessedCount(CancellationToken cancellationToken = default)
+    public async Task<long> GetUnprocessedCountAsync(CancellationToken cancellationToken = default)
     {
         return await _resiliencePolicy.ExecuteAsync(async () =>
-            await _inner.GetUnprocessedCount(cancellationToken), "GetInboxUnprocessedCount", cancellationToken);
+            await _inner.GetUnprocessedCountAsync(cancellationToken), "GetInboxUnprocessedCount", cancellationToken);
     }
 
-    public async Task CleanupOldEntries(TimeSpan olderThan, CancellationToken cancellationToken = default)
+    public async Task CleanupOldEntriesAsync(TimeSpan olderThan, CancellationToken cancellationToken = default)
     {
         await _resiliencePolicy.ExecuteAsync(async () =>
-            await _inner.CleanupOldEntries(olderThan, cancellationToken), "CleanupOldInboxEntries", cancellationToken);
+            await _inner.CleanupOldEntriesAsync(olderThan, cancellationToken), "CleanupOldInboxEntries", cancellationToken);
     }
 }
 
@@ -226,63 +226,63 @@ public class ResilientQueueStorageDecorator(
     private readonly IQueueStorage _inner = inner ?? throw new ArgumentNullException(nameof(inner));
     private readonly IConnectionResiliencePolicy _resiliencePolicy = resiliencePolicy ?? throw new ArgumentNullException(nameof(resiliencePolicy));
 
-    public async Task<QueueEntry> Enqueue(string queueName, IMessage message, Abstractions.EnqueueOptions? options = null, CancellationToken cancellationToken = default)
+    public async Task<QueueEntry> EnqueueAsync(string queueName, IMessage message, Abstractions.EnqueueOptions? options = null, CancellationToken cancellationToken = default)
     {
         return await _resiliencePolicy.ExecuteAsync(async () =>
-            await _inner.Enqueue(queueName, message, options, cancellationToken), "EnqueueMessage", cancellationToken);
+            await _inner.EnqueueAsync(queueName, message, options, cancellationToken), "EnqueueMessage", cancellationToken);
     }
 
-    public async Task<QueueEntry?> Dequeue(string queueName, CancellationToken cancellationToken = default)
+    public async Task<QueueEntry?> DequeueAsync(string queueName, CancellationToken cancellationToken = default)
     {
         return await _resiliencePolicy.ExecuteAsync(async () =>
-            await _inner.Dequeue(queueName, cancellationToken), "DequeueMessage", cancellationToken);
+            await _inner.DequeueAsync(queueName, cancellationToken), "DequeueMessage", cancellationToken);
     }
 
-    public async Task<IEnumerable<QueueEntry>> Peek(string queueName, int count = 1, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<QueueEntry>> PeekAsync(string queueName, int count = 1, CancellationToken cancellationToken = default)
     {
         return await _resiliencePolicy.ExecuteAsync(async () =>
-            await _inner.Peek(queueName, count, cancellationToken), "PeekQueueMessages", cancellationToken);
+            await _inner.PeekAsync(queueName, count, cancellationToken), "PeekQueueMessages", cancellationToken);
     }
 
-    public async Task<bool> Acknowledge(string queueName, string entryId, CancellationToken cancellationToken = default)
+    public async Task<bool> AcknowledgeAsync(string queueName, string entryId, CancellationToken cancellationToken = default)
     {
         return await _resiliencePolicy.ExecuteAsync(async () =>
-            await _inner.Acknowledge(queueName, entryId, cancellationToken), "AcknowledgeMessage", cancellationToken);
+            await _inner.AcknowledgeAsync(queueName, entryId, cancellationToken), "AcknowledgeMessage", cancellationToken);
     }
 
-    public async Task<bool> Reject(string queueName, string entryId, bool requeue = false, CancellationToken cancellationToken = default)
+    public async Task<bool> RejectAsync(string queueName, string entryId, bool requeue = false, CancellationToken cancellationToken = default)
     {
         return await _resiliencePolicy.ExecuteAsync(async () =>
-            await _inner.Reject(queueName, entryId, requeue, cancellationToken), "RejectMessage", cancellationToken);
+            await _inner.RejectAsync(queueName, entryId, requeue, cancellationToken), "RejectMessage", cancellationToken);
     }
 
-    public async Task<long> GetQueueDepth(string queueName, CancellationToken cancellationToken = default)
+    public async Task<long> GetQueueDepthAsync(string queueName, CancellationToken cancellationToken = default)
     {
         return await _resiliencePolicy.ExecuteAsync(async () =>
-            await _inner.GetQueueDepth(queueName, cancellationToken), "GetQueueDepth", cancellationToken);
+            await _inner.GetQueueDepthAsync(queueName, cancellationToken), "GetQueueDepth", cancellationToken);
     }
 
-    public async Task<bool> CreateQueue(string queueName, QueueOptions? options = null, CancellationToken cancellationToken = default)
+    public async Task<bool> CreateQueueAsync(string queueName, QueueOptions? options = null, CancellationToken cancellationToken = default)
     {
         return await _resiliencePolicy.ExecuteAsync(async () =>
-            await _inner.CreateQueue(queueName, options, cancellationToken), "CreateQueue", cancellationToken);
+            await _inner.CreateQueueAsync(queueName, options, cancellationToken), "CreateQueue", cancellationToken);
     }
 
-    public async Task<bool> DeleteQueue(string queueName, CancellationToken cancellationToken = default)
+    public async Task<bool> DeleteQueueAsync(string queueName, CancellationToken cancellationToken = default)
     {
         return await _resiliencePolicy.ExecuteAsync(async () =>
-            await _inner.DeleteQueue(queueName, cancellationToken), "DeleteQueue", cancellationToken);
+            await _inner.DeleteQueueAsync(queueName, cancellationToken), "DeleteQueue", cancellationToken);
     }
 
-    public async Task<IEnumerable<string>> GetQueues(CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<string>> GetQueuesAsync(CancellationToken cancellationToken = default)
     {
         return await _resiliencePolicy.ExecuteAsync(async () =>
-            await _inner.GetQueues(cancellationToken), "GetQueues", cancellationToken);
+            await _inner.GetQueuesAsync(cancellationToken), "GetQueues", cancellationToken);
     }
 
-    public async Task<bool> QueueExists(string queueName, CancellationToken cancellationToken = default)
+    public async Task<bool> QueueExistsAsync(string queueName, CancellationToken cancellationToken = default)
     {
         return await _resiliencePolicy.ExecuteAsync(async () =>
-            await _inner.QueueExists(queueName, cancellationToken), "QueueExists", cancellationToken);
+            await _inner.QueueExistsAsync(queueName, cancellationToken), "QueueExists", cancellationToken);
     }
 }

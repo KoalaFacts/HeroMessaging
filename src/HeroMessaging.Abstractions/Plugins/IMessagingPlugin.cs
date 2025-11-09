@@ -8,7 +8,7 @@ public interface IMessagingPlugin
 
     void Configure(IServiceCollection services);
 
-    Task Initialize(IServiceProvider services, CancellationToken cancellationToken = default);
+    Task InitializeAsync(IServiceProvider services, CancellationToken cancellationToken = default);
 
-    Task Shutdown(CancellationToken cancellationToken = default);
+    Task ShutdownAsync(CancellationToken cancellationToken = default);
 }

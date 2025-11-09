@@ -37,7 +37,7 @@ public class DefaultErrorHandler(ILogger<DefaultErrorHandler> logger, IDeadLette
             var reason = $"Max retries ({context.MaxRetries}) exceeded. Last error: {error.Message}";
             _logger.LogError("Message {MessageId} exceeded max retries. Sending to dead letter queue.", message.MessageId);
 
-            await _deadLetterQueue.SendToDeadLetter(message, new DeadLetterContext
+            await _deadLetterQueue.SendToDeadLetterAsync(message, new DeadLetterContext
             {
                 Reason = reason,
                 Exception = error,
@@ -52,7 +52,7 @@ public class DefaultErrorHandler(ILogger<DefaultErrorHandler> logger, IDeadLette
 
         // Default: send to dead letter
         var defaultReason = $"Unhandled error: {error.Message}";
-        await _deadLetterQueue.SendToDeadLetter(message, new DeadLetterContext
+        await _deadLetterQueue.SendToDeadLetterAsync(message, new DeadLetterContext
         {
             Reason = defaultReason,
             Exception = error,

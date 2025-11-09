@@ -15,7 +15,7 @@ public class InMemoryOutboxStorage : IOutboxStorage
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
 
-    public Task<OutboxEntry> Add(IMessage message, OutboxOptions options, CancellationToken cancellationToken = default)
+    public Task<OutboxEntry> AddAsync(IMessage message, OutboxOptions options, CancellationToken cancellationToken = default)
     {
         var entry = new OutboxEntry
         {
@@ -30,7 +30,7 @@ public class InMemoryOutboxStorage : IOutboxStorage
         return Task.FromResult(entry);
     }
 
-    public Task<IEnumerable<OutboxEntry>> GetPending(OutboxQuery query, CancellationToken cancellationToken = default)
+    public Task<IEnumerable<OutboxEntry>> GetPendingAsync(OutboxQuery query, CancellationToken cancellationToken = default)
     {
         var pending = _entries.Values.AsEnumerable();
 
@@ -71,7 +71,7 @@ public class InMemoryOutboxStorage : IOutboxStorage
         return Task.FromResult(pending);
     }
 
-    public Task<IEnumerable<OutboxEntry>> GetPending(int limit = 100, CancellationToken cancellationToken = default)
+    public Task<IEnumerable<OutboxEntry>> GetPendingAsync(int limit = 100, CancellationToken cancellationToken = default)
     {
         var pending = _entries.Values
             .Where(e => e.Status == OutboxStatus.Pending &&
@@ -83,7 +83,7 @@ public class InMemoryOutboxStorage : IOutboxStorage
         return Task.FromResult(pending);
     }
 
-    public Task<bool> MarkProcessed(string entryId, CancellationToken cancellationToken = default)
+    public Task<bool> MarkProcessedAsync(string entryId, CancellationToken cancellationToken = default)
     {
         if (_entries.TryGetValue(entryId, out var entry))
         {
@@ -95,7 +95,7 @@ public class InMemoryOutboxStorage : IOutboxStorage
         return Task.FromResult(false);
     }
 
-    public Task<bool> MarkFailed(string entryId, string error, CancellationToken cancellationToken = default)
+    public Task<bool> MarkFailedAsync(string entryId, string error, CancellationToken cancellationToken = default)
     {
         if (_entries.TryGetValue(entryId, out var entry))
         {
@@ -107,7 +107,7 @@ public class InMemoryOutboxStorage : IOutboxStorage
         return Task.FromResult(false);
     }
 
-    public Task<bool> UpdateRetryCount(string entryId, int retryCount, DateTime? nextRetry = null, CancellationToken cancellationToken = default)
+    public Task<bool> UpdateRetryCountAsync(string entryId, int retryCount, DateTime? nextRetry = null, CancellationToken cancellationToken = default)
     {
         if (_entries.TryGetValue(entryId, out var entry))
         {
@@ -125,13 +125,13 @@ public class InMemoryOutboxStorage : IOutboxStorage
         return Task.FromResult(false);
     }
 
-    public Task<long> GetPendingCount(CancellationToken cancellationToken = default)
+    public Task<long> GetPendingCountAsync(CancellationToken cancellationToken = default)
     {
         var count = _entries.Values.Count(e => e.Status == OutboxStatus.Pending);
         return Task.FromResult((long)count);
     }
 
-    public Task<IEnumerable<OutboxEntry>> GetFailed(int limit = 100, CancellationToken cancellationToken = default)
+    public Task<IEnumerable<OutboxEntry>> GetFailedAsync(int limit = 100, CancellationToken cancellationToken = default)
     {
         var failed = _entries.Values
             .Where(e => e.Status == OutboxStatus.Failed)

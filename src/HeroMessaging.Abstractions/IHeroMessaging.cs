@@ -37,19 +37,19 @@ public record EnqueueOptions
     public Dictionary<string, object>? Metadata { get; init; }
 }
 
-public class OutboxOptions
+public record OutboxOptions
 {
-    public string? Destination { get; set; }
-    public int Priority { get; set; } = 0;
-    public int MaxRetries { get; set; } = 3;
-    public TimeSpan? RetryDelay { get; set; }
+    public string? Destination { get; init; }
+    public int Priority { get; init; } = 0;
+    public int MaxRetries { get; init; } = 3;
+    public TimeSpan? RetryDelay { get; init; }
 }
 
-public class InboxOptions
+public record InboxOptions
 {
-    public string? Source { get; set; }
-    public bool RequireIdempotency { get; set; } = true;
-    public TimeSpan? DeduplicationWindow { get; set; }
+    public string? Source { get; init; }
+    public bool RequireIdempotency { get; init; } = true;
+    public TimeSpan? DeduplicationWindow { get; init; }
 }
 
 public class MessagingMetrics

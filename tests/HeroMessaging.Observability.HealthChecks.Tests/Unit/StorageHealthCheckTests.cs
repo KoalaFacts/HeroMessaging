@@ -36,7 +36,7 @@ public class StorageHealthCheckTests
             _deleteFunc = deleteFunc;
         }
 
-        public Task<string> Store(IMessage message, MessageStorageOptions? options = null, CancellationToken cancellationToken = default)
+        public Task<string> StoreAsync(IMessage message, MessageStorageOptions? options = null, CancellationToken cancellationToken = default)
         {
             if (_storeFunc != null)
                 return _storeFunc(message, options, cancellationToken);
@@ -47,7 +47,7 @@ public class StorageHealthCheckTests
             return Task.FromResult(_lastStoredId);
         }
 
-        public Task<T?> Retrieve<T>(string messageId, CancellationToken cancellationToken = default) where T : IMessage
+        public Task<T?> RetrieveAsync<T>(string messageId, CancellationToken cancellationToken = default) where T : IMessage
         {
             if (_retrieveFunc != null)
             {
@@ -62,7 +62,7 @@ public class StorageHealthCheckTests
             return Task.FromResult<T?>(default);
         }
 
-        public Task<bool> Delete(string messageId, CancellationToken cancellationToken = default)
+        public Task<bool> DeleteAsync(string messageId, CancellationToken cancellationToken = default)
         {
             if (_deleteFunc != null)
                 return _deleteFunc(messageId, cancellationToken);
@@ -71,19 +71,19 @@ public class StorageHealthCheckTests
         }
 
         // Other interface methods - not used by MessageStorageHealthCheck but required by interface
-        public Task<IEnumerable<T>> Query<T>(MessageQuery query, CancellationToken cancellationToken = default) where T : IMessage
+        public Task<IEnumerable<T>> QueryAsync<T>(MessageQuery query, CancellationToken cancellationToken = default) where T : IMessage
             => Task.FromResult(Enumerable.Empty<T>());
 
-        public Task<bool> Update(string messageId, IMessage message, CancellationToken cancellationToken = default)
+        public Task<bool> UpdateAsync(string messageId, IMessage message, CancellationToken cancellationToken = default)
             => Task.FromResult(false);
 
-        public Task<bool> Exists(string messageId, CancellationToken cancellationToken = default)
+        public Task<bool> ExistsAsync(string messageId, CancellationToken cancellationToken = default)
             => Task.FromResult(false);
 
-        public Task<long> Count(MessageQuery? query = null, CancellationToken cancellationToken = default)
+        public Task<long> CountAsync(MessageQuery? query = null, CancellationToken cancellationToken = default)
             => Task.FromResult(0L);
 
-        public Task Clear(CancellationToken cancellationToken = default)
+        public Task ClearAsync(CancellationToken cancellationToken = default)
             => Task.CompletedTask;
 
         public Task StoreAsync(IMessage message, IStorageTransaction? transaction = null, CancellationToken cancellationToken = default)
@@ -151,7 +151,7 @@ public class StorageHealthCheckTests
         var expectedException = new InvalidOperationException("Database connection failed");
 
         mockStorage
-            .Setup(s => s.Store(It.IsAny<IMessage>(), It.IsAny<MessageStorageOptions?>(), It.IsAny<CancellationToken>()))
+            .Setup(s => s.StoreAsync(It.IsAny<IMessage>(), It.IsAny<MessageStorageOptions?>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(expectedException);
 
         var healthCheck = new MessageStorageHealthCheck(mockStorage.Object, timeProvider);
@@ -223,7 +223,7 @@ public class StorageHealthCheckTests
         var mockStorage = new Mock<IOutboxStorage>();
 
         mockStorage
-            .Setup(s => s.GetPending(It.IsAny<OutboxQuery>(), It.IsAny<CancellationToken>()))
+            .Setup(s => s.GetPendingAsync(It.IsAny<OutboxQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<OutboxEntry>());
 
         var healthCheck = new OutboxStorageHealthCheck(mockStorage.Object);
@@ -235,7 +235,7 @@ public class StorageHealthCheckTests
         Assert.Equal(HealthStatus.Healthy, result.Status);
         Assert.Contains("operational", result.Description, StringComparison.OrdinalIgnoreCase);
 
-        mockStorage.Verify(s => s.GetPending(
+        mockStorage.Verify(s => s.GetPendingAsync(
             It.Is<OutboxQuery>(q => q.Status == OutboxEntryStatus.Pending && q.Limit == 1),
             It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -249,7 +249,7 @@ public class StorageHealthCheckTests
         var expectedException = new InvalidOperationException("Outbox query failed");
 
         mockStorage
-            .Setup(s => s.GetPending(It.IsAny<OutboxQuery>(), It.IsAny<CancellationToken>()))
+            .Setup(s => s.GetPendingAsync(It.IsAny<OutboxQuery>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(expectedException);
 
         var healthCheck = new OutboxStorageHealthCheck(mockStorage.Object);
@@ -276,7 +276,7 @@ public class StorageHealthCheckTests
         var customName = "custom_outbox_storage";
 
         mockStorage
-            .Setup(s => s.GetPending(It.IsAny<OutboxQuery>(), It.IsAny<CancellationToken>()))
+            .Setup(s => s.GetPendingAsync(It.IsAny<OutboxQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<OutboxEntry>());
 
         var healthCheck = new OutboxStorageHealthCheck(mockStorage.Object, customName);
@@ -310,7 +310,7 @@ public class StorageHealthCheckTests
         var mockStorage = new Mock<IInboxStorage>();
 
         mockStorage
-            .Setup(s => s.GetPending(It.IsAny<InboxQuery>(), It.IsAny<CancellationToken>()))
+            .Setup(s => s.GetPendingAsync(It.IsAny<InboxQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<InboxEntry>());
 
         var healthCheck = new InboxStorageHealthCheck(mockStorage.Object);
@@ -322,7 +322,7 @@ public class StorageHealthCheckTests
         Assert.Equal(HealthStatus.Healthy, result.Status);
         Assert.Contains("operational", result.Description, StringComparison.OrdinalIgnoreCase);
 
-        mockStorage.Verify(s => s.GetPending(
+        mockStorage.Verify(s => s.GetPendingAsync(
             It.Is<InboxQuery>(q => q.Status == InboxEntryStatus.Pending && q.Limit == 1),
             It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -336,7 +336,7 @@ public class StorageHealthCheckTests
         var expectedException = new InvalidOperationException("Inbox query failed");
 
         mockStorage
-            .Setup(s => s.GetPending(It.IsAny<InboxQuery>(), It.IsAny<CancellationToken>()))
+            .Setup(s => s.GetPendingAsync(It.IsAny<InboxQuery>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(expectedException);
 
         var healthCheck = new InboxStorageHealthCheck(mockStorage.Object);
@@ -363,7 +363,7 @@ public class StorageHealthCheckTests
         var customName = "custom_inbox_storage";
 
         mockStorage
-            .Setup(s => s.GetPending(It.IsAny<InboxQuery>(), It.IsAny<CancellationToken>()))
+            .Setup(s => s.GetPendingAsync(It.IsAny<InboxQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<InboxEntry>());
 
         var healthCheck = new InboxStorageHealthCheck(mockStorage.Object, customName);
@@ -398,7 +398,7 @@ public class StorageHealthCheckTests
         var queueDepth = 42L;
 
         mockStorage
-            .Setup(s => s.GetQueueDepth(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(s => s.GetQueueDepthAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(queueDepth);
 
         var healthCheck = new QueueStorageHealthCheck(mockStorage.Object);
@@ -414,7 +414,7 @@ public class StorageHealthCheckTests
         Assert.True(result.Data.ContainsKey("depth"));
         Assert.Equal(queueDepth, result.Data["depth"]);
 
-        mockStorage.Verify(s => s.GetQueueDepth(
+        mockStorage.Verify(s => s.GetQueueDepthAsync(
             "health_check_queue",
             It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -429,7 +429,7 @@ public class StorageHealthCheckTests
         var queueDepth = 10L;
 
         mockStorage
-            .Setup(s => s.GetQueueDepth(customQueueName, It.IsAny<CancellationToken>()))
+            .Setup(s => s.GetQueueDepthAsync(customQueueName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(queueDepth);
 
         var healthCheck = new QueueStorageHealthCheck(mockStorage.Object, queueName: customQueueName);
@@ -443,7 +443,7 @@ public class StorageHealthCheckTests
         Assert.Equal(customQueueName, result.Data["queue"]);
         Assert.Equal(queueDepth, result.Data["depth"]);
 
-        mockStorage.Verify(s => s.GetQueueDepth(
+        mockStorage.Verify(s => s.GetQueueDepthAsync(
             customQueueName,
             It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -458,7 +458,7 @@ public class StorageHealthCheckTests
         var queueName = "test_queue";
 
         mockStorage
-            .Setup(s => s.GetQueueDepth(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(s => s.GetQueueDepthAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(expectedException);
 
         var healthCheck = new QueueStorageHealthCheck(mockStorage.Object, queueName: queueName);
@@ -487,7 +487,7 @@ public class StorageHealthCheckTests
         var customName = "custom_queue_storage";
 
         mockStorage
-            .Setup(s => s.GetQueueDepth(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(s => s.GetQueueDepthAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(5L);
 
         var healthCheck = new QueueStorageHealthCheck(mockStorage.Object, customName);

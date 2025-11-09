@@ -4,25 +4,25 @@ namespace HeroMessaging.Abstractions.Storage;
 
 public interface IQueueStorage
 {
-    Task<QueueEntry> Enqueue(string queueName, IMessage message, EnqueueOptions? options = null, CancellationToken cancellationToken = default);
+    Task<QueueEntry> EnqueueAsync(string queueName, IMessage message, EnqueueOptions? options = null, CancellationToken cancellationToken = default);
 
-    Task<QueueEntry?> Dequeue(string queueName, CancellationToken cancellationToken = default);
+    Task<QueueEntry?> DequeueAsync(string queueName, CancellationToken cancellationToken = default);
 
-    Task<IEnumerable<QueueEntry>> Peek(string queueName, int count = 1, CancellationToken cancellationToken = default);
+    Task<IEnumerable<QueueEntry>> PeekAsync(string queueName, int count = 1, CancellationToken cancellationToken = default);
 
-    Task<bool> Acknowledge(string queueName, string entryId, CancellationToken cancellationToken = default);
+    Task<bool> AcknowledgeAsync(string queueName, string entryId, CancellationToken cancellationToken = default);
 
-    Task<bool> Reject(string queueName, string entryId, bool requeue = false, CancellationToken cancellationToken = default);
+    Task<bool> RejectAsync(string queueName, string entryId, bool requeue = false, CancellationToken cancellationToken = default);
 
-    Task<long> GetQueueDepth(string queueName, CancellationToken cancellationToken = default);
+    Task<long> GetQueueDepthAsync(string queueName, CancellationToken cancellationToken = default);
 
-    Task<bool> CreateQueue(string queueName, QueueOptions? options = null, CancellationToken cancellationToken = default);
+    Task<bool> CreateQueueAsync(string queueName, QueueOptions? options = null, CancellationToken cancellationToken = default);
 
-    Task<bool> DeleteQueue(string queueName, CancellationToken cancellationToken = default);
+    Task<bool> DeleteQueueAsync(string queueName, CancellationToken cancellationToken = default);
 
-    Task<IEnumerable<string>> GetQueues(CancellationToken cancellationToken = default);
+    Task<IEnumerable<string>> GetQueuesAsync(CancellationToken cancellationToken = default);
 
-    Task<bool> QueueExists(string queueName, CancellationToken cancellationToken = default);
+    Task<bool> QueueExistsAsync(string queueName, CancellationToken cancellationToken = default);
 }
 
 public class QueueEntry

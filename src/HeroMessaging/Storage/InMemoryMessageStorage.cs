@@ -14,7 +14,7 @@ public class InMemoryMessageStorage : IMessageStorage
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
 
-    public Task<string> Store(IMessage message, MessageStorageOptions? options = null, CancellationToken cancellationToken = default)
+    public Task<string> StoreAsync(IMessage message, MessageStorageOptions? options = null, CancellationToken cancellationToken = default)
     {
         var id = Guid.NewGuid().ToString();
         var now = _timeProvider.GetUtcNow().DateTime;
@@ -32,7 +32,7 @@ public class InMemoryMessageStorage : IMessageStorage
         return Task.FromResult(id);
     }
 
-    public Task<T?> Retrieve<T>(string messageId, CancellationToken cancellationToken = default) where T : IMessage
+    public Task<T?> RetrieveAsync<T>(string messageId, CancellationToken cancellationToken = default) where T : IMessage
     {
         if (_messages.TryGetValue(messageId, out var stored))
         {
@@ -55,7 +55,7 @@ public class InMemoryMessageStorage : IMessageStorage
         return Task.FromResult<T?>(default);
     }
 
-    public Task<IEnumerable<T>> Query<T>(MessageQuery query, CancellationToken cancellationToken = default) where T : IMessage
+    public Task<IEnumerable<T>> QueryAsync<T>(MessageQuery query, CancellationToken cancellationToken = default) where T : IMessage
     {
         var results = _messages.Values.AsEnumerable();
 
@@ -111,12 +111,12 @@ public class InMemoryMessageStorage : IMessageStorage
         return Task.FromResult(results.Select(m => (T)m.Message));
     }
 
-    public Task<bool> Delete(string messageId, CancellationToken cancellationToken = default)
+    public Task<bool> DeleteAsync(string messageId, CancellationToken cancellationToken = default)
     {
         return Task.FromResult(_messages.TryRemove(messageId, out _));
     }
 
-    public Task<bool> Update(string messageId, IMessage message, CancellationToken cancellationToken = default)
+    public Task<bool> UpdateAsync(string messageId, IMessage message, CancellationToken cancellationToken = default)
     {
         if (_messages.TryGetValue(messageId, out var stored))
         {
@@ -128,46 +128,46 @@ public class InMemoryMessageStorage : IMessageStorage
         return Task.FromResult(false);
     }
 
-    public Task<bool> Exists(string messageId, CancellationToken cancellationToken = default)
+    public Task<bool> ExistsAsync(string messageId, CancellationToken cancellationToken = default)
     {
         return Task.FromResult(_messages.ContainsKey(messageId));
     }
 
-    public Task<long> Count(MessageQuery? query = null, CancellationToken cancellationToken = default)
+    public Task<long> CountAsync(MessageQuery? query = null, CancellationToken cancellationToken = default)
     {
         if (query == null)
         {
             return Task.FromResult((long)_messages.Count);
         }
 
-        var count = Query<IMessage>(query, cancellationToken).Result.Count();
+        var count = QueryAsync<IMessage>(query, cancellationToken).Result.Count();
         return Task.FromResult((long)count);
     }
 
-    public Task Clear(CancellationToken cancellationToken = default)
+    public Task ClearAsync(CancellationToken cancellationToken = default)
     {
         _messages.Clear();
         return Task.CompletedTask;
     }
 
-    public Task StoreAsync(IMessage message, IStorageTransaction? transaction = null, CancellationToken cancellationToken = default)
+    Task IMessageStorage.StoreAsync(IMessage message, IStorageTransaction? transaction, CancellationToken cancellationToken)
     {
-        return Store(message, null, cancellationToken).ContinueWith(_ => Task.CompletedTask, cancellationToken);
+        return StoreAsync(message, null, cancellationToken).ContinueWith(_ => Task.CompletedTask, cancellationToken);
     }
 
-    public Task<IMessage?> RetrieveAsync(Guid messageId, IStorageTransaction? transaction = null, CancellationToken cancellationToken = default)
+    Task<IMessage?> IMessageStorage.RetrieveAsync(Guid messageId, IStorageTransaction? transaction, CancellationToken cancellationToken)
     {
-        return Retrieve<IMessage>(messageId.ToString(), cancellationToken);
+        return RetrieveAsync<IMessage>(messageId.ToString(), cancellationToken);
     }
 
-    public Task<List<IMessage>> QueryAsync(MessageQuery query, CancellationToken cancellationToken = default)
+    Task<List<IMessage>> IMessageStorage.QueryAsync(MessageQuery query, CancellationToken cancellationToken)
     {
-        return Query<IMessage>(query, cancellationToken).ContinueWith(t => t.Result.ToList(), cancellationToken);
+        return QueryAsync<IMessage>(query, cancellationToken).ContinueWith(t => t.Result.ToList(), cancellationToken);
     }
 
-    public Task DeleteAsync(Guid messageId, CancellationToken cancellationToken = default)
+    Task IMessageStorage.DeleteAsync(Guid messageId, CancellationToken cancellationToken)
     {
-        return Delete(messageId.ToString(), cancellationToken).ContinueWith(_ => Task.CompletedTask, cancellationToken);
+        return DeleteAsync(messageId.ToString(), cancellationToken).ContinueWith(_ => Task.CompletedTask, cancellationToken);
     }
 
     public Task<IStorageTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
