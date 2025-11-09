@@ -144,14 +144,14 @@ public class InMemoryTransportTests : IAsyncLifetime
         var topic = TransportAddress.Topic("test-topic");
         var envelope = new TransportEnvelope("TestEvent", new byte[] { 1, 2, 3 }.AsMemory());
 
-        int subscriber1Count = 0;
-        int subscriber2Count = 0;
+        var subscriber1Tcs = new TaskCompletionSource<bool>();
+        var subscriber2Tcs = new TaskCompletionSource<bool>();
 
         await _transport!.SubscribeAsync(
             topic,
             async (env, ctx, ct) =>
             {
-                subscriber1Count++;
+                subscriber1Tcs.TrySetResult(true);
                 await Task.CompletedTask;
             }, cancellationToken: TestContext.Current.CancellationToken);
 
@@ -159,17 +159,22 @@ public class InMemoryTransportTests : IAsyncLifetime
             topic,
             async (env, ctx, ct) =>
             {
-                subscriber2Count++;
+                subscriber2Tcs.TrySetResult(true);
                 await Task.CompletedTask;
             }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
         await _transport!.PublishAsync(topic, envelope, TestContext.Current.CancellationToken);
-        await Task.Delay(100, TestContext.Current.CancellationToken); // Give time for async processing
+
+        // Wait for both subscribers to receive the message (with timeout)
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        await Task.WhenAll(
+            subscriber1Tcs.Task.WaitAsync(cts.Token),
+            subscriber2Tcs.Task.WaitAsync(cts.Token));
 
         // Assert
-        Assert.Equal(1, subscriber1Count);
-        Assert.Equal(1, subscriber2Count);
+        Assert.True(subscriber1Tcs.Task.IsCompletedSuccessfully);
+        Assert.True(subscriber2Tcs.Task.IsCompletedSuccessfully);
     }
 
     [Fact]

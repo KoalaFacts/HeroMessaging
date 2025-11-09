@@ -136,7 +136,7 @@ public class SqlServerMessageStorage : IMessageStorage
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
 
-        var messageId = Guid.NewGuid().ToString();
+        var messageId = message.MessageId.ToString();
         var expiresAt = options?.Ttl != null
             ? _timeProvider.GetUtcNow().DateTime.Add(options.Ttl.Value)
             : (DateTime?)null;
@@ -148,10 +148,10 @@ public class SqlServerMessageStorage : IMessageStorage
 
         using var command = new SqlCommand(sql, connection);
         command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = messageId;
-        command.Parameters.Add("@MessageType", SqlDbType.NVarChar, 500).Value = message.GetType().FullName ?? "Unknown";
-        command.Parameters.Add("@Payload", SqlDbType.NVarChar, -1).Value = _jsonSerializer.SerializeToString(message, _jsonOptions);
+        command.Parameters.Add("@MessageType", SqlDbType.NVarChar, 500).Value = message.GetType().AssemblyQualifiedName ?? "Unknown";
+        command.Parameters.Add("@Payload", SqlDbType.NVarChar, -1).Value = _jsonSerializer.SerializeToString(message, message.GetType(), _jsonOptions);
         command.Parameters.Add("@Timestamp", SqlDbType.DateTime2).Value = message.Timestamp;
-        command.Parameters.Add("@CorrelationId", SqlDbType.NVarChar, 100).Value = DBNull.Value;
+        command.Parameters.Add("@CorrelationId", SqlDbType.NVarChar, 100).Value = (object?)message.CorrelationId ?? DBNull.Value;
         command.Parameters.Add("@Collection", SqlDbType.NVarChar, 100).Value = (object?)options?.Collection ?? DBNull.Value;
         command.Parameters.Add("@Metadata", SqlDbType.NVarChar, -1).Value = options?.Metadata != null
             ? _jsonSerializer.SerializeToString(options.Metadata, _jsonOptions)
