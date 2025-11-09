@@ -24,7 +24,7 @@ public abstract class RabbitMqIntegrationTestBase : IAsyncLifetime
         LoggerFactory = NullLoggerFactory.Instance;
     }
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         // Create and start RabbitMQ container
         _rabbitMqContainer = new RabbitMqBuilder()
@@ -57,7 +57,7 @@ public abstract class RabbitMqIntegrationTestBase : IAsyncLifetime
         await Transport.ConnectAsync();
     }
 
-    public async Task DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         if (Transport != null)
         {

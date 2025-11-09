@@ -15,7 +15,7 @@ namespace HeroMessaging.Transport.RabbitMQ.Tests.Unit;
 [Trait("Category", "Unit")]
 public class RabbitMqConsumerTests : IAsyncLifetime
 {
-    private Mock<IModel>? _mockChannel;
+    private Mock<IChannel>? _mockChannel;
     private Mock<RabbitMqTransport>? _mockTransport;
     private Mock<ILogger<RabbitMqConsumer>>? _mockLogger;
     private Func<TransportEnvelope, MessageContext, CancellationToken, Task>? _handler;
@@ -26,21 +26,34 @@ public class RabbitMqConsumerTests : IAsyncLifetime
 
     public ValueTask InitializeAsync()
     {
-        _mockChannel = new Mock<IModel>();
+        _mockChannel = new Mock<IChannel>();
         _mockLogger = new Mock<ILogger<RabbitMqConsumer>>();
         _handledMessages = new List<(TransportEnvelope, MessageContext)>();
-
-        // Setup channel
         _mockChannel.Setup(ch => ch.IsOpen).Returns(true);
-        _mockChannel.Setup(ch => ch.BasicConsume(
+        _mockChannel.Setup(ch => ch.CloseAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        _mockChannel.Setup(ch => ch.BasicConsumeAsync(
             It.IsAny<string>(),
             It.IsAny<bool>(),
             It.IsAny<string>(),
             It.IsAny<bool>(),
             It.IsAny<bool>(),
             It.IsAny<IDictionary<string, object>>(),
-            It.IsAny<IBasicConsumer>()
-        )).Returns("consumer-tag-123");
+            It.IsAny<IAsyncBasicConsumer>(),
+            It.IsAny<CancellationToken>()
+        )).ReturnsAsync("consumer-tag-123");
+
+        _mockChannel.Setup(ch => ch.BasicCancelAsync(
+            It.IsAny<string>(),
+            It.IsAny<bool>(),
+            It.IsAny<CancellationToken>()
+        )).Returns(Task.CompletedTask);
+
+        _mockChannel.Setup(ch => ch.BasicQosAsync(
+            It.IsAny<uint>(),
+            It.IsAny<ushort>(),
+            It.IsAny<bool>(),
+            It.IsAny<CancellationToken>()
+        )).Returns(Task.CompletedTask);
 
         // Setup transport - create a real instance for testing
         var mockLoggerFactory = new Mock<ILoggerFactory>();

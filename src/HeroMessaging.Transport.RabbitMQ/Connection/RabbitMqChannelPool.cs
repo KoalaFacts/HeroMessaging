@@ -40,7 +40,7 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
     /// <summary>
     /// Acquire a channel from the pool
     /// </summary>
-    public async Task<IModel> AcquireChannelAsync(CancellationToken cancellationToken = default)
+    public async Task<IChannel> AcquireChannelAsync(CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
 
@@ -69,7 +69,7 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
             {
                 if (_channelCount < _maxChannels)
                 {
-                    return CreateChannel();
+                    return await CreateChannelAsync(cancellationToken);
                 }
             }
             finally
@@ -80,13 +80,13 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
 
         // If pool is full, create a temporary channel (not pooled)
         _logger.LogWarning("Channel pool is full ({MaxChannels}). Creating temporary channel", _maxChannels);
-        return CreateChannel();
+        return await CreateChannelAsync(cancellationToken);
     }
 
     /// <summary>
     /// Release a channel back to the pool
     /// </summary>
-    public void ReleaseChannel(IModel channel)
+    public void ReleaseChannel(IChannel channel)
     {
         if (_disposed || channel == null || !channel.IsOpen)
         {
@@ -103,14 +103,14 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
     /// <summary>
     /// Create a new channel
     /// </summary>
-    private IModel CreateChannel()
+    private async Task<IChannel> CreateChannelAsync(CancellationToken cancellationToken = default)
     {
         if (!_connection.IsOpen)
         {
             throw new InvalidOperationException("Cannot create channel: connection is not open");
         }
 
-        var channel = _connection.CreateModel();
+        var channel = await _connection.CreateChannelAsync(cancellationToken: cancellationToken);
         Interlocked.Increment(ref _channelCount);
 
         _logger.LogDebug("Created new channel {ChannelNumber} (Total: {TotalChannels})",
@@ -123,7 +123,7 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
     /// Execute an operation using a channel from the pool
     /// </summary>
     public async Task<T> ExecuteAsync<T>(
-        Func<IModel, Task<T>> operation,
+        Func<IChannel, Task<T>> operation,
         CancellationToken cancellationToken = default)
     {
         var channel = await AcquireChannelAsync(cancellationToken);
@@ -141,7 +141,7 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
     /// Execute an operation using a channel from the pool
     /// </summary>
     public async Task ExecuteAsync(
-        Func<IModel, Task> operation,
+        Func<IChannel, Task> operation,
         CancellationToken cancellationToken = default)
     {
         var channel = await AcquireChannelAsync(cancellationToken);
@@ -206,11 +206,11 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
         private readonly DateTime _created;
         private bool _disposed;
 
-        public IModel Channel { get; }
+        public IChannel Channel { get; }
         public bool IsHealthy => Channel.IsOpen && !_disposed;
         public bool IsExpired => (_timeProvider.GetUtcNow().DateTime - _created) > _lifetime;
 
-        public PooledChannel(IModel channel, TimeSpan lifetime, TimeProvider timeProvider)
+        public PooledChannel(IChannel channel, TimeSpan lifetime, TimeProvider timeProvider)
         {
             Channel = channel;
             _lifetime = lifetime;
@@ -227,7 +227,7 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
             {
                 if (Channel.IsOpen)
                 {
-                    Channel.Close();
+                    Channel.CloseAsync().GetAwaiter().GetResult();
                 }
                 Channel.Dispose();
             }

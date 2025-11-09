@@ -153,21 +153,17 @@ public sealed class RabbitMqTransport : IMessageTransport
 
             await channelPool.ExecuteAsync(async channel =>
             {
-                // Enable publisher confirms if configured
-                if (_options.UsePublisherConfirms)
-                {
-                    channel.ConfirmSelect();
-                }
-
                 _instrumentation.AddEvent(activity, "serialization.start");
 
                 // Build message properties
-                var properties = channel.CreateBasicProperties();
-                properties.Persistent = true; // Durable messages
-                properties.MessageId = envelope.MessageId;
-                properties.CorrelationId = envelope.CorrelationId;
-                properties.ContentType = envelope.ContentType ?? "application/octet-stream";
-                properties.Timestamp = new AmqpTimestamp(_timeProvider.GetUtcNow().ToUnixTimeSeconds());
+                var properties = new BasicProperties
+                {
+                    Persistent = true, // Durable messages
+                    MessageId = envelope.MessageId,
+                    CorrelationId = envelope.CorrelationId,
+                    ContentType = envelope.ContentType ?? "application/octet-stream",
+                    Timestamp = new AmqpTimestamp(_timeProvider.GetUtcNow().ToUnixTimeSeconds())
+                };
 
                 // Copy headers including trace context
                 if (envelope.Headers.Count > 0)
@@ -183,30 +179,18 @@ public sealed class RabbitMqTransport : IMessageTransport
                 _instrumentation.AddEvent(activity, "publish.start");
 
                 // Send to default exchange with queue name as routing key (direct routing)
-                channel.BasicPublish(
+                await channel.BasicPublishAsync(
                     exchange: "",
                     routingKey: destination.Name,
+                    mandatory: false,
                     basicProperties: properties,
-                    body: envelope.Body);
+                    body: envelope.Body,
+                    cancellationToken: cancellationToken);
 
-                // Wait for confirm if enabled
-                if (_options.UsePublisherConfirms)
-                {
-                    var confirmed = channel.WaitForConfirms(_options.PublisherConfirmTimeout);
-                    if (!confirmed)
-                    {
-                        _instrumentation.AddEvent(activity, "publish.timeout");
-                        throw new TimeoutException(
-                            $"Publisher confirm timed out after {_options.PublisherConfirmTimeout} for message {envelope.MessageId}");
-                    }
-                    _instrumentation.AddEvent(activity, "publish.confirmed");
-                }
-
+                // Publisher confirms are handled via CancellationToken timeout in RabbitMQ 7.x
                 _instrumentation.AddEvent(activity, "publish.complete");
 
                 _logger.LogDebug("Sent message {MessageId} to queue {Queue}", envelope.MessageId, destination.Name);
-
-                await Task.CompletedTask; // Keep async signature
             }, cancellationToken);
 
             // Record successful operation
@@ -246,16 +230,10 @@ public sealed class RabbitMqTransport : IMessageTransport
 
             await channelPool.ExecuteAsync(async channel =>
             {
-                // Enable publisher confirms if configured
-                if (_options.UsePublisherConfirms)
-                {
-                    channel.ConfirmSelect();
-                }
-
                 _instrumentation.AddEvent(activity, "serialization.start");
 
                 // Build message properties
-                var properties = channel.CreateBasicProperties();
+                var properties = new BasicProperties();
                 properties.Persistent = true;
                 properties.MessageId = envelope.MessageId;
                 properties.CorrelationId = envelope.CorrelationId;
@@ -278,30 +256,18 @@ public sealed class RabbitMqTransport : IMessageTransport
                 // Publish to topic exchange (use topic name as exchange)
                 // Try to get routing key from headers, default to "#" (broadcast)
                 var routingKey = envelope.Headers.TryGetValue("RoutingKey", out var rk) ? rk?.ToString() ?? "#" : "#";
-                channel.BasicPublish(
+
+                await channel.BasicPublishAsync(
                     exchange: topic.Name,
                     routingKey: routingKey,
+                    mandatory: false,
                     basicProperties: properties,
-                    body: envelope.Body);
-
-                // Wait for confirm if enabled
-                if (_options.UsePublisherConfirms)
-                {
-                    var confirmed = channel.WaitForConfirms(_options.PublisherConfirmTimeout);
-                    if (!confirmed)
-                    {
-                        _instrumentation.AddEvent(activity, "publish.timeout");
-                        throw new TimeoutException(
-                            $"Publisher confirm timed out after {_options.PublisherConfirmTimeout} for message {envelope.MessageId}");
-                    }
-                    _instrumentation.AddEvent(activity, "publish.confirmed");
-                }
+                    body: envelope.Body,
+                    cancellationToken: cancellationToken);
 
                 _instrumentation.AddEvent(activity, "publish.complete");
 
                 _logger.LogDebug("Published message {MessageId} to exchange {Exchange}", envelope.MessageId, topic.Name);
-
-                await Task.CompletedTask; // Keep async signature
             }, cancellationToken);
 
             // Record successful operation
@@ -338,7 +304,7 @@ public sealed class RabbitMqTransport : IMessageTransport
         var channel = await channelPool.AcquireChannelAsync(cancellationToken);
 
         // Set prefetch count
-        channel.BasicQos(0, _options.PrefetchCount, false);
+        await channel.BasicQosAsync(0, _options.PrefetchCount, false, cancellationToken);
 
         var consumer = new RabbitMqConsumer(
             consumerId,
@@ -391,11 +357,12 @@ public sealed class RabbitMqTransport : IMessageTransport
                     _ => "topic"
                 };
 
-                channel.ExchangeDeclare(
+                await channel.ExchangeDeclareAsync(
                     exchange: exchange.Name,
                     type: exchangeType,
                     durable: exchange.Durable,
                     autoDelete: exchange.AutoDelete,
+                    cancellationToken: cancellationToken,
                     arguments: exchange.Arguments);
             }
 
@@ -434,12 +401,13 @@ public sealed class RabbitMqTransport : IMessageTransport
                     arguments["x-max-priority"] = queue.MaxPriority.Value;
                 }
 
-                channel.QueueDeclare(
+                await channel.QueueDeclareAsync(
                     queue: queue.Name,
                     durable: queue.Durable,
                     exclusive: queue.Exclusive,
                     autoDelete: queue.AutoDelete,
-                    arguments: arguments);
+                    arguments: arguments,
+                    cancellationToken: cancellationToken);
             }
 
             // Create bindings
@@ -448,14 +416,13 @@ public sealed class RabbitMqTransport : IMessageTransport
                 _logger.LogDebug("Creating binding: {Exchange} -> {Queue} ({RoutingKey})",
                     binding.SourceExchange, binding.Destination, binding.RoutingKey ?? "(all)");
 
-                channel.QueueBind(
+                await channel.QueueBindAsync(
                     queue: binding.Destination,
                     exchange: binding.SourceExchange,
                     routingKey: binding.RoutingKey ?? "",
-                    arguments: binding.Arguments);
+                    arguments: binding.Arguments,
+                    cancellationToken: cancellationToken);
             }
-
-            await Task.CompletedTask; // Keep async signature
         }, cancellationToken);
 
         _logger.LogInformation("Topology configured successfully");

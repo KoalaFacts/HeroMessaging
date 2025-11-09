@@ -10,7 +10,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="RabbitMQ.Client" Version="6.8.1" />
+    <PackageReference Include="RabbitMQ.Client" Version="7.2.0" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0' OR '$(TargetFramework)' == 'net6.0' OR '$(TargetFramework)' == 'net7.0'">
