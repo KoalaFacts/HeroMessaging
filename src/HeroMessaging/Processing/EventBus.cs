@@ -116,7 +116,7 @@ public class EventBus : IEventBus, IProcessor
                         }
                     };
 
-                    var result = await _errorHandler.HandleError(envelope.Event, ex, context, envelope.CancellationToken);
+                    var result = await _errorHandler.HandleErrorAsync(envelope.Event, ex, context, envelope.CancellationToken);
 
                     switch (result.Action)
                     {

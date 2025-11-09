@@ -1,4 +1,4 @@
-namespace HeroMessaging.ArchitectureTests;
+namespace HeroMessaging.Tests.Architecture;
 
 /// <summary>
 /// Tests to enforce naming conventions across the codebase.

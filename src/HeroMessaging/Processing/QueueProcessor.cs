@@ -55,7 +55,7 @@ public class QueueProcessor(
         }
     }
 
-    public async Task<long> GetQueueDepth(string queueName, CancellationToken cancellationToken = default)
+    public async Task<long> GetQueueDepthAsync(string queueName, CancellationToken cancellationToken = default)
     {
         return await _queueStorage.GetQueueDepthAsync(queueName, cancellationToken);
     }
@@ -199,5 +199,5 @@ public interface IQueueProcessor
     Task Enqueue(IMessage message, string queueName, EnqueueOptions? options = null, CancellationToken cancellationToken = default);
     Task StartQueue(string queueName, CancellationToken cancellationToken = default);
     Task StopQueue(string queueName, CancellationToken cancellationToken = default);
-    Task<long> GetQueueDepth(string queueName, CancellationToken cancellationToken = default);
+    Task<long> GetQueueDepthAsync(string queueName, CancellationToken cancellationToken = default);
 }

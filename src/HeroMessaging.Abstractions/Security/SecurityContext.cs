@@ -5,37 +5,37 @@ namespace HeroMessaging.Abstractions.Security;
 /// <summary>
 /// Represents the security context for message operations
 /// </summary>
-public sealed class SecurityContext
+public sealed record SecurityContext
 {
     /// <summary>
     /// The authenticated principal (user/service identity)
     /// </summary>
-    public ClaimsPrincipal? Principal { get; set; }
+    public ClaimsPrincipal? Principal { get; init; }
 
     /// <summary>
     /// Message identifier for audit trail
     /// </summary>
-    public string? MessageId { get; set; }
+    public string? MessageId { get; init; }
 
     /// <summary>
     /// Message type for authorization decisions
     /// </summary>
-    public string? MessageType { get; set; }
+    public string? MessageType { get; init; }
 
     /// <summary>
     /// Correlation identifier for distributed tracing
     /// </summary>
-    public string? CorrelationId { get; set; }
+    public string? CorrelationId { get; init; }
 
     /// <summary>
     /// Additional metadata for security operations
     /// </summary>
-    public IDictionary<string, object> Metadata { get; }
+    public IDictionary<string, object> Metadata { get; init; }
 
     /// <summary>
     /// Timestamp when context was created
     /// </summary>
-    public DateTimeOffset Timestamp { get; }
+    public DateTimeOffset Timestamp { get; init; }
 
     public SecurityContext()
     {

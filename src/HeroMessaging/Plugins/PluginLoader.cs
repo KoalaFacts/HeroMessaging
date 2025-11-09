@@ -96,14 +96,14 @@ public class PluginLoader : IPluginLoader
         IPluginDescriptor descriptor,
         CancellationToken cancellationToken = default)
     {
-        var result = new PluginValidationResult { IsValid = true };
         var errors = new System.Collections.Generic.List<string>();
         var warnings = new System.Collections.Generic.List<string>();
+        var isValid = true;
 
         if (descriptor == null)
         {
             errors.Add("Plugin descriptor is null");
-            result.IsValid = false;
+            isValid = false;
         }
         else
         {
@@ -111,19 +111,19 @@ public class PluginLoader : IPluginLoader
             if (descriptor.PluginType == null)
             {
                 errors.Add("Plugin type is null");
-                result.IsValid = false;
+                isValid = false;
             }
             else if (!typeof(IMessagingPlugin).IsAssignableFrom(descriptor.PluginType))
             {
                 errors.Add($"Plugin type {descriptor.PluginType.Name} does not implement IMessagingPlugin");
-                result.IsValid = false;
+                isValid = false;
             }
 
             // Validate name
             if (string.IsNullOrEmpty(descriptor.Name))
             {
                 errors.Add("Plugin name is empty");
-                result.IsValid = false;
+                isValid = false;
             }
 
             // Check for constructor
@@ -133,7 +133,7 @@ public class PluginLoader : IPluginLoader
                 if (constructors.Length == 0)
                 {
                     errors.Add("Plugin type has no public constructors");
-                    result.IsValid = false;
+                    isValid = false;
                 }
             }
 
@@ -144,8 +144,12 @@ public class PluginLoader : IPluginLoader
             }
         }
 
-        result.Errors = errors.ToArray();
-        result.Warnings = warnings.ToArray();
+        var result = new PluginValidationResult
+        {
+            IsValid = isValid,
+            Errors = errors.ToArray(),
+            Warnings = warnings.ToArray()
+        };
 
         return Task.FromResult(result);
     }

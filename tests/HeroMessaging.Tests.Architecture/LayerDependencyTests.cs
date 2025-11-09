@@ -1,4 +1,4 @@
-namespace HeroMessaging.ArchitectureTests;
+namespace HeroMessaging.Tests.Architecture;
 
 /// <summary>
 /// Tests to ensure proper layering and dependency direction.

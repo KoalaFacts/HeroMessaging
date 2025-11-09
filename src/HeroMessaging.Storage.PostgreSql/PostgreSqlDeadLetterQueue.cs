@@ -251,11 +251,14 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         using var connection = new NpgsqlConnection(_options.ConnectionString);
         await connection.OpenAsync(cancellationToken);
 
-        var statistics = new DeadLetterStatistics();
+        long activeCount = 0, retriedCount = 0, discardedCount = 0, totalCount = 0;
+        DateTime? oldestEntry = null, newestEntry = null;
+        var countByComponent = new Dictionary<string, long>();
+        var countByReason = new Dictionary<string, long>();
 
         // Get counts by status
         var statusSql = $"""
-            SELECT 
+            SELECT
                 COUNT(*) FILTER (WHERE status = 0) as active_count,
                 COUNT(*) FILTER (WHERE status = 1) as retried_count,
                 COUNT(*) FILTER (WHERE status = 2) as discarded_count,
@@ -268,10 +271,10 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         {
             if (await reader.ReadAsync(cancellationToken))
             {
-                statistics.ActiveCount = reader.IsDBNull(0) ? 0 : reader.GetInt64(0);
-                statistics.RetriedCount = reader.IsDBNull(1) ? 0 : reader.GetInt64(1);
-                statistics.DiscardedCount = reader.IsDBNull(2) ? 0 : reader.GetInt64(2);
-                statistics.TotalCount = reader.IsDBNull(3) ? 0 : reader.GetInt64(3);
+                activeCount = reader.IsDBNull(0) ? 0 : reader.GetInt64(0);
+                retriedCount = reader.IsDBNull(1) ? 0 : reader.GetInt64(1);
+                discardedCount = reader.IsDBNull(2) ? 0 : reader.GetInt64(2);
+                totalCount = reader.IsDBNull(3) ? 0 : reader.GetInt64(3);
             }
         }
 
@@ -288,7 +291,7 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         {
             while (await reader.ReadAsync(cancellationToken))
             {
-                statistics.CountByComponent[reader.GetString(0)] = reader.GetInt64(1);
+                countByComponent[reader.GetString(0)] = reader.GetInt64(1);
             }
         }
 
@@ -307,13 +310,13 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         {
             while (await reader.ReadAsync(cancellationToken))
             {
-                statistics.CountByReason[reader.GetString(0)] = reader.GetInt64(1);
+                countByReason[reader.GetString(0)] = reader.GetInt64(1);
             }
         }
 
         // Get oldest and newest entries
         var dateSql = $"""
-            SELECT 
+            SELECT
                 MIN(created_at) as oldest_entry,
                 MAX(created_at) as newest_entry
             FROM {_tableName}
@@ -325,10 +328,22 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         {
             if (await reader.ReadAsync(cancellationToken))
             {
-                statistics.OldestEntry = reader.IsDBNull(0) ? null : reader.GetDateTime(0);
-                statistics.NewestEntry = reader.IsDBNull(1) ? null : reader.GetDateTime(1);
+                oldestEntry = reader.IsDBNull(0) ? null : reader.GetDateTime(0);
+                newestEntry = reader.IsDBNull(1) ? null : reader.GetDateTime(1);
             }
         }
+
+        var statistics = new DeadLetterStatistics
+        {
+            ActiveCount = activeCount,
+            RetriedCount = retriedCount,
+            DiscardedCount = discardedCount,
+            TotalCount = totalCount,
+            CountByComponent = countByComponent,
+            CountByReason = countByReason,
+            OldestEntry = oldestEntry,
+            NewestEntry = newestEntry
+        };
 
         return statistics;
     }

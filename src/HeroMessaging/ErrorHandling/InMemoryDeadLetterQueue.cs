@@ -47,8 +47,12 @@ public class InMemoryDeadLetterQueue(ILogger<InMemoryDeadLetterQueue> logger, Ti
         {
             if (entry is DeadLetterEntry<T> typedEntry)
             {
-                typedEntry.Status = DeadLetterStatus.Retried;
-                typedEntry.RetriedAt = _timeProvider.GetUtcNow().DateTime;
+                var updatedEntry = typedEntry with
+                {
+                    Status = DeadLetterStatus.Retried,
+                    RetriedAt = _timeProvider.GetUtcNow().DateTime
+                };
+                _deadLetters[deadLetterId] = updatedEntry;
 
                 _logger.LogInformation("Dead letter entry {DeadLetterId} marked for retry", deadLetterId);
                 return Task.FromResult(true);
@@ -64,8 +68,12 @@ public class InMemoryDeadLetterQueue(ILogger<InMemoryDeadLetterQueue> logger, Ti
         {
             if (entry is DeadLetterEntry<IMessage> typedEntry)
             {
-                typedEntry.Status = DeadLetterStatus.Discarded;
-                typedEntry.DiscardedAt = _timeProvider.GetUtcNow().DateTime;
+                var updatedEntry = typedEntry with
+                {
+                    Status = DeadLetterStatus.Discarded,
+                    DiscardedAt = _timeProvider.GetUtcNow().DateTime
+                };
+                _deadLetters[deadLetterId] = updatedEntry;
 
                 _logger.LogInformation("Dead letter entry {DeadLetterId} discarded", deadLetterId);
                 return Task.FromResult(true);
@@ -78,7 +86,7 @@ public class InMemoryDeadLetterQueue(ILogger<InMemoryDeadLetterQueue> logger, Ti
     public Task<long> GetDeadLetterCountAsync(CancellationToken cancellationToken = default)
     {
         var count = _deadLetters.Values
-            .Cast<dynamic>()
+            .Cast<IDeadLetterEntry>()
             .Count(e => e.Status == DeadLetterStatus.Active);
 
         return Task.FromResult((long)count);
@@ -86,33 +94,29 @@ public class InMemoryDeadLetterQueue(ILogger<InMemoryDeadLetterQueue> logger, Ti
 
     public Task<DeadLetterStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default)
     {
-        var allEntries = _deadLetters.Values.Cast<dynamic>().ToList();
+        var allEntries = _deadLetters.Values.Cast<IDeadLetterEntry>().ToList();
+
+        var countByComponent = allEntries
+            .GroupBy(e => e.Context.Component)
+            .ToDictionary(g => g.Key, g => (long)g.Count());
+
+        var countByReason = allEntries
+            .GroupBy(e => e.Context.Reason.Length > 50
+                ? e.Context.Reason.Substring(0, 50) + "..."
+                : e.Context.Reason)
+            .ToDictionary(g => g.Key, g => (long)g.Count());
 
         var stats = new DeadLetterStatistics
         {
             TotalCount = allEntries.Count,
             ActiveCount = allEntries.Count(e => e.Status == DeadLetterStatus.Active),
             RetriedCount = allEntries.Count(e => e.Status == DeadLetterStatus.Retried),
-            DiscardedCount = allEntries.Count(e => e.Status == DeadLetterStatus.Discarded)
+            DiscardedCount = allEntries.Count(e => e.Status == DeadLetterStatus.Discarded),
+            CountByComponent = countByComponent,
+            CountByReason = countByReason,
+            OldestEntry = allEntries.Any() ? allEntries.Min(e => e.CreatedAt) : null,
+            NewestEntry = allEntries.Any() ? allEntries.Max(e => e.CreatedAt) : null
         };
-
-        // Group by component
-        stats.CountByComponent = allEntries
-            .GroupBy(e => (string)e.Context.Component)
-            .ToDictionary(g => g.Key, g => (long)g.Count());
-
-        // Group by reason (take first 50 chars of reason as key)
-        stats.CountByReason = allEntries
-            .GroupBy(e => ((string)e.Context.Reason).Length > 50
-                ? ((string)e.Context.Reason).Substring(0, 50) + "..."
-                : (string)e.Context.Reason)
-            .ToDictionary(g => g.Key, g => (long)g.Count());
-
-        if (allEntries.Any())
-        {
-            stats.OldestEntry = allEntries.Min(e => (DateTime)e.CreatedAt);
-            stats.NewestEntry = allEntries.Max(e => (DateTime)e.CreatedAt);
-        }
 
         return Task.FromResult(stats);
     }

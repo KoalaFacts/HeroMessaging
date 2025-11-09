@@ -40,12 +40,12 @@ public interface IPluginLoader
 /// <summary>
 /// Result of plugin validation
 /// </summary>
-public class PluginValidationResult
+public sealed record PluginValidationResult
 {
-    public bool IsValid { get; set; }
-    public IReadOnlyCollection<string> Errors { get; set; } = Array.Empty<string>();
-    public IReadOnlyCollection<string> Warnings { get; set; } = Array.Empty<string>();
-    public IReadOnlyCollection<string> MissingDependencies { get; set; } = Array.Empty<string>();
+    public bool IsValid { get; init; }
+    public IReadOnlyCollection<string> Errors { get; init; } = Array.Empty<string>();
+    public IReadOnlyCollection<string> Warnings { get; init; } = Array.Empty<string>();
+    public IReadOnlyCollection<string> MissingDependencies { get; init; } = Array.Empty<string>();
 }
 
 /// <summary>

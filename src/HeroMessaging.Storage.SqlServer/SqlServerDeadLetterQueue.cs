@@ -228,11 +228,14 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
 
-        var statistics = new DeadLetterStatistics();
+        long activeCount = 0, retriedCount = 0, discardedCount = 0, totalCount = 0;
+        DateTime? oldestEntry = null, newestEntry = null;
+        var countByComponent = new Dictionary<string, long>();
+        var countByReason = new Dictionary<string, long>();
 
         // Get counts by status
         var statusSql = """
-            SELECT 
+            SELECT
                 SUM(CASE WHEN Status = 0 THEN 1 ELSE 0 END) as ActiveCount,
                 SUM(CASE WHEN Status = 1 THEN 1 ELSE 0 END) as RetriedCount,
                 SUM(CASE WHEN Status = 2 THEN 1 ELSE 0 END) as DiscardedCount,
@@ -245,10 +248,10 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
         {
             if (await reader.ReadAsync(cancellationToken))
             {
-                statistics.ActiveCount = reader.IsDBNull(0) ? 0 : reader.GetInt64(0);
-                statistics.RetriedCount = reader.IsDBNull(1) ? 0 : reader.GetInt64(1);
-                statistics.DiscardedCount = reader.IsDBNull(2) ? 0 : reader.GetInt64(2);
-                statistics.TotalCount = reader.IsDBNull(3) ? 0 : reader.GetInt64(3);
+                activeCount = reader.IsDBNull(0) ? 0 : reader.GetInt64(0);
+                retriedCount = reader.IsDBNull(1) ? 0 : reader.GetInt64(1);
+                discardedCount = reader.IsDBNull(2) ? 0 : reader.GetInt64(2);
+                totalCount = reader.IsDBNull(3) ? 0 : reader.GetInt64(3);
             }
         }
 
@@ -265,7 +268,7 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
         {
             while (await reader.ReadAsync(cancellationToken))
             {
-                statistics.CountByComponent[reader.GetString(0)] = reader.GetInt64(1);
+                countByComponent[reader.GetString(0)] = reader.GetInt64(1);
             }
         }
 
@@ -283,13 +286,13 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
         {
             while (await reader.ReadAsync(cancellationToken))
             {
-                statistics.CountByReason[reader.GetString(0)] = reader.GetInt64(1);
+                countByReason[reader.GetString(0)] = reader.GetInt64(1);
             }
         }
 
         // Get oldest and newest entries
         var dateSql = """
-            SELECT 
+            SELECT
                 MIN(CreatedAt) as OldestEntry,
                 MAX(CreatedAt) as NewestEntry
             FROM DeadLetterQueue
@@ -301,10 +304,22 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
         {
             if (await reader.ReadAsync(cancellationToken))
             {
-                statistics.OldestEntry = reader.IsDBNull(0) ? null : reader.GetDateTime(0);
-                statistics.NewestEntry = reader.IsDBNull(1) ? null : reader.GetDateTime(1);
+                oldestEntry = reader.IsDBNull(0) ? null : reader.GetDateTime(0);
+                newestEntry = reader.IsDBNull(1) ? null : reader.GetDateTime(1);
             }
         }
+
+        var statistics = new DeadLetterStatistics
+        {
+            ActiveCount = activeCount,
+            RetriedCount = retriedCount,
+            DiscardedCount = discardedCount,
+            TotalCount = totalCount,
+            CountByComponent = countByComponent,
+            CountByReason = countByReason,
+            OldestEntry = oldestEntry,
+            NewestEntry = newestEntry
+        };
 
         return statistics;
     }
