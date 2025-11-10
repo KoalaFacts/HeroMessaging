@@ -213,11 +213,21 @@ jobs:
           # Check if any coverage files exist
           if find ./all-test-results -name "coverage.cobertura.xml" -type f | grep -q .; then
             echo "Found coverage files, generating report..."
+            echo ""
+            echo "Coverage filters:"
+            echo "  ✓ Including: Production code from src/"
+            echo "  ✗ Excluding: System.*, Microsoft.* classes"
+            echo "  ✗ Excluding: *.Tests, *Benchmarks, *.Examples, *.Demo assemblies"
+            echo "  ✗ Excluding: Value objects/DTOs: *Options, *State, *Ref, *Result, *Request, *Response, *Dto, *DTO, *Dao, *DAO, *VO"
+            echo "  ✗ Excluding: Messages/Events: *Command, *Query, *Event, *Message"
+            echo "  ✗ Excluding: Exceptions: *Exception"
+            echo ""
             reportgenerator \
               -reports:"./all-test-results/**/coverage.cobertura.xml" \
               -targetdir:"./coverage-report" \
               -reporttypes:"Html;Badges;TextSummary" \
-              -classfilters:"-System.*;-Microsoft.*"
+              -classfilters:"-System.*;-Microsoft.*;-*ValueObject;-*ValueObject`*;-*VO;-*VO`*;-*Options;-*Options`*;-*State;-*State`*;-*Ref;-*Ref`*;-*Result;-*Result`*;-*Request;-*Request`*;-*Response;-*Response`*;-*Dto;-*Dto`*;-*DTO;-*DTO`*;-*Dao;-*Dao`*;-*DAO;-*DAO`*;-*Command;-*Command`*;-*Query;-*Query`*;-*Event;-*Event`*;-*Message;-*Message`*;-*Exception;-*Exception`*" \
+              -assemblyfilters:"-*.Tests;-*.Tests.*;-*Benchmarks;-*Benchmarks.*;-*.Examples;-*.Examples.*;-*.Demo;-*.Demo.*"
           else
             echo "No coverage files found, skipping report generation"
             mkdir -p ./coverage-report
@@ -264,13 +274,18 @@ jobs:
           if [[ "$UNIT_TESTS_PASSED" == "skipped" ]]; then
             echo "⚠️ No coverage data (no unit tests ran)"
           else
-            echo "📊 Coverage: $COVERAGE%"
+            echo "📊 Production Code Coverage (Unit Tests): $COVERAGE%"
             echo "📋 Threshold: 80% (per CLAUDE.md constitutional requirement)"
+            echo "ℹ️  Measuring: src/ assemblies only (excluding tests, benchmarks, examples)"
+            echo ""
 
             # Check if coverage meets 80% threshold
             if (( $(echo "$COVERAGE < 80" | bc -l) )); then
               echo "❌ Coverage below 80% threshold: $COVERAGE%"
+              echo ""
               echo "Constitutional requirement: 80% minimum coverage (100% for public APIs)"
+              echo "Note: This measures unit test coverage of production code only."
+              echo "Integration tests run separately in the 'Integration Tests' workflow."
               exit 1
             else
               echo "✅ Coverage meets 80% threshold"
