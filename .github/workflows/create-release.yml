@@ -186,13 +186,16 @@ jobs:
           ls -lh *.nupkg *.snupkg 2>/dev/null || echo "No packages found!"
 
       - name: Setup .NET for signing
-        if: secrets.NUGET_SIGNING_CERT_BASE64 != ''
+        if: ${{ secrets.NUGET_SIGNING_CERT_BASE64 != '' }}
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: |
+            8.0.x
+            9.0.x
+            10.0.x
 
       - name: Sign NuGet packages
-        if: secrets.NUGET_SIGNING_CERT_BASE64 != ''
+        if: ${{ secrets.NUGET_SIGNING_CERT_BASE64 != '' }}
         env:
           SIGNING_CERT_BASE64: ${{ secrets.NUGET_SIGNING_CERT_BASE64 }}
           SIGNING_CERT_PASSWORD: ${{ secrets.NUGET_SIGNING_CERT_PASSWORD }}
@@ -377,7 +380,7 @@ jobs:
 
       - name: Summary
         run: |
-          cat >> $GITHUB_STEP_SUMMARY << 'EOF'
+          cat >> $GITHUB_STEP_SUMMARY << EOF
           ## ✅ Release Created Successfully
 
           **Version**: ${{ needs.validate-and-prepare.outputs.version }}
@@ -392,16 +395,21 @@ jobs:
 
           ### 🚀 Next Steps
 
-          ${{ github.event.inputs.draft == 'false' && '
+          EOF
+
+          if [ "${{ github.event.inputs.draft }}" = "false" ]; then
+            cat >> $GITHUB_STEP_SUMMARY << EOF
           The **Publish to NuGet** workflow will automatically trigger and publish packages to:
           - NuGet.org via Trusted Publishing
           - GitHub Packages
 
           No rebuild or re-test needed - using pre-built artifacts from CI!
-          ' || '
+          EOF
+          else
+            cat >> $GITHUB_STEP_SUMMARY << EOF
           This is a **draft release**. To publish:
           1. Review the release
           2. Edit and publish the release
           3. The Publish to NuGet workflow will then trigger automatically
-          ' }}
           EOF
+          fi
