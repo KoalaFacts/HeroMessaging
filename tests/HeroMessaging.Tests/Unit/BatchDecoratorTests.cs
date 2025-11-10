@@ -119,21 +119,29 @@ public class BatchDecoratorTests : IAsyncLifetime
             TestMessageBuilder.CreateValidMessage("Message 3")
         };
 
+        var processedCount = 0;
+
         _mockInnerProcessor.Setup(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ProcessingResult.Successful());
+            .ReturnsAsync(() =>
+            {
+                Interlocked.Increment(ref processedCount);
+                return ProcessingResult.Successful();
+            });
 
         await using var decorator = new BatchDecorator(_mockInnerProcessor.Object, options, _mockLogger.Object, _timeProvider);
 
         // Act
         var tasks = messages.Select(m => decorator.ProcessAsync(m, new ProcessingContext("test"), TestContext.Current.CancellationToken).AsTask()).ToList();
 
-        // Wait for all to complete
+        // Wait for all task completion sources to resolve
         await Task.WhenAll(tasks);
 
-        // Give background task time to process
-        await Task.Delay(500);
+        // Yield to allow any pending async continuations to complete
+        // (200ms accounts for resource contention during parallel test runs)
+        await Task.Delay(200);
 
-        // Assert
+        // Assert - all tasks completed means all processing finished
+        Assert.Equal(3, processedCount);
         _mockInnerProcessor.Verify(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
     }
 
@@ -245,22 +253,40 @@ public class BatchDecoratorTests : IAsyncLifetime
             TestMessageBuilder.CreateValidMessage("Message 3")
         };
 
+        var processedCount = 0;
+
         // First message fails, others succeed
         _mockInnerProcessor.SetupSequence(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ProcessingResult.Failed(new Exception("Error")))
-            .ReturnsAsync(ProcessingResult.Successful())
-            .ReturnsAsync(ProcessingResult.Successful());
+            .ReturnsAsync(() =>
+            {
+                Interlocked.Increment(ref processedCount);
+                return ProcessingResult.Failed(new Exception("Error"));
+            })
+            .ReturnsAsync(() =>
+            {
+                Interlocked.Increment(ref processedCount);
+                return ProcessingResult.Successful();
+            })
+            .ReturnsAsync(() =>
+            {
+                Interlocked.Increment(ref processedCount);
+                return ProcessingResult.Successful();
+            });
 
         await using var decorator = new BatchDecorator(_mockInnerProcessor.Object, options, _mockLogger.Object, _timeProvider);
 
         // Act
         var tasks = messages.Select(m => decorator.ProcessAsync(m, new ProcessingContext("test"), TestContext.Current.CancellationToken).AsTask()).ToList();
+
+        // Wait for all task completion sources to resolve
         await Task.WhenAll(tasks);
 
-        // Give background task time to process
-        await Task.Delay(500);
+        // Yield to allow any pending async continuations to complete
+        // (200ms accounts for resource contention during parallel test runs)
+        await Task.Delay(200);
 
-        // Assert
+        // Assert - all tasks completed means all processing finished
+        Assert.Equal(3, processedCount);
         _mockInnerProcessor.Verify(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
     }
 
@@ -340,6 +366,7 @@ public class BatchDecoratorTests : IAsyncLifetime
             .ToArray();
 
         var processedCount = 0;
+
         _mockInnerProcessor.Setup(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(() =>
             {
@@ -351,12 +378,15 @@ public class BatchDecoratorTests : IAsyncLifetime
 
         // Act
         var tasks = messages.Select(m => decorator.ProcessAsync(m, new ProcessingContext("test"), TestContext.Current.CancellationToken).AsTask()).ToList();
+
+        // Wait for all task completion sources to resolve
         await Task.WhenAll(tasks);
 
-        // Give background task time to process
-        await Task.Delay(500);
+        // Yield to allow any pending async continuations to complete
+        // (200ms accounts for resource contention during parallel test runs)
+        await Task.Delay(200);
 
-        // Assert
+        // Assert - all tasks completed means all processing finished
         Assert.Equal(4, processedCount);
         _mockInnerProcessor.Verify(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()), Times.Exactly(4));
     }
