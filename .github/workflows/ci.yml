@@ -216,17 +216,18 @@ jobs:
             echo ""
             echo "Coverage filters:"
             echo "  ✓ Including: Production code from src/"
-            echo "  ✗ Excluding: System.*, Microsoft.* classes"
+            echo "  ✗ Excluding: System.*, Microsoft.* framework classes"
             echo "  ✗ Excluding: *.Tests, *Benchmarks, *.Examples, *.Demo assemblies"
-            echo "  ✗ Excluding: Value objects/DTOs: *Options, *State, *Ref, *Result, *Request, *Response, *Dto, *DTO, *Dao, *DAO, *VO"
-            echo "  ✗ Excluding: Messages/Events: *Command, *Query, *Event, *Message"
-            echo "  ✗ Excluding: Exceptions: *Exception"
+            echo "  ✗ Excluding: Exception classes (*Exception)"
+            echo ""
+            echo "ℹ️  Note: Simple DTOs, records, and value objects are included in coverage."
+            echo "   The 80% threshold accounts for both logic and data structures."
             echo ""
             reportgenerator \
               -reports:"./all-test-results/**/coverage.cobertura.xml" \
               -targetdir:"./coverage-report" \
               -reporttypes:"Html;Badges;TextSummary" \
-              -classfilters:"-System.*;-Microsoft.*;-*ValueObject;-*ValueObject`*;-*VO;-*VO`*;-*Options;-*Options`*;-*State;-*State`*;-*Ref;-*Ref`*;-*Result;-*Result`*;-*Request;-*Request`*;-*Response;-*Response`*;-*Dto;-*Dto`*;-*DTO;-*DTO`*;-*Dao;-*Dao`*;-*DAO;-*DAO`*;-*Command;-*Command`*;-*Query;-*Query`*;-*Event;-*Event`*;-*Message;-*Message`*;-*Exception;-*Exception`*" \
+              -classfilters:"-System.*;-Microsoft.*;-*Exception;-*Exception`*" \
               -assemblyfilters:"-*.Tests;-*.Tests.*;-*Benchmarks;-*Benchmarks.*;-*.Examples;-*.Examples.*;-*.Demo;-*.Demo.*"
           else
             echo "No coverage files found, skipping report generation"
