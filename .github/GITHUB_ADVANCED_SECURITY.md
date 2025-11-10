@@ -83,7 +83,7 @@ gh api repos/KoalaFacts/HeroMessaging --jq '.private'
 
 **Option A: Use Existing Workflow** (Recommended)
 
-Our repository includes `.github/workflows/codeql-analysis.yml`:
+Our repository includes `.github/workflows/codeql.yml`:
 ```yaml
 name: CodeQL Security Analysis
 on:
