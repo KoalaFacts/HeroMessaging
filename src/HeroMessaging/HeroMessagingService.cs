@@ -50,6 +50,73 @@ public class HeroMessagingService(
         await _eventBus.Publish(@event, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<bool>> SendBatchAsync(IReadOnlyList<ICommand> commands, CancellationToken cancellationToken = default)
+    {
+        if (commands == null || commands.Count == 0)
+            return Array.Empty<bool>();
+
+        var results = new List<bool>(commands.Count);
+        _metrics.CommandsSent += commands.Count;
+
+        foreach (var command in commands)
+        {
+            try
+            {
+                await _commandProcessor.Send(command, cancellationToken);
+                results.Add(true);
+            }
+            catch
+            {
+                results.Add(false);
+                throw; // Re-throw to maintain error handling behavior
+            }
+        }
+
+        return results;
+    }
+
+    public async Task<IReadOnlyList<TResponse>> SendBatchAsync<TResponse>(IReadOnlyList<ICommand<TResponse>> commands, CancellationToken cancellationToken = default)
+    {
+        if (commands == null || commands.Count == 0)
+            return Array.Empty<TResponse>();
+
+        var results = new List<TResponse>(commands.Count);
+        _metrics.CommandsSent += commands.Count;
+
+        foreach (var command in commands)
+        {
+            var result = await _commandProcessor.Send(command, cancellationToken);
+            results.Add(result);
+        }
+
+        return results;
+    }
+
+    public async Task<IReadOnlyList<bool>> PublishBatchAsync(IReadOnlyList<IEvent> events, CancellationToken cancellationToken = default)
+    {
+        if (events == null || events.Count == 0)
+            return Array.Empty<bool>();
+
+        var results = new List<bool>(events.Count);
+        _metrics.EventsPublished += events.Count;
+
+        foreach (var @event in events)
+        {
+            try
+            {
+                await _eventBus.Publish(@event, cancellationToken);
+                results.Add(true);
+            }
+            catch
+            {
+                results.Add(false);
+                throw; // Re-throw to maintain error handling behavior
+            }
+        }
+
+        return results;
+    }
+
     public async Task EnqueueAsync(IMessage message, string queueName, EnqueueOptions? options = null, CancellationToken cancellationToken = default)
     {
         if (_queueProcessor == null)

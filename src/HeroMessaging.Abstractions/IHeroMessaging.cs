@@ -15,6 +15,13 @@ public interface IHeroMessaging
 
     Task PublishAsync(IEvent @event, CancellationToken cancellationToken = default);
 
+    // Batch operations
+    Task<IReadOnlyList<bool>> SendBatchAsync(IReadOnlyList<ICommand> commands, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<TResponse>> SendBatchAsync<TResponse>(IReadOnlyList<ICommand<TResponse>> commands, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<bool>> PublishBatchAsync(IReadOnlyList<IEvent> events, CancellationToken cancellationToken = default);
+
     Task EnqueueAsync(IMessage message, string queueName, EnqueueOptions? options = null, CancellationToken cancellationToken = default);
 
     Task StartQueueAsync(string queueName, CancellationToken cancellationToken = default);
