@@ -1,5 +1,5 @@
-using HeroMessaging.Abstractions.Transport;
 using System.Collections.Concurrent;
+using HeroMessaging.Abstractions.Transport;
 
 namespace HeroMessaging.Transport.InMemory;
 

@@ -7,7 +7,7 @@ updates:
       interval: "weekly"
       day: "monday"
       time: "06:00"
-      timezone: "UTC"
+      timezone: Australia/Sydney
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
@@ -31,7 +31,7 @@ updates:
       interval: "weekly"
       day: "monday"
       time: "06:00"
-      timezone: "UTC"
+      timezone: Australia/Sydney
     open-pull-requests-limit: 10
     labels:
       - "dependencies"

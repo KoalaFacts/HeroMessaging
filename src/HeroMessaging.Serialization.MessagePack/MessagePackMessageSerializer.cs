@@ -1,9 +1,8 @@
+using System.Buffers;
+using System.IO.Compression;
 using HeroMessaging.Abstractions.Serialization;
 using MessagePack;
 using MessagePack.Resolvers;
-using System;
-using System.Buffers;
-using System.IO.Compression;
 
 namespace HeroMessaging.Serialization.MessagePack;
 

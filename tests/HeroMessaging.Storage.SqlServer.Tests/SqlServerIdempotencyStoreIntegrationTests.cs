@@ -1,8 +1,7 @@
 using HeroMessaging.Abstractions.Idempotency;
-using HeroMessaging.Storage.SqlServer;
+using HeroMessaging.Utilities;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Time.Testing;
-using Testcontainers.MsSql;
 using Xunit;
 
 namespace HeroMessaging.Storage.SqlServer.Tests;
@@ -24,12 +23,14 @@ public sealed class SqlServerIdempotencyStoreIntegrationTests : IAsyncDisposable
     private readonly SqlServerIdempotencyStore _store;
     private readonly FakeTimeProvider _timeProvider;
     private readonly List<string> _keysToCleanup = new();
+    private readonly IJsonSerializer _jsonSerializer;
 
     public SqlServerIdempotencyStoreIntegrationTests(SqlServerIdempotencyStoreFixture fixture)
     {
         _fixture = fixture;
         _timeProvider = new FakeTimeProvider();
-        _store = new SqlServerIdempotencyStore(_fixture.ConnectionString, _timeProvider);
+        _jsonSerializer = new DefaultJsonSerializer(new DefaultBufferPoolManager());
+        _store = new SqlServerIdempotencyStore(_fixture.ConnectionString, _timeProvider, _jsonSerializer);
     }
 
     [Fact]

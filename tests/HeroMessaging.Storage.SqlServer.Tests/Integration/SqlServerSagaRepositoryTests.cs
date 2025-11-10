@@ -1,5 +1,4 @@
 using HeroMessaging.Abstractions.Sagas;
-using HeroMessaging.Storage.SqlServer;
 using Microsoft.Extensions.Time.Testing;
 using Testcontainers.MsSql;
 using Xunit;
@@ -53,7 +52,8 @@ public class SqlServerSagaRepositoryTests : IAsyncLifetime
         {
             throw new InvalidOperationException("Test not initialized");
         }
-        return new SqlServerSagaRepository<TestSaga>(_options, timeProvider ?? TimeProvider.System);
+        var jsonSerializer = new HeroMessaging.Utilities.DefaultJsonSerializer(new HeroMessaging.Utilities.DefaultBufferPoolManager());
+        return new SqlServerSagaRepository<TestSaga>(_options, timeProvider ?? TimeProvider.System, jsonSerializer);
     }
 
     [Fact]

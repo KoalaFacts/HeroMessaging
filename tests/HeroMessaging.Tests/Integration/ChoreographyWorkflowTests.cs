@@ -1,5 +1,4 @@
 using HeroMessaging.Abstractions;
-using HeroMessaging.Abstractions.Commands;
 using HeroMessaging.Abstractions.Events;
 using HeroMessaging.Abstractions.Handlers;
 using HeroMessaging.Abstractions.Messages;
@@ -47,7 +46,7 @@ public class ChoreographyWorkflowTests
             CorrelationId = initialCorrelationId
         };
 
-        await messaging.Publish(orderCreatedEvent);
+        await messaging.PublishAsync(orderCreatedEvent);
 
         // Allow async processing to complete with polling
         var timeout = TimeSpan.FromSeconds(5);
@@ -167,7 +166,7 @@ public class ChoreographyWorkflowTests
             }.WithCorrelation(); // Automatically applies correlation context
 
             _capturedEvents.Add(inventoryEvent);
-            await _messaging.Publish(inventoryEvent, cancellationToken);
+            await _messaging.PublishAsync(inventoryEvent, cancellationToken);
         }
     }
 
@@ -197,7 +196,7 @@ public class ChoreographyWorkflowTests
             }.WithCorrelation(); // Automatically applies correlation context
 
             _capturedEvents.Add(paymentEvent);
-            await _messaging.Publish(paymentEvent, cancellationToken);
+            await _messaging.PublishAsync(paymentEvent, cancellationToken);
         }
     }
 
@@ -227,7 +226,7 @@ public class ChoreographyWorkflowTests
             }.WithCorrelation(); // Automatically applies correlation context
 
             _capturedEvents.Add(shippingEvent);
-            await _messaging.Publish(shippingEvent, cancellationToken);
+            await _messaging.PublishAsync(shippingEvent, cancellationToken);
         }
     }
 

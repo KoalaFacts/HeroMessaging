@@ -1,9 +1,9 @@
+using System.Text.Json;
 using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Storage;
 using HeroMessaging.Utilities;
 using Npgsql;
-using System.Text.Json;
 
 namespace HeroMessaging.Storage.PostgreSql;
 
@@ -35,7 +35,7 @@ public class PostgreSqlInboxStorage : IInboxStorage
         _tableName = _options.GetFullTableName(_options.InboxTableName);
 
         // Use provided dependencies or create defaults
-        _connectionProvider = connectionProvider ?? new PostgreSqlConnectionProvider(options.ConnectionString ?? throw new ArgumentNullException(nameof(options.ConnectionString)));
+        _connectionProvider = connectionProvider ?? new PostgreSqlConnectionProvider(options.ConnectionString ?? throw new ArgumentNullException(nameof(options), "ConnectionString cannot be null"));
         _jsonOptionsProvider = jsonOptionsProvider ?? new DefaultJsonOptionsProvider();
         _schemaInitializer = schemaInitializer ?? new PostgreSqlSchemaInitializer(_connectionProvider);
 
@@ -94,7 +94,7 @@ public class PostgreSqlInboxStorage : IInboxStorage
         await _schemaInitializer.ExecuteSchemaScriptAsync(createTableSql);
     }
 
-    public async Task<InboxEntry?> Add(IMessage message, InboxOptions options, CancellationToken cancellationToken = default)
+    public async Task<InboxEntry?> AddAsync(IMessage message, InboxOptions options, CancellationToken cancellationToken = default)
     {
         var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
         var transaction = _connectionProvider.GetTransaction();
@@ -107,7 +107,7 @@ public class PostgreSqlInboxStorage : IInboxStorage
             // Check for duplicates if idempotency is required
             if (options.RequireIdempotency)
             {
-                var isDuplicate = await IsDuplicate(messageId, options.DeduplicationWindow, cancellationToken);
+                var isDuplicate = await IsDuplicateAsync(messageId, options.DeduplicationWindow, cancellationToken);
                 if (isDuplicate)
                 {
                     return null; // Message already exists
@@ -149,7 +149,7 @@ public class PostgreSqlInboxStorage : IInboxStorage
         }
     }
 
-    public async Task<bool> IsDuplicate(string messageId, TimeSpan? window = null, CancellationToken cancellationToken = default)
+    public async Task<bool> IsDuplicateAsync(string messageId, TimeSpan? window = null, CancellationToken cancellationToken = default)
     {
         var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
         var transaction = _connectionProvider.GetTransaction();
@@ -181,7 +181,7 @@ public class PostgreSqlInboxStorage : IInboxStorage
         }
     }
 
-    public async Task<InboxEntry?> Get(string messageId, CancellationToken cancellationToken = default)
+    public async Task<InboxEntry?> GetAsync(string messageId, CancellationToken cancellationToken = default)
     {
         var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
         var transaction = _connectionProvider.GetTransaction();
@@ -239,7 +239,7 @@ public class PostgreSqlInboxStorage : IInboxStorage
         }
     }
 
-    public async Task<bool> MarkProcessed(string messageId, CancellationToken cancellationToken = default)
+    public async Task<bool> MarkProcessedAsync(string messageId, CancellationToken cancellationToken = default)
     {
         var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
         var transaction = _connectionProvider.GetTransaction();
@@ -266,7 +266,7 @@ public class PostgreSqlInboxStorage : IInboxStorage
         }
     }
 
-    public async Task<bool> MarkFailed(string messageId, string error, CancellationToken cancellationToken = default)
+    public async Task<bool> MarkFailedAsync(string messageId, string error, CancellationToken cancellationToken = default)
     {
         var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
         var transaction = _connectionProvider.GetTransaction();
@@ -294,7 +294,7 @@ public class PostgreSqlInboxStorage : IInboxStorage
         }
     }
 
-    public async Task<IEnumerable<InboxEntry>> GetPending(InboxQuery query, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<InboxEntry>> GetPendingAsync(InboxQuery query, CancellationToken cancellationToken = default)
     {
         var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
         var transaction = _connectionProvider.GetTransaction();
@@ -383,7 +383,7 @@ public class PostgreSqlInboxStorage : IInboxStorage
         }
     }
 
-    public async Task<IEnumerable<InboxEntry>> GetUnprocessed(int limit = 100, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<InboxEntry>> GetUnprocessedAsync(int limit = 100, CancellationToken cancellationToken = default)
     {
         var query = new InboxQuery
         {
@@ -391,10 +391,10 @@ public class PostgreSqlInboxStorage : IInboxStorage
             Limit = limit
         };
 
-        return await GetPending(query, cancellationToken);
+        return await GetPendingAsync(query, cancellationToken);
     }
 
-    public async Task<long> GetUnprocessedCount(CancellationToken cancellationToken = default)
+    public async Task<long> GetUnprocessedCountAsync(CancellationToken cancellationToken = default)
     {
         var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
         var transaction = _connectionProvider.GetTransaction();
@@ -413,7 +413,7 @@ public class PostgreSqlInboxStorage : IInboxStorage
         }
     }
 
-    public async Task CleanupOldEntries(TimeSpan olderThan, CancellationToken cancellationToken = default)
+    public async Task CleanupOldEntriesAsync(TimeSpan olderThan, CancellationToken cancellationToken = default)
     {
         var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
         var transaction = _connectionProvider.GetTransaction();

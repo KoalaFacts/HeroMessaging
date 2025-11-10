@@ -1,4 +1,4 @@
-namespace HeroMessaging.ArchitectureTests;
+namespace HeroMessaging.Tests.Architecture;
 
 /// <summary>
 /// Tests to ensure messages (Commands, Queries, Events) are immutable.
@@ -6,7 +6,7 @@ namespace HeroMessaging.ArchitectureTests;
 /// </summary>
 public class ImmutabilityTests
 {
-    private static readonly Assembly AbstractionsAssembly = typeof(Abstractions.IMessage).Assembly;
+    private static readonly Assembly AbstractionsAssembly = typeof(Abstractions.Messages.IMessage).Assembly;
     private static readonly Assembly CoreAssembly = typeof(HeroMessagingService).Assembly;
 
     [Fact]
@@ -88,7 +88,7 @@ public class ImmutabilityTests
     {
         // Arrange & Act
         var result = Types.InAssemblies(new[] { AbstractionsAssembly, CoreAssembly })
-            .That().ImplementInterface(typeof(Abstractions.IMessage))
+            .That().ImplementInterface(typeof(Abstractions.Messages.IMessage))
             .And().AreClasses()
             .Should().BeSealed()
             .Or().BeAbstract()
@@ -117,7 +117,7 @@ public class ImmutabilityTests
             .And().AreNotAbstract()
             .And().AreNotInterfaces()
             .GetTypes()
-            .Where(t => t.Name.Contains("Options") ||
+            .Where(t => //t.Name.Contains("Options") ||  // Commented out - Options classes are configuration objects (mutable by design)
                        t.Name.Contains("Result") ||
                        t.Name.Contains("Context") ||
                        t.Name.Contains("Address") ||

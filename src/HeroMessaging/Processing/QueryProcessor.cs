@@ -1,11 +1,10 @@
+using System.Diagnostics;
+using System.Threading.Tasks.Dataflow;
 using HeroMessaging.Abstractions.Handlers;
 using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Abstractions.Queries;
 using HeroMessaging.Utilities;
 using Microsoft.Extensions.Logging;
-using System.Diagnostics;
-using System.Threading;
-using System.Threading.Tasks.Dataflow;
 
 namespace HeroMessaging.Processing;
 
@@ -17,7 +16,11 @@ public class QueryProcessor : IQueryProcessor, IProcessor
     private long _processedCount;
     private long _failedCount;
     private readonly List<long> _durations = new();
+#if NET9_0_OR_GREATER
     private readonly Lock _metricsLock = new();
+#else
+    private readonly object _metricsLock = new();
+#endif
 
     public bool IsRunning { get; private set; } = true;
 

@@ -1,5 +1,5 @@
-using HeroMessaging.Abstractions.Queries;
 using HeroMessaging.Abstractions.Handlers;
+using HeroMessaging.Abstractions.Queries;
 using HeroMessaging.Processing;
 
 namespace HeroMessaging.Benchmarks;

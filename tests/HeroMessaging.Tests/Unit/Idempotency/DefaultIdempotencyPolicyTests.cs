@@ -1,4 +1,3 @@
-using HeroMessaging.Abstractions.Idempotency;
 using HeroMessaging.Idempotency;
 using HeroMessaging.Idempotency.KeyGeneration;
 using Xunit;

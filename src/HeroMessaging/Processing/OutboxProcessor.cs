@@ -32,7 +32,7 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxEntry>, IOutbo
     {
         options ??= new OutboxOptions();
 
-        var entry = await _outboxStorage.Add(message, options, cancellationToken);
+        var entry = await _outboxStorage.AddAsync(message, options, cancellationToken);
 
         // Trigger immediate processing for high priority messages
         if (options.Priority > 5)
@@ -45,7 +45,7 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxEntry>, IOutbo
 
     protected override async Task<IEnumerable<OutboxEntry>> PollForWorkItems(CancellationToken cancellationToken)
     {
-        return await _outboxStorage.GetPending(100, cancellationToken);
+        return await _outboxStorage.GetPendingAsync(100, cancellationToken);
     }
 
     protected override async Task ProcessWorkItem(OutboxEntry entry)
@@ -69,15 +69,15 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxEntry>, IOutbo
                 switch (entry.Message)
                 {
                     case ICommand command:
-                        await messaging.Send(command);
+                        await messaging.SendAsync(command);
                         break;
                     case IEvent @event:
-                        await messaging.Publish(@event);
+                        await messaging.PublishAsync(@event);
                         break;
                 }
             }
 
-            await _outboxStorage.MarkProcessed(entry.Id);
+            await _outboxStorage.MarkProcessedAsync(entry.Id);
 
             Logger.LogInformation("Outbox entry {EntryId} processed successfully", entry.Id);
         }
@@ -89,7 +89,7 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxEntry>, IOutbo
 
             if (entry.RetryCount >= entry.Options.MaxRetries)
             {
-                await _outboxStorage.MarkFailed(entry.Id, ex.Message);
+                await _outboxStorage.MarkFailedAsync(entry.Id, ex.Message);
                 Logger.LogError("Outbox entry {EntryId} failed after {RetryCount} retries",
                     entry.Id, entry.RetryCount);
             }
@@ -98,7 +98,7 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxEntry>, IOutbo
                 var delay = entry.Options.RetryDelay ?? TimeSpan.FromSeconds(Math.Pow(2, entry.RetryCount));
                 var nextRetry = _timeProvider.GetUtcNow().DateTime.Add(delay);
 
-                await _outboxStorage.UpdateRetryCount(entry.Id, entry.RetryCount, nextRetry);
+                await _outboxStorage.UpdateRetryCountAsync(entry.Id, entry.RetryCount, nextRetry);
 
                 Logger.LogWarning("Outbox entry {EntryId} will be retried at {NextRetry} (attempt {RetryCount}/{MaxRetries})",
                     entry.Id, nextRetry, entry.RetryCount, entry.Options.MaxRetries);
@@ -127,6 +127,6 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxEntry>, IOutbo
 public interface IOutboxProcessor
 {
     Task PublishToOutbox(IMessage message, OutboxOptions? options = null, CancellationToken cancellationToken = default);
-    Task Start(CancellationToken cancellationToken = default);
-    Task Stop();
+    Task StartAsync(CancellationToken cancellationToken = default);
+    Task StopAsync();
 }

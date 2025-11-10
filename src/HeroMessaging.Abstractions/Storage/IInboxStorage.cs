@@ -4,23 +4,23 @@ namespace HeroMessaging.Abstractions.Storage;
 
 public interface IInboxStorage
 {
-    Task<InboxEntry?> Add(IMessage message, InboxOptions options, CancellationToken cancellationToken = default);
+    Task<InboxEntry?> AddAsync(IMessage message, InboxOptions options, CancellationToken cancellationToken = default);
 
-    Task<bool> IsDuplicate(string messageId, TimeSpan? window = null, CancellationToken cancellationToken = default);
+    Task<bool> IsDuplicateAsync(string messageId, TimeSpan? window = null, CancellationToken cancellationToken = default);
 
-    Task<InboxEntry?> Get(string messageId, CancellationToken cancellationToken = default);
+    Task<InboxEntry?> GetAsync(string messageId, CancellationToken cancellationToken = default);
 
-    Task<bool> MarkProcessed(string messageId, CancellationToken cancellationToken = default);
+    Task<bool> MarkProcessedAsync(string messageId, CancellationToken cancellationToken = default);
 
-    Task<bool> MarkFailed(string messageId, string error, CancellationToken cancellationToken = default);
+    Task<bool> MarkFailedAsync(string messageId, string error, CancellationToken cancellationToken = default);
 
-    Task<IEnumerable<InboxEntry>> GetPending(InboxQuery query, CancellationToken cancellationToken = default);
+    Task<IEnumerable<InboxEntry>> GetPendingAsync(InboxQuery query, CancellationToken cancellationToken = default);
 
-    Task<IEnumerable<InboxEntry>> GetUnprocessed(int limit = 100, CancellationToken cancellationToken = default);
+    Task<IEnumerable<InboxEntry>> GetUnprocessedAsync(int limit = 100, CancellationToken cancellationToken = default);
 
-    Task<long> GetUnprocessedCount(CancellationToken cancellationToken = default);
+    Task<long> GetUnprocessedCountAsync(CancellationToken cancellationToken = default);
 
-    Task CleanupOldEntries(TimeSpan olderThan, CancellationToken cancellationToken = default);
+    Task CleanupOldEntriesAsync(TimeSpan olderThan, CancellationToken cancellationToken = default);
 }
 
 public class InboxEntry

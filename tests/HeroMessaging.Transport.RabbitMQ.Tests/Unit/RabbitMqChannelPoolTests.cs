@@ -16,34 +16,34 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
     private Mock<IConnection>? _mockConnection;
     private Mock<ILogger<RabbitMqChannelPool>>? _mockLogger;
     private RabbitMqChannelPool? _channelPool;
-    private List<Mock<IModel>> _mockChannels;
+    private List<Mock<IChannel>> _mockChannels;
 
     public ValueTask InitializeAsync()
     {
         _mockConnection = new Mock<IConnection>();
         _mockLogger = new Mock<ILogger<RabbitMqChannelPool>>();
-        _mockChannels = new List<Mock<IModel>>();
+        _mockChannels = new List<Mock<IChannel>>();
 
-        // Setup connection
         _mockConnection.Setup(c => c.IsOpen).Returns(true);
         _mockConnection.Setup(c => c.ClientProvidedName).Returns("test-connection");
-
-        // Setup channel creation
         var channelNumber = 0;
-        _mockConnection.Setup(c => c.CreateModel()).Returns(() =>
-        {
-            var mockChannel = new Mock<IModel>();
-            mockChannel.Setup(ch => ch.IsOpen).Returns(true);
-            mockChannel.Setup(ch => ch.ChannelNumber).Returns(++channelNumber);
-            _mockChannels.Add(mockChannel);
-            return mockChannel.Object;
-        });
+        _mockConnection.Setup(c => c.CreateChannelAsync(It.IsAny<CreateChannelOptions>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() =>
+            {
+                var mockChannel = new Mock<IChannel>();
+                mockChannel.Setup(ch => ch.IsOpen).Returns(true);
+                mockChannel.Setup(ch => ch.ChannelNumber).Returns(++channelNumber);
+                mockChannel.Setup(ch => ch.CloseAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+                _mockChannels.Add(mockChannel);
+                return mockChannel.Object;
+            });
 
         _channelPool = new RabbitMqChannelPool(
             _mockConnection.Object,
             maxChannels: 5,
             channelLifetime: TimeSpan.FromMinutes(5),
-            _mockLogger.Object);
+            _mockLogger.Object,
+            TimeProvider.System);
 
         return ValueTask.CompletedTask;
     }
@@ -73,7 +73,7 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
     {
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
-            new RabbitMqChannelPool(null!, 5, TimeSpan.FromMinutes(5), _mockLogger!.Object));
+            new RabbitMqChannelPool(null!, 5, TimeSpan.FromMinutes(5), _mockLogger!.Object, TimeProvider.System));
     }
 
     [Fact]
@@ -81,7 +81,7 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
     {
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
-            new RabbitMqChannelPool(_mockConnection!.Object, 5, TimeSpan.FromMinutes(5), null!));
+            new RabbitMqChannelPool(_mockConnection!.Object, 5, TimeSpan.FromMinutes(5), null!, TimeProvider.System));
     }
 
     #endregion
@@ -96,7 +96,7 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
 
         // Assert
         Assert.NotNull(channel);
-        _mockConnection!.Verify(c => c.CreateModel(), Times.Once);
+        _mockConnection!.Verify(c => c.CreateChannelAsync(It.IsAny<CreateChannelOptions>(), It.IsAny<CancellationToken>()), Times.Once);
         var stats = _channelPool.GetStatistics();
         Assert.Equal(1, stats.Total);
     }
@@ -113,7 +113,7 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
 
         // Assert
         Assert.Same(channel1, channel2);
-        _mockConnection!.Verify(c => c.CreateModel(), Times.Once); // Only created once
+        _mockConnection!.Verify(c => c.CreateChannelAsync(It.IsAny<CreateChannelOptions>(), It.IsAny<CancellationToken>()), Times.Once); // Only created once
     }
 
     [Fact]
@@ -131,7 +131,7 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
 
         // Assert
         Assert.NotSame(channel1, channel2);
-        _mockConnection!.Verify(c => c.CreateModel(), Times.Exactly(2));
+        _mockConnection!.Verify(c => c.CreateChannelAsync(It.IsAny<CreateChannelOptions>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
 
     [Fact]
@@ -160,7 +160,7 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
     public async Task AcquireChannelAsync_ExceedsMaxChannels_LogsWarningAndCreatesTemporary()
     {
         // Arrange - acquire max channels without releasing
-        var channels = new List<IModel>();
+        var channels = new List<IChannel>();
         for (int i = 0; i < 5; i++)
         {
             channels.Add(await _channelPool!.AcquireChannelAsync());
@@ -171,7 +171,7 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
 
         // Assert
         Assert.NotNull(extraChannel);
-        _mockConnection!.Verify(c => c.CreateModel(), Times.Exactly(6));
+        _mockConnection!.Verify(c => c.CreateChannelAsync(It.IsAny<CreateChannelOptions>(), It.IsAny<CancellationToken>()), Times.Exactly(6));
 
         // Verify warning was logged
         _mockLogger!.Verify(

@@ -1,5 +1,3 @@
-using HeroMessaging.Abstractions.Serialization;
-using HeroMessaging.Serialization.MessagePack;
 using HeroMessaging.Serialization.Json;
 using HeroMessaging.Tests.TestUtilities;
 using Xunit;

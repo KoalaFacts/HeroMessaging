@@ -1,13 +1,17 @@
 using HeroMessaging.Abstractions.Idempotency;
-using HeroMessaging.Storage.PostgreSql;
+using HeroMessaging.Utilities;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
-namespace Microsoft.Extensions.DependencyInjection;
+namespace HeroMessaging.Storage.PostgreSql;
 
 /// <summary>
 /// Extension methods for configuring PostgreSQL idempotency storage.
 /// </summary>
+// Inline analyzer ignore for namespace deviation from extension target
+#pragma warning disable IDE0130 // Namespace does not match folder structure
 public static class ExtensionsToServiceCollectionForPostgreSql
+#pragma warning restore IDE0130
 {
     /// <summary>
     /// Registers PostgreSQL as the idempotency store.
@@ -72,7 +76,8 @@ public static class ExtensionsToServiceCollectionForPostgreSql
         services.TryAddSingleton<IIdempotencyStore>(sp =>
         {
             var timeProvider = sp.GetService<TimeProvider>() ?? TimeProvider.System;
-            return new PostgreSqlIdempotencyStore(connectionString, timeProvider);
+            var jsonSerializer = sp.GetRequiredService<IJsonSerializer>();
+            return new PostgreSqlIdempotencyStore(connectionString, timeProvider, jsonSerializer);
         });
 
         return services;

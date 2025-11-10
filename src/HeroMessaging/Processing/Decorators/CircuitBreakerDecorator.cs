@@ -1,9 +1,8 @@
+using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Processing;
 using Microsoft.Extensions.Logging;
-using System.Collections.Concurrent;
-using System.Runtime.CompilerServices;
-using System.Threading;
 
 namespace HeroMessaging.Processing.Decorators;
 
@@ -133,7 +132,11 @@ internal class CircuitBreakerState(CircuitBreakerOptions options, TimeProvider t
     private CircuitState _currentState = CircuitState.Closed;
     private DateTime _lastStateChange = timeProvider.GetUtcNow().DateTime;
     private int _halfOpenSuccesses;
+#if NET9_0_OR_GREATER
     private readonly Lock _stateLock = new();
+#else
+    private readonly object _stateLock = new();
+#endif
 
     public CircuitState CurrentState => _currentState;
     public bool StateChanged { get; private set; }

@@ -1,4 +1,3 @@
-using HeroMessaging.Storage.PostgreSql;
 using Testcontainers.PostgreSql;
 using Xunit;
 

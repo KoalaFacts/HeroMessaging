@@ -1,6 +1,7 @@
-using HeroMessaging.Abstractions.Storage;
-using Npgsql;
 using System.Data;
+using HeroMessaging.Abstractions.Storage;
+using HeroMessaging.Utilities;
+using Npgsql;
 
 namespace HeroMessaging.Storage.PostgreSql;
 
@@ -13,6 +14,7 @@ public class PostgreSqlUnitOfWork : IUnitOfWork
     private NpgsqlTransaction? _transaction;
     private readonly List<string> _savepoints = new();
     private readonly TimeProvider _timeProvider;
+    private readonly IJsonSerializer _jsonSerializer;
     private bool _disposed;
 
     private readonly Lazy<IOutboxStorage> _outboxStorage;
@@ -20,16 +22,17 @@ public class PostgreSqlUnitOfWork : IUnitOfWork
     private readonly Lazy<IQueueStorage> _queueStorage;
     private readonly Lazy<IMessageStorage> _messageStorage;
 
-    public PostgreSqlUnitOfWork(string connectionString, TimeProvider? timeProvider = null)
+    public PostgreSqlUnitOfWork(string connectionString, TimeProvider? timeProvider = null, IJsonSerializer? jsonSerializer = null)
     {
         _connection = new NpgsqlConnection(connectionString);
         _timeProvider = timeProvider ?? TimeProvider.System;
+        _jsonSerializer = jsonSerializer ?? new DefaultJsonSerializer(new DefaultBufferPoolManager());
 
         // Initialize storage implementations lazily with the shared connection/transaction
-        _outboxStorage = new Lazy<IOutboxStorage>(() => new PostgreSqlOutboxStorage(_connection, _transaction, _timeProvider));
-        _inboxStorage = new Lazy<IInboxStorage>(() => new PostgreSqlInboxStorage(_connection, _transaction, _timeProvider));
-        _queueStorage = new Lazy<IQueueStorage>(() => new PostgreSqlQueueStorage(_connection, _transaction, _timeProvider));
-        _messageStorage = new Lazy<IMessageStorage>(() => new PostgreSqlMessageStorage(_connection, _transaction, _timeProvider));
+        _outboxStorage = new Lazy<IOutboxStorage>(() => new PostgreSqlOutboxStorage(_connection, _transaction, _timeProvider, _jsonSerializer));
+        _inboxStorage = new Lazy<IInboxStorage>(() => new PostgreSqlInboxStorage(_connection, _transaction, _timeProvider, _jsonSerializer));
+        _queueStorage = new Lazy<IQueueStorage>(() => new PostgreSqlQueueStorage(_connection, _transaction, _timeProvider, _jsonSerializer));
+        _messageStorage = new Lazy<IMessageStorage>(() => new PostgreSqlMessageStorage(_connection, _transaction, _timeProvider, _jsonSerializer));
     }
 
     public IsolationLevel IsolationLevel => _transaction?.IsolationLevel ?? IsolationLevel.Unspecified;

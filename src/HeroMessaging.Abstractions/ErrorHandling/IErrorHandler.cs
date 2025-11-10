@@ -4,25 +4,25 @@ namespace HeroMessaging.Abstractions.ErrorHandling;
 
 public interface IErrorHandler
 {
-    Task<ErrorHandlingResult> HandleError<T>(T message, Exception error, ErrorContext context, CancellationToken cancellationToken = default) where T : IMessage;
+    Task<ErrorHandlingResult> HandleErrorAsync<T>(T message, Exception error, ErrorContext context, CancellationToken cancellationToken = default) where T : IMessage;
 }
 
-public class ErrorContext
+public sealed record ErrorContext
 {
-    public int RetryCount { get; set; }
-    public int MaxRetries { get; set; }
-    public string Component { get; set; } = string.Empty;
-    public string? QueueName { get; set; }
-    public Dictionary<string, object> Metadata { get; set; } = new();
-    public DateTime FirstFailureTime { get; set; }
-    public DateTime LastFailureTime { get; set; }
+    public int RetryCount { get; init; }
+    public int MaxRetries { get; init; }
+    public string Component { get; init; } = string.Empty;
+    public string? QueueName { get; init; }
+    public Dictionary<string, object> Metadata { get; init; } = new();
+    public DateTime FirstFailureTime { get; init; }
+    public DateTime LastFailureTime { get; init; }
 }
 
-public class ErrorHandlingResult
+public sealed record ErrorHandlingResult
 {
-    public ErrorAction Action { get; set; }
-    public TimeSpan? RetryDelay { get; set; }
-    public string? Reason { get; set; }
+    public ErrorAction Action { get; init; }
+    public TimeSpan? RetryDelay { get; init; }
+    public string? Reason { get; init; }
 
     public static ErrorHandlingResult Retry(TimeSpan delay) => new() { Action = ErrorAction.Retry, RetryDelay = delay };
     public static ErrorHandlingResult SendToDeadLetter(string reason) => new() { Action = ErrorAction.SendToDeadLetter, Reason = reason };

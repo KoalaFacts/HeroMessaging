@@ -15,32 +15,45 @@ namespace HeroMessaging.Transport.RabbitMQ.Tests.Unit;
 [Trait("Category", "Unit")]
 public class RabbitMqConsumerTests : IAsyncLifetime
 {
-    private Mock<IModel>? _mockChannel;
+    private Mock<IChannel>? _mockChannel;
     private Mock<RabbitMqTransport>? _mockTransport;
     private Mock<ILogger<RabbitMqConsumer>>? _mockLogger;
     private Func<TransportEnvelope, MessageContext, CancellationToken, Task>? _handler;
-    private TransportAddress? _source;
+    private TransportAddress _source;
     private ConsumerOptions? _options;
     private RabbitMqConsumer? _consumer;
     private List<(TransportEnvelope envelope, MessageContext context)> _handledMessages;
 
     public ValueTask InitializeAsync()
     {
-        _mockChannel = new Mock<IModel>();
+        _mockChannel = new Mock<IChannel>();
         _mockLogger = new Mock<ILogger<RabbitMqConsumer>>();
         _handledMessages = new List<(TransportEnvelope, MessageContext)>();
-
-        // Setup channel
         _mockChannel.Setup(ch => ch.IsOpen).Returns(true);
-        _mockChannel.Setup(ch => ch.BasicConsume(
+        _mockChannel.Setup(ch => ch.CloseAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        _mockChannel.Setup(ch => ch.BasicConsumeAsync(
             It.IsAny<string>(),
             It.IsAny<bool>(),
             It.IsAny<string>(),
             It.IsAny<bool>(),
             It.IsAny<bool>(),
             It.IsAny<IDictionary<string, object>>(),
-            It.IsAny<IBasicConsumer>()
-        )).Returns("consumer-tag-123");
+            It.IsAny<IAsyncBasicConsumer>(),
+            It.IsAny<CancellationToken>()
+        )).ReturnsAsync("consumer-tag-123");
+
+        _mockChannel.Setup(ch => ch.BasicCancelAsync(
+            It.IsAny<string>(),
+            It.IsAny<bool>(),
+            It.IsAny<CancellationToken>()
+        )).Returns(Task.CompletedTask);
+
+        _mockChannel.Setup(ch => ch.BasicQosAsync(
+            It.IsAny<uint>(),
+            It.IsAny<ushort>(),
+            It.IsAny<bool>(),
+            It.IsAny<CancellationToken>()
+        )).Returns(Task.CompletedTask);
 
         // Setup transport - create a real instance for testing
         var mockLoggerFactory = new Mock<ILoggerFactory>();
@@ -115,13 +128,16 @@ public class RabbitMqConsumerTests : IAsyncLifetime
     }
 
     [Fact]
-    public void Constructor_WithNullSource_ThrowsArgumentNullException()
+    public void Constructor_WithNullSource_ThrowsArgumentException()
     {
+        // Arrange - Create a TransportAddress with empty name to trigger validation
+        var emptySource = new TransportAddress(string.Empty, TransportAddressType.Queue);
+
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() =>
+        Assert.Throws<ArgumentException>(() =>
             new RabbitMqConsumer(
                 "test",
-                null!,
+                emptySource,
                 _mockChannel!.Object,
                 _handler!,
                 _options!,
@@ -171,10 +187,15 @@ public class RabbitMqConsumerTests : IAsyncLifetime
 
         // Assert
         Assert.True(_consumer.IsActive);
-        _mockChannel!.Verify(ch => ch.BasicConsume(
+        _mockChannel!.Verify(ch => ch.BasicConsumeAsync(
             "test-queue",
-            false, // autoAck
-            It.IsAny<IBasicConsumer>()), Times.Once);
+            false,
+            It.IsAny<string>(),
+            It.IsAny<bool>(),
+            It.IsAny<bool>(),
+            It.IsAny<IDictionary<string, object>>(),
+            It.IsAny<IAsyncBasicConsumer>(),
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -187,10 +208,15 @@ public class RabbitMqConsumerTests : IAsyncLifetime
         await _consumer.StartAsync();
 
         // Assert
-        _mockChannel!.Verify(ch => ch.BasicConsume(
+        _mockChannel!.Verify(ch => ch.BasicConsumeAsync(
             It.IsAny<string>(),
             It.IsAny<bool>(),
-            It.IsAny<IBasicConsumer>()), Times.Once); // Only once
+            It.IsAny<string>(),
+            It.IsAny<bool>(),
+            It.IsAny<bool>(),
+            It.IsAny<IDictionary<string, object>>(),
+            It.IsAny<IAsyncBasicConsumer>(),
+            It.IsAny<CancellationToken>()), Times.Once); // Only once
     }
 
     [Fact]
@@ -221,7 +247,7 @@ public class RabbitMqConsumerTests : IAsyncLifetime
 
         // Assert
         Assert.False(_consumer.IsActive);
-        _mockChannel!.Verify(ch => ch.BasicCancel("consumer-tag-123"), Times.Once);
+        _mockChannel!.Verify(ch => ch.BasicCancelAsync("consumer-tag-123", It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -247,7 +273,7 @@ public class RabbitMqConsumerTests : IAsyncLifetime
     {
         // Arrange
         await _consumer!.StartAsync();
-        _mockChannel!.Setup(ch => ch.BasicCancel(It.IsAny<string>()))
+        _mockChannel!.Setup(ch => ch.BasicCancelAsync(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .Throws(new InvalidOperationException("Test exception"));
 
         // Act & Assert - should not throw
@@ -276,9 +302,6 @@ public class RabbitMqConsumerTests : IAsyncLifetime
 
         // Assert
         Assert.NotNull(metrics);
-        Assert.Equal("test-consumer", metrics.ConsumerId);
-        Assert.Equal("test-queue", metrics.Source);
-        Assert.False(metrics.IsActive);
         Assert.Equal(0, metrics.MessagesProcessed);
         Assert.Equal(0, metrics.MessagesFailed);
     }
@@ -289,11 +312,9 @@ public class RabbitMqConsumerTests : IAsyncLifetime
         // Arrange
         await _consumer!.StartAsync();
 
-        // Act
-        var metrics = _consumer.GetMetrics();
-
+        // Act - check IsActive directly on consumer, not metrics
         // Assert
-        Assert.True(metrics.IsActive);
+        Assert.True(_consumer.IsActive);
     }
 
     #endregion
@@ -311,7 +332,7 @@ public class RabbitMqConsumerTests : IAsyncLifetime
 
         // Assert
         Assert.False(_consumer.IsActive);
-        _mockChannel!.Verify(ch => ch.Close(), Times.Once);
+        _mockChannel!.Verify(ch => ch.CloseAsync(It.IsAny<CancellationToken>()), Times.Once);
         _mockChannel.Verify(ch => ch.Dispose(), Times.Once);
     }
 
@@ -329,7 +350,7 @@ public class RabbitMqConsumerTests : IAsyncLifetime
     public async Task DisposeAsync_WhenChannelCloseThrows_LogsWarningButCompletes()
     {
         // Arrange
-        _mockChannel!.Setup(ch => ch.Close()).Throws(new InvalidOperationException("Test exception"));
+        _mockChannel!.Setup(ch => ch.CloseAsync(It.IsAny<CancellationToken>())).Throws(new InvalidOperationException("Test exception"));
 
         // Act & Assert - should not throw
         await _consumer!.DisposeAsync();

@@ -31,8 +31,11 @@ public interface IJsonSerializer
     /// <summary>
     /// Serializes an object to JSON UTF-8 bytes and writes to an ArrayBufferWriter.
     /// Allows caller to reuse the buffer or convert to string as needed.
+    /// NOTE: Not available in netstandard2.0 due to ArrayBufferWriter accessibility.
     /// </summary>
+#if !NETSTANDARD2_0
     void SerializeToBuffer<T>(T value, ArrayBufferWriter<byte> buffer, JsonSerializerOptions? options = null);
+#endif
 
     /// <summary>
     /// Deserializes JSON from a UTF-8 string using span-based APIs with pooled buffers.

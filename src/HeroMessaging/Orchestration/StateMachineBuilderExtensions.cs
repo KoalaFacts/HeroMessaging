@@ -1,6 +1,5 @@
 using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Events;
-using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Sagas;
 
 namespace HeroMessaging.Orchestration;
@@ -83,7 +82,7 @@ public static class StateMachineBuilderExtensions
             if (messagingService != null)
             {
                 var eventToPublish = eventFactory(ctx);
-                await messagingService.Publish(eventToPublish);
+                await messagingService.PublishAsync(eventToPublish);
             }
         });
     }

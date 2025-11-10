@@ -1,9 +1,9 @@
-using HeroMessaging.Abstractions.Sagas;
-using HeroMessaging.Utilities;
-using Npgsql;
 using System.Data;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using HeroMessaging.Abstractions.Sagas;
+using HeroMessaging.Utilities;
+using Npgsql;
 
 namespace HeroMessaging.Storage.PostgreSql;
 

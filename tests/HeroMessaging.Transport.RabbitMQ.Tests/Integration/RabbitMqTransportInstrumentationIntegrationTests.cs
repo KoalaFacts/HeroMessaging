@@ -122,10 +122,8 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
         {
             // Connect and configure
             await transport.ConnectAsync();
-            await transport.ConfigureTopologyAsync(new TransportTopology
-            {
-                Queues = new[] { new QueueDefinition { Name = queueName, Durable = false, AutoDelete = true } }
-            });
+            await transport.ConfigureTopologyAsync(new TransportTopology()
+                .AddQueue(new QueueDefinition { Name = queueName, Durable = false, AutoDelete = true }));
 
             // Subscribe before sending
             var consumer = await transport.SubscribeAsync(
@@ -226,10 +224,8 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
         {
             // Connect and configure
             await transport.ConnectAsync();
-            await transport.ConfigureTopologyAsync(new TransportTopology
-            {
-                Queues = new[] { new QueueDefinition { Name = queueName, Durable = false, AutoDelete = true } }
-            });
+            await transport.ConfigureTopologyAsync(new TransportTopology()
+                .AddQueue(new QueueDefinition { Name = queueName, Durable = false, AutoDelete = true }));
 
             // Act
             await transport.SendAsync(destination, envelope);
@@ -278,19 +274,14 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
         {
             // Connect and configure
             await transport.ConnectAsync();
-            await transport.ConfigureTopologyAsync(new TransportTopology
-            {
-                Exchanges = new[]
+            await transport.ConfigureTopologyAsync(new TransportTopology()
+                .AddExchange(new ExchangeDefinition
                 {
-                    new ExchangeDefinition
-                    {
-                        Name = exchangeName,
-                        Type = ExchangeType.Topic,
-                        Durable = false,
-                        AutoDelete = true
-                    }
-                }
-            });
+                    Name = exchangeName,
+                    Type = ExchangeType.Topic,
+                    Durable = false,
+                    AutoDelete = true
+                }));
 
             // Act
             await transport.PublishAsync(topic, envelope);
@@ -376,10 +367,8 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
         {
             // Connect and configure
             await transport.ConnectAsync();
-            await transport.ConfigureTopologyAsync(new TransportTopology
-            {
-                Queues = new[] { new QueueDefinition { Name = queueName, Durable = false, AutoDelete = true } }
-            });
+            await transport.ConfigureTopologyAsync(new TransportTopology()
+                .AddQueue(new QueueDefinition { Name = queueName, Durable = false, AutoDelete = true }));
 
             // Subscribe
             await transport.SubscribeAsync(
@@ -468,10 +457,8 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
         {
             // Connect and configure
             await transport.ConnectAsync();
-            await transport.ConfigureTopologyAsync(new TransportTopology
-            {
-                Queues = new[] { new QueueDefinition { Name = queueName, Durable = false, AutoDelete = true } }
-            });
+            await transport.ConfigureTopologyAsync(new TransportTopology()
+                .AddQueue(new QueueDefinition { Name = queueName, Durable = false, AutoDelete = true }));
 
             // Act
             await transport.SendAsync(destination, envelope);

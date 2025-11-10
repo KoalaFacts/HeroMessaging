@@ -1,6 +1,6 @@
+using System.Data;
 using HeroMessaging.Abstractions.Storage;
 using Microsoft.Extensions.Logging;
-using System.Data;
 
 namespace HeroMessaging.Resilience;
 

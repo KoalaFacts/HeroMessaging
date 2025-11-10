@@ -1,5 +1,3 @@
-using HeroMessaging.Abstractions.Idempotency;
-using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Idempotency.KeyGeneration;
 using HeroMessaging.Tests.TestUtilities;

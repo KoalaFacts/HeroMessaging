@@ -81,7 +81,7 @@ public interface ITransportConnection : IAsyncDisposable
 /// <summary>
 /// Connection pool metrics
 /// </summary>
-public class ConnectionMetrics : ComponentMetrics
+public class ConnectionMetrics : ComponentMetricsBase
 {
     /// <summary>
     /// Total number of connections in the pool

@@ -1,7 +1,6 @@
 using HeroMessaging.Abstractions.Idempotency;
-using HeroMessaging.Storage.PostgreSql;
+using HeroMessaging.Utilities;
 using Microsoft.Extensions.Time.Testing;
-using Testcontainers.PostgreSql;
 using Xunit;
 
 namespace HeroMessaging.Storage.PostgreSql.Tests;
@@ -23,12 +22,14 @@ public sealed class PostgreSqlIdempotencyStoreIntegrationTests : IAsyncDisposabl
     private readonly PostgreSqlIdempotencyStore _store;
     private readonly FakeTimeProvider _timeProvider;
     private readonly List<string> _keysToCleanup = new();
+    private readonly IJsonSerializer _jsonSerializer;
 
     public PostgreSqlIdempotencyStoreIntegrationTests(PostgreSqlIdempotencyStoreFixture fixture)
     {
         _fixture = fixture;
         _timeProvider = new FakeTimeProvider();
-        _store = new PostgreSqlIdempotencyStore(_fixture.ConnectionString, _timeProvider);
+        _jsonSerializer = new DefaultJsonSerializer(new DefaultBufferPoolManager());
+        _store = new PostgreSqlIdempotencyStore(_fixture.ConnectionString, _timeProvider, _jsonSerializer);
     }
 
     [Fact]

@@ -1,3 +1,4 @@
+using System.Threading.Tasks.Dataflow;
 using HeroMessaging.Abstractions.ErrorHandling;
 using HeroMessaging.Abstractions.Events;
 using HeroMessaging.Abstractions.Handlers;
@@ -5,8 +6,6 @@ using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using System.Threading;
-using System.Threading.Tasks.Dataflow;
 
 namespace HeroMessaging.Processing;
 
@@ -19,7 +18,11 @@ public class EventBus : IEventBus, IProcessor
     private long _publishedCount;
     private long _failedCount;
     private int _registeredHandlers;
+#if NET9_0_OR_GREATER
     private readonly Lock _metricsLock = new();
+#else
+    private readonly object _metricsLock = new();
+#endif
     private readonly TimeProvider _timeProvider;
 
     public bool IsRunning { get; private set; } = true;
@@ -113,7 +116,7 @@ public class EventBus : IEventBus, IProcessor
                         }
                     };
 
-                    var result = await _errorHandler.HandleError(envelope.Event, ex, context, envelope.CancellationToken);
+                    var result = await _errorHandler.HandleErrorAsync(envelope.Event, ex, context, envelope.CancellationToken);
 
                     switch (result.Action)
                     {

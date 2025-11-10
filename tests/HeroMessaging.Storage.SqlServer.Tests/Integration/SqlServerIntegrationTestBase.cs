@@ -1,4 +1,3 @@
-using HeroMessaging.Storage.SqlServer;
 using Testcontainers.MsSql;
 using Xunit;
 
@@ -45,6 +44,7 @@ public abstract class SqlServerIntegrationTestBase : IAsyncLifetime
         {
             throw new InvalidOperationException("Test not initialized");
         }
-        return new SqlServerMessageStorage(Options, timeProvider ?? TimeProvider.System);
+        var jsonSerializer = new HeroMessaging.Utilities.DefaultJsonSerializer(new HeroMessaging.Utilities.DefaultBufferPoolManager());
+        return new SqlServerMessageStorage(Options, timeProvider ?? TimeProvider.System, jsonSerializer);
     }
 }

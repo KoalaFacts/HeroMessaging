@@ -1,6 +1,6 @@
-using HeroMessaging.Abstractions.Transport;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
+using HeroMessaging.Abstractions.Transport;
 
 namespace HeroMessaging.Observability.OpenTelemetry;
 

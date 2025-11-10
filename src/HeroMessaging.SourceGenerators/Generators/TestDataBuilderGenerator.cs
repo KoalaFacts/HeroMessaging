@@ -347,7 +347,8 @@ public static partial class TestData
 
     private static string GenerateRandomValueFromAttribute(PropertyInfo prop)
     {
-        var attr = prop.RandomAttribute!;
+        // Explicitly declare as non-nullable to satisfy nullable reference type checking
+        RandomAttributeInfo attr = prop.RandomAttribute!.Value;
 
         return attr.Type switch
         {

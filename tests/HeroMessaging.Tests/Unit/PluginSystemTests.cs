@@ -1,5 +1,5 @@
-using Moq;
 using System.Reflection;
+using Moq;
 using Xunit;
 
 namespace HeroMessaging.Tests.Unit;

@@ -16,7 +16,7 @@ public class UtilitiesDependencyInjectionTests
 
     [Fact]
     [Trait("Category", "Integration")]
-    public void HeroMessagingBuilder_Build_RegistersIBufferPoolManager()
+    public void HeroMessagingBuilder_Build_RegistersDefaultBufferPoolManager()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -27,7 +27,7 @@ public class UtilitiesDependencyInjectionTests
         var serviceProvider = services.BuildServiceProvider();
 
         // Assert
-        var bufferPool = serviceProvider.GetService<IBufferPoolManager>();
+        var bufferPool = serviceProvider.GetService<DefaultBufferPoolManager>();
         Assert.NotNull(bufferPool);
         Assert.IsType<DefaultBufferPoolManager>(bufferPool);
     }
@@ -64,7 +64,7 @@ public class UtilitiesDependencyInjectionTests
 
         // Assert: JsonSerializer should be constructed with BufferPoolManager
         var jsonSerializer = serviceProvider.GetRequiredService<IJsonSerializer>();
-        var bufferPool = serviceProvider.GetRequiredService<IBufferPoolManager>();
+        var bufferPool = serviceProvider.GetRequiredService<DefaultBufferPoolManager>();
 
         Assert.NotNull(jsonSerializer);
         Assert.NotNull(bufferPool);
@@ -81,8 +81,8 @@ public class UtilitiesDependencyInjectionTests
         var serviceProvider = services.BuildServiceProvider();
 
         // Act: Resolve services multiple times
-        var bufferPool1 = serviceProvider.GetService<IBufferPoolManager>();
-        var bufferPool2 = serviceProvider.GetService<IBufferPoolManager>();
+        var bufferPool1 = serviceProvider.GetService<DefaultBufferPoolManager>();
+        var bufferPool2 = serviceProvider.GetService<DefaultBufferPoolManager>();
         var jsonSerializer1 = serviceProvider.GetService<IJsonSerializer>();
         var jsonSerializer2 = serviceProvider.GetService<IJsonSerializer>();
 
@@ -98,7 +98,7 @@ public class UtilitiesDependencyInjectionTests
         // Arrange: Register custom implementation first
         var services = new ServiceCollection();
         var customBufferPool = new DefaultBufferPoolManager();
-        services.AddSingleton<IBufferPoolManager>(customBufferPool);
+        services.AddSingleton<DefaultBufferPoolManager>(customBufferPool);
 
         var builder = new HeroMessagingBuilder(services);
 
@@ -107,7 +107,7 @@ public class UtilitiesDependencyInjectionTests
         var serviceProvider = services.BuildServiceProvider();
 
         // Assert: Should use the pre-registered instance
-        var resolvedBufferPool = serviceProvider.GetRequiredService<IBufferPoolManager>();
+        var resolvedBufferPool = serviceProvider.GetRequiredService<DefaultBufferPoolManager>();
         Assert.Same(customBufferPool, resolvedBufferPool);
     }
 
@@ -148,7 +148,7 @@ public class UtilitiesDependencyInjectionTests
         builder.Build();
         var serviceProvider = services.BuildServiceProvider();
 
-        var bufferPool = serviceProvider.GetRequiredService<IBufferPoolManager>();
+        var bufferPool = serviceProvider.GetRequiredService<DefaultBufferPoolManager>();
 
         // Act & Assert: Multiple rent/return cycles
         for (int i = 0; i < 10; i++)
@@ -207,8 +207,8 @@ public class UtilitiesDependencyInjectionTests
         var sp2 = services2.BuildServiceProvider();
 
         // Act
-        var bufferPool1 = sp1.GetRequiredService<IBufferPoolManager>();
-        var bufferPool2 = sp2.GetRequiredService<IBufferPoolManager>();
+        var bufferPool1 = sp1.GetRequiredService<DefaultBufferPoolManager>();
+        var bufferPool2 = sp2.GetRequiredService<DefaultBufferPoolManager>();
         var serializer1 = sp1.GetRequiredService<IJsonSerializer>();
         var serializer2 = sp2.GetRequiredService<IJsonSerializer>();
 
@@ -234,7 +234,7 @@ public class UtilitiesDependencyInjectionTests
 
         // Assert: Verify service descriptors
         var bufferPoolDescriptor = services.FirstOrDefault(sd =>
-            sd.ServiceType == typeof(IBufferPoolManager));
+            sd.ServiceType == typeof(DefaultBufferPoolManager));
         var jsonSerializerDescriptor = services.FirstOrDefault(sd =>
             sd.ServiceType == typeof(IJsonSerializer));
 
@@ -260,20 +260,20 @@ public class UtilitiesDependencyInjectionTests
         var rootProvider = services.BuildServiceProvider();
 
         // Act: Create scoped providers
-        IBufferPoolManager? bufferPoolFromScope1;
-        IBufferPoolManager? bufferPoolFromScope2;
+        DefaultBufferPoolManager? bufferPoolFromScope1;
+        DefaultBufferPoolManager? bufferPoolFromScope2;
         IJsonSerializer? serializerFromScope1;
         IJsonSerializer? serializerFromScope2;
 
         using (var scope1 = rootProvider.CreateScope())
         {
-            bufferPoolFromScope1 = scope1.ServiceProvider.GetRequiredService<IBufferPoolManager>();
+            bufferPoolFromScope1 = scope1.ServiceProvider.GetRequiredService<DefaultBufferPoolManager>();
             serializerFromScope1 = scope1.ServiceProvider.GetRequiredService<IJsonSerializer>();
         }
 
         using (var scope2 = rootProvider.CreateScope())
         {
-            bufferPoolFromScope2 = scope2.ServiceProvider.GetRequiredService<IBufferPoolManager>();
+            bufferPoolFromScope2 = scope2.ServiceProvider.GetRequiredService<DefaultBufferPoolManager>();
             serializerFromScope2 = scope2.ServiceProvider.GetRequiredService<IJsonSerializer>();
         }
 

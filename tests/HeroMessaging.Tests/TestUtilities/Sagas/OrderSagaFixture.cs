@@ -3,7 +3,7 @@ using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Sagas;
 using HeroMessaging.Orchestration;
 
-namespace HeroMessaging.Tests.TestUtilities;
+namespace HeroMessaging.Tests.TestUtilities.Sagas;
 
 /// <summary>
 /// Test fixture saga demonstrating order fulfillment workflow with compensation

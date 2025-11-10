@@ -1,9 +1,9 @@
-using HeroMessaging.Abstractions.Sagas;
-using HeroMessaging.Utilities;
-using Microsoft.Data.SqlClient;
 using System.Data;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using HeroMessaging.Abstractions.Sagas;
+using HeroMessaging.Utilities;
+using Microsoft.Data.SqlClient;
 
 namespace HeroMessaging.Storage.SqlServer;
 

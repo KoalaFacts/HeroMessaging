@@ -1,3 +1,4 @@
+using System.Data;
 using HeroMessaging.Abstractions.Configuration;
 using HeroMessaging.Abstractions.Storage;
 using HeroMessaging.Processing;
@@ -5,7 +6,6 @@ using HeroMessaging.Processing.Decorators;
 using HeroMessaging.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using System.Data;
 
 namespace HeroMessaging.Configuration;
 

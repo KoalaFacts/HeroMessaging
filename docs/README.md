@@ -5,6 +5,7 @@ This directory contains comprehensive documentation for HeroMessaging.
 ## Quick Links
 
 ### User Documentation
+- **[Batch Processing Guide](batch-processing-guide.md)** - High-throughput batch processing configuration and usage (NEW)
 - **[Saga Orchestration Pattern](orchestration-pattern.md)** - Complete guide to implementing sagas with state machines
 - **[Choreography Pattern](choreography-pattern.md)** - Event-driven choreography for distributed systems
 - **[OpenTelemetry Integration](opentelemetry-integration.md)** - Distributed tracing and observability setup
@@ -22,6 +23,9 @@ ADRs document significant architectural decisions:
 - **[0002-transport-abstraction-layer.md](adr/0002-transport-abstraction-layer.md)** - Transport abstraction design
 - **[0003-rabbitmq-transport.md](adr/0003-rabbitmq-transport.md)** - RabbitMQ integration decisions
 - **[0004-saga-patterns.md](adr/0004-saga-patterns.md)** - Saga patterns (orchestration vs choreography)
+- **[0005-idempotency-framework.md](adr/0005-idempotency-framework.md)** - Idempotency framework design
+- **[0006-rate-limiting.md](adr/0006-rate-limiting.md)** - Rate limiting approach
+- **[0007-batch-processing.md](adr/0007-batch-processing.md)** - Batch processing framework (NEW)
 
 ## Getting Started
 
@@ -79,6 +83,28 @@ public class OrderCreatedHandler : IMessageHandler<OrderCreatedEvent>
 ```
 
 See [choreography-pattern.md](choreography-pattern.md) for complete guide.
+
+### Batch Processing
+
+High-throughput message processing with automatic batching:
+
+```csharp
+// Configure batching
+services.AddHeroMessaging(builder =>
+{
+    builder.WithBatchProcessing(batch =>
+    {
+        batch.Enable().UseBalancedProfile();
+        // Automatic 20-40% throughput improvement
+    });
+});
+
+// Use batch API
+var commands = orders.Select(o => new ProcessOrderCommand { OrderId = o.Id }).ToList();
+var results = await messaging.SendBatchAsync(commands);
+```
+
+See [batch-processing-guide.md](batch-processing-guide.md) for complete guide.
 
 ## Observability
 

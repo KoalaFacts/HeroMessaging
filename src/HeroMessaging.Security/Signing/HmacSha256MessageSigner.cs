@@ -117,11 +117,17 @@ public sealed class HmacSha256MessageSigner : IMessageSigner
         {
             using (var hmac = new HMACSHA256(_key))
             {
+#if NETSTANDARD2_0
+                var hash = hmac.ComputeHash(data.ToArray());
+                hash.CopyTo(signature);
+                return hash.Length;
+#else
                 if (!hmac.TryComputeHash(data, signature, out var bytesWritten))
                 {
                     throw new SecurityException("Failed to compute HMAC signature");
                 }
                 return bytesWritten;
+#endif
             }
         }
         catch (CryptographicException ex)
@@ -155,14 +161,24 @@ public sealed class HmacSha256MessageSigner : IMessageSigner
 
             using (var hmac = new HMACSHA256(_key))
             {
+#if NETSTANDARD2_0
+                var hash = hmac.ComputeHash(data.ToArray());
+                hash.CopyTo(expectedSignature);
+#else
                 if (!hmac.TryComputeHash(data, expectedSignature, out _))
                 {
                     return false;
                 }
+#endif
             }
 
+#if NETSTANDARD2_0
+            // Use manual constant-time comparison for netstandard2.0
+            return ConstantTimeEqualsSpan(expectedSignature, signature);
+#else
             // Use built-in constant-time comparison to prevent timing attacks
             return CryptographicOperations.FixedTimeEquals(expectedSignature, signature);
+#endif
         }
         catch (CryptographicException)
         {
@@ -186,4 +202,23 @@ public sealed class HmacSha256MessageSigner : IMessageSigner
 
         return result == 0;
     }
+
+#if NETSTANDARD2_0
+    /// <summary>
+    /// Performs constant-time comparison to prevent timing attacks (Span version)
+    /// </summary>
+    private static bool ConstantTimeEqualsSpan(ReadOnlySpan<byte> a, ReadOnlySpan<byte> b)
+    {
+        if (a.Length != b.Length)
+            return false;
+
+        var result = 0;
+        for (var i = 0; i < a.Length; i++)
+        {
+            result |= a[i] ^ b[i];
+        }
+
+        return result == 0;
+    }
+#endif
 }

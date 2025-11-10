@@ -1,7 +1,7 @@
-using HeroMessaging.Abstractions.Transport;
 using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Channels;
+using HeroMessaging.Abstractions.Transport;
 
 namespace HeroMessaging.Transport.InMemory;
 
@@ -15,7 +15,11 @@ internal class InMemoryQueue : IDisposable, IAsyncDisposable
     private readonly ConcurrentDictionary<string, InMemoryConsumer> _consumers = new();
     private readonly CancellationTokenSource _cts = new();
     private Task? _processingTask;
+#if NET9_0_OR_GREATER
     private readonly Lock _processingTaskLock = new();
+#else
+    private readonly object _processingTaskLock = new();
+#endif
     private int _consumerIndex;
     private long _messageCount;
     private long _depth;
@@ -130,11 +134,7 @@ internal class InMemoryQueue : IDisposable, IAsyncDisposable
                 }
             }
         }
-        catch (OperationCanceledException)
-        {
-            // Normal shutdown
-        }
-        catch (Exception)
+        catch
         {
             // Processing loop error - in real implementation we'd log this
         }
@@ -153,11 +153,7 @@ internal class InMemoryQueue : IDisposable, IAsyncDisposable
                 // Properly await the task completion
                 await _processingTask.ConfigureAwait(false);
             }
-            catch (OperationCanceledException)
-            {
-                // Expected during cancellation
-            }
-            catch (Exception)
+            catch
             {
                 // Ignore exceptions during disposal
             }

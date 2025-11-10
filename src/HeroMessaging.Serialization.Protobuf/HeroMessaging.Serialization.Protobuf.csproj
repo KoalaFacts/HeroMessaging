@@ -1,8 +1,8 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <!-- protobuf-net v3.x doesn't support netstandard2.0 -->
-    <TargetFrameworks>net6.0;net7.0;net8.0;net9.0</TargetFrameworks>
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
     <Description>Protocol Buffers serialization plugin for HeroMessaging. Provides efficient binary serialization using protobuf-net for cross-platform messaging.</Description>
     <PackageTags>messaging;serialization;protobuf;protocol-buffers;binary</PackageTags>
   </PropertyGroup>
@@ -13,13 +13,6 @@
 
   <ItemGroup>
     <PackageReference Include="protobuf-net" Version="3.2.56" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Update="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.10" />
-    <PackageReference Update="Microsoft.Extensions.Logging.Abstractions" Version="9.0.10" />
-    <PackageReference Update="PolySharp" Version="1.15.0" />
-    <PackageReference Update="System.Collections.Immutable" Version="9.0.10" />
   </ItemGroup>
 
 </Project>

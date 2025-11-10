@@ -33,7 +33,7 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
         // Check for duplicates if idempotency is required
         if (options.RequireIdempotency)
         {
-            var isDuplicate = await _inboxStorage.IsDuplicate(
+            var isDuplicate = await _inboxStorage.IsDuplicateAsync(
                 message.MessageId.ToString(),
                 options.DeduplicationWindow,
                 cancellationToken);
@@ -46,7 +46,7 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
         }
 
         // Add to inbox
-        var entry = await _inboxStorage.Add(message, options, cancellationToken);
+        var entry = await _inboxStorage.AddAsync(message, options, cancellationToken);
 
         if (entry == null)
         {
@@ -60,30 +60,30 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
         return true;
     }
 
-    public new Task Start(CancellationToken cancellationToken = default)
+    public new Task StartAsync(CancellationToken cancellationToken = default)
     {
         // Start cleanup task in addition to base polling
         _cleanupCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _cleanupTask = RunCleanup(_cleanupCancellationTokenSource.Token);
 
-        return base.Start(cancellationToken);
+        return base.StartAsync(cancellationToken);
     }
 
-    public new async Task Stop()
+    public new async Task StopAsync()
     {
         _cleanupCancellationTokenSource?.Cancel();
 
         if (_cleanupTask != null)
             await _cleanupTask;
 
-        await base.Stop();
+        await base.StopAsync();
     }
 
     protected override string GetServiceName() => "Inbox processor";
 
     protected override async Task<IEnumerable<InboxEntry>> PollForWorkItems(CancellationToken cancellationToken)
     {
-        return await _inboxStorage.GetUnprocessed(100, cancellationToken);
+        return await _inboxStorage.GetUnprocessedAsync(100, cancellationToken);
     }
 
     protected override TimeSpan GetPollingDelay(bool hasWork)
@@ -100,7 +100,7 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
                 // Clean up old processed entries every hour
                 await Task.Delay(TimeSpan.FromHours(1), cancellationToken);
 
-                await _inboxStorage.CleanupOldEntries(TimeSpan.FromDays(7), cancellationToken);
+                await _inboxStorage.CleanupOldEntriesAsync(TimeSpan.FromDays(7), cancellationToken);
 
                 Logger.LogDebug("Inbox cleanup completed");
             }
@@ -129,11 +129,11 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
             switch (entry.Message)
             {
                 case ICommand command:
-                    await messaging.Send(command);
+                    await messaging.SendAsync(command);
                     break;
 
                 case IEvent @event:
-                    await messaging.Publish(@event);
+                    await messaging.PublishAsync(@event);
                     break;
 
                 default:
@@ -142,7 +142,7 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
                     break;
             }
 
-            await _inboxStorage.MarkProcessed(entry.Id);
+            await _inboxStorage.MarkProcessedAsync(entry.Id);
 
             Logger.LogInformation("Inbox entry {EntryId} (Message: {MessageId}) processed successfully from source {Source}",
                 entry.Id, entry.Message.MessageId, entry.Options.Source ?? "Unknown");
@@ -152,20 +152,20 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
             Logger.LogError(ex, "Error processing inbox entry {EntryId} (Message: {MessageId})",
                 entry.Id, entry.Message.MessageId);
 
-            await _inboxStorage.MarkFailed(entry.Id, ex.Message);
+            await _inboxStorage.MarkFailedAsync(entry.Id, ex.Message);
         }
     }
 
     public async Task<long> GetUnprocessedCount(CancellationToken cancellationToken = default)
     {
-        return await _inboxStorage.GetUnprocessedCount(cancellationToken);
+        return await _inboxStorage.GetUnprocessedCountAsync(cancellationToken);
     }
 }
 
 public interface IInboxProcessor
 {
     Task<bool> ProcessIncoming(IMessage message, InboxOptions? options = null, CancellationToken cancellationToken = default);
-    Task Start(CancellationToken cancellationToken = default);
-    Task Stop();
+    Task StartAsync(CancellationToken cancellationToken = default);
+    Task StopAsync();
     Task<long> GetUnprocessedCount(CancellationToken cancellationToken = default);
 }

@@ -3,6 +3,7 @@ using HeroMessaging.Abstractions.Transport;
 using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Threading;
 
@@ -13,7 +14,7 @@ namespace HeroMessaging.Transport.RabbitMQ;
 /// </summary>
 internal sealed class RabbitMqConsumer : ITransportConsumer
 {
-    private readonly IModel _channel;
+    private readonly IChannel _channel;
     private readonly Func<TransportEnvelope, MessageContext, CancellationToken, Task> _handler;
     private readonly ConsumerOptions _options;
     private readonly RabbitMqTransport _transport;
@@ -24,7 +25,11 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
     private bool _isActive;
     private long _messagesProcessed;
     private long _messagesFailed;
+#if NET9_0_OR_GREATER
     private readonly Lock _stateLock = new();
+#else
+    private readonly object _stateLock = new();
+#endif
 
     /// <inheritdoc/>
     public string ConsumerId { get; }
@@ -38,7 +43,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
     public RabbitMqConsumer(
         string consumerId,
         TransportAddress source,
-        IModel channel,
+        IChannel channel,
         Func<TransportEnvelope, MessageContext, CancellationToken, Task> handler,
         ConsumerOptions options,
         RabbitMqTransport transport,
@@ -46,7 +51,9 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
         ITransportInstrumentation? instrumentation = null)
     {
         ConsumerId = consumerId ?? throw new ArgumentNullException(nameof(consumerId));
-        Source = source ?? throw new ArgumentNullException(nameof(source));
+        if (string.IsNullOrEmpty(source.Name))
+            throw new ArgumentException("Source address name cannot be null or empty", nameof(source));
+        Source = source;
         _channel = channel ?? throw new ArgumentNullException(nameof(channel));
         _handler = handler ?? throw new ArgumentNullException(nameof(handler));
         _options = options ?? throw new ArgumentNullException(nameof(options));
@@ -58,74 +65,69 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
     /// <summary>
     /// Start consuming messages
     /// </summary>
-    public Task StartAsync(CancellationToken cancellationToken = default)
+    public async Task StartAsync(CancellationToken cancellationToken = default)
     {
         lock (_stateLock)
         {
             if (_isActive)
             {
                 _logger.LogWarning("Consumer {ConsumerId} is already active", ConsumerId);
-                return Task.CompletedTask;
+                return;
             }
 
             _logger.LogInformation("Starting consumer {ConsumerId} for {Source}", ConsumerId, Source.Name);
-
-            // Create async consumer
-            _consumer = new AsyncEventingBasicConsumer(_channel);
-            _consumer.Received += OnMessageReceived;
-            _consumer.Shutdown += OnConsumerShutdown;
-
-            // Start consuming
-            _consumerTag = _channel.BasicConsume(
-                queue: Source.Name,
-                autoAck: false, // Manual acknowledgment for reliability
-                consumer: _consumer);
-
             _isActive = true;
-
-            _logger.LogInformation("Consumer {ConsumerId} started with tag {ConsumerTag}", ConsumerId, _consumerTag);
         }
 
-        return Task.CompletedTask;
+        // Create async consumer outside the lock
+        _consumer = new AsyncEventingBasicConsumer(_channel);
+        _consumer.ReceivedAsync += OnMessageReceivedAsync;
+        _consumer.ShutdownAsync += OnConsumerShutdownAsync;
+
+        // Start consuming
+        _consumerTag = await _channel.BasicConsumeAsync(
+            queue: Source.Name,
+            autoAck: false, // Manual acknowledgment for reliability
+            consumer: _consumer);
+
+        _logger.LogInformation("Consumer {ConsumerId} started with tag {ConsumerTag}", ConsumerId, _consumerTag);
     }
 
     /// <inheritdoc/>
-    public Task StopAsync(CancellationToken cancellationToken = default)
+    public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         lock (_stateLock)
         {
             if (!_isActive)
             {
-                return Task.CompletedTask;
+                return;
             }
 
             _logger.LogInformation("Stopping consumer {ConsumerId}", ConsumerId);
 
             if (_consumer != null)
             {
-                _consumer.Received -= OnMessageReceived;
-                _consumer.Shutdown -= OnConsumerShutdown;
-            }
-
-            if (!string.IsNullOrEmpty(_consumerTag) && _channel.IsOpen)
-            {
-                try
-                {
-                    _channel.BasicCancel(_consumerTag);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Error cancelling consumer {ConsumerId}", ConsumerId);
-                }
+                _consumer.ReceivedAsync -= OnMessageReceivedAsync;
+                _consumer.ShutdownAsync -= OnConsumerShutdownAsync;
             }
 
             _isActive = false;
-
-            _logger.LogInformation("Consumer {ConsumerId} stopped. Processed: {Processed}, Failed: {Failed}",
-                ConsumerId, _messagesProcessed, _messagesFailed);
         }
 
-        return Task.CompletedTask;
+        if (!string.IsNullOrEmpty(_consumerTag) && _channel.IsOpen)
+        {
+            try
+            {
+                await _channel.BasicCancelAsync(_consumerTag);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error cancelling consumer {ConsumerId}", ConsumerId);
+            }
+        }
+
+        _logger.LogInformation("Consumer {ConsumerId} stopped. Processed: {Processed}, Failed: {Failed}",
+            ConsumerId, _messagesProcessed, _messagesFailed);
     }
 
     /// <inheritdoc/>
@@ -133,13 +135,9 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
     {
         return new ConsumerMetrics
         {
-            ConsumerId = ConsumerId,
-            Source = Source.Name,
-            IsActive = _isActive,
             MessagesProcessed = _messagesProcessed,
             MessagesFailed = _messagesFailed,
-            MessagesPerSecond = 0, // Could calculate over time window
-            AverageProcessingTime = TimeSpan.Zero // Could track
+            AverageProcessingDuration = TimeSpan.Zero // Could track with stopwatch
         };
     }
 
@@ -153,7 +151,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
         {
             if (_channel.IsOpen)
             {
-                _channel.Close();
+                await _channel.CloseAsync();
             }
             _channel.Dispose();
         }
@@ -168,7 +166,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
         _logger.LogDebug("Consumer {ConsumerId} disposed", ConsumerId);
     }
 
-    private async Task OnMessageReceived(object sender, BasicDeliverEventArgs ea)
+    private async Task OnMessageReceivedAsync(object sender, BasicDeliverEventArgs ea)
     {
         var messageId = ea.BasicProperties.MessageId;
 
@@ -226,30 +224,26 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
                 }.ToImmutableDictionary(),
                 Acknowledge = async (ct) =>
                 {
-                    _channel.BasicAck(ea.DeliveryTag, multiple: false);
+                    await _channel.BasicAckAsync(ea.DeliveryTag, multiple: false, ct);
                     _instrumentation.AddEvent(activity, "acknowledge");
-                    await Task.CompletedTask;
                 },
                 Reject = async (requeue, ct) =>
                 {
-                    _channel.BasicNack(ea.DeliveryTag, multiple: false, requeue);
+                    await _channel.BasicNackAsync(ea.DeliveryTag, multiple: false, requeue, ct);
                     _instrumentation.AddEvent(activity, requeue ? "reject.requeue" : "reject.drop");
-                    await Task.CompletedTask;
                 },
                 Defer = async (delay, ct) =>
                 {
-                    _channel.BasicNack(ea.DeliveryTag, multiple: false, requeue: true);
+                    await _channel.BasicNackAsync(ea.DeliveryTag, multiple: false, requeue: true, ct);
                     _instrumentation.AddEvent(activity, "defer");
-                    await Task.CompletedTask;
                 },
                 DeadLetter = async (reason, ct) =>
                 {
-                    _channel.BasicNack(ea.DeliveryTag, multiple: false, requeue: false);
+                    await _channel.BasicNackAsync(ea.DeliveryTag, multiple: false, requeue: false, ct);
                     _instrumentation.AddEvent(activity, "deadletter", new[]
                     {
                         new KeyValuePair<string, object?>("reason", reason ?? "unknown")
                     });
-                    await Task.CompletedTask;
                 }
             };
 
@@ -262,7 +256,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
             _instrumentation.AddEvent(activity, "handler.complete");
 
             // Acknowledge successful processing
-            _channel.BasicAck(ea.DeliveryTag, multiple: false);
+            await _channel.BasicAckAsync(ea.DeliveryTag, multiple: false);
 
             Interlocked.Increment(ref _messagesProcessed);
 
@@ -285,7 +279,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
 
             // Nack with requeue for transient failures
             // In production, you'd want to check error type and potentially dead-letter permanent failures
-            _channel.BasicNack(ea.DeliveryTag, multiple: false, requeue: true);
+            await _channel.BasicNackAsync(ea.DeliveryTag, multiple: false, requeue: true);
         }
         finally
         {
@@ -293,13 +287,14 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
         }
     }
 
-    private void OnConsumerShutdown(object? sender, ShutdownEventArgs e)
+    private Task OnConsumerShutdownAsync(object? sender, ShutdownEventArgs e)
     {
         _logger.LogWarning(
             "Consumer {ConsumerId} shutdown: ReplyCode: {ReplyCode}, ReplyText: {ReplyText}",
             ConsumerId, e.ReplyCode, e.ReplyText);
 
         _isActive = false;
+        return Task.CompletedTask;
     }
 
     /// <summary>

@@ -20,8 +20,8 @@ public class PostgreSqlStorageIntegrationTests : PostgreSqlIntegrationTestBase
         var message = TestMessageBuilder.CreateValidMessage("PostgreSQL test message");
 
         // Act
-        await storage.StoreAsync(message);
-        var retrievedMessage = await storage.RetrieveAsync(message.MessageId);
+        await storage.StoreAsync(message, (IStorageTransaction?)null);
+        var retrievedMessage = await storage.RetrieveAsync(message.MessageId, (IStorageTransaction?)null);
 
         // Assert
         Assert.NotNull(retrievedMessage);
@@ -73,10 +73,10 @@ public class PostgreSqlStorageIntegrationTests : PostgreSqlIntegrationTestBase
         }
 
         // Act
-        var storeTasks = messages.Select(msg => storage.StoreAsync(msg)).ToArray();
+        var storeTasks = messages.Select(msg => storage.StoreAsync(msg, (IStorageTransaction?)null)).ToArray();
         await Task.WhenAll(storeTasks);
 
-        var retrieveTasks = messages.Select(msg => storage.RetrieveAsync(msg.MessageId)).ToArray();
+        var retrieveTasks = messages.Select(msg => storage.RetrieveAsync(msg.MessageId, (IStorageTransaction?)null)).ToArray();
         var retrievedMessages = await Task.WhenAll(retrieveTasks);
 
         // Assert
@@ -109,7 +109,7 @@ public class PostgreSqlStorageIntegrationTests : PostgreSqlIntegrationTestBase
 
         foreach (var message in messages)
         {
-            await storage.StoreAsync(message);
+            await storage.StoreAsync(message, (IStorageTransaction?)null);
         }
 
         // Act
@@ -137,10 +137,10 @@ public class PostgreSqlStorageIntegrationTests : PostgreSqlIntegrationTestBase
         var message = TestMessageBuilder.CreateValidMessage("Delete test message");
 
         // Act
-        await storage.StoreAsync(message);
+        await storage.StoreAsync(message, (IStorageTransaction?)null);
 
         // Verify it exists
-        var retrievedBeforeDelete = await storage.RetrieveAsync(message.MessageId);
+        var retrievedBeforeDelete = await storage.RetrieveAsync(message.MessageId, (IStorageTransaction?)null);
         Assert.NotNull(retrievedBeforeDelete);
 
         // Delete it

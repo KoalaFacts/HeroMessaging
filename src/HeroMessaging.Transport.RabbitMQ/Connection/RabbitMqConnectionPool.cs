@@ -31,7 +31,7 @@ internal sealed class RabbitMqConnectionPool : IAsyncDisposable
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
         // Create connection factory
-        _connectionFactory = new ConnectionFactory
+        var factory = new ConnectionFactory
         {
             HostName = _options.Host,
             Port = _options.Port,
@@ -41,19 +41,19 @@ internal sealed class RabbitMqConnectionPool : IAsyncDisposable
             RequestedHeartbeat = _options.Heartbeat,
             AutomaticRecoveryEnabled = _options.AutoReconnect,
             NetworkRecoveryInterval = _options.ReconnectionPolicy.InitialDelay,
-            TopologyRecoveryEnabled = true,
-            DispatchConsumersAsync = true, // Enable async consumers
-            ConsumerDispatchConcurrency = 1 // Process messages sequentially per consumer
+            TopologyRecoveryEnabled = true
         };
 
         if (_options.UseSsl)
         {
-            _connectionFactory.Ssl = new SslOption
+            factory.Ssl = new SslOption
             {
                 Enabled = true,
                 ServerName = _options.Host
             };
         }
+
+        _connectionFactory = factory;
 
         // Start health check timer (every 30 seconds)
         _healthCheckTimer = new Timer(
@@ -126,9 +126,7 @@ internal sealed class RabbitMqConnectionPool : IAsyncDisposable
             IConnection connection;
             try
             {
-                connection = await Task.Run(
-                    () => _connectionFactory.CreateConnection(connectionName),
-                    cts.Token);
+                connection = await _connectionFactory.CreateConnectionAsync(connectionName, cts.Token);
             }
             catch (OperationCanceledException)
             {
@@ -136,10 +134,10 @@ internal sealed class RabbitMqConnectionPool : IAsyncDisposable
             }
 
             // Set up event handlers
-            connection.ConnectionShutdown += OnConnectionShutdown;
-            connection.ConnectionBlocked += OnConnectionBlocked;
-            connection.ConnectionUnblocked += OnConnectionUnblocked;
-            connection.CallbackException += OnCallbackException;
+            connection.ConnectionShutdownAsync += OnConnectionShutdownAsync;
+            connection.ConnectionBlockedAsync += OnConnectionBlockedAsync;
+            connection.ConnectionUnblockedAsync += OnConnectionUnblockedAsync;
+            connection.CallbackExceptionAsync += OnCallbackExceptionAsync;
 
             var pooledConnection = new PooledConnection(connection, _options.ConnectionIdleTimeout, _timeProvider);
             _connections.Add(pooledConnection);
@@ -231,36 +229,40 @@ internal sealed class RabbitMqConnectionPool : IAsyncDisposable
 
     #region Event Handlers
 
-    private void OnConnectionShutdown(object? sender, ShutdownEventArgs e)
+    private Task OnConnectionShutdownAsync(object? sender, ShutdownEventArgs e)
     {
         var connection = sender as IConnection;
         _logger.LogWarning(
             "RabbitMQ connection shutdown: {ConnectionId}, ReplyCode: {ReplyCode}, ReplyText: {ReplyText}",
             connection?.ClientProvidedName, e.ReplyCode, e.ReplyText);
+        return Task.CompletedTask;
     }
 
-    private void OnConnectionBlocked(object? sender, ConnectionBlockedEventArgs e)
+    private Task OnConnectionBlockedAsync(object? sender, ConnectionBlockedEventArgs e)
     {
         var connection = sender as IConnection;
         _logger.LogWarning(
             "RabbitMQ connection blocked: {ConnectionId}, Reason: {Reason}",
             connection?.ClientProvidedName, e.Reason);
+        return Task.CompletedTask;
     }
 
-    private void OnConnectionUnblocked(object? sender, EventArgs e)
+    private Task OnConnectionUnblockedAsync(object? sender, AsyncEventArgs e)
     {
         var connection = sender as IConnection;
         _logger.LogInformation(
             "RabbitMQ connection unblocked: {ConnectionId}",
             connection?.ClientProvidedName);
+        return Task.CompletedTask;
     }
 
-    private void OnCallbackException(object? sender, CallbackExceptionEventArgs e)
+    private Task OnCallbackExceptionAsync(object? sender, CallbackExceptionEventArgs e)
     {
         _logger.LogError(
             e.Exception,
             "RabbitMQ callback exception: {Detail}",
             e.Detail);
+        return Task.CompletedTask;
     }
 
     #endregion
@@ -279,7 +281,12 @@ internal sealed class RabbitMqConnectionPool : IAsyncDisposable
 
         _logger.LogInformation("Disposing RabbitMQ connection pool...");
 
+#if NETSTANDARD2_0
+        _healthCheckTimer.Dispose();
+        await Task.CompletedTask;
+#else
         await _healthCheckTimer.DisposeAsync();
+#endif
         _createConnectionLock.Dispose();
 
         // Close all connections
@@ -339,7 +346,7 @@ internal sealed class RabbitMqConnectionPool : IAsyncDisposable
             {
                 if (Connection.IsOpen)
                 {
-                    Connection.Close();
+                    Connection.CloseAsync().GetAwaiter().GetResult();
                 }
                 Connection.Dispose();
             }

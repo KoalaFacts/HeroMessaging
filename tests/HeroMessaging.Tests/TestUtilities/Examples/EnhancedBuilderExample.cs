@@ -1,10 +1,9 @@
-using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Events;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Sagas;
 using HeroMessaging.Orchestration;
 
-namespace HeroMessaging.Tests.TestUtilities;
+namespace HeroMessaging.Tests.TestUtilities.Examples;
 
 /// <summary>
 /// Example demonstrating the enhanced state machine builder API

@@ -1,9 +1,9 @@
+using System.Data;
+using System.Text.Json;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Storage;
 using HeroMessaging.Utilities;
 using Microsoft.Data.SqlClient;
-using System.Data;
-using System.Text.Json;
 
 namespace HeroMessaging.Storage.SqlServer;
 
@@ -131,12 +131,12 @@ public class SqlServerMessageStorage : IMessageStorage
         await command.ExecuteNonQueryAsync();
     }
 
-    public async Task<string> Store(IMessage message, MessageStorageOptions? options = null, CancellationToken cancellationToken = default)
+    public async Task<string> StoreAsync(IMessage message, MessageStorageOptions? options = null, CancellationToken cancellationToken = default)
     {
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
 
-        var messageId = Guid.NewGuid().ToString();
+        var messageId = message.MessageId.ToString();
         var expiresAt = options?.Ttl != null
             ? _timeProvider.GetUtcNow().DateTime.Add(options.Ttl.Value)
             : (DateTime?)null;
@@ -148,10 +148,10 @@ public class SqlServerMessageStorage : IMessageStorage
 
         using var command = new SqlCommand(sql, connection);
         command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = messageId;
-        command.Parameters.Add("@MessageType", SqlDbType.NVarChar, 500).Value = message.GetType().FullName ?? "Unknown";
-        command.Parameters.Add("@Payload", SqlDbType.NVarChar, -1).Value = _jsonSerializer.SerializeToString(message, _jsonOptions);
+        command.Parameters.Add("@MessageType", SqlDbType.NVarChar, 500).Value = message.GetType().AssemblyQualifiedName ?? "Unknown";
+        command.Parameters.Add("@Payload", SqlDbType.NVarChar, -1).Value = _jsonSerializer.SerializeToString(message, message.GetType(), _jsonOptions);
         command.Parameters.Add("@Timestamp", SqlDbType.DateTime2).Value = message.Timestamp;
-        command.Parameters.Add("@CorrelationId", SqlDbType.NVarChar, 100).Value = DBNull.Value;
+        command.Parameters.Add("@CorrelationId", SqlDbType.NVarChar, 100).Value = (object?)message.CorrelationId ?? DBNull.Value;
         command.Parameters.Add("@Collection", SqlDbType.NVarChar, 100).Value = (object?)options?.Collection ?? DBNull.Value;
         command.Parameters.Add("@Metadata", SqlDbType.NVarChar, -1).Value = options?.Metadata != null
             ? _jsonSerializer.SerializeToString(options.Metadata, _jsonOptions)
@@ -163,7 +163,7 @@ public class SqlServerMessageStorage : IMessageStorage
         return messageId;
     }
 
-    public async Task<T?> Retrieve<T>(string messageId, CancellationToken cancellationToken = default) where T : IMessage
+    public async Task<T?> RetrieveAsync<T>(string messageId, CancellationToken cancellationToken = default) where T : IMessage
     {
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
@@ -187,7 +187,7 @@ public class SqlServerMessageStorage : IMessageStorage
         return default;
     }
 
-    public async Task<IEnumerable<T>> Query<T>(MessageQuery query, CancellationToken cancellationToken = default) where T : IMessage
+    public async Task<IEnumerable<T>> QueryAsync<T>(MessageQuery query, CancellationToken cancellationToken = default) where T : IMessage
     {
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
@@ -248,7 +248,7 @@ public class SqlServerMessageStorage : IMessageStorage
         return messages;
     }
 
-    public async Task<bool> Delete(string messageId, CancellationToken cancellationToken = default)
+    public async Task<bool> DeleteAsync(string messageId, CancellationToken cancellationToken = default)
     {
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
@@ -262,7 +262,7 @@ public class SqlServerMessageStorage : IMessageStorage
         return result > 0;
     }
 
-    public async Task<bool> Update(string messageId, IMessage message, CancellationToken cancellationToken = default)
+    public async Task<bool> UpdateAsync(string messageId, IMessage message, CancellationToken cancellationToken = default)
     {
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
@@ -287,7 +287,7 @@ public class SqlServerMessageStorage : IMessageStorage
         return result > 0;
     }
 
-    public async Task<bool> Exists(string messageId, CancellationToken cancellationToken = default)
+    public async Task<bool> ExistsAsync(string messageId, CancellationToken cancellationToken = default)
     {
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
@@ -305,7 +305,7 @@ public class SqlServerMessageStorage : IMessageStorage
         return Convert.ToInt64(result ?? 0) > 0;
     }
 
-    public async Task<long> Count(MessageQuery? query = null, CancellationToken cancellationToken = default)
+    public async Task<long> CountAsync(MessageQuery? query = null, CancellationToken cancellationToken = default)
     {
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
@@ -344,7 +344,7 @@ public class SqlServerMessageStorage : IMessageStorage
         return Convert.ToInt64(result ?? 0);
     }
 
-    public async Task Clear(CancellationToken cancellationToken = default)
+    public async Task ClearAsync(CancellationToken cancellationToken = default)
     {
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);

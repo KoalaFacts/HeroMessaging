@@ -4,38 +4,51 @@ namespace HeroMessaging.Abstractions.ErrorHandling;
 
 public interface IDeadLetterQueue
 {
-    Task<string> SendToDeadLetter<T>(T message, DeadLetterContext context, CancellationToken cancellationToken = default) where T : IMessage;
+    Task<string> SendToDeadLetterAsync<T>(T message, DeadLetterContext context, CancellationToken cancellationToken = default) where T : IMessage;
 
-    Task<IEnumerable<DeadLetterEntry<T>>> GetDeadLetters<T>(int limit = 100, CancellationToken cancellationToken = default) where T : IMessage;
+    Task<IEnumerable<DeadLetterEntry<T>>> GetDeadLettersAsync<T>(int limit = 100, CancellationToken cancellationToken = default) where T : IMessage;
 
-    Task<bool> Retry<T>(string deadLetterId, CancellationToken cancellationToken = default) where T : IMessage;
+    Task<bool> RetryAsync<T>(string deadLetterId, CancellationToken cancellationToken = default) where T : IMessage;
 
-    Task<bool> Discard(string deadLetterId, CancellationToken cancellationToken = default);
+    Task<bool> DiscardAsync(string deadLetterId, CancellationToken cancellationToken = default);
 
-    Task<long> GetDeadLetterCount(CancellationToken cancellationToken = default);
+    Task<long> GetDeadLetterCountAsync(CancellationToken cancellationToken = default);
 
-    Task<DeadLetterStatistics> GetStatistics(CancellationToken cancellationToken = default);
+    Task<DeadLetterStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default);
 }
 
-public class DeadLetterContext
+public sealed record DeadLetterContext
 {
-    public string Reason { get; set; } = string.Empty;
-    public Exception? Exception { get; set; }
-    public string Component { get; set; } = string.Empty;
-    public int RetryCount { get; set; }
-    public DateTime FailureTime { get; set; } = TimeProvider.System.GetUtcNow().DateTime;
-    public Dictionary<string, object> Metadata { get; set; } = new();
+    public string Reason { get; init; } = string.Empty;
+    public Exception? Exception { get; init; }
+    public string Component { get; init; } = string.Empty;
+    public int RetryCount { get; init; }
+    public DateTime FailureTime { get; init; } = TimeProvider.System.GetUtcNow().DateTime;
+    public Dictionary<string, object> Metadata { get; init; } = new();
 }
 
-public class DeadLetterEntry<T> where T : IMessage
+/// <summary>
+/// Non-generic base interface for dead letter entries
+/// </summary>
+public interface IDeadLetterEntry
 {
-    public string Id { get; set; } = Guid.NewGuid().ToString();
-    public T Message { get; set; } = default!;
-    public DeadLetterContext Context { get; set; } = new();
-    public DateTime CreatedAt { get; set; } = TimeProvider.System.GetUtcNow().DateTime;
-    public DeadLetterStatus Status { get; set; } = DeadLetterStatus.Active;
-    public DateTime? RetriedAt { get; set; }
-    public DateTime? DiscardedAt { get; set; }
+    string Id { get; }
+    DeadLetterContext Context { get; }
+    DateTime CreatedAt { get; }
+    DeadLetterStatus Status { get; }
+    DateTime? RetriedAt { get; }
+    DateTime? DiscardedAt { get; }
+}
+
+public sealed record DeadLetterEntry<T> : IDeadLetterEntry where T : IMessage
+{
+    public string Id { get; init; } = Guid.NewGuid().ToString();
+    public T Message { get; init; } = default!;
+    public DeadLetterContext Context { get; init; } = new();
+    public DateTime CreatedAt { get; init; } = TimeProvider.System.GetUtcNow().DateTime;
+    public DeadLetterStatus Status { get; init; } = DeadLetterStatus.Active;
+    public DateTime? RetriedAt { get; init; }
+    public DateTime? DiscardedAt { get; init; }
 }
 
 public enum DeadLetterStatus
@@ -46,14 +59,14 @@ public enum DeadLetterStatus
     Expired
 }
 
-public class DeadLetterStatistics
+public sealed record DeadLetterStatistics
 {
-    public long TotalCount { get; set; }
-    public long ActiveCount { get; set; }
-    public long RetriedCount { get; set; }
-    public long DiscardedCount { get; set; }
-    public Dictionary<string, long> CountByComponent { get; set; } = new();
-    public Dictionary<string, long> CountByReason { get; set; } = new();
-    public DateTime? OldestEntry { get; set; }
-    public DateTime? NewestEntry { get; set; }
+    public long TotalCount { get; init; }
+    public long ActiveCount { get; init; }
+    public long RetriedCount { get; init; }
+    public long DiscardedCount { get; init; }
+    public Dictionary<string, long> CountByComponent { get; init; } = new();
+    public Dictionary<string, long> CountByReason { get; init; } = new();
+    public DateTime? OldestEntry { get; init; }
+    public DateTime? NewestEntry { get; init; }
 }

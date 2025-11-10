@@ -1,6 +1,6 @@
+using System.Collections.Concurrent;
 using HeroMessaging.Abstractions.Plugins;
 using Microsoft.Extensions.Logging;
-using System.Collections.Concurrent;
 
 namespace HeroMessaging.Plugins;
 

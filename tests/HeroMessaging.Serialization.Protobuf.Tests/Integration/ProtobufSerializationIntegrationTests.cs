@@ -1,4 +1,3 @@
-using HeroMessaging.Serialization.Protobuf;
 using Xunit;
 
 namespace HeroMessaging.Serialization.Protobuf.Tests.Integration;

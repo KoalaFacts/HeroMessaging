@@ -1,7 +1,7 @@
+using System.Reflection;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Versioning;
 using Microsoft.Extensions.Logging;
-using System.Reflection;
 
 namespace HeroMessaging.Versioning;
 
@@ -11,7 +11,7 @@ namespace HeroMessaging.Versioning;
 public class PropertyAdditionConverter<TMessage>(
     MessageVersion fromVersion,
     MessageVersion toVersion,
-    ILogger<PropertyAdditionConverter<TMessage>> logger) : MessageConverter<TMessage>
+    ILogger<PropertyAdditionConverter<TMessage>> logger) : MessageConverterBase<TMessage>
     where TMessage : class, IMessage
 {
     private readonly ILogger<PropertyAdditionConverter<TMessage>> _logger = logger;
@@ -44,7 +44,7 @@ public class PropertyRemovalConverter<TMessage>(
     MessageVersion fromVersion,
     MessageVersion toVersion,
     IEnumerable<string> removedProperties,
-    ILogger<PropertyRemovalConverter<TMessage>> logger) : MessageConverter<TMessage>
+    ILogger<PropertyRemovalConverter<TMessage>> logger) : MessageConverterBase<TMessage>
     where TMessage : class, IMessage
 {
     private readonly ILogger<PropertyRemovalConverter<TMessage>> _logger = logger;
@@ -84,7 +84,7 @@ public class PropertyMappingConverter<TMessage>(
     MessageVersion fromVersion,
     MessageVersion toVersion,
     IReadOnlyDictionary<string, string> propertyMappings,
-    ILogger<PropertyMappingConverter<TMessage>> logger) : MessageConverter<TMessage>
+    ILogger<PropertyMappingConverter<TMessage>> logger) : MessageConverterBase<TMessage>
     where TMessage : class, IMessage
 {
     private readonly ILogger<PropertyMappingConverter<TMessage>> _logger = logger;
@@ -126,7 +126,7 @@ public class TransformationConverter<TMessage>(
     MessageVersion fromVersion,
     MessageVersion toVersion,
     IReadOnlyDictionary<string, Func<object?, object?>> transformations,
-    ILogger<TransformationConverter<TMessage>> logger) : MessageConverter<TMessage>
+    ILogger<TransformationConverter<TMessage>> logger) : MessageConverterBase<TMessage>
     where TMessage : class, IMessage
 {
     private readonly ILogger<TransformationConverter<TMessage>> _logger = logger;
@@ -253,7 +253,7 @@ public static class MessageConverterBuilder
 public class SimplePassThroughConverter<TMessage>(
     MessageVersion fromVersion,
     MessageVersion toVersion,
-    ILogger<SimplePassThroughConverter<TMessage>> logger) : MessageConverter<TMessage>
+    ILogger<SimplePassThroughConverter<TMessage>> logger) : MessageConverterBase<TMessage>
     where TMessage : class, IMessage
 {
     private readonly ILogger<SimplePassThroughConverter<TMessage>> _logger = logger;

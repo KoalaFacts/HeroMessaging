@@ -1,7 +1,7 @@
+using System.Collections.Concurrent;
 using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Storage;
-using System.Collections.Concurrent;
 
 namespace HeroMessaging.Storage;
 
@@ -15,7 +15,7 @@ public class InMemoryQueueStorage : IQueueStorage
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
 
-    public Task<QueueEntry> Enqueue(string queueName, IMessage message, EnqueueOptions? options = null, CancellationToken cancellationToken = default)
+    public Task<QueueEntry> EnqueueAsync(string queueName, IMessage message, EnqueueOptions? options = null, CancellationToken cancellationToken = default)
     {
         var queue = _queues.GetOrAdd(queueName, _ => new Queue());
         var now = _timeProvider.GetUtcNow().DateTime;
@@ -35,7 +35,7 @@ public class InMemoryQueueStorage : IQueueStorage
         return Task.FromResult(entry);
     }
 
-    public Task<QueueEntry?> Dequeue(string queueName, CancellationToken cancellationToken = default)
+    public Task<QueueEntry?> DequeueAsync(string queueName, CancellationToken cancellationToken = default)
     {
         if (!_queues.TryGetValue(queueName, out var queue))
         {
@@ -58,7 +58,7 @@ public class InMemoryQueueStorage : IQueueStorage
         return Task.FromResult(entry);
     }
 
-    public Task<IEnumerable<QueueEntry>> Peek(string queueName, int count = 1, CancellationToken cancellationToken = default)
+    public Task<IEnumerable<QueueEntry>> PeekAsync(string queueName, int count = 1, CancellationToken cancellationToken = default)
     {
         if (!_queues.TryGetValue(queueName, out var queue))
         {
@@ -75,7 +75,7 @@ public class InMemoryQueueStorage : IQueueStorage
         return Task.FromResult(entries);
     }
 
-    public Task<bool> Acknowledge(string queueName, string entryId, CancellationToken cancellationToken = default)
+    public Task<bool> AcknowledgeAsync(string queueName, string entryId, CancellationToken cancellationToken = default)
     {
         if (_queues.TryGetValue(queueName, out var queue))
         {
@@ -85,7 +85,7 @@ public class InMemoryQueueStorage : IQueueStorage
         return Task.FromResult(false);
     }
 
-    public Task<bool> Reject(string queueName, string entryId, bool requeue = false, CancellationToken cancellationToken = default)
+    public Task<bool> RejectAsync(string queueName, string entryId, bool requeue = false, CancellationToken cancellationToken = default)
     {
         if (_queues.TryGetValue(queueName, out var queue))
         {
@@ -107,7 +107,7 @@ public class InMemoryQueueStorage : IQueueStorage
         return Task.FromResult(false);
     }
 
-    public Task<long> GetQueueDepth(string queueName, CancellationToken cancellationToken = default)
+    public Task<long> GetQueueDepthAsync(string queueName, CancellationToken cancellationToken = default)
     {
         if (_queues.TryGetValue(queueName, out var queue))
         {
@@ -118,23 +118,23 @@ public class InMemoryQueueStorage : IQueueStorage
         return Task.FromResult(0L);
     }
 
-    public Task<bool> CreateQueue(string queueName, QueueOptions? options = null, CancellationToken cancellationToken = default)
+    public Task<bool> CreateQueueAsync(string queueName, QueueOptions? options = null, CancellationToken cancellationToken = default)
     {
         var queue = new Queue { Options = options };
         return Task.FromResult(_queues.TryAdd(queueName, queue));
     }
 
-    public Task<bool> DeleteQueue(string queueName, CancellationToken cancellationToken = default)
+    public Task<bool> DeleteQueueAsync(string queueName, CancellationToken cancellationToken = default)
     {
         return Task.FromResult(_queues.TryRemove(queueName, out _));
     }
 
-    public Task<IEnumerable<string>> GetQueues(CancellationToken cancellationToken = default)
+    public Task<IEnumerable<string>> GetQueuesAsync(CancellationToken cancellationToken = default)
     {
         return Task.FromResult(_queues.Keys.AsEnumerable());
     }
 
-    public Task<bool> QueueExists(string queueName, CancellationToken cancellationToken = default)
+    public Task<bool> QueueExistsAsync(string queueName, CancellationToken cancellationToken = default)
     {
         return Task.FromResult(_queues.ContainsKey(queueName));
     }

@@ -1,4 +1,3 @@
-using HeroMessaging.Abstractions.Sagas;
 using Microsoft.Extensions.Logging;
 
 namespace HeroMessaging.Orchestration;

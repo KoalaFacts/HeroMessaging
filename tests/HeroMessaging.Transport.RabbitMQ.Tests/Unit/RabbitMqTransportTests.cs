@@ -36,7 +36,7 @@ public class RabbitMqTransportTests : IAsyncLifetime
             Password = "guest"
         };
 
-        _transport = new RabbitMqTransport(_options, _mockLoggerFactory.Object);
+        _transport = new RabbitMqTransport(_options, _mockLoggerFactory.Object, TimeProvider.System);
 
         return ValueTask.CompletedTask;
     }
@@ -55,7 +55,7 @@ public class RabbitMqTransportTests : IAsyncLifetime
     public void Constructor_WithValidOptions_InitializesSuccessfully()
     {
         // Act
-        var transport = new RabbitMqTransport(_options!, _mockLoggerFactory!.Object);
+        var transport = new RabbitMqTransport(_options!, _mockLoggerFactory!.Object, TimeProvider.System);
 
         // Assert
         Assert.NotNull(transport);
@@ -68,7 +68,7 @@ public class RabbitMqTransportTests : IAsyncLifetime
     {
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
-            new RabbitMqTransport(null!, _mockLoggerFactory!.Object));
+            new RabbitMqTransport(null!, _mockLoggerFactory!.Object, TimeProvider.System));
     }
 
     [Fact]
@@ -76,7 +76,7 @@ public class RabbitMqTransportTests : IAsyncLifetime
     {
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
-            new RabbitMqTransport(_options!, null!));
+            new RabbitMqTransport(_options!, null!, TimeProvider.System));
     }
 
     #endregion
@@ -108,7 +108,7 @@ public class RabbitMqTransportTests : IAsyncLifetime
         var destination = new TransportAddress("test-queue", TransportAddressType.Queue);
         var envelope = new TransportEnvelope
         {
-            MessageId = Guid.NewGuid(),
+            MessageId = Guid.NewGuid().ToString(),
             Body = new byte[] { 1, 2, 3 }
         };
 
@@ -128,7 +128,7 @@ public class RabbitMqTransportTests : IAsyncLifetime
         var topic = new TransportAddress("test-topic", TransportAddressType.Topic);
         var envelope = new TransportEnvelope
         {
-            MessageId = Guid.NewGuid(),
+            MessageId = Guid.NewGuid().ToString(),
             Body = new byte[] { 1, 2, 3 }
         };
 

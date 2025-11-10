@@ -4,21 +4,21 @@ namespace HeroMessaging.Abstractions.Storage;
 
 public interface IOutboxStorage
 {
-    Task<OutboxEntry> Add(IMessage message, Abstractions.OutboxOptions options, CancellationToken cancellationToken = default);
+    Task<OutboxEntry> AddAsync(IMessage message, Abstractions.OutboxOptions options, CancellationToken cancellationToken = default);
 
-    Task<IEnumerable<OutboxEntry>> GetPending(OutboxQuery query, CancellationToken cancellationToken = default);
+    Task<IEnumerable<OutboxEntry>> GetPendingAsync(OutboxQuery query, CancellationToken cancellationToken = default);
 
-    Task<IEnumerable<OutboxEntry>> GetPending(int limit = 100, CancellationToken cancellationToken = default);
+    Task<IEnumerable<OutboxEntry>> GetPendingAsync(int limit = 100, CancellationToken cancellationToken = default);
 
-    Task<bool> MarkProcessed(string entryId, CancellationToken cancellationToken = default);
+    Task<bool> MarkProcessedAsync(string entryId, CancellationToken cancellationToken = default);
 
-    Task<bool> MarkFailed(string entryId, string error, CancellationToken cancellationToken = default);
+    Task<bool> MarkFailedAsync(string entryId, string error, CancellationToken cancellationToken = default);
 
-    Task<bool> UpdateRetryCount(string entryId, int retryCount, DateTime? nextRetry = null, CancellationToken cancellationToken = default);
+    Task<bool> UpdateRetryCountAsync(string entryId, int retryCount, DateTime? nextRetry = null, CancellationToken cancellationToken = default);
 
-    Task<long> GetPendingCount(CancellationToken cancellationToken = default);
+    Task<long> GetPendingCountAsync(CancellationToken cancellationToken = default);
 
-    Task<IEnumerable<OutboxEntry>> GetFailed(int limit = 100, CancellationToken cancellationToken = default);
+    Task<IEnumerable<OutboxEntry>> GetFailedAsync(int limit = 100, CancellationToken cancellationToken = default);
 }
 
 public class OutboxEntry

@@ -18,15 +18,15 @@ public class MessageStorageHealthCheck(IMessageStorage storage, TimeProvider tim
         {
             var testMessage = new TestMessage(_timeProvider);
 
-            var messageId = await _storage.Store(testMessage, null, cancellationToken);
-            var retrieved = await _storage.Retrieve<TestMessage>(messageId, cancellationToken);
+            var messageId = await _storage.StoreAsync(testMessage, (MessageStorageOptions?)null, cancellationToken);
+            var retrieved = await _storage.RetrieveAsync<TestMessage>(messageId, cancellationToken);
 
             if (retrieved == null)
             {
                 return HealthCheckResult.Unhealthy($"{_name}: Failed to retrieve test message");
             }
 
-            await _storage.Delete(messageId, cancellationToken);
+            await _storage.DeleteAsync(messageId, cancellationToken);
 
             return HealthCheckResult.Healthy($"{_name}: Storage is operational");
         }
@@ -76,7 +76,7 @@ public class OutboxStorageHealthCheck(IOutboxStorage storage, string name = "out
                 Limit = 1
             };
 
-            await _storage.GetPending(query, cancellationToken);
+            await _storage.GetPendingAsync(query, cancellationToken);
 
             return HealthCheckResult.Healthy($"{_name}: Storage is operational");
         }
@@ -112,7 +112,7 @@ public class InboxStorageHealthCheck(IInboxStorage storage, string name = "inbox
                 Limit = 1
             };
 
-            await _storage.GetPending(query, cancellationToken);
+            await _storage.GetPendingAsync(query, cancellationToken);
 
             return HealthCheckResult.Healthy($"{_name}: Storage is operational");
         }
@@ -143,7 +143,7 @@ public class QueueStorageHealthCheck(IQueueStorage storage, string name = "queue
         try
         {
             // Just check if we can get queue depth
-            var depth = await _storage.GetQueueDepth(_queueName, cancellationToken);
+            var depth = await _storage.GetQueueDepthAsync(_queueName, cancellationToken);
 
             var data = new Dictionary<string, object>
             {

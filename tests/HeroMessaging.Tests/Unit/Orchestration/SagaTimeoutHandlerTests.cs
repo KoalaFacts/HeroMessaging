@@ -1,7 +1,6 @@
 using HeroMessaging.Abstractions.Sagas;
 using HeroMessaging.Orchestration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using Xunit;

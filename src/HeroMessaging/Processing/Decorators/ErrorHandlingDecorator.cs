@@ -70,7 +70,7 @@ public class ErrorHandlingDecorator(
                     Metadata = context.Metadata.ToDictionary(kvp => kvp.Key, kvp => kvp.Value)
                 };
 
-                var errorResult = await _errorHandler.HandleError(message, lastException, errorContext, cancellationToken);
+                var errorResult = await _errorHandler.HandleErrorAsync(message, lastException, errorContext, cancellationToken);
 
                 switch (errorResult.Action)
                 {

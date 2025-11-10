@@ -2,9 +2,11 @@ using System;
 
 namespace HeroMessaging.Utilities;
 
+#if NET9_0_OR_GREATER && ENABLE_REF_STRUCT_INTERFACES // C# 13 feature - ref struct as interface return type
 /// <summary>
 /// Interface for managing pooled buffers using ArrayPool to reduce allocations.
 /// Provides RAII-style buffer management with automatic return to pool.
+/// NOTE: Requires C# 13 support for ref struct interface members
 /// </summary>
 public interface IBufferPoolManager
 {
@@ -42,6 +44,7 @@ public interface IBufferPoolManager
     /// </summary>
     BufferingStrategy GetStrategy(int size);
 }
+#endif
 
 /// <summary>
 /// Buffering strategies for different message sizes.

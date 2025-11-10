@@ -1,5 +1,5 @@
-using HeroMessaging.Abstractions.Transport;
 using System.Diagnostics;
+using HeroMessaging.Abstractions.Transport;
 
 namespace HeroMessaging.Abstractions.Observability;
 

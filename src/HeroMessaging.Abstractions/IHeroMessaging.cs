@@ -7,49 +7,56 @@ namespace HeroMessaging.Abstractions;
 
 public interface IHeroMessaging
 {
-    Task Send(ICommand command, CancellationToken cancellationToken = default);
+    Task SendAsync(ICommand command, CancellationToken cancellationToken = default);
 
-    Task<TResponse> Send<TResponse>(ICommand<TResponse> command, CancellationToken cancellationToken = default);
+    Task<TResponse> SendAsync<TResponse>(ICommand<TResponse> command, CancellationToken cancellationToken = default);
 
-    Task<TResponse> Send<TResponse>(IQuery<TResponse> query, CancellationToken cancellationToken = default);
+    Task<TResponse> SendAsync<TResponse>(IQuery<TResponse> query, CancellationToken cancellationToken = default);
 
-    Task Publish(IEvent @event, CancellationToken cancellationToken = default);
+    Task PublishAsync(IEvent @event, CancellationToken cancellationToken = default);
 
-    Task Enqueue(IMessage message, string queueName, EnqueueOptions? options = null, CancellationToken cancellationToken = default);
+    // Batch operations
+    Task<IReadOnlyList<bool>> SendBatchAsync(IReadOnlyList<ICommand> commands, CancellationToken cancellationToken = default);
 
-    Task StartQueue(string queueName, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<TResponse>> SendBatchAsync<TResponse>(IReadOnlyList<ICommand<TResponse>> commands, CancellationToken cancellationToken = default);
 
-    Task StopQueue(string queueName, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<bool>> PublishBatchAsync(IReadOnlyList<IEvent> events, CancellationToken cancellationToken = default);
 
-    Task PublishToOutbox(IMessage message, OutboxOptions? options = null, CancellationToken cancellationToken = default);
+    Task EnqueueAsync(IMessage message, string queueName, EnqueueOptions? options = null, CancellationToken cancellationToken = default);
 
-    Task ProcessIncoming(IMessage message, InboxOptions? options = null, CancellationToken cancellationToken = default);
+    Task StartQueueAsync(string queueName, CancellationToken cancellationToken = default);
+
+    Task StopQueueAsync(string queueName, CancellationToken cancellationToken = default);
+
+    Task PublishToOutboxAsync(IMessage message, OutboxOptions? options = null, CancellationToken cancellationToken = default);
+
+    Task ProcessIncomingAsync(IMessage message, InboxOptions? options = null, CancellationToken cancellationToken = default);
 
     MessagingMetrics GetMetrics();
 
     MessagingHealth GetHealth();
 }
 
-public class EnqueueOptions
+public record EnqueueOptions
 {
-    public int Priority { get; set; } = 0;
-    public TimeSpan? Delay { get; set; }
-    public Dictionary<string, object>? Metadata { get; set; }
+    public int Priority { get; init; } = 0;
+    public TimeSpan? Delay { get; init; }
+    public Dictionary<string, object>? Metadata { get; init; }
 }
 
-public class OutboxOptions
+public record OutboxOptions
 {
-    public string? Destination { get; set; }
-    public int Priority { get; set; } = 0;
-    public int MaxRetries { get; set; } = 3;
-    public TimeSpan? RetryDelay { get; set; }
+    public string? Destination { get; init; }
+    public int Priority { get; init; } = 0;
+    public int MaxRetries { get; init; } = 3;
+    public TimeSpan? RetryDelay { get; init; }
 }
 
-public class InboxOptions
+public record InboxOptions
 {
-    public string? Source { get; set; }
-    public bool RequireIdempotency { get; set; } = true;
-    public TimeSpan? DeduplicationWindow { get; set; }
+    public string? Source { get; init; }
+    public bool RequireIdempotency { get; init; } = true;
+    public TimeSpan? DeduplicationWindow { get; init; }
 }
 
 public class MessagingMetrics

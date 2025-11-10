@@ -1,9 +1,9 @@
+using System.Data;
+using System.Text.Json;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Storage;
 using HeroMessaging.Utilities;
 using Npgsql;
-using System.Data;
-using System.Text.Json;
 
 namespace HeroMessaging.Storage.PostgreSql;
 
@@ -24,7 +24,7 @@ public class PostgreSqlMessageStorage : IMessageStorage
     public PostgreSqlMessageStorage(PostgreSqlStorageOptions options, TimeProvider timeProvider, IJsonSerializer jsonSerializer)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
-        _connectionString = options.ConnectionString ?? throw new ArgumentNullException(nameof(options.ConnectionString));
+        _connectionString = options.ConnectionString ?? throw new ArgumentNullException(nameof(options), "ConnectionString cannot be null");
         _tableName = _options.GetFullTableName(_options.MessagesTableName);
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         _jsonSerializer = jsonSerializer ?? throw new ArgumentNullException(nameof(jsonSerializer));
@@ -115,7 +115,7 @@ public class PostgreSqlMessageStorage : IMessageStorage
         await command.ExecuteNonQueryAsync();
     }
 
-    public async Task<string> Store(IMessage message, MessageStorageOptions? options = null, CancellationToken cancellationToken = default)
+    public async Task<string> StoreAsync(IMessage message, MessageStorageOptions? options = null, CancellationToken cancellationToken = default)
     {
         var connection = await GetConnectionAsync();
         var transaction = GetTransaction();
@@ -154,7 +154,7 @@ public class PostgreSqlMessageStorage : IMessageStorage
         }
     }
 
-    public async Task<T?> Retrieve<T>(string messageId, CancellationToken cancellationToken = default) where T : IMessage
+    public async Task<T?> RetrieveAsync<T>(string messageId, CancellationToken cancellationToken = default) where T : IMessage
     {
         var connection = await GetConnectionAsync();
         var transaction = GetTransaction();
@@ -185,7 +185,7 @@ public class PostgreSqlMessageStorage : IMessageStorage
         }
     }
 
-    public async Task<bool> Delete(string messageId, CancellationToken cancellationToken = default)
+    public async Task<bool> DeleteAsync(string messageId, CancellationToken cancellationToken = default)
     {
         var connection = await GetConnectionAsync();
         var transaction = GetTransaction();
@@ -206,7 +206,7 @@ public class PostgreSqlMessageStorage : IMessageStorage
         }
     }
 
-    public async Task<bool> Exists(string messageId, CancellationToken cancellationToken = default)
+    public async Task<bool> ExistsAsync(string messageId, CancellationToken cancellationToken = default)
     {
         var connection = await GetConnectionAsync();
         var transaction = GetTransaction();
@@ -231,7 +231,7 @@ public class PostgreSqlMessageStorage : IMessageStorage
         }
     }
 
-    public async Task<IEnumerable<T>> Query<T>(MessageQuery query, CancellationToken cancellationToken = default) where T : IMessage
+    public async Task<IEnumerable<T>> QueryAsync<T>(MessageQuery query, CancellationToken cancellationToken = default) where T : IMessage
     {
         var connection = await GetConnectionAsync();
         var transaction = GetTransaction();
@@ -301,7 +301,7 @@ public class PostgreSqlMessageStorage : IMessageStorage
         }
     }
 
-    public async Task<bool> Update(string messageId, IMessage message, CancellationToken cancellationToken = default)
+    public async Task<bool> UpdateAsync(string messageId, IMessage message, CancellationToken cancellationToken = default)
     {
         var connection = await GetConnectionAsync();
         var transaction = GetTransaction();
@@ -333,7 +333,7 @@ public class PostgreSqlMessageStorage : IMessageStorage
         }
     }
 
-    public async Task<long> Count(MessageQuery? query = null, CancellationToken cancellationToken = default)
+    public async Task<long> CountAsync(MessageQuery? query = null, CancellationToken cancellationToken = default)
     {
         var connection = await GetConnectionAsync();
         var transaction = GetTransaction();
@@ -384,7 +384,7 @@ public class PostgreSqlMessageStorage : IMessageStorage
         }
     }
 
-    public async Task Clear(CancellationToken cancellationToken = default)
+    public async Task ClearAsync(CancellationToken cancellationToken = default)
     {
         var connection = await GetConnectionAsync();
         var transaction = GetTransaction();
@@ -528,6 +528,12 @@ public class PostgreSqlMessageStorage : IMessageStorage
         {
             whereClauses.Add("timestamp <= @to_timestamp");
             parameters.Add(new NpgsqlParameter("to_timestamp", query.ToTimestamp.Value));
+        }
+
+        if (!string.IsNullOrEmpty(query.ContentContains))
+        {
+            whereClauses.Add("payload::text ILIKE @content_contains");
+            parameters.Add(new NpgsqlParameter("content_contains", $"%{query.ContentContains}%"));
         }
 
         var whereClause = string.Join(" AND ", whereClauses);

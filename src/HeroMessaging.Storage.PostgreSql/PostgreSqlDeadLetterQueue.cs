@@ -1,9 +1,9 @@
+using System.Text.Json;
 using HeroMessaging.Abstractions.ErrorHandling;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Utilities;
 using Npgsql;
 using NpgsqlTypes;
-using System.Text.Json;
 
 namespace HeroMessaging.Storage.PostgreSql;
 
@@ -71,7 +71,7 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         await command.ExecuteNonQueryAsync();
     }
 
-    public async Task<string> SendToDeadLetter<T>(T message, DeadLetterContext context, CancellationToken cancellationToken = default)
+    public async Task<string> SendToDeadLetterAsync<T>(T message, DeadLetterContext context, CancellationToken cancellationToken = default)
         where T : IMessage
     {
         var deadLetterId = Guid.NewGuid().ToString();
@@ -114,7 +114,7 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         return deadLetterId;
     }
 
-    public async Task<IEnumerable<DeadLetterEntry<T>>> GetDeadLetters<T>(int limit = 100, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<DeadLetterEntry<T>>> GetDeadLettersAsync<T>(int limit = 100, CancellationToken cancellationToken = default)
         where T : IMessage
     {
         using var connection = new NpgsqlConnection(_options.ConnectionString);
@@ -177,7 +177,7 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         return entries;
     }
 
-    public async Task<bool> Retry<T>(string deadLetterId, CancellationToken cancellationToken = default)
+    public async Task<bool> RetryAsync<T>(string deadLetterId, CancellationToken cancellationToken = default)
         where T : IMessage
     {
         using var connection = new NpgsqlConnection(_options.ConnectionString);
@@ -203,7 +203,7 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         return result > 0;
     }
 
-    public async Task<bool> Discard(string deadLetterId, CancellationToken cancellationToken = default)
+    public async Task<bool> DiscardAsync(string deadLetterId, CancellationToken cancellationToken = default)
     {
         using var connection = new NpgsqlConnection(_options.ConnectionString);
         await connection.OpenAsync(cancellationToken);
@@ -228,7 +228,7 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         return result > 0;
     }
 
-    public async Task<long> GetDeadLetterCount(CancellationToken cancellationToken = default)
+    public async Task<long> GetDeadLetterCountAsync(CancellationToken cancellationToken = default)
     {
         using var connection = new NpgsqlConnection(_options.ConnectionString);
         await connection.OpenAsync(cancellationToken);
@@ -246,16 +246,19 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         return Convert.ToInt64(result ?? 0);
     }
 
-    public async Task<DeadLetterStatistics> GetStatistics(CancellationToken cancellationToken = default)
+    public async Task<DeadLetterStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default)
     {
         using var connection = new NpgsqlConnection(_options.ConnectionString);
         await connection.OpenAsync(cancellationToken);
 
-        var statistics = new DeadLetterStatistics();
+        long activeCount = 0, retriedCount = 0, discardedCount = 0, totalCount = 0;
+        DateTime? oldestEntry = null, newestEntry = null;
+        var countByComponent = new Dictionary<string, long>();
+        var countByReason = new Dictionary<string, long>();
 
         // Get counts by status
         var statusSql = $"""
-            SELECT 
+            SELECT
                 COUNT(*) FILTER (WHERE status = 0) as active_count,
                 COUNT(*) FILTER (WHERE status = 1) as retried_count,
                 COUNT(*) FILTER (WHERE status = 2) as discarded_count,
@@ -268,10 +271,10 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         {
             if (await reader.ReadAsync(cancellationToken))
             {
-                statistics.ActiveCount = reader.IsDBNull(0) ? 0 : reader.GetInt64(0);
-                statistics.RetriedCount = reader.IsDBNull(1) ? 0 : reader.GetInt64(1);
-                statistics.DiscardedCount = reader.IsDBNull(2) ? 0 : reader.GetInt64(2);
-                statistics.TotalCount = reader.IsDBNull(3) ? 0 : reader.GetInt64(3);
+                activeCount = reader.IsDBNull(0) ? 0 : reader.GetInt64(0);
+                retriedCount = reader.IsDBNull(1) ? 0 : reader.GetInt64(1);
+                discardedCount = reader.IsDBNull(2) ? 0 : reader.GetInt64(2);
+                totalCount = reader.IsDBNull(3) ? 0 : reader.GetInt64(3);
             }
         }
 
@@ -288,7 +291,7 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         {
             while (await reader.ReadAsync(cancellationToken))
             {
-                statistics.CountByComponent[reader.GetString(0)] = reader.GetInt64(1);
+                countByComponent[reader.GetString(0)] = reader.GetInt64(1);
             }
         }
 
@@ -307,13 +310,13 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         {
             while (await reader.ReadAsync(cancellationToken))
             {
-                statistics.CountByReason[reader.GetString(0)] = reader.GetInt64(1);
+                countByReason[reader.GetString(0)] = reader.GetInt64(1);
             }
         }
 
         // Get oldest and newest entries
         var dateSql = $"""
-            SELECT 
+            SELECT
                 MIN(created_at) as oldest_entry,
                 MAX(created_at) as newest_entry
             FROM {_tableName}
@@ -325,10 +328,22 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         {
             if (await reader.ReadAsync(cancellationToken))
             {
-                statistics.OldestEntry = reader.IsDBNull(0) ? null : reader.GetDateTime(0);
-                statistics.NewestEntry = reader.IsDBNull(1) ? null : reader.GetDateTime(1);
+                oldestEntry = reader.IsDBNull(0) ? null : reader.GetDateTime(0);
+                newestEntry = reader.IsDBNull(1) ? null : reader.GetDateTime(1);
             }
         }
+
+        var statistics = new DeadLetterStatistics
+        {
+            ActiveCount = activeCount,
+            RetriedCount = retriedCount,
+            DiscardedCount = discardedCount,
+            TotalCount = totalCount,
+            CountByComponent = countByComponent,
+            CountByReason = countByReason,
+            OldestEntry = oldestEntry,
+            NewestEntry = newestEntry
+        };
 
         return statistics;
     }

@@ -5,7 +5,7 @@ using HeroMessaging.Abstractions.Policies;
 namespace HeroMessaging.Policies;
 
 // Extension method to provide Task.Delay with TimeProvider for .NET 6 and netstandard2.0
-internal static class TimeProviderExtensions
+public static class TimeProviderExtensions
 {
 #if !NET8_0_OR_GREATER
     public static Task Delay(this TimeProvider timeProvider, TimeSpan delay, CancellationToken cancellationToken)
@@ -145,7 +145,11 @@ public sealed class TokenBucketRateLimiter : IRateLimiter, IDisposable
     {
         private readonly TokenBucketOptions _options;
         private readonly TimeProvider _timeProvider;
+#if NET9_0_OR_GREATER
         private readonly Lock _lock = new();
+#else
+        private readonly object _lock = new();
+#endif
 
         private double _availableTokens;
         private DateTimeOffset _lastRefillTime;

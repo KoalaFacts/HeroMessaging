@@ -53,7 +53,7 @@ public class RabbitMqMessageFlowIntegrationTests : RabbitMqIntegrationTestBase
         Assert.Equal(testEnvelope.MessageId, receivedEnvelope.MessageId);
         Assert.Equal(testEnvelope.CorrelationId, receivedEnvelope.CorrelationId);
         Assert.Equal(testEnvelope.ContentType, receivedEnvelope.ContentType);
-        Assert.Equal("Hello RabbitMQ!", System.Text.Encoding.UTF8.GetString(receivedEnvelope.Body));
+        Assert.Equal("Hello RabbitMQ!", System.Text.Encoding.UTF8.GetString(receivedEnvelope.Body.ToArray()));
 
         // Cleanup
         await consumer.DisposeAsync();
@@ -76,7 +76,7 @@ public class RabbitMqMessageFlowIntegrationTests : RabbitMqIntegrationTestBase
             new TransportAddress(queueName, TransportAddressType.Queue),
             async (envelope, context, ct) =>
             {
-                var content = System.Text.Encoding.UTF8.GetString(envelope.Body);
+                var content = System.Text.Encoding.UTF8.GetString(envelope.Body.ToArray());
                 receivedMessages.Add(content);
 
                 if (Interlocked.Increment(ref messageCount) == 5)
@@ -116,7 +116,7 @@ public class RabbitMqMessageFlowIntegrationTests : RabbitMqIntegrationTestBase
         topology.AddQueue(new QueueDefinition { Name = queueName, Durable = true });
         await Transport!.ConfigureTopologyAsync(topology);
 
-        TransportEnvelope? receivedEnvelope = null;
+        TransportEnvelope receivedEnvelope = default;
         var messageReceived = new TaskCompletionSource<bool>();
 
         var consumer = await Transport.SubscribeAsync(
@@ -128,9 +128,9 @@ public class RabbitMqMessageFlowIntegrationTests : RabbitMqIntegrationTestBase
                 await Task.CompletedTask;
             });
 
-        var testEnvelope = CreateTestEnvelope();
-        testEnvelope.Headers["CustomHeader"] = "CustomValue";
-        testEnvelope.Headers["Priority"] = 5;
+        var testEnvelope = CreateTestEnvelope()
+            .WithHeader("CustomHeader", "CustomValue")
+            .WithHeader("Priority", 5);
 
         // Act
         await Transport.SendAsync(
@@ -140,8 +140,8 @@ public class RabbitMqMessageFlowIntegrationTests : RabbitMqIntegrationTestBase
         await Task.WhenAny(messageReceived.Task, Task.Delay(5000));
 
         // Assert
-        Assert.NotNull(receivedEnvelope);
-        Assert.True(receivedEnvelope!.Headers.ContainsKey("CustomHeader"));
+        Assert.NotEqual(default(TransportEnvelope), receivedEnvelope);
+        Assert.True(receivedEnvelope.Headers.ContainsKey("CustomHeader"));
         Assert.Equal("CustomValue", receivedEnvelope.Headers["CustomHeader"].ToString());
 
         // Cleanup
@@ -260,7 +260,7 @@ public class RabbitMqMessageFlowIntegrationTests : RabbitMqIntegrationTestBase
             new TransportAddress(ordersQueue, TransportAddressType.Queue),
             async (envelope, context, ct) =>
             {
-                ordersReceived.Add(System.Text.Encoding.UTF8.GetString(envelope.Body));
+                ordersReceived.Add(System.Text.Encoding.UTF8.GetString(envelope.Body.ToArray()));
                 orderReceived.TrySetResult(true);
                 await Task.CompletedTask;
             });
@@ -269,17 +269,17 @@ public class RabbitMqMessageFlowIntegrationTests : RabbitMqIntegrationTestBase
             new TransportAddress(eventsQueue, TransportAddressType.Queue),
             async (envelope, context, ct) =>
             {
-                eventsReceived.Add(System.Text.Encoding.UTF8.GetString(envelope.Body));
+                eventsReceived.Add(System.Text.Encoding.UTF8.GetString(envelope.Body.ToArray()));
                 eventReceived.TrySetResult(true);
                 await Task.CompletedTask;
             });
 
         // Act - publish with different routing keys
-        var orderEnvelope = CreateTestEnvelope("Order created");
-        orderEnvelope.RoutingKey = "order.created";
+        var orderEnvelope = CreateTestEnvelope("Order created")
+            .WithHeader("RoutingKey", "order.created");
 
-        var eventEnvelope = CreateTestEnvelope("Event occurred");
-        eventEnvelope.RoutingKey = "event.something";
+        var eventEnvelope = CreateTestEnvelope("Event occurred")
+            .WithHeader("RoutingKey", "event.something");
 
         await Transport.PublishAsync(
             new TransportAddress(exchangeName, TransportAddressType.Topic),
@@ -323,11 +323,11 @@ public class RabbitMqMessageFlowIntegrationTests : RabbitMqIntegrationTestBase
         var totalReceived = 0;
         var allReceived = new TaskCompletionSource<bool>();
 
-        Task HandleMessage(ConcurrentBag<string> bag)
+        Func<TransportEnvelope, MessageContext, CancellationToken, Task> HandleMessage(ConcurrentBag<string> bag)
         {
             return async (TransportEnvelope envelope, MessageContext context, CancellationToken ct) =>
             {
-                var content = System.Text.Encoding.UTF8.GetString(envelope.Body);
+                var content = System.Text.Encoding.UTF8.GetString(envelope.Body.ToArray());
                 bag.Add(content);
 
                 if (Interlocked.Increment(ref totalReceived) == 10)

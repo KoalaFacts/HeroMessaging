@@ -11,7 +11,7 @@ public class DefaultErrorHandler(ILogger<DefaultErrorHandler> logger, IDeadLette
     private readonly IDeadLetterQueue _deadLetterQueue = deadLetterQueue;
     private readonly TimeProvider _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
-    public async Task<ErrorHandlingResult> HandleError<T>(T message, Exception error, ErrorContext context, CancellationToken cancellationToken = default) where T : IMessage
+    public async Task<ErrorHandlingResult> HandleErrorAsync<T>(T message, Exception error, ErrorContext context, CancellationToken cancellationToken = default) where T : IMessage
     {
         _logger.LogError(error,
             "Error processing message {MessageId} of type {MessageType} in component {Component}. Retry {RetryCount}/{MaxRetries}",
@@ -37,7 +37,7 @@ public class DefaultErrorHandler(ILogger<DefaultErrorHandler> logger, IDeadLette
             var reason = $"Max retries ({context.MaxRetries}) exceeded. Last error: {error.Message}";
             _logger.LogError("Message {MessageId} exceeded max retries. Sending to dead letter queue.", message.MessageId);
 
-            await _deadLetterQueue.SendToDeadLetter(message, new DeadLetterContext
+            await _deadLetterQueue.SendToDeadLetterAsync(message, new DeadLetterContext
             {
                 Reason = reason,
                 Exception = error,
@@ -52,7 +52,7 @@ public class DefaultErrorHandler(ILogger<DefaultErrorHandler> logger, IDeadLette
 
         // Default: send to dead letter
         var defaultReason = $"Unhandled error: {error.Message}";
-        await _deadLetterQueue.SendToDeadLetter(message, new DeadLetterContext
+        await _deadLetterQueue.SendToDeadLetterAsync(message, new DeadLetterContext
         {
             Reason = defaultReason,
             Exception = error,

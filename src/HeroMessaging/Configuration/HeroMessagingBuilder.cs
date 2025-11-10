@@ -1,3 +1,4 @@
+using System.Reflection;
 using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Configuration;
 using HeroMessaging.Abstractions.ErrorHandling;
@@ -10,7 +11,6 @@ using HeroMessaging.Storage;
 using HeroMessaging.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using System.Reflection;
 
 namespace HeroMessaging.Configuration;
 
@@ -186,15 +186,15 @@ public class HeroMessagingBuilder(IServiceCollection services) : IHeroMessagingB
         }
 
         // Register core utilities for JSON serialization and buffer pooling
-        if (!_services.Any(s => s.ServiceType == typeof(IBufferPoolManager)))
+        if (!_services.Any(s => s.ServiceType == typeof(DefaultBufferPoolManager)))
         {
-            _services.AddSingleton<IBufferPoolManager, DefaultBufferPoolManager>();
+            _services.AddSingleton<DefaultBufferPoolManager>();
         }
 
         if (!_services.Any(s => s.ServiceType == typeof(IJsonSerializer)))
         {
             _services.AddSingleton<IJsonSerializer>(sp =>
-                new DefaultJsonSerializer(sp.GetRequiredService<IBufferPoolManager>()));
+                new DefaultJsonSerializer(sp.GetRequiredService<DefaultBufferPoolManager>()));
         }
 
         _services.AddSingleton(_processingOptions);

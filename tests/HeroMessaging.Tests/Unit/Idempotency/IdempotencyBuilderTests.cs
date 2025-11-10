@@ -6,7 +6,6 @@ using HeroMessaging.Idempotency.Decorators;
 using HeroMessaging.Idempotency.KeyGeneration;
 using HeroMessaging.Idempotency.Storage;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Xunit;
 
 namespace HeroMessaging.Tests.Unit.Idempotency;
@@ -359,6 +358,8 @@ public sealed class IdempotencyBuilderTests
             _services = services;
         }
 
+        public IServiceCollection Services => _services;
+
         public IServiceCollection Build() => _services;
 
         public IHeroMessagingBuilder WithMediator() => this;
@@ -372,6 +373,7 @@ public sealed class IdempotencyBuilderTests
         public IHeroMessagingBuilder UseStorage(Abstractions.Storage.IMessageStorage storage) => this;
         public IHeroMessagingBuilder ScanAssembly(System.Reflection.Assembly assembly) => this;
         public IHeroMessagingBuilder ScanAssemblies(params System.Reflection.Assembly[] assemblies) => this;
+        public IHeroMessagingBuilder ScanAssemblies(params IEnumerable<System.Reflection.Assembly> assemblies) => this;
         public IHeroMessagingBuilder ConfigureProcessing(Action<ProcessingOptions> configure) => this;
         public IHeroMessagingBuilder AddPlugin<TPlugin>() where TPlugin : class, Abstractions.Plugins.IMessagingPlugin => this;
         public IHeroMessagingBuilder AddPlugin(Abstractions.Plugins.IMessagingPlugin plugin) => this;

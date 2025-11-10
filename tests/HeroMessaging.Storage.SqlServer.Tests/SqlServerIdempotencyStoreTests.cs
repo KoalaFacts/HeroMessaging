@@ -1,5 +1,4 @@
-using HeroMessaging.Abstractions.Idempotency;
-using HeroMessaging.Storage.SqlServer;
+using HeroMessaging.Utilities;
 using Microsoft.Extensions.Time.Testing;
 using Xunit;
 
@@ -10,11 +9,13 @@ public sealed class SqlServerIdempotencyStoreTests
 {
     private readonly FakeTimeProvider _timeProvider;
     private readonly DateTime _now;
+    private readonly IJsonSerializer _jsonSerializer;
 
     public SqlServerIdempotencyStoreTests()
     {
         _timeProvider = new FakeTimeProvider();
         _now = _timeProvider.GetUtcNow().UtcDateTime;
+        _jsonSerializer = new DefaultJsonSerializer(new DefaultBufferPoolManager());
     }
 
     [Fact]
@@ -23,7 +24,8 @@ public sealed class SqlServerIdempotencyStoreTests
         // Arrange & Act
         var store = new SqlServerIdempotencyStore(
             "Server=localhost;Database=test;",
-            _timeProvider);
+            _timeProvider,
+            _jsonSerializer);
 
         // Assert
         Assert.NotNull(store);
@@ -34,7 +36,7 @@ public sealed class SqlServerIdempotencyStoreTests
     {
         // Act & Assert
         var exception = Assert.Throws<ArgumentNullException>(() =>
-            new SqlServerIdempotencyStore(null!, _timeProvider));
+            new SqlServerIdempotencyStore(null!, _timeProvider, _jsonSerializer));
 
         Assert.Equal("connectionString", exception.ParamName);
     }
@@ -44,7 +46,7 @@ public sealed class SqlServerIdempotencyStoreTests
     {
         // Act & Assert
         var exception = Assert.Throws<ArgumentException>(() =>
-            new SqlServerIdempotencyStore(string.Empty, _timeProvider));
+            new SqlServerIdempotencyStore(string.Empty, _timeProvider, _jsonSerializer));
 
         Assert.Equal("connectionString", exception.ParamName);
         Assert.Contains("cannot be empty or whitespace", exception.Message);
@@ -55,7 +57,7 @@ public sealed class SqlServerIdempotencyStoreTests
     {
         // Act & Assert
         var exception = Assert.Throws<ArgumentException>(() =>
-            new SqlServerIdempotencyStore("   ", _timeProvider));
+            new SqlServerIdempotencyStore("   ", _timeProvider, _jsonSerializer));
 
         Assert.Equal("connectionString", exception.ParamName);
         Assert.Contains("cannot be empty or whitespace", exception.Message);
@@ -66,7 +68,7 @@ public sealed class SqlServerIdempotencyStoreTests
     {
         // Act & Assert
         var exception = Assert.Throws<ArgumentNullException>(() =>
-            new SqlServerIdempotencyStore("Server=localhost;", null!));
+            new SqlServerIdempotencyStore("Server=localhost;", null!, _jsonSerializer));
 
         Assert.Equal("timeProvider", exception.ParamName);
     }
@@ -75,7 +77,7 @@ public sealed class SqlServerIdempotencyStoreTests
     public async Task GetAsync_WithNullKey_ThrowsArgumentNullException()
     {
         // Arrange
-        var store = new SqlServerIdempotencyStore("Server=localhost;Database=test;", _timeProvider);
+        var store = new SqlServerIdempotencyStore("Server=localhost;Database=test;", _timeProvider, _jsonSerializer);
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentNullException>(() =>
@@ -88,7 +90,7 @@ public sealed class SqlServerIdempotencyStoreTests
     public async Task GetAsync_WithEmptyKey_ThrowsArgumentException()
     {
         // Arrange
-        var store = new SqlServerIdempotencyStore("Server=localhost;Database=test;", _timeProvider);
+        var store = new SqlServerIdempotencyStore("Server=localhost;Database=test;", _timeProvider, _jsonSerializer);
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
@@ -102,7 +104,7 @@ public sealed class SqlServerIdempotencyStoreTests
     public async Task StoreSuccessAsync_WithNullKey_ThrowsArgumentNullException()
     {
         // Arrange
-        var store = new SqlServerIdempotencyStore("Server=localhost;Database=test;", _timeProvider);
+        var store = new SqlServerIdempotencyStore("Server=localhost;Database=test;", _timeProvider, _jsonSerializer);
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentNullException>(() =>
@@ -115,7 +117,7 @@ public sealed class SqlServerIdempotencyStoreTests
     public async Task StoreSuccessAsync_WithEmptyKey_ThrowsArgumentException()
     {
         // Arrange
-        var store = new SqlServerIdempotencyStore("Server=localhost;Database=test;", _timeProvider);
+        var store = new SqlServerIdempotencyStore("Server=localhost;Database=test;", _timeProvider, _jsonSerializer);
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
@@ -129,7 +131,7 @@ public sealed class SqlServerIdempotencyStoreTests
     public async Task StoreFailureAsync_WithNullKey_ThrowsArgumentNullException()
     {
         // Arrange
-        var store = new SqlServerIdempotencyStore("Server=localhost;Database=test;", _timeProvider);
+        var store = new SqlServerIdempotencyStore("Server=localhost;Database=test;", _timeProvider, _jsonSerializer);
         var exception = new InvalidOperationException("test error");
 
         // Act & Assert
@@ -143,7 +145,7 @@ public sealed class SqlServerIdempotencyStoreTests
     public async Task StoreFailureAsync_WithEmptyKey_ThrowsArgumentException()
     {
         // Arrange
-        var store = new SqlServerIdempotencyStore("Server=localhost;Database=test;", _timeProvider);
+        var store = new SqlServerIdempotencyStore("Server=localhost;Database=test;", _timeProvider, _jsonSerializer);
         var exception = new InvalidOperationException("test error");
 
         // Act & Assert
@@ -158,7 +160,7 @@ public sealed class SqlServerIdempotencyStoreTests
     public async Task StoreFailureAsync_WithNullException_ThrowsArgumentNullException()
     {
         // Arrange
-        var store = new SqlServerIdempotencyStore("Server=localhost;Database=test;", _timeProvider);
+        var store = new SqlServerIdempotencyStore("Server=localhost;Database=test;", _timeProvider, _jsonSerializer);
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentNullException>(() =>
@@ -171,7 +173,7 @@ public sealed class SqlServerIdempotencyStoreTests
     public async Task ExistsAsync_WithNullKey_ThrowsArgumentNullException()
     {
         // Arrange
-        var store = new SqlServerIdempotencyStore("Server=localhost;Database=test;", _timeProvider);
+        var store = new SqlServerIdempotencyStore("Server=localhost;Database=test;", _timeProvider, _jsonSerializer);
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentNullException>(() =>
@@ -184,7 +186,7 @@ public sealed class SqlServerIdempotencyStoreTests
     public async Task ExistsAsync_WithEmptyKey_ThrowsArgumentException()
     {
         // Arrange
-        var store = new SqlServerIdempotencyStore("Server=localhost;Database=test;", _timeProvider);
+        var store = new SqlServerIdempotencyStore("Server=localhost;Database=test;", _timeProvider, _jsonSerializer);
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentException>(() =>

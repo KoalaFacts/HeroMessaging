@@ -1,6 +1,5 @@
-using HeroMessaging.Abstractions.Messages;
-using System;
 using System.Collections.Immutable;
+using HeroMessaging.Abstractions.Messages;
 
 namespace HeroMessaging.Abstractions.Validation;
 

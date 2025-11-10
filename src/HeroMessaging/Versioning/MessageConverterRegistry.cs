@@ -1,7 +1,7 @@
+using System.Collections.Concurrent;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Versioning;
 using Microsoft.Extensions.Logging;
-using System.Collections.Concurrent;
 
 namespace HeroMessaging.Versioning;
 

@@ -50,7 +50,7 @@ public interface IProcessor
 public interface IQueueProcessor : IProcessor
 {
     IQueueProcessorMetrics GetMetrics();
-    Task<IEnumerable<string>> GetActiveQueues(CancellationToken cancellationToken = default);
+    Task<IEnumerable<string>> GetActiveQueuesAsync(CancellationToken cancellationToken = default);
 }
 
 public interface IOutboxProcessor : IProcessor

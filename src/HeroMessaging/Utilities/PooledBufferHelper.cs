@@ -3,11 +3,20 @@ using System.Buffers;
 
 namespace HeroMessaging.Utilities;
 
+#if NET9_0_OR_GREATER && ENABLE_REF_STRUCT_INTERFACES
 /// <summary>
 /// Default implementation of IBufferPoolManager using ArrayPool.
 /// Provides RAII-style buffer management with automatic return to pool.
+/// NOTE: Requires C# 13 support for ref struct interface members
 /// </summary>
 public sealed class DefaultBufferPoolManager : IBufferPoolManager
+#else
+/// <summary>
+/// Buffer pool manager using ArrayPool for reduced allocations.
+/// Provides RAII-style buffer management with automatic return to pool.
+/// </summary>
+public sealed class DefaultBufferPoolManager
+#endif
 {
     /// <summary>
     /// Shared ArrayPool instance for all pooled buffers.
