@@ -186,7 +186,6 @@ jobs:
           ls -lh *.nupkg *.snupkg 2>/dev/null || echo "No packages found!"
 
       - name: Setup .NET for signing
-        if: ${{ secrets.NUGET_SIGNING_CERT_BASE64 != '' }}
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: |
@@ -195,13 +194,21 @@ jobs:
             10.0.x
 
       - name: Sign NuGet packages
-        if: ${{ secrets.NUGET_SIGNING_CERT_BASE64 != '' }}
         env:
           SIGNING_CERT_BASE64: ${{ secrets.NUGET_SIGNING_CERT_BASE64 }}
           SIGNING_CERT_PASSWORD: ${{ secrets.NUGET_SIGNING_CERT_PASSWORD }}
           TIMESTAMP_URL: http://timestamp.digicert.com
         run: |
           cd ./release-packages
+
+          # Check if signing certificate is configured
+          if [ -z "$SIGNING_CERT_BASE64" ]; then
+            echo "ℹ️ Package signing skipped - no certificate configured"
+            echo "To enable package signing, configure the following secrets:"
+            echo "  - NUGET_SIGNING_CERT_BASE64"
+            echo "  - NUGET_SIGNING_CERT_PASSWORD"
+            exit 0
+          fi
 
           echo "🔐 Setting up code signing certificate..."
 
