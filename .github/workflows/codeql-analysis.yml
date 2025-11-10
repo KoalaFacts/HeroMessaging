@@ -57,7 +57,8 @@ jobs:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
           # Query suites: security-extended (more thorough) or security-and-quality (most comprehensive)
-          queries: +security-extended,+security-and-quality
+          # Use comma-separated list without '+' prefix for direct specification
+          queries: security-extended,security-and-quality
           # Custom queries can be added here
           # config-file: ./.github/codeql/codeql-config.yml
 
