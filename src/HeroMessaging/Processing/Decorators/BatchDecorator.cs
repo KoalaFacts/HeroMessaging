@@ -41,7 +41,7 @@ public sealed class BatchDecorator : MessageProcessorDecorator, IAsyncDisposable
     private readonly TimeProvider _timeProvider;
 
     private readonly ConcurrentQueue<BatchItem> _messageQueue = new();
-    private readonly SemaphoreSlim _batchSemaphore = new(1, 1);
+    private readonly AutoResetEvent _batchSignal = new(false);
     private readonly CancellationTokenSource _disposalCts = new();
     private readonly Task _batchProcessingTask;
 
@@ -106,10 +106,10 @@ public sealed class BatchDecorator : MessageProcessorDecorator, IAsyncDisposable
             message.MessageId,
             count);
 
-        // If we've reached max batch size, trigger immediate processing
+        // If we've reached max batch size, signal immediate processing
         if (count >= _options.MaxBatchSize)
         {
-            _batchSemaphore.Release();
+            _batchSignal.Set();
         }
 
         // Wait for result
@@ -128,7 +128,7 @@ public sealed class BatchDecorator : MessageProcessorDecorator, IAsyncDisposable
             while (!_disposalCts.Token.IsCancellationRequested)
             {
                 // Wait for either batch to fill or timeout
-                await _batchSemaphore.WaitAsync(_options.BatchTimeout, _disposalCts.Token);
+                _batchSignal.WaitOne(_options.BatchTimeout);
 
                 var queuedCount = Interlocked.Exchange(ref _queuedCount, 0);
 
@@ -369,7 +369,7 @@ public sealed class BatchDecorator : MessageProcessorDecorator, IAsyncDisposable
             await ProcessIndividuallyAsync(remaining);
         }
 
-        _batchSemaphore.Dispose();
+        _batchSignal.Dispose();
         _disposalCts.Dispose();
 
         _logger.LogDebug("BatchDecorator disposed");

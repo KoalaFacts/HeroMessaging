@@ -1,3 +1,4 @@
+using System.Linq;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Processing.Decorators;
@@ -12,28 +13,18 @@ namespace HeroMessaging.Tests.Unit;
 /// <summary>
 /// Unit tests for BatchDecorator
 /// </summary>
-public class BatchDecoratorTests : IAsyncLifetime
+public class BatchDecoratorTests
 {
-    private readonly Mock<IMessageProcessor> _mockInnerProcessor;
-    private readonly Mock<ILogger<BatchDecorator>> _mockLogger;
-    private readonly FakeTimeProvider _timeProvider;
-
-    public BatchDecoratorTests()
-    {
-        _mockInnerProcessor = new Mock<IMessageProcessor>();
-        _mockLogger = new Mock<ILogger<BatchDecorator>>();
-        _timeProvider = new FakeTimeProvider();
-    }
-
-    public ValueTask InitializeAsync() => ValueTask.CompletedTask;
-
-    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
     [Fact]
     [Trait("Category", "Unit")]
     public async Task BatchDecorator_WhenDisabled_ProcessesImmediately()
     {
         // Arrange
+        var mockInnerProcessor = new Mock<IMessageProcessor>();
+        var mockLogger = new Mock<ILogger<BatchDecorator>>();
+        var timeProvider = new FakeTimeProvider();
+
         var options = new BatchProcessingOptions
         {
             Enabled = false
@@ -43,27 +34,32 @@ public class BatchDecoratorTests : IAsyncLifetime
         var context = new ProcessingContext("test");
         var expectedResult = ProcessingResult.Successful("Processed");
 
-        _mockInnerProcessor.Setup(p => p.ProcessAsync(message, context, It.IsAny<CancellationToken>()))
+        mockInnerProcessor.Setup(p => p.ProcessAsync(message, context, It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedResult);
 
-        await using var decorator = new BatchDecorator(_mockInnerProcessor.Object, options, _mockLogger.Object, _timeProvider);
+        await using var decorator = new BatchDecorator(mockInnerProcessor.Object, options, mockLogger.Object, timeProvider);
 
         // Act
         var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
-        _mockInnerProcessor.Verify(p => p.ProcessAsync(message, context, It.IsAny<CancellationToken>()), Times.Once);
+        mockInnerProcessor.Verify(p => p.ProcessAsync(message, context, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
     [Trait("Category", "Unit")]
     public async Task BatchDecorator_WithNullOptions_ThrowsArgumentNullException()
     {
+        // Arrange
+        var mockInnerProcessor = new Mock<IMessageProcessor>();
+        var mockLogger = new Mock<ILogger<BatchDecorator>>();
+        var timeProvider = new FakeTimeProvider();
+
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentNullException>(async () =>
         {
-            await using var decorator = new BatchDecorator(_mockInnerProcessor.Object, null!, _mockLogger.Object, _timeProvider);
+            await using var decorator = new BatchDecorator(mockInnerProcessor.Object, null!, mockLogger.Object, timeProvider);
         });
     }
 
@@ -72,12 +68,14 @@ public class BatchDecoratorTests : IAsyncLifetime
     public async Task BatchDecorator_WithNullLogger_ThrowsArgumentNullException()
     {
         // Arrange
+        var mockInnerProcessor = new Mock<IMessageProcessor>();
+        var timeProvider = new FakeTimeProvider();
         var options = new BatchProcessingOptions { Enabled = true };
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentNullException>(async () =>
         {
-            await using var decorator = new BatchDecorator(_mockInnerProcessor.Object, options, null!, _timeProvider);
+            await using var decorator = new BatchDecorator(mockInnerProcessor.Object, options, null!, timeProvider);
         });
     }
 
@@ -86,6 +84,10 @@ public class BatchDecoratorTests : IAsyncLifetime
     public async Task BatchDecorator_WithInvalidOptions_ThrowsArgumentException()
     {
         // Arrange
+        var mockInnerProcessor = new Mock<IMessageProcessor>();
+        var mockLogger = new Mock<ILogger<BatchDecorator>>();
+        var timeProvider = new FakeTimeProvider();
+
         var options = new BatchProcessingOptions
         {
             Enabled = true,
@@ -95,7 +97,7 @@ public class BatchDecoratorTests : IAsyncLifetime
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentException>(async () =>
         {
-            await using var decorator = new BatchDecorator(_mockInnerProcessor.Object, options, _mockLogger.Object, _timeProvider);
+            await using var decorator = new BatchDecorator(mockInnerProcessor.Object, options, mockLogger.Object, timeProvider);
         });
     }
 
@@ -104,6 +106,10 @@ public class BatchDecoratorTests : IAsyncLifetime
     public async Task BatchDecorator_ProcessesMessagesInBatch_WhenMaxSizeReached()
     {
         // Arrange
+        var mockInnerProcessor = new Mock<IMessageProcessor>();
+        var mockLogger = new Mock<ILogger<BatchDecorator>>();
+        var timeProvider = new FakeTimeProvider();
+
         var options = new BatchProcessingOptions
         {
             Enabled = true,
@@ -121,28 +127,22 @@ public class BatchDecoratorTests : IAsyncLifetime
 
         var processedCount = 0;
 
-        _mockInnerProcessor.Setup(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
+        mockInnerProcessor.Setup(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(() =>
             {
                 Interlocked.Increment(ref processedCount);
                 return ProcessingResult.Successful();
             });
 
-        await using var decorator = new BatchDecorator(_mockInnerProcessor.Object, options, _mockLogger.Object, _timeProvider);
+        await using var decorator = new BatchDecorator(mockInnerProcessor.Object, options, mockLogger.Object, timeProvider);
 
         // Act
         var tasks = messages.Select(m => decorator.ProcessAsync(m, new ProcessingContext("test"), TestContext.Current.CancellationToken).AsTask()).ToList();
+        var results = await Task.WhenAll(tasks);
 
-        // Wait for all task completion sources to resolve
-        await Task.WhenAll(tasks);
-
-        // Yield to allow any pending async continuations to complete
-        // (200ms accounts for resource contention during parallel test runs)
-        await Task.Delay(200);
-
-        // Assert - all tasks completed means all processing finished
+        // Assert - verify observable outcomes (results and counter)
         Assert.Equal(3, processedCount);
-        _mockInnerProcessor.Verify(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
+        Assert.All(results, r => Assert.True(r.Success));
     }
 
     [Fact]
@@ -150,6 +150,10 @@ public class BatchDecoratorTests : IAsyncLifetime
     public async Task BatchDecorator_ProcessesIndividually_WhenBelowMinBatchSize()
     {
         // Arrange
+        var mockInnerProcessor = new Mock<IMessageProcessor>();
+        var mockLogger = new Mock<ILogger<BatchDecorator>>();
+        var timeProvider = new FakeTimeProvider();
+
         var options = new BatchProcessingOptions
         {
             Enabled = true,
@@ -160,10 +164,10 @@ public class BatchDecoratorTests : IAsyncLifetime
 
         var message = TestMessageBuilder.CreateValidMessage();
 
-        _mockInnerProcessor.Setup(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
+        mockInnerProcessor.Setup(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProcessingResult.Successful());
 
-        await using var decorator = new BatchDecorator(_mockInnerProcessor.Object, options, _mockLogger.Object, _timeProvider);
+        await using var decorator = new BatchDecorator(mockInnerProcessor.Object, options, mockLogger.Object, timeProvider);
 
         // Act
         var task = decorator.ProcessAsync(message, new ProcessingContext("test"), TestContext.Current.CancellationToken).AsTask();
@@ -173,7 +177,7 @@ public class BatchDecoratorTests : IAsyncLifetime
         await task;
 
         // Assert
-        _mockInnerProcessor.Verify(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()), Times.Once);
+        mockInnerProcessor.Verify(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -181,6 +185,10 @@ public class BatchDecoratorTests : IAsyncLifetime
     public async Task BatchDecorator_ReturnsSuccessResult_WhenProcessingSucceeds()
     {
         // Arrange
+        var mockInnerProcessor = new Mock<IMessageProcessor>();
+        var mockLogger = new Mock<ILogger<BatchDecorator>>();
+        var timeProvider = new FakeTimeProvider();
+
         var options = new BatchProcessingOptions
         {
             Enabled = false
@@ -190,10 +198,10 @@ public class BatchDecoratorTests : IAsyncLifetime
         var context = new ProcessingContext("test");
         var expectedResult = ProcessingResult.Successful("Success");
 
-        _mockInnerProcessor.Setup(p => p.ProcessAsync(message, context, It.IsAny<CancellationToken>()))
+        mockInnerProcessor.Setup(p => p.ProcessAsync(message, context, It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedResult);
 
-        await using var decorator = new BatchDecorator(_mockInnerProcessor.Object, options, _mockLogger.Object, _timeProvider);
+        await using var decorator = new BatchDecorator(mockInnerProcessor.Object, options, mockLogger.Object, timeProvider);
 
         // Act
         var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
@@ -208,6 +216,10 @@ public class BatchDecoratorTests : IAsyncLifetime
     public async Task BatchDecorator_ReturnsFailureResult_WhenProcessingFails()
     {
         // Arrange
+        var mockInnerProcessor = new Mock<IMessageProcessor>();
+        var mockLogger = new Mock<ILogger<BatchDecorator>>();
+        var timeProvider = new FakeTimeProvider();
+
         var options = new BatchProcessingOptions
         {
             Enabled = false
@@ -218,10 +230,10 @@ public class BatchDecoratorTests : IAsyncLifetime
         var exception = new InvalidOperationException("Processing failed");
         var expectedResult = ProcessingResult.Failed(exception);
 
-        _mockInnerProcessor.Setup(p => p.ProcessAsync(message, context, It.IsAny<CancellationToken>()))
+        mockInnerProcessor.Setup(p => p.ProcessAsync(message, context, It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedResult);
 
-        await using var decorator = new BatchDecorator(_mockInnerProcessor.Object, options, _mockLogger.Object, _timeProvider);
+        await using var decorator = new BatchDecorator(mockInnerProcessor.Object, options, mockLogger.Object, timeProvider);
 
         // Act
         var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
@@ -237,6 +249,10 @@ public class BatchDecoratorTests : IAsyncLifetime
     public async Task BatchDecorator_ContinuesProcessing_WhenContinueOnFailureEnabled()
     {
         // Arrange
+        var mockInnerProcessor = new Mock<IMessageProcessor>();
+        var mockLogger = new Mock<ILogger<BatchDecorator>>();
+        var timeProvider = new FakeTimeProvider();
+
         var options = new BatchProcessingOptions
         {
             Enabled = true,
@@ -256,7 +272,7 @@ public class BatchDecoratorTests : IAsyncLifetime
         var processedCount = 0;
 
         // First message fails, others succeed
-        _mockInnerProcessor.SetupSequence(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
+        mockInnerProcessor.SetupSequence(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(() =>
             {
                 Interlocked.Increment(ref processedCount);
@@ -273,21 +289,17 @@ public class BatchDecoratorTests : IAsyncLifetime
                 return ProcessingResult.Successful();
             });
 
-        await using var decorator = new BatchDecorator(_mockInnerProcessor.Object, options, _mockLogger.Object, _timeProvider);
+        await using var decorator = new BatchDecorator(mockInnerProcessor.Object, options, mockLogger.Object, timeProvider);
 
         // Act
         var tasks = messages.Select(m => decorator.ProcessAsync(m, new ProcessingContext("test"), TestContext.Current.CancellationToken).AsTask()).ToList();
+        var results = await Task.WhenAll(tasks);
 
-        // Wait for all task completion sources to resolve
-        await Task.WhenAll(tasks);
-
-        // Yield to allow any pending async continuations to complete
-        // (200ms accounts for resource contention during parallel test runs)
-        await Task.Delay(200);
-
-        // Assert - all tasks completed means all processing finished
+        // Assert - verify observable outcomes
         Assert.Equal(3, processedCount);
-        _mockInnerProcessor.Verify(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
+        Assert.False(results[0].Success);  // First message failed
+        Assert.True(results[1].Success);   // Second message succeeded
+        Assert.True(results[2].Success);   // Third message succeeded
     }
 
     [Fact]
@@ -295,6 +307,10 @@ public class BatchDecoratorTests : IAsyncLifetime
     public async Task BatchDecorator_HandlesCancellation_Gracefully()
     {
         // Arrange
+        var mockInnerProcessor = new Mock<IMessageProcessor>();
+        var mockLogger = new Mock<ILogger<BatchDecorator>>();
+        var timeProvider = new FakeTimeProvider();
+
         var options = new BatchProcessingOptions
         {
             Enabled = false
@@ -304,10 +320,10 @@ public class BatchDecoratorTests : IAsyncLifetime
         var context = new ProcessingContext("test");
         var cts = new CancellationTokenSource();
 
-        _mockInnerProcessor.Setup(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
+        mockInnerProcessor.Setup(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new OperationCanceledException());
 
-        await using var decorator = new BatchDecorator(_mockInnerProcessor.Object, options, _mockLogger.Object, _timeProvider);
+        await using var decorator = new BatchDecorator(mockInnerProcessor.Object, options, mockLogger.Object, timeProvider);
 
         // Act & Assert
         await Assert.ThrowsAsync<OperationCanceledException>(() =>
@@ -319,6 +335,10 @@ public class BatchDecoratorTests : IAsyncLifetime
     public async Task BatchDecorator_ProcessesRemainingMessages_OnDisposal()
     {
         // Arrange
+        var mockInnerProcessor = new Mock<IMessageProcessor>();
+        var mockLogger = new Mock<ILogger<BatchDecorator>>();
+        var timeProvider = new FakeTimeProvider();
+
         var options = new BatchProcessingOptions
         {
             Enabled = true,
@@ -328,10 +348,10 @@ public class BatchDecoratorTests : IAsyncLifetime
 
         var message = TestMessageBuilder.CreateValidMessage();
 
-        _mockInnerProcessor.Setup(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
+        mockInnerProcessor.Setup(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProcessingResult.Successful());
 
-        var decorator = new BatchDecorator(_mockInnerProcessor.Object, options, _mockLogger.Object, _timeProvider);
+        var decorator = new BatchDecorator(mockInnerProcessor.Object, options, mockLogger.Object, timeProvider);
 
         // Act
         var task = decorator.ProcessAsync(message, new ProcessingContext("test"), TestContext.Current.CancellationToken).AsTask();
@@ -344,7 +364,7 @@ public class BatchDecoratorTests : IAsyncLifetime
 
         // Assert
         Assert.True(result.Success);
-        _mockInnerProcessor.Verify(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()), Times.Once);
+        mockInnerProcessor.Verify(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -352,6 +372,10 @@ public class BatchDecoratorTests : IAsyncLifetime
     public async Task BatchDecorator_WithParallelProcessing_ProcessesMessagesInParallel()
     {
         // Arrange
+        var mockInnerProcessor = new Mock<IMessageProcessor>();
+        var mockLogger = new Mock<ILogger<BatchDecorator>>();
+        var timeProvider = new FakeTimeProvider();
+
         var options = new BatchProcessingOptions
         {
             Enabled = true,
@@ -367,28 +391,22 @@ public class BatchDecoratorTests : IAsyncLifetime
 
         var processedCount = 0;
 
-        _mockInnerProcessor.Setup(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
+        mockInnerProcessor.Setup(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(() =>
             {
                 Interlocked.Increment(ref processedCount);
                 return ProcessingResult.Successful();
             });
 
-        await using var decorator = new BatchDecorator(_mockInnerProcessor.Object, options, _mockLogger.Object, _timeProvider);
+        await using var decorator = new BatchDecorator(mockInnerProcessor.Object, options, mockLogger.Object, timeProvider);
 
         // Act
         var tasks = messages.Select(m => decorator.ProcessAsync(m, new ProcessingContext("test"), TestContext.Current.CancellationToken).AsTask()).ToList();
+        var results = await Task.WhenAll(tasks);
 
-        // Wait for all task completion sources to resolve
-        await Task.WhenAll(tasks);
-
-        // Yield to allow any pending async continuations to complete
-        // (200ms accounts for resource contention during parallel test runs)
-        await Task.Delay(200);
-
-        // Assert - all tasks completed means all processing finished
+        // Assert - verify observable outcomes
         Assert.Equal(4, processedCount);
-        _mockInnerProcessor.Verify(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()), Times.Exactly(4));
+        Assert.All(results, r => Assert.True(r.Success));
     }
 
     [Fact]
@@ -396,6 +414,10 @@ public class BatchDecoratorTests : IAsyncLifetime
     public async Task BatchDecorator_FallbackToIndividual_WhenBatchProcessingThrows()
     {
         // Arrange
+        var mockInnerProcessor = new Mock<IMessageProcessor>();
+        var mockLogger = new Mock<ILogger<BatchDecorator>>();
+        var timeProvider = new FakeTimeProvider();
+
         var options = new BatchProcessingOptions
         {
             Enabled = true,
@@ -413,7 +435,7 @@ public class BatchDecoratorTests : IAsyncLifetime
 
         // Setup to throw on first call, succeed on subsequent calls
         var callCount = 0;
-        _mockInnerProcessor.Setup(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
+        mockInnerProcessor.Setup(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(() =>
             {
                 callCount++;
@@ -423,7 +445,7 @@ public class BatchDecoratorTests : IAsyncLifetime
                 return ProcessingResult.Successful();
             });
 
-        await using var decorator = new BatchDecorator(_mockInnerProcessor.Object, options, _mockLogger.Object, _timeProvider);
+        await using var decorator = new BatchDecorator(mockInnerProcessor.Object, options, mockLogger.Object, timeProvider);
 
         // Act
         var tasks = messages.Select(m => decorator.ProcessAsync(m, new ProcessingContext("test"), TestContext.Current.CancellationToken).AsTask()).ToList();
@@ -432,7 +454,7 @@ public class BatchDecoratorTests : IAsyncLifetime
         await Task.Delay(1000);
 
         // Assert - Verify fallback was attempted
-        _mockInnerProcessor.Verify(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()), Times.AtLeast(2));
+        mockInnerProcessor.Verify(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()), Times.AtLeast(2));
     }
 
     [Fact]
@@ -440,6 +462,10 @@ public class BatchDecoratorTests : IAsyncLifetime
     public async Task BatchDecorator_LogsInformation_WhenInitialized()
     {
         // Arrange
+        var mockInnerProcessor = new Mock<IMessageProcessor>();
+        var mockLogger = new Mock<ILogger<BatchDecorator>>();
+        var timeProvider = new FakeTimeProvider();
+
         var options = new BatchProcessingOptions
         {
             Enabled = true,
@@ -449,13 +475,13 @@ public class BatchDecoratorTests : IAsyncLifetime
         };
 
         // Act
-        await using var decorator = new BatchDecorator(_mockInnerProcessor.Object, options, _mockLogger.Object, _timeProvider);
+        await using var decorator = new BatchDecorator(mockInnerProcessor.Object, options, mockLogger.Object, timeProvider);
 
         // Wait a bit for background task to start
         await Task.Delay(100);
 
         // Assert
-        _mockLogger.Verify(
+        mockLogger.Verify(
             l => l.Log(
                 LogLevel.Information,
                 It.IsAny<EventId>(),
