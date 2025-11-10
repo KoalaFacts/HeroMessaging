@@ -14,6 +14,7 @@ permissions:
   contents: read
   security-events: write
   actions: read
+  packages: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -21,14 +22,18 @@ concurrency:
 
 jobs:
   analyze:
-    name: CodeQL Analysis (C#)
+    name: CodeQL Analysis (${{ matrix.language }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
     strategy:
       fail-fast: false
       matrix:
-        language: [ 'csharp' ]
+        include:
+          - language: csharp
+            build-mode: none
+          - language: actions
+            build-mode: none
 
     steps:
       - name: Checkout repository
@@ -37,6 +42,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup .NET
+        if: matrix.language == 'csharp'
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: |
@@ -49,6 +55,7 @@ jobs:
         uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
           # Query suites: security-extended (more thorough) or security-and-quality (most comprehensive)
           queries: +security-extended,+security-and-quality
           # Custom queries can be added here
@@ -56,6 +63,7 @@ jobs:
 
       # Autobuild attempts to build any compiled languages (C#, C++, Go, Java, Swift)
       - name: Autobuild
+        if: matrix.build-mode == 'none'
         uses: github/codeql-action/autobuild@v4
 
       # Manual build alternative (if autobuild fails):
@@ -95,17 +103,24 @@ jobs:
           cat >> $GITHUB_STEP_SUMMARY << 'EOF'
           ## 🔍 CodeQL Security Analysis Results
 
-          | Analysis | Status |
+          | Language | Status |
           |----------|--------|
-          | CodeQL (C#) | ${{ needs.analyze.result == 'success' && '✅ Passed' || '❌ Failed' }} |
+          | C# Code | ${{ needs.analyze.result == 'success' && '✅ Passed' || '❌ Failed' }} |
+          | GitHub Actions | ${{ needs.analyze.result == 'success' && '✅ Passed' || '❌ Failed' }} |
 
           ### What is CodeQL?
 
           CodeQL is GitHub's semantic code analysis engine that:
-          - 🔍 Detects security vulnerabilities (SQL injection, XSS, etc.)
+          - 🔍 Detects security vulnerabilities (SQL injection, XSS, command injection, etc.)
           - 🐛 Finds common coding errors and bugs
           - 📊 Analyzes code quality and maintainability
           - 🎯 Uses queries based on security research
+          - ⚡ Analyzes GitHub Actions workflows for security issues
+
+          ### Languages Analyzed
+
+          - **C#**: Application code security and quality
+          - **GitHub Actions**: Workflow security (script injection, secrets exposure, etc.)
 
           ### Query Suites Enabled
 
