@@ -203,7 +203,7 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         return result > 0;
     }
 
-    public async Task<bool> DiscardAsync(string deadLetterId, CancellationToken cancellationToken = default)
+    public async Task<bool> DiscardAsync<T>(string deadLetterId, CancellationToken cancellationToken = default) where T : IMessage
     {
         using var connection = new NpgsqlConnection(_options.ConnectionString);
         await connection.OpenAsync(cancellationToken);

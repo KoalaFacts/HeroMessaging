@@ -188,7 +188,7 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
         return result > 0;
     }
 
-    public async Task<bool> DiscardAsync(string deadLetterId, CancellationToken cancellationToken = default)
+    public async Task<bool> DiscardAsync<T>(string deadLetterId, CancellationToken cancellationToken = default) where T : IMessage
     {
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);

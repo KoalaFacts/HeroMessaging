@@ -62,11 +62,11 @@ public class InMemoryDeadLetterQueue(ILogger<InMemoryDeadLetterQueue> logger, Ti
         return Task.FromResult(false);
     }
 
-    public Task<bool> DiscardAsync(string deadLetterId, CancellationToken cancellationToken = default)
+    public Task<bool> DiscardAsync<T>(string deadLetterId, CancellationToken cancellationToken = default) where T : IMessage
     {
         if (_deadLetters.TryGetValue(deadLetterId, out var entry))
         {
-            if (entry is DeadLetterEntry<IMessage> typedEntry)
+            if (entry is DeadLetterEntry<T> typedEntry)
             {
                 var updatedEntry = typedEntry with
                 {

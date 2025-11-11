@@ -502,6 +502,61 @@ public sealed class InMemoryMessageStorageTests
 
     #endregion
 
+    #region Explicit Interface Implementation Tests
+
+    [Fact]
+    public async Task IMessageStorage_StoreAsync_StoresMessage()
+    {
+        // Arrange
+        var message = new TestMessage { MessageId = Guid.NewGuid(), Content = "Test" };
+        IMessageStorage storage = _storage;
+
+        // Act
+        await storage.StoreAsync(message, (IStorageTransaction?)null);
+
+        // Assert - Check exists via explicit interface
+        var query = new MessageQuery();
+        var results = await storage.QueryAsync(query);
+        Assert.Contains(results, m => m.MessageId == message.MessageId);
+    }
+
+    [Fact]
+    public async Task IMessageStorage_QueryAsync_ReturnsMessages()
+    {
+        // Arrange
+        var message1 = new TestMessage { MessageId = Guid.NewGuid(), Content = "Test1" };
+        var message2 = new TestMessage { MessageId = Guid.NewGuid(), Content = "Test2" };
+        await _storage.StoreAsync(message1, new MessageStorageOptions { Collection = "test" });
+        await _storage.StoreAsync(message2, new MessageStorageOptions { Collection = "test" });
+        IMessageStorage storage = _storage;
+
+        var query = new MessageQuery { Collection = "test" };
+
+        // Act
+        var results = await storage.QueryAsync(query);
+
+        // Assert
+        Assert.Equal(2, results.Count);
+    }
+
+    [Fact]
+    public async Task IMessageStorage_DeleteAsync_DeletesMessage()
+    {
+        // Arrange
+        var message = new TestMessage { MessageId = Guid.NewGuid(), Content = "Test" };
+        await _storage.StoreAsync(message);
+        IMessageStorage storage = _storage;
+
+        // Act
+        await storage.DeleteAsync(message.MessageId);
+
+        // Assert
+        var exists = await _storage.ExistsAsync(message.MessageId.ToString());
+        Assert.False(exists);
+    }
+
+    #endregion
+
     #region Test Message Classes
 
     private class TestMessage : IMessage

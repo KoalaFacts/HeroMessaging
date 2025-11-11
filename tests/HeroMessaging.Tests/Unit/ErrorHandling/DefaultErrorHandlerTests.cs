@@ -62,8 +62,8 @@ public sealed class DefaultErrorHandlerTests
 
         // Assert
         Assert.Equal(ErrorAction.Retry, result.Action);
-        Assert.NotNull(result.Delay);
-        Assert.True(result.Delay > TimeSpan.Zero);
+        Assert.NotNull(result.RetryDelay);
+        Assert.True(result.RetryDelay > TimeSpan.Zero);
     }
 
     [Fact]
@@ -84,7 +84,7 @@ public sealed class DefaultErrorHandlerTests
 
         // Assert
         Assert.Equal(ErrorAction.Retry, result.Action);
-        Assert.NotNull(result.Delay);
+        Assert.NotNull(result.RetryDelay);
     }
 
     [Fact]
@@ -274,7 +274,7 @@ public sealed class DefaultErrorHandlerTests
             {
                 capturedContext = ctx;
             })
-            .Returns(Task.CompletedTask);
+            .ReturnsAsync("dead-letter-id");
 
         // Act
         await _handler.HandleErrorAsync(message, error, context);
@@ -337,9 +337,9 @@ public sealed class DefaultErrorHandlerTests
         var result2 = await _handler.HandleErrorAsync(message, error, context2);
 
         // Assert - Second retry should have longer delay (exponential backoff)
-        Assert.NotNull(result1.Delay);
-        Assert.NotNull(result2.Delay);
-        Assert.True(result2.Delay > result1.Delay);
+        Assert.NotNull(result1.RetryDelay);
+        Assert.NotNull(result2.RetryDelay);
+        Assert.True(result2.RetryDelay > result1.RetryDelay);
     }
 
     [Fact]
@@ -354,8 +354,8 @@ public sealed class DefaultErrorHandlerTests
         var result = await _handler.HandleErrorAsync(message, error, context);
 
         // Assert
-        Assert.NotNull(result.Delay);
-        Assert.True(result.Delay <= TimeSpan.FromSeconds(30));
+        Assert.NotNull(result.RetryDelay);
+        Assert.True(result.RetryDelay <= TimeSpan.FromSeconds(30));
     }
 
     #endregion
@@ -439,7 +439,7 @@ public sealed class DefaultErrorHandlerTests
             {
                 capturedContext = ctx;
             })
-            .Returns(Task.CompletedTask);
+            .ReturnsAsync("dead-letter-id");
 
         // Act
         await _handler.HandleErrorAsync(message, error, context);

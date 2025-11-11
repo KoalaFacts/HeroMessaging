@@ -10,7 +10,7 @@ public interface IDeadLetterQueue
 
     Task<bool> RetryAsync<T>(string deadLetterId, CancellationToken cancellationToken = default) where T : IMessage;
 
-    Task<bool> DiscardAsync(string deadLetterId, CancellationToken cancellationToken = default);
+    Task<bool> DiscardAsync<T>(string deadLetterId, CancellationToken cancellationToken = default) where T : IMessage;
 
     Task<long> GetDeadLetterCountAsync(CancellationToken cancellationToken = default);
 
