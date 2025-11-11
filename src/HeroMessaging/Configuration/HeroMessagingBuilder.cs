@@ -4,6 +4,7 @@ using HeroMessaging.Abstractions.Configuration;
 using HeroMessaging.Abstractions.ErrorHandling;
 using HeroMessaging.Abstractions.Handlers;
 using HeroMessaging.Abstractions.Plugins;
+using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Abstractions.Storage;
 using HeroMessaging.ErrorHandling;
 using HeroMessaging.Processing;

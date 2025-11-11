@@ -41,6 +41,27 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxEntry>, IOutbo
         }
     }
 
+    public bool IsRunning => true; // TODO: Track running state properly
+
+    public IOutboxProcessorMetrics GetMetrics()
+    {
+        return new OutboxProcessorMetrics
+        {
+            PendingMessages = 0, // TODO: Track metrics
+            ProcessedMessages = 0,
+            FailedMessages = 0,
+            LastProcessedTime = _timeProvider.GetUtcNow().DateTime
+        };
+    }
+
+    private class OutboxProcessorMetrics : IOutboxProcessorMetrics
+    {
+        public long PendingMessages { get; init; }
+        public long ProcessedMessages { get; init; }
+        public long FailedMessages { get; init; }
+        public DateTime? LastProcessedTime { get; init; }
+    }
+
     protected override string GetServiceName() => "Outbox processor";
 
     protected override async Task<IEnumerable<OutboxEntry>> PollForWorkItems(CancellationToken cancellationToken)
@@ -122,11 +143,4 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxEntry>, IOutbo
             throw new InvalidOperationException($"Failed to send to {entry.Options.Destination}");
         }
     }
-}
-
-public interface IOutboxProcessor
-{
-    Task PublishToOutbox(IMessage message, OutboxOptions? options = null, CancellationToken cancellationToken = default);
-    Task StartAsync(CancellationToken cancellationToken = default);
-    Task StopAsync();
 }

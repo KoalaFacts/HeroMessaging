@@ -79,6 +79,27 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
         await base.StopAsync();
     }
 
+    public bool IsRunning => true; // TODO: Track running state properly
+
+    public IInboxProcessorMetrics GetMetrics()
+    {
+        return new InboxProcessorMetrics
+        {
+            ProcessedMessages = 0, // TODO: Track metrics
+            DuplicateMessages = 0,
+            FailedMessages = 0,
+            DeduplicationRate = 0.0
+        };
+    }
+
+    private class InboxProcessorMetrics : IInboxProcessorMetrics
+    {
+        public long ProcessedMessages { get; init; }
+        public long DuplicateMessages { get; init; }
+        public long FailedMessages { get; init; }
+        public double DeduplicationRate { get; init; }
+    }
+
     protected override string GetServiceName() => "Inbox processor";
 
     protected override async Task<IEnumerable<InboxEntry>> PollForWorkItems(CancellationToken cancellationToken)
@@ -160,12 +181,4 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
     {
         return await _inboxStorage.GetUnprocessedCountAsync(cancellationToken);
     }
-}
-
-public interface IInboxProcessor
-{
-    Task<bool> ProcessIncoming(IMessage message, InboxOptions? options = null, CancellationToken cancellationToken = default);
-    Task StartAsync(CancellationToken cancellationToken = default);
-    Task StopAsync();
-    Task<long> GetUnprocessedCount(CancellationToken cancellationToken = default);
 }

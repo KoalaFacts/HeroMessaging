@@ -1,3 +1,6 @@
+using HeroMessaging.Abstractions.Messages;
+using HeroMessaging.Abstractions.Storage;
+
 namespace HeroMessaging.Abstractions.Processing;
 
 public interface IProcessorMetrics
@@ -51,14 +54,25 @@ public interface IQueueProcessor : IProcessor
 {
     IQueueProcessorMetrics GetMetrics();
     Task<IEnumerable<string>> GetActiveQueuesAsync(CancellationToken cancellationToken = default);
+    Task Enqueue(IMessage message, string queueName, EnqueueOptions? options = null, CancellationToken cancellationToken = default);
+    Task StartQueue(string queueName, CancellationToken cancellationToken = default);
+    Task StopQueue(string queueName, CancellationToken cancellationToken = default);
+    Task<long> GetQueueDepthAsync(string queueName, CancellationToken cancellationToken = default);
 }
 
 public interface IOutboxProcessor : IProcessor
 {
     IOutboxProcessorMetrics GetMetrics();
+    Task PublishToOutbox(IMessage message, OutboxOptions? options = null, CancellationToken cancellationToken = default);
+    Task StartAsync(CancellationToken cancellationToken = default);
+    Task StopAsync();
 }
 
 public interface IInboxProcessor : IProcessor
 {
     IInboxProcessorMetrics GetMetrics();
+    Task<bool> ProcessIncoming(IMessage message, InboxOptions? options = null, CancellationToken cancellationToken = default);
+    Task StartAsync(CancellationToken cancellationToken = default);
+    Task StopAsync();
+    Task<long> GetUnprocessedCount(CancellationToken cancellationToken = default);
 }

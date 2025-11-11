@@ -2,6 +2,7 @@ using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Commands;
 using HeroMessaging.Abstractions.Events;
 using HeroMessaging.Abstractions.Messages;
+using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Abstractions.Queries;
 using HeroMessaging.Processing;
 

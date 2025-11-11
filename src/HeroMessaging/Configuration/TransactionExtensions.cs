@@ -1,5 +1,6 @@
 using System.Data;
 using HeroMessaging.Abstractions.Configuration;
+using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Abstractions.Storage;
 using HeroMessaging.Processing;
 using HeroMessaging.Processing.Decorators;
@@ -51,14 +52,14 @@ public static class TransactionExtensions
                 defaultIsolationLevel));
 
         // Decorate outbox processor with transaction support
-        services.Decorate<Processing.IOutboxProcessor>((inner, serviceProvider) =>
+        services.Decorate<IOutboxProcessor>((inner, serviceProvider) =>
             new TransactionOutboxProcessorDecorator(
                 inner,
                 serviceProvider.GetRequiredService<ITransactionExecutor>(),
                 defaultIsolationLevel));
 
         // Decorate inbox processor with transaction support
-        services.Decorate<Processing.IInboxProcessor>((inner, serviceProvider) =>
+        services.Decorate<IInboxProcessor>((inner, serviceProvider) =>
             new TransactionInboxProcessorDecorator(
                 inner,
                 serviceProvider.GetRequiredService<ITransactionExecutor>(),
@@ -134,7 +135,7 @@ public static class TransactionExtensions
 
         if (config.OutboxIsolationLevel.HasValue)
         {
-            services.Decorate<Processing.IOutboxProcessor>((inner, serviceProvider) =>
+            services.Decorate<IOutboxProcessor>((inner, serviceProvider) =>
                 new TransactionOutboxProcessorDecorator(
                     inner,
                     serviceProvider.GetRequiredService<ITransactionExecutor>(),
@@ -143,7 +144,7 @@ public static class TransactionExtensions
 
         if (config.InboxIsolationLevel.HasValue)
         {
-            services.Decorate<Processing.IInboxProcessor>((inner, serviceProvider) =>
+            services.Decorate<IInboxProcessor>((inner, serviceProvider) =>
                 new TransactionInboxProcessorDecorator(
                     inner,
                     serviceProvider.GetRequiredService<ITransactionExecutor>(),

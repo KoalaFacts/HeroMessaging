@@ -4,6 +4,7 @@ using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Commands;
 using HeroMessaging.Abstractions.Events;
 using HeroMessaging.Abstractions.Messages;
+using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Abstractions.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -58,6 +59,30 @@ public class QueueProcessor(
     public async Task<long> GetQueueDepthAsync(string queueName, CancellationToken cancellationToken = default)
     {
         return await _queueStorage.GetQueueDepthAsync(queueName, cancellationToken);
+    }
+
+    public bool IsRunning => _workers.Any(w => w.Value != null);
+
+    public IQueueProcessorMetrics GetMetrics()
+    {
+        return new QueueProcessorMetrics
+        {
+            TotalMessages = 0, // TODO: Track metrics
+            ProcessedMessages = 0,
+            FailedMessages = 0
+        };
+    }
+
+    public Task<IEnumerable<string>> GetActiveQueuesAsync(CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult<IEnumerable<string>>(_workers.Keys.ToList());
+    }
+
+    private class QueueProcessorMetrics : IQueueProcessorMetrics
+    {
+        public long TotalMessages { get; init; }
+        public long ProcessedMessages { get; init; }
+        public long FailedMessages { get; init; }
     }
 
     private class QueueWorker
@@ -192,12 +217,4 @@ public class QueueProcessor(
             }
         }
     }
-}
-
-public interface IQueueProcessor
-{
-    Task Enqueue(IMessage message, string queueName, EnqueueOptions? options = null, CancellationToken cancellationToken = default);
-    Task StartQueue(string queueName, CancellationToken cancellationToken = default);
-    Task StopQueue(string queueName, CancellationToken cancellationToken = default);
-    Task<long> GetQueueDepthAsync(string queueName, CancellationToken cancellationToken = default);
 }

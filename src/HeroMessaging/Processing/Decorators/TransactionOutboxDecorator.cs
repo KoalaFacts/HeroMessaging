@@ -1,6 +1,7 @@
 using System.Data;
 using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Messages;
+using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Abstractions.Storage;
 
 namespace HeroMessaging.Processing.Decorators;
@@ -32,6 +33,10 @@ public class TransactionOutboxProcessorDecorator(
 
     public Task StopAsync() =>
         _inner.StopAsync();
+
+    public bool IsRunning => _inner.IsRunning;
+
+    public IOutboxProcessorMetrics GetMetrics() => _inner.GetMetrics();
 }
 
 /// <summary>
@@ -64,4 +69,8 @@ public class TransactionInboxProcessorDecorator(
 
     public Task<long> GetUnprocessedCount(CancellationToken cancellationToken = default) =>
         _inner.GetUnprocessedCount(cancellationToken);
+
+    public bool IsRunning => _inner.IsRunning;
+
+    public IInboxProcessorMetrics GetMetrics() => _inner.GetMetrics();
 }
