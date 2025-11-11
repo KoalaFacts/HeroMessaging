@@ -491,4 +491,4 @@ nul
 specs/
 
 # Converage
-coverage-report/
+coverage-report*/

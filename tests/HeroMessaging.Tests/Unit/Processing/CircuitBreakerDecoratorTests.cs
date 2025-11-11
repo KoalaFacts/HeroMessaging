@@ -581,6 +581,190 @@ public sealed class CircuitBreakerDecoratorTests
 
     #endregion
 
+    #region State Change Logging Tests
+
+    [Fact]
+    public async Task ProcessAsync_SuccessfulProcessing_LogsStateChangeWhenClosingCircuit()
+    {
+        // Arrange
+        var options = new CircuitBreakerOptions
+        {
+            FailureThreshold = 2,
+            MinimumThroughput = 2,
+            BreakDuration = TimeSpan.FromSeconds(30)
+        };
+
+        var decorator = new CircuitBreakerDecorator(
+            _innerProcessorMock.Object,
+            _loggerMock.Object,
+            _timeProvider,
+            options);
+
+        var message = new TestMessage { Content = "test" };
+        var context = new ProcessingContext();
+
+        // Open the circuit
+        _innerProcessorMock.Setup(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProcessingResult.Failed(new Exception("Test"), "Failed"));
+
+        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context);
+
+        // Wait and transition to half-open
+        _timeProvider.Advance(TimeSpan.FromSeconds(31));
+
+        // Set up successes
+        _innerProcessorMock.Setup(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProcessingResult.Successful());
+
+        // Act - Three successes to close circuit
+        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context);
+
+        // Assert - StateChanged should trigger logging on transitions
+        _loggerMock.Verify(
+            x => x.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("Circuit breaker state changed to")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception, string>>()),
+            Times.AtLeastOnce);
+    }
+
+    [Fact]
+    public async Task ProcessAsync_FailureRecorded_LogsStateChangeWithFailureRate()
+    {
+        // Arrange
+        var options = new CircuitBreakerOptions
+        {
+            FailureThreshold = 3,
+            MinimumThroughput = 3,
+            SamplingDuration = TimeSpan.FromMinutes(1)
+        };
+
+        var decorator = new CircuitBreakerDecorator(
+            _innerProcessorMock.Object,
+            _loggerMock.Object,
+            _timeProvider,
+            options);
+
+        _innerProcessorMock.Setup(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProcessingResult.Failed(new Exception("Test failure"), "Failed"));
+
+        var message = new TestMessage { Content = "test" };
+        var context = new ProcessingContext();
+
+        // Act - Record failures to trigger state change
+        for (int i = 0; i < 3; i++)
+        {
+            await decorator.ProcessAsync(message, context);
+        }
+
+        // Assert - Verify warning logged with failure rate
+        _loggerMock.Verify(
+            x => x.Log(
+                LogLevel.Warning,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("Circuit breaker state changed to") && v.ToString().Contains("Failure rate")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception, string>>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task ProcessAsync_ExceptionCausesStateChange_LogsErrorWithFailureRate()
+    {
+        // Arrange
+        var options = new CircuitBreakerOptions
+        {
+            FailureThreshold = 3,
+            MinimumThroughput = 3
+        };
+
+        var decorator = new CircuitBreakerDecorator(
+            _innerProcessorMock.Object,
+            _loggerMock.Object,
+            _timeProvider,
+            options);
+
+        var testException = new InvalidOperationException("Test exception");
+        _innerProcessorMock.Setup(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(testException);
+
+        var message = new TestMessage { Content = "test" };
+        var context = new ProcessingContext();
+
+        // Act - Record exceptions to trigger state change
+        for (int i = 0; i < 3; i++)
+        {
+            try
+            {
+                await decorator.ProcessAsync(message, context);
+            }
+            catch
+            {
+                // Expected
+            }
+        }
+
+        // Assert - Verify error logged with failure rate
+        _loggerMock.Verify(
+            x => x.Log(
+                LogLevel.Error,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("Circuit breaker state changed to") && v.ToString().Contains("Failure rate")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception, string>>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task ProcessAsync_CircuitOpenWithoutStateChange_DoesNotLog()
+    {
+        // Arrange - Set up to open circuit silently on first failures
+        var options = new CircuitBreakerOptions
+        {
+            FailureThreshold = 2,
+            MinimumThroughput = 2
+        };
+
+        var decorator = new CircuitBreakerDecorator(
+            _innerProcessorMock.Object,
+            _loggerMock.Object,
+            _timeProvider,
+            options);
+
+        _innerProcessorMock.Setup(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProcessingResult.Failed(new Exception("Test"), "Failed"));
+
+        var message = new TestMessage { Content = "test" };
+        var context = new ProcessingContext();
+
+        // Act - Open the circuit with failures
+        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context);
+
+        // Reset mock to check subsequent calls
+        _loggerMock.Invocations.Clear();
+
+        // Try to process while circuit is open
+        await decorator.ProcessAsync(message, context);
+
+        // Assert - No state change logging because already open
+        _loggerMock.Verify(
+            x => x.Log(
+                It.IsAny<LogLevel>(),
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("state changed")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception, string>>()),
+            Times.Never);
+    }
+
+    #endregion
+
     #region Test Message Class
 
     private class TestMessage : IMessage

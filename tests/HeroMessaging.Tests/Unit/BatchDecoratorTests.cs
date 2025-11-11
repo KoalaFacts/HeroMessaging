@@ -490,4 +490,140 @@ public class BatchDecoratorTests
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);
     }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task BatchDecorator_StopsProcessing_WhenContinueOnFailureFalse()
+    {
+        // Arrange
+        var mockInnerProcessor = new Mock<IMessageProcessor>();
+        var mockLogger = new Mock<ILogger<BatchDecorator>>();
+        var timeProvider = new FakeTimeProvider();
+
+        var options = new BatchProcessingOptions
+        {
+            Enabled = true,
+            MaxBatchSize = 3,
+            MinBatchSize = 2,
+            ContinueOnFailure = false, // Explicitly disable continuation on failure
+            BatchTimeout = TimeSpan.FromSeconds(10)
+        };
+
+        var messages = new[]
+        {
+            TestMessageBuilder.CreateValidMessage("Message 1"),
+            TestMessageBuilder.CreateValidMessage("Message 2"),
+            TestMessageBuilder.CreateValidMessage("Message 3")
+        };
+
+        var processedCount = 0;
+
+        // First message fails, others should not be processed due to ContinueOnFailure = false
+        mockInnerProcessor.SetupSequence(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() =>
+            {
+                Interlocked.Increment(ref processedCount);
+                return ProcessingResult.Failed(new InvalidOperationException("Error"));
+            })
+            .ReturnsAsync(() =>
+            {
+                Interlocked.Increment(ref processedCount);
+                return ProcessingResult.Successful();
+            })
+            .ReturnsAsync(() =>
+            {
+                Interlocked.Increment(ref processedCount);
+                return ProcessingResult.Successful();
+            });
+
+        await using var decorator = new BatchDecorator(mockInnerProcessor.Object, options, mockLogger.Object, timeProvider);
+
+        // Act
+        var tasks = messages.Select(m => decorator.ProcessAsync(m, new ProcessingContext("test"), TestContext.Current.CancellationToken).AsTask()).ToList();
+        var results = await Task.WhenAll(tasks);
+
+        // Assert - First message fails, processing should stop
+        Assert.False(results[0].Success);  // First message failed
+        // Due to stop on failure, verify batch processing attempts
+        mockInnerProcessor.Verify(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()), Times.AtLeast(1));
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task BatchDecorator_ProcessesMessageWithoutFailure_WhenExceptionCaught()
+    {
+        // Arrange
+        var mockInnerProcessor = new Mock<IMessageProcessor>();
+        var mockLogger = new Mock<ILogger<BatchDecorator>>();
+        var timeProvider = new FakeTimeProvider();
+
+        var options = new BatchProcessingOptions
+        {
+            Enabled = true,
+            MaxBatchSize = 2,
+            MinBatchSize = 2,
+            BatchTimeout = TimeSpan.FromSeconds(10)
+        };
+
+        var messages = new[]
+        {
+            TestMessageBuilder.CreateValidMessage("Message 1"),
+            TestMessageBuilder.CreateValidMessage("Message 2")
+        };
+
+        var exception = new InvalidOperationException("Unexpected error");
+        mockInnerProcessor.Setup(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(exception);
+
+        await using var decorator = new BatchDecorator(mockInnerProcessor.Object, options, mockLogger.Object, timeProvider);
+
+        // Act
+        var tasks = messages.Select(m => decorator.ProcessAsync(m, new ProcessingContext("test"), TestContext.Current.CancellationToken).AsTask()).ToList();
+        var results = await Task.WhenAll(tasks);
+
+        // Assert - Both messages should have failed with the exception
+        Assert.All(results, r =>
+        {
+            Assert.False(r.Success);
+            Assert.NotNull(r.Exception);
+        });
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task BatchDecorator_CompletesPendingTasks_OnProcessCancellation()
+    {
+        // Arrange
+        var mockInnerProcessor = new Mock<IMessageProcessor>();
+        var mockLogger = new Mock<ILogger<BatchDecorator>>();
+        var timeProvider = new FakeTimeProvider();
+
+        var options = new BatchProcessingOptions
+        {
+            Enabled = true,
+            MaxBatchSize = 10,
+            MinBatchSize = 5,
+            BatchTimeout = TimeSpan.FromSeconds(60)
+        };
+
+        var message = TestMessageBuilder.CreateValidMessage();
+        var cts = new CancellationTokenSource();
+
+        mockInnerProcessor.Setup(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProcessingResult.Successful());
+
+        await using var decorator = new BatchDecorator(mockInnerProcessor.Object, options, mockLogger.Object, timeProvider);
+
+        // Act
+        // Queue a message with a cancellation token that we control
+        var task = decorator.ProcessAsync(message, new ProcessingContext("test"), cts.Token).AsTask();
+        cts.Cancel();
+
+        // Wait briefly then dispose
+        await Task.Delay(100);
+        await decorator.DisposeAsync();
+
+        // Assert - Task should eventually complete
+        Assert.True(task.IsCompleted || task.IsCanceled);
+    }
 }

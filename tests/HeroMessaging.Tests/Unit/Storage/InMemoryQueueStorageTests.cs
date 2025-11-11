@@ -609,6 +609,128 @@ public sealed class InMemoryQueueStorageTests
 
     #endregion
 
+    #region Edge Case Tests
+
+    [Fact]
+    public async Task EnqueueAsync_CreatesQueueImplicitlyIfNotExists()
+    {
+        // Arrange
+        var message = new TestMessage { Content = "auto-created" };
+
+        // Act - Enqueue without creating queue first
+        var entry = await _storage.EnqueueAsync("auto-queue", message);
+
+        // Assert
+        Assert.NotNull(entry);
+        var exists = await _storage.QueueExistsAsync("auto-queue");
+        Assert.True(exists);
+    }
+
+    [Fact]
+    public async Task DequeueAsync_WithMaxDequeueCountExactlyReached_SkipsOnNextDequeue()
+    {
+        // Arrange
+        var message = new TestMessage { Content = "test" };
+        await _storage.CreateQueueAsync("test-queue", new QueueOptions { MaxDequeueCount = 1 });
+        await _storage.EnqueueAsync("test-queue", message);
+
+        // Act - Dequeue once (hits the max)
+        var entry1 = await _storage.DequeueAsync("test-queue");
+        _timeProvider.Advance(TimeSpan.FromMinutes(1));
+        var entry2 = await _storage.DequeueAsync("test-queue");
+
+        // Assert
+        Assert.NotNull(entry1);
+        Assert.Equal(1, entry1.DequeueCount);
+        Assert.Null(entry2); // Message should be skipped because MaxDequeueCount = 1
+    }
+
+    [Fact]
+    public async Task PeekAsync_WithZeroCount_ReturnsEmpty()
+    {
+        // Arrange
+        await _storage.EnqueueAsync("test-queue", new TestMessage { Content = "1" });
+        await _storage.EnqueueAsync("test-queue", new TestMessage { Content = "2" });
+
+        // Act
+        var entries = await _storage.PeekAsync("test-queue", 0);
+
+        // Assert
+        Assert.Empty(entries);
+    }
+
+    [Fact]
+    public async Task GetQueueDepthAsync_IncludesDequeuedMessagesThatAreInvisible()
+    {
+        // Arrange
+        var message = new TestMessage { Content = "dequeued" };
+        await _storage.CreateQueueAsync("test-queue", new QueueOptions { VisibilityTimeout = TimeSpan.FromMinutes(5) });
+        var entry = await _storage.EnqueueAsync("test-queue", message);
+
+        // Act - Dequeue the message (makes it invisible)
+        await _storage.DequeueAsync("test-queue");
+        var depthAfterDequeue = await _storage.GetQueueDepthAsync("test-queue");
+
+        // Advance time beyond visibility
+        _timeProvider.Advance(TimeSpan.FromMinutes(6));
+        var depthAfterVisibility = await _storage.GetQueueDepthAsync("test-queue");
+
+        // Assert
+        Assert.Equal(0, depthAfterDequeue); // Message is invisible immediately after dequeue
+        Assert.Equal(1, depthAfterVisibility); // Message becomes visible again
+    }
+
+    [Fact]
+    public async Task RejectAsync_WithRequeue_MakesMessageVisibleImmediately()
+    {
+        // Arrange
+        var message = new TestMessage { Content = "requeue-test" };
+        await _storage.EnqueueAsync("test-queue", message);
+        var dequeuedEntry = await _storage.DequeueAsync("test-queue");
+
+        // Assert message is invisible after dequeue
+        var depthWhileInvisible = await _storage.GetQueueDepthAsync("test-queue");
+        Assert.Equal(0, depthWhileInvisible);
+
+        // Act - Reject with requeue
+        var rejectResult = await _storage.RejectAsync("test-queue", dequeuedEntry!.Id, requeue: true);
+
+        // Assert
+        Assert.True(rejectResult);
+        var depthAfterRequeue = await _storage.GetQueueDepthAsync("test-queue");
+        Assert.Equal(1, depthAfterRequeue); // Message is immediately visible
+        var reequeuedEntry = await _storage.DequeueAsync("test-queue");
+        Assert.NotNull(reequeuedEntry);
+        Assert.Equal(dequeuedEntry.Id, reequeuedEntry.Id);
+        Assert.Equal(1, reequeuedEntry.DequeueCount); // Incremented again during dequeue
+    }
+
+    [Fact]
+    public async Task MultipleQueuesAreIndependent()
+    {
+        // Arrange & Act
+        await _storage.EnqueueAsync("queue-a", new TestMessage { Content = "a1" });
+        await _storage.EnqueueAsync("queue-a", new TestMessage { Content = "a2" });
+        await _storage.EnqueueAsync("queue-b", new TestMessage { Content = "b1" });
+
+        // Assert
+        var depthA = await _storage.GetQueueDepthAsync("queue-a");
+        var depthB = await _storage.GetQueueDepthAsync("queue-b");
+        Assert.Equal(2, depthA);
+        Assert.Equal(1, depthB);
+
+        // Dequeue from queue-a should not affect queue-b
+        var entryA = await _storage.DequeueAsync("queue-a");
+        Assert.NotNull(entryA);
+
+        var depthAAfter = await _storage.GetQueueDepthAsync("queue-a");
+        var depthBAfter = await _storage.GetQueueDepthAsync("queue-b");
+        Assert.Equal(1, depthAAfter);
+        Assert.Equal(1, depthBAfter);
+    }
+
+    #endregion
+
     #region Test Message Class
 
     private class TestMessage : IMessage
