@@ -504,25 +504,26 @@ public sealed class CircuitBreakerRetryPolicyTests
             openCircuitDuration: openDuration);
         var exception = new TimeoutException("Transition");
 
-        // Act & Assert - Closed state: allow retries
-        Assert.True(policy.ShouldRetry(exception, 0));
-        Assert.False(policy.ShouldRetry(exception, 1)); // Opens on 2nd failure
+        // Act & Assert - Closed state: First call records failure (count=1)
+        Assert.True(policy.ShouldRetry(exception, 0)); // Failure count: 1
 
-        // Open state: block retries
+        // Second call records failure (count=2) and opens circuit
+        Assert.False(policy.ShouldRetry(exception, 0)); // Failure count: 2, circuit opens
+
+        // Open state: block all retries while circuit is open
         Assert.False(policy.ShouldRetry(exception, 0));
         Assert.False(policy.ShouldRetry(exception, 0));
 
-        // Transition to Half-Open: advance time beyond duration
+        // Transition to Half-Open: advance time beyond open duration
         _timeProvider.Advance(openDuration + TimeSpan.FromSeconds(1));
 
-        // Half-Open state: allow one retry, then close if success
-        Assert.True(policy.ShouldRetry(exception, 0)); // Closes circuit on reset
+        // Half-Open state: circuit resets, allow retry (count resets to 1)
+        Assert.True(policy.ShouldRetry(exception, 0)); // Circuit reset, failure count: 1
 
-        // Back to Closed state: accept new failures
-        Assert.True(policy.ShouldRetry(exception, 0));
-        Assert.False(policy.ShouldRetry(exception, 1)); // Opens again
+        // Second failure after reset opens circuit again (count=2)
+        Assert.False(policy.ShouldRetry(exception, 0)); // Failure count: 2, circuit opens again
 
-        // Assert circuit is open again
+        // Assert circuit is open again - blocked
         Assert.False(policy.ShouldRetry(exception, 0));
     }
 

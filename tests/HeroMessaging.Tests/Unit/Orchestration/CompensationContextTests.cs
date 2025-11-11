@@ -484,17 +484,16 @@ public class CompensationContextTests
     }
 
     [Fact]
-    public void DelegateCompensatingAction_WithSyncAction_ConvertsToAsync()
+    public async Task DelegateCompensatingAction_WithSyncAction_ConvertsToAsync()
     {
         // Arrange
         var executed = false;
         var action = new DelegateCompensatingAction("SyncTest", () => executed = true);
 
         // Act
-        var task = action.CompensateAsync();
+        await action.CompensateAsync();
 
         // Assert
-        Assert.IsType<Task>(task);
         Assert.True(executed);
     }
 
@@ -574,8 +573,9 @@ public class CompensationContextTests
         var exception = await Assert.ThrowsAsync<AggregateException>(
             async () => await context.CompensateAsync(stopOnFirstError: true));
 
-        // A3 is executed, fails, then stops
-        Assert.Equal(new[] { 2, 1 }, executionLog);
+        // Compensation runs in reverse: A4 executes first (adds 4), A3 fails and stops
+        // A2 and A1 never execute because stopOnFirstError is true
+        Assert.Equal(new[] { 4 }, executionLog);
         Assert.Single(exception.InnerExceptions);
     }
 

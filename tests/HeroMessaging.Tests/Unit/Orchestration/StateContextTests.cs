@@ -56,7 +56,7 @@ public class StateContextTests
     public void StateContext_Constructor_WithAllValidParameters_CreatesContext()
     {
         // Arrange
-        var saga = new TestSaga { Id = Guid.NewGuid() };
+        var saga = new TestSaga { CorrelationId = Guid.NewGuid() };
         var @event = new TestEvent("test");
         var services = new ServiceCollection().BuildServiceProvider();
 
@@ -87,7 +87,7 @@ public class StateContextTests
     public void StateContext_Constructor_WithNullData_ThrowsArgumentNullException()
     {
         // Arrange
-        var saga = new TestSaga { Id = Guid.NewGuid() };
+        var saga = new TestSaga { CorrelationId = Guid.NewGuid() };
         var services = new ServiceCollection().BuildServiceProvider();
 
         // Act & Assert
@@ -100,7 +100,7 @@ public class StateContextTests
     public void StateContext_Constructor_WithNullServices_ThrowsArgumentNullException()
     {
         // Arrange
-        var saga = new TestSaga { Id = Guid.NewGuid() };
+        var saga = new TestSaga { CorrelationId = Guid.NewGuid() };
         var @event = new TestEvent("test");
 
         // Act & Assert
@@ -113,7 +113,7 @@ public class StateContextTests
     public void StateContext_Constructor_WithNullCompensation_CreatesDefaultCompensation()
     {
         // Arrange
-        var saga = new TestSaga { Id = Guid.NewGuid() };
+        var saga = new TestSaga { CorrelationId = Guid.NewGuid() };
         var @event = new TestEvent("test");
         var services = new ServiceCollection().BuildServiceProvider();
 
@@ -129,7 +129,7 @@ public class StateContextTests
     public void StateContext_Constructor_WithProvidedCompensation_UsesProvided()
     {
         // Arrange
-        var saga = new TestSaga { Id = Guid.NewGuid() };
+        var saga = new TestSaga { CorrelationId = Guid.NewGuid() };
         var @event = new TestEvent("test");
         var services = new ServiceCollection().BuildServiceProvider();
         var compensation = new CompensationContext();
@@ -149,7 +149,7 @@ public class StateContextTests
     public void StateContext_Instance_Property_ReturnsSagaInstance()
     {
         // Arrange
-        var saga = new TestSaga { Id = Guid.NewGuid(), Data = "test" };
+        var saga = new TestSaga { CorrelationId = Guid.NewGuid(), Data = "test" };
         var @event = new TestEvent("test");
         var services = new ServiceCollection().BuildServiceProvider();
 
@@ -166,7 +166,7 @@ public class StateContextTests
     public void StateContext_Instance_Property_AllowsModification()
     {
         // Arrange
-        var saga = new TestSaga { Id = Guid.NewGuid() };
+        var saga = new TestSaga { CorrelationId = Guid.NewGuid() };
         var @event = new TestEvent("test");
         var services = new ServiceCollection().BuildServiceProvider();
         var context = new StateContext<TestSaga, TestEvent>(saga, @event, services);
@@ -184,7 +184,7 @@ public class StateContextTests
     public void StateContext_Instance_Property_ReturnsConsistentValue()
     {
         // Arrange
-        var saga = new TestSaga { Id = Guid.NewGuid() };
+        var saga = new TestSaga { CorrelationId = Guid.NewGuid() };
         var @event = new TestEvent("test");
         var services = new ServiceCollection().BuildServiceProvider();
         var context = new StateContext<TestSaga, TestEvent>(saga, @event, services);
@@ -205,7 +205,7 @@ public class StateContextTests
     public void StateContext_Data_Property_ReturnsEventData()
     {
         // Arrange
-        var saga = new TestSaga { Id = Guid.NewGuid() };
+        var saga = new TestSaga { CorrelationId = Guid.NewGuid() };
         var @event = new TestEvent("eventvalue");
         var services = new ServiceCollection().BuildServiceProvider();
 
@@ -222,7 +222,7 @@ public class StateContextTests
     public void StateContext_Data_Property_IsReadOnly()
     {
         // Arrange
-        var saga = new TestSaga { Id = Guid.NewGuid() };
+        var saga = new TestSaga { CorrelationId = Guid.NewGuid() };
         var @event = new TestEvent("test");
         var services = new ServiceCollection().BuildServiceProvider();
         var context = new StateContext<TestSaga, TestEvent>(saga, @event, services);
@@ -237,7 +237,7 @@ public class StateContextTests
     public void StateContext_Data_Property_PreservesEventMetadata()
     {
         // Arrange
-        var saga = new TestSaga { Id = Guid.NewGuid() };
+        var saga = new TestSaga { CorrelationId = Guid.NewGuid() };
         var metadata = new Dictionary<string, object> { { "Key", "Value" } };
         var @event = new TestEvent("test") { Metadata = metadata };
         var services = new ServiceCollection().BuildServiceProvider();
@@ -255,7 +255,7 @@ public class StateContextTests
     public void StateContext_Services_Property_ReturnsServiceProvider()
     {
         // Arrange
-        var saga = new TestSaga { Id = Guid.NewGuid() };
+        var saga = new TestSaga { CorrelationId = Guid.NewGuid() };
         var @event = new TestEvent("test");
         var services = new ServiceCollection().BuildServiceProvider();
 
@@ -270,7 +270,7 @@ public class StateContextTests
     public void StateContext_Services_Property_CanResolveRegisteredServices()
     {
         // Arrange
-        var saga = new TestSaga { Id = Guid.NewGuid() };
+        var saga = new TestSaga { CorrelationId = Guid.NewGuid() };
         var @event = new TestEvent("test");
         var services = new ServiceCollection()
             .AddSingleton<TimeProvider>(TimeProvider.System)
@@ -289,7 +289,7 @@ public class StateContextTests
     public void StateContext_Services_Property_WithMultipleServices()
     {
         // Arrange
-        var saga = new TestSaga { Id = Guid.NewGuid() };
+        var saga = new TestSaga { CorrelationId = Guid.NewGuid() };
         var @event = new TestEvent("test");
         var services = new ServiceCollection()
             .AddSingleton<TimeProvider>(TimeProvider.System)
@@ -312,7 +312,7 @@ public class StateContextTests
     public void StateContext_Compensation_Property_IsNotNull()
     {
         // Arrange
-        var saga = new TestSaga { Id = Guid.NewGuid() };
+        var saga = new TestSaga { CorrelationId = Guid.NewGuid() };
         var @event = new TestEvent("test");
         var services = new ServiceCollection().BuildServiceProvider();
 
@@ -327,7 +327,7 @@ public class StateContextTests
     public void StateContext_Compensation_Property_CanAddActions()
     {
         // Arrange
-        var saga = new TestSaga { Id = Guid.NewGuid() };
+        var saga = new TestSaga { CorrelationId = Guid.NewGuid() };
         var @event = new TestEvent("test");
         var services = new ServiceCollection().BuildServiceProvider();
         var context = new StateContext<TestSaga, TestEvent>(saga, @event, services);
@@ -344,7 +344,7 @@ public class StateContextTests
     public void StateContext_Compensation_Property_PreservesBetweenAccess()
     {
         // Arrange
-        var saga = new TestSaga { Id = Guid.NewGuid() };
+        var saga = new TestSaga { CorrelationId = Guid.NewGuid() };
         var @event = new TestEvent("test");
         var services = new ServiceCollection().BuildServiceProvider();
         var context = new StateContext<TestSaga, TestEvent>(saga, @event, services);
@@ -366,7 +366,7 @@ public class StateContextTests
     public void StateContext_WithDifferentEventType_WorksCorrectly()
     {
         // Arrange
-        var saga = new TestSaga { Id = Guid.NewGuid() };
+        var saga = new TestSaga { CorrelationId = Guid.NewGuid() };
         var @event = new AnotherEvent(42);
         var services = new ServiceCollection().BuildServiceProvider();
 
@@ -385,8 +385,8 @@ public class StateContextTests
     public void StateContext_MultipleInstances_AreIndependent()
     {
         // Arrange
-        var saga1 = new TestSaga { Id = Guid.NewGuid(), Data = "Saga1" };
-        var saga2 = new TestSaga { Id = Guid.NewGuid(), Data = "Saga2" };
+        var saga1 = new TestSaga { CorrelationId = Guid.NewGuid(), Data = "Saga1" };
+        var saga2 = new TestSaga { CorrelationId = Guid.NewGuid(), Data = "Saga2" };
         var event1 = new TestEvent("Event1");
         var event2 = new TestEvent("Event2");
         var services = new ServiceCollection().BuildServiceProvider();
@@ -406,8 +406,8 @@ public class StateContextTests
     public void StateContext_MultipleInstances_WithSharedServices()
     {
         // Arrange
-        var saga1 = new TestSaga { Id = Guid.NewGuid() };
-        var saga2 = new TestSaga { Id = Guid.NewGuid() };
+        var saga1 = new TestSaga { CorrelationId = Guid.NewGuid() };
+        var saga2 = new TestSaga { CorrelationId = Guid.NewGuid() };
         var @event = new TestEvent("test");
         var services = new ServiceCollection()
             .AddSingleton<TimeProvider>(TimeProvider.System)
@@ -428,7 +428,7 @@ public class StateContextTests
     public void StateContext_InStateMachineScenario_WorksAsContext()
     {
         // Arrange
-        var saga = new TestSaga { Id = Guid.NewGuid() };
+        var saga = new TestSaga { CorrelationId = Guid.NewGuid() };
         var @event = new TestEvent("Start");
         var services = new ServiceCollection()
             .AddSingleton<TimeProvider>(TimeProvider.System)
@@ -454,7 +454,7 @@ public class StateContextTests
     public void StateContext_SupportsChainedOperations()
     {
         // Arrange
-        var saga = new TestSaga { Id = Guid.NewGuid() };
+        var saga = new TestSaga { CorrelationId = Guid.NewGuid() };
         var @event = new TestEvent("test");
         var services = new ServiceCollection().BuildServiceProvider();
         var context = new StateContext<TestSaga, TestEvent>(saga, @event, services);
@@ -478,7 +478,7 @@ public class StateContextTests
     public void StateContext_PropertyImmutability_CannotChangeReferences()
     {
         // Arrange
-        var saga = new TestSaga { Id = Guid.NewGuid() };
+        var saga = new TestSaga { CorrelationId = Guid.NewGuid() };
         var @event = new TestEvent("test");
         var services = new ServiceCollection().BuildServiceProvider();
         var context = new StateContext<TestSaga, TestEvent>(saga, @event, services);
@@ -500,7 +500,7 @@ public class StateContextTests
     public void StateContext_AccessPatterns_SupportReadMultipleTimes()
     {
         // Arrange
-        var saga = new TestSaga { Id = Guid.NewGuid() };
+        var saga = new TestSaga { CorrelationId = Guid.NewGuid() };
         var @event = new TestEvent("test");
         var services = new ServiceCollection().BuildServiceProvider();
         var context = new StateContext<TestSaga, TestEvent>(saga, @event, services);
