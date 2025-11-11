@@ -1,4 +1,4 @@
-namespace HeroMessaging.Tests.Architecture;
+namespace HeroMessaging.Architecture.Tests;
 
 /// <summary>
 /// Tests to ensure messages (Commands, Queries, Events) are immutable.

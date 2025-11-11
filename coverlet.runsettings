@@ -7,7 +7,8 @@
           <Format>opencover</Format>
           <Exclude>[*]HeroMessaging.Tests.*</Exclude> <!-- Exclude test assemblies -->
           <Exclude>[*]HeroMessaging.Benchmarks.*</Exclude> <!-- Exclude benchmark assemblies -->
-          <Exclude>[*]HeroMessaging.Contract.Tests.*</Exclude> <!-- Exclude contract test assemblies -->
+          <Exclude>[*]HeroMessaging.*.Tests</Exclude> <!-- Exclude contract test assemblies -->
+          <Exclude>[*]HeroMessaging.*.*.Tests</Exclude> <!-- Exclude contract test assemblies -->
           <Exclude>[*.Tests]*</Exclude> <!-- Exclude all test assemblies -->
           <ExcludeByFile>**/bin/**</ExcludeByFile> <!-- Exclude bin folders -->
           <ExcludeByFile>**/obj/**</ExcludeByFile> <!-- Exclude obj folders -->

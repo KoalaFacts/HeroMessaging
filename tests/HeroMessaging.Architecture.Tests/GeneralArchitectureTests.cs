@@ -1,4 +1,4 @@
-namespace HeroMessaging.Tests.Architecture;
+namespace HeroMessaging.Architecture.Tests;
 
 /// <summary>
 /// General architecture tests covering code organization and design principles.

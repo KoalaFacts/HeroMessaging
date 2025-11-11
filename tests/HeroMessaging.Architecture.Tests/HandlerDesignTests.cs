@@ -1,4 +1,4 @@
-namespace HeroMessaging.Tests.Architecture;
+namespace HeroMessaging.Architecture.Tests;
 
 /// <summary>
 /// Tests to enforce handler design principles.
