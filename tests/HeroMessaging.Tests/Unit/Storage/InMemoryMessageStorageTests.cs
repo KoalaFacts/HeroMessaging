@@ -557,6 +557,171 @@ public sealed class InMemoryMessageStorageTests
 
     #endregion
 
+    #region Additional Coverage Tests
+
+    [Fact]
+    public async Task QueryAsync_WithUnrecognizedOrderBy_IgnoresOrderingAndReturnsAll()
+    {
+        // Arrange
+        var now = _timeProvider.GetUtcNow().DateTime;
+        var message1 = new TestMessage { MessageId = Guid.NewGuid(), Timestamp = now.AddHours(2), Content = "Latest" };
+        var message2 = new TestMessage { MessageId = Guid.NewGuid(), Timestamp = now, Content = "Oldest" };
+        var message3 = new TestMessage { MessageId = Guid.NewGuid(), Timestamp = now.AddHours(1), Content = "Middle" };
+
+        await _storage.StoreAsync(message1);
+        await _storage.StoreAsync(message2);
+        await _storage.StoreAsync(message3);
+
+        var query = new MessageQuery { OrderBy = "invalidField", Ascending = true };
+
+        // Act
+        var results = await _storage.QueryAsync<TestMessage>(query);
+
+        // Assert - Should return all messages unsorted when OrderBy field is invalid
+        Assert.Equal(3, results.Count());
+    }
+
+    [Fact]
+    public async Task QueryAsync_WithMultipleMetadataFilters_ReturnMessagesMatchingAllFilters()
+    {
+        // Arrange
+        var message1 = new TestMessage { MessageId = Guid.NewGuid(), Content = "MatchBoth" };
+        var message2 = new TestMessage { MessageId = Guid.NewGuid(), Content = "MatchOnly1" };
+        var message3 = new TestMessage { MessageId = Guid.NewGuid(), Content = "MatchNeither" };
+
+        await _storage.StoreAsync(message1, new MessageStorageOptions
+        {
+            Metadata = new Dictionary<string, object>
+            {
+                ["tag"] = "important",
+                ["priority"] = "high"
+            }
+        });
+        await _storage.StoreAsync(message2, new MessageStorageOptions
+        {
+            Metadata = new Dictionary<string, object>
+            {
+                ["tag"] = "important",
+                ["priority"] = "low"
+            }
+        });
+        await _storage.StoreAsync(message3, new MessageStorageOptions
+        {
+            Metadata = new Dictionary<string, object>
+            {
+                ["tag"] = "unimportant",
+                ["priority"] = "low"
+            }
+        });
+
+        var query = new MessageQuery
+        {
+            MetadataFilters = new Dictionary<string, object>
+            {
+                ["tag"] = "important",
+                ["priority"] = "high"
+            }
+        };
+
+        // Act
+        var results = await _storage.QueryAsync<TestMessage>(query);
+
+        // Assert
+        Assert.Single(results);
+        Assert.Equal("MatchBoth", results.First().Content);
+    }
+
+    [Fact]
+    public async Task QueryAsync_WithNoFilters_ReturnsAllMessages()
+    {
+        // Arrange - Store messages with expiration but query should return all
+        var now = _timeProvider.GetUtcNow().DateTime;
+        var message1 = new TestMessage { MessageId = Guid.NewGuid(), Content = "Message1", Timestamp = now };
+        var message2 = new TestMessage { MessageId = Guid.NewGuid(), Content = "Message2", Timestamp = now };
+
+        await _storage.StoreAsync(message1, new MessageStorageOptions { Ttl = TimeSpan.FromMinutes(5) });
+        await _storage.StoreAsync(message2, new MessageStorageOptions { Ttl = TimeSpan.FromHours(1) });
+
+        // Act
+        var results = await _storage.QueryAsync<TestMessage>(new MessageQuery());
+
+        // Assert - Both messages returned regardless of TTL (query doesn't expire)
+        Assert.Equal(2, results.Count());
+    }
+
+    [Fact]
+    public async Task RetrieveAsync_WithExpiredMessageRemovesThenReturnsNull()
+    {
+        // Arrange
+        var message = new TestMessage { MessageId = Guid.NewGuid(), Content = "Expiring" };
+        var options = new MessageStorageOptions { Ttl = TimeSpan.FromMinutes(5) };
+        var messageId = await _storage.StoreAsync(message, options);
+
+        // Verify message exists initially
+        var beforeExpiry = await _storage.RetrieveAsync<TestMessage>(messageId);
+        Assert.NotNull(beforeExpiry);
+
+        // Advance time past TTL
+        _timeProvider.Advance(TimeSpan.FromMinutes(10));
+
+        // Act - First retrieval after expiration should remove and return null
+        var afterExpiry = await _storage.RetrieveAsync<TestMessage>(messageId);
+
+        // Assert - Message should be gone
+        Assert.Null(afterExpiry);
+
+        // Verify it no longer exists
+        var stillExists = await _storage.ExistsAsync(messageId);
+        Assert.False(stillExists);
+    }
+
+    [Fact]
+    public async Task QueryAsync_WithOffsetBeyondTotalMessages_ReturnsEmpty()
+    {
+        // Arrange
+        for (int i = 0; i < 3; i++)
+        {
+            await _storage.StoreAsync(new TestMessage { MessageId = Guid.NewGuid(), Content = $"Message {i}" });
+        }
+
+        var query = new MessageQuery { Offset = 10, Limit = 5 };
+
+        // Act
+        var results = await _storage.QueryAsync<TestMessage>(query);
+
+        // Assert
+        Assert.Empty(results);
+    }
+
+    [Fact]
+    public async Task QueryAsync_OrderByStoredAtAscending_ReturnsCorrectly()
+    {
+        // Arrange
+        var message1 = new TestMessage { MessageId = Guid.NewGuid(), Content = "First", Timestamp = DateTime.UtcNow };
+        await _storage.StoreAsync(message1);
+        _timeProvider.Advance(TimeSpan.FromMilliseconds(10));
+
+        var message2 = new TestMessage { MessageId = Guid.NewGuid(), Content = "Second", Timestamp = DateTime.UtcNow };
+        await _storage.StoreAsync(message2);
+        _timeProvider.Advance(TimeSpan.FromMilliseconds(10));
+
+        var message3 = new TestMessage { MessageId = Guid.NewGuid(), Content = "Third", Timestamp = DateTime.UtcNow };
+        await _storage.StoreAsync(message3);
+
+        var query = new MessageQuery { OrderBy = "storedat", Ascending = true };
+
+        // Act
+        var results = await _storage.QueryAsync<TestMessage>(query);
+
+        // Assert
+        var list = results.ToList();
+        Assert.Equal("First", list[0].Content);
+        Assert.Equal("Second", list[1].Content);
+        Assert.Equal("Third", list[2].Content);
+    }
+
+    #endregion
+
     #region Test Message Classes
 
     private class TestMessage : IMessage
