@@ -484,7 +484,7 @@ public class PipelineTests : IAsyncDisposable
             return await ProcessMessageInternalAsync(message, startTime);
         }
 
-        private async Task<PipelineResult> ProcessMessageInternalAsync(IMessage message, DateTime startTime)
+        private async Task<PipelineResult> ProcessMessageInternalAsync(IMessage message, DateTimeOffset startTime)
         {
             try
             {

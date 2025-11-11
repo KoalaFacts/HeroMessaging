@@ -271,7 +271,7 @@ public static class Assert
  *         private string _customerEmail;
  *         private decimal _amount;
  *         private int _quantity;
- *         private DateTime _orderDate;
+ *         private DateTimeOffset _orderDate;
  *         private OrderStatus _status;
  *         private List<OrderItem> _items;
  *

@@ -518,8 +518,8 @@ internal class TestRunnerConfiguration
 /// </summary>
 internal class TestExecutionResults
 {
-    public DateTime StartTime { get; set; }
-    public DateTime EndTime { get; set; }
+    public DateTimeOffset StartTime { get; set; }
+    public DateTimeOffset EndTime { get; set; }
     public TimeSpan TotalDuration { get; set; }
     public bool Success { get; set; }
     public string? ErrorMessage { get; set; }
@@ -534,8 +534,8 @@ internal class TestExecutionResults
 internal class CategoryTestResults
 {
     public string Category { get; set; } = string.Empty;
-    public DateTime StartTime { get; set; }
-    public DateTime EndTime { get; set; }
+    public DateTimeOffset StartTime { get; set; }
+    public DateTimeOffset EndTime { get; set; }
     public TimeSpan Duration { get; set; }
     public bool Success { get; set; }
     public string? Message { get; set; }
@@ -552,8 +552,8 @@ internal class CategoryTestResults
 internal class TestGroupResults
 {
     public string TestClassName { get; set; } = string.Empty;
-    public DateTime StartTime { get; set; }
-    public DateTime EndTime { get; set; }
+    public DateTimeOffset StartTime { get; set; }
+    public DateTimeOffset EndTime { get; set; }
     public TimeSpan Duration { get; set; }
     public int TotalTests { get; set; }
     public int PassedTests { get; set; }
@@ -570,7 +570,7 @@ internal class TestGroupResults
 internal class CoverageReport
 {
     public double OverallCoveragePercent { get; set; }
-    public DateTime GeneratedAt { get; set; }
+    public DateTimeOffset GeneratedAt { get; set; }
     public string ReportPath { get; set; } = string.Empty;
 }
 

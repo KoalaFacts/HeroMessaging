@@ -71,7 +71,7 @@ public class CircuitBreakerRetryPolicy(
     private class CircuitState(TimeProvider timeProvider)
     {
         private int _failureCount;
-        private DateTime _openedAt;
+        private DateTimeOffset _openedAt;
         private bool _isOpen;
 #if NET9_0_OR_GREATER
         private readonly Lock _lock = new();
@@ -81,7 +81,7 @@ public class CircuitBreakerRetryPolicy(
         private readonly TimeProvider _timeProvider = timeProvider;
 
         public int FailureCount => _failureCount;
-        public DateTime OpenedAt => _openedAt;
+        public DateTimeOffset OpenedAt => _openedAt;
         public bool IsOpen => _isOpen;
 
         public void RecordFailure()

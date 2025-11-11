@@ -179,7 +179,7 @@ public class InMemoryMessageStorage : IMessageStorage
     {
         public string Id { get; set; } = null!;
         public IMessage Message { get; set; } = null!;
-        public DateTime StoredAt { get; set; }
+        public DateTimeOffset StoredAt { get; set; }
         public DateTimeOffset? UpdatedAt { get; set; }
         public DateTimeOffset? ExpiresAt { get; set; }
         public string? Collection { get; set; }

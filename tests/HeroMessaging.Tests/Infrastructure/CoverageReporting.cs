@@ -633,8 +633,8 @@ internal class CoverageConfiguration
 
 internal class CoverageReportResults
 {
-    public DateTime StartTime { get; set; }
-    public DateTime EndTime { get; set; }
+    public DateTimeOffset StartTime { get; set; }
+    public DateTimeOffset EndTime { get; set; }
     public TimeSpan Duration { get; set; }
     public bool Success { get; set; }
     public string? ErrorMessage { get; set; }
@@ -714,7 +714,7 @@ internal class CoverageTrendAnalysis
     public double CoverageChange { get; set; }
     public double MovingAverage { get; set; }
     public CoverageTrendDirection TrendDirection { get; set; }
-    public DateTime AnalysisDate { get; set; }
+    public DateTimeOffset AnalysisDate { get; set; }
     public TrendChartData? ChartData { get; set; }
     public string? ErrorMessage { get; set; }
 }
@@ -723,7 +723,7 @@ internal class DiffCoverageAnalysis
 {
     public bool Success { get; set; }
     public string? ErrorMessage { get; set; }
-    public DateTime AnalysisDate { get; set; }
+    public DateTimeOffset AnalysisDate { get; set; }
     public double BaselineCoverage { get; set; }
     public double CurrentCoverage { get; set; }
     public double CoverageChange { get; set; }
@@ -742,7 +742,7 @@ internal class AssemblyCoverageDiff
 
 internal class CoverageDataPoint
 {
-    public DateTime Date { get; set; }
+    public DateTimeOffset Date { get; set; }
     public double OverallCoverage { get; set; }
     public Dictionary<string, double> AssemblyCoverages { get; set; } = new();
 }

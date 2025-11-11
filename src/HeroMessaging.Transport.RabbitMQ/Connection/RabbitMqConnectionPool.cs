@@ -306,11 +306,11 @@ internal sealed class RabbitMqConnectionPool : IAsyncDisposable
         private readonly TimeSpan _idleTimeout;
         private readonly TimeProvider _timeProvider;
         private int _inUseCount;
-        private DateTime _lastUsed;
+        private DateTimeOffset _lastUsed;
         private bool _disposed;
 
         public IConnection Connection { get; }
-        public DateTime LastUsed => _lastUsed;
+        public DateTimeOffset LastUsed => _lastUsed;
         public bool IsHealthy => Connection.IsOpen && !_disposed;
         public bool IsIdle => (_timeProvider.GetUtcNow() - _lastUsed) > _idleTimeout && _inUseCount == 0;
 

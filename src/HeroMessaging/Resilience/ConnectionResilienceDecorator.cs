@@ -249,7 +249,7 @@ internal class ConnectionCircuitBreaker(CircuitBreakerOptions options, ILogger l
     private readonly ILogger _logger = logger;
     private readonly TimeProvider _timeProvider = timeProvider;
     private ConnectionCircuitState _state = ConnectionCircuitState.Closed;
-    private DateTime _lastFailureTime;
+    private DateTimeOffset _lastFailureTime;
     private int _failureCount;
 #if NET9_0_OR_GREATER
     private readonly Lock _lock = new();

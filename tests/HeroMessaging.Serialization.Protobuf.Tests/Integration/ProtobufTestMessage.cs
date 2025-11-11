@@ -32,7 +32,7 @@ public class ProtobufTestMessage : IMessage
     {
     }
 
-    public ProtobufTestMessage(Guid messageId, DateTime timestamp, string? correlationId, string? causationId, string? content)
+    public ProtobufTestMessage(Guid messageId, DateTimeOffset timestamp, string? correlationId, string? causationId, string? content)
     {
         MessageId = messageId;
         Timestamp = timestamp;

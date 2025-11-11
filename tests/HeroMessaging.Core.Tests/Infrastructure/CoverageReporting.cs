@@ -633,8 +633,8 @@ internal class CoverageConfiguration
 
 internal class CoverageReportResults
 {
-    public DateTime StartTime { get; set; }
-    public DateTime EndTime { get; set; }
+    public DateTimeOffset StartTime { get; set; }
+    public DateTimeOffset EndTime { get; set; }
     public TimeSpan Duration { get; set; }
     public bool Success { get; set; }
     public string? ErrorMessage { get; set; }

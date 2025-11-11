@@ -151,7 +151,7 @@ public class PostgreSqlStorageIntegrationTests : PostgreSqlIntegrationTestBase
         Assert.Null(retrievedAfterDelete);
     }
 
-    private IMessage CreateMessageWithTimestamp(string content, DateTime timestamp)
+    private IMessage CreateMessageWithTimestamp(string content, DateTimeOffset timestamp)
     {
         return new TestMessage(
             messageId: Guid.NewGuid(),

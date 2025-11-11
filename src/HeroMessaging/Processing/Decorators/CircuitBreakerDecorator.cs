@@ -264,7 +264,7 @@ internal class CircuitBreakerState(CircuitBreakerOptions options, TimeProvider t
         return _results.Where(r => r.Timestamp >= cutoff).ToList();
     }
 
-    private void CleanOldResults(DateTime now)
+    private void CleanOldResults(DateTimeOffset now)
     {
         var cutoff = now - _options.SamplingDuration;
         while (_results.TryPeek(out var result) && result.Timestamp < cutoff)

@@ -149,7 +149,7 @@ public class ConnectionHealthMetrics
     private long _totalRequests;
     private long _successfulRequests;
     private long _failedRequests;
-    private DateTime _lastFailureTime;
+    private DateTimeOffset _lastFailureTime;
     private string _lastFailureReason = string.Empty;
     private bool _circuitBreakerOpen;
 
@@ -162,7 +162,7 @@ public class ConnectionHealthMetrics
     public long SuccessfulRequests => _successfulRequests;
     public long FailedRequests => _failedRequests;
     public double FailureRate => TotalRequests == 0 ? 0 : (double)FailedRequests / TotalRequests;
-    public DateTime LastFailureTime => _lastFailureTime;
+    public DateTimeOffset LastFailureTime => _lastFailureTime;
     public string LastFailureReason => _lastFailureReason;
     public bool IsCircuitBreakerOpen => _circuitBreakerOpen;
 
@@ -220,7 +220,7 @@ public class ConnectionHealthMetrics
         return FailureRate > failureThreshold || IsCircuitBreakerOpen;
     }
 
-    public void CleanupOldData(DateTime cutoff)
+    public void CleanupOldData(DateTimeOffset cutoff)
     {
         while (_recentResults.TryPeek(out var result) && result.Timestamp < cutoff)
         {
@@ -278,7 +278,7 @@ public class OperationHealthData
     public long FailedRequests { get; set; }
     public double FailureRate { get; set; }
     public TimeSpan AverageResponseTime { get; set; }
-    public DateTime LastFailureTime { get; set; }
+    public DateTimeOffset LastFailureTime { get; set; }
     public string LastFailureReason { get; set; } = string.Empty;
     public string CircuitBreakerState { get; set; } = "Closed";
 }

@@ -32,7 +32,7 @@ public static class TestMessageBuilder
     {
         return new TestMessage(
             messageId: Guid.Empty,
-            timestamp: DateTime.MinValue,
+            timestamp: DateTimeOffset.MinValue,
             correlationId: null,
             causationId: null,
             content: null,
@@ -72,7 +72,7 @@ public class TestMessage : IMessage
 
     public TestMessage(
         Guid messageId,
-        DateTime timestamp,
+        DateTimeOffset timestamp,
         string? correlationId,
         string? causationId,
         string? content,

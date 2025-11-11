@@ -126,8 +126,8 @@ public class TestSaga : ISaga
     public Guid CorrelationId { get; set; }
     public string CurrentState { get; set; } = "Initial";
     public int Version { get; set; }
-    public DateTime CreatedAt { get; set; }
-    public DateTime UpdatedAt { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
     public bool IsCompleted { get; set; }
 }
 

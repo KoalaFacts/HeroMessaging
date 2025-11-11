@@ -29,7 +29,7 @@ public class EventTests
         public Dictionary<string, object>? Metadata { get; init; }
     }
 
-    private record ComplexEvent(string Name, int Id, DateTime CreatedAt, Dictionary<string, object> Data)
+    private record ComplexEvent(string Name, int Id, DateTimeOffset CreatedAt, Dictionary<string, object> Data)
         : IEvent, IMessage
     {
         public Guid MessageId { get; init; } = Guid.NewGuid();

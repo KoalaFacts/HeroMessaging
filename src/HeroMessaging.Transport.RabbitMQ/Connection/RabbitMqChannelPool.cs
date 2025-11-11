@@ -203,7 +203,7 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
     {
         private readonly TimeSpan _lifetime;
         private readonly TimeProvider _timeProvider;
-        private readonly DateTime _created;
+        private readonly DateTimeOffset _created;
         private bool _disposed;
 
         public IChannel Channel { get; }

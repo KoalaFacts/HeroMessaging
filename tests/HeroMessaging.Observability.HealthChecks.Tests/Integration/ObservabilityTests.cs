@@ -644,7 +644,7 @@ public class ObservabilityTests : IAsyncDisposable
         public string TraceId { get; set; } = "";
         public string? ParentTraceId { get; set; }
         public string OperationName { get; set; } = "";
-        public DateTime StartTime { get; set; }
+        public DateTimeOffset StartTime { get; set; }
         public TimeSpan Duration { get; set; }
         public Dictionary<string, string> Tags { get; set; } = new();
     }
@@ -654,7 +654,7 @@ public class ObservabilityTests : IAsyncDisposable
         public string TraceId { get; set; } = "";
         public string? ParentTraceId { get; set; }
         public string OperationName { get; set; } = "";
-        public DateTime StartTime { get; set; }
+        public DateTimeOffset StartTime { get; set; }
         public Dictionary<string, string> Tags { get; set; } = new();
     }
 

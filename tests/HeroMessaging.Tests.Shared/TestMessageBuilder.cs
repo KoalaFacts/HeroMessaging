@@ -72,7 +72,7 @@ public class TestMessage : IMessage
 
     public TestMessage(
         Guid messageId,
-        DateTime timestamp,
+        DateTimeOffset timestamp,
         string? correlationId,
         string? causationId,
         string? content,

@@ -370,7 +370,7 @@ public class OrchestrationWorkflowTests
     public async Task OrderSaga_SingleEventCompensation_ExecutesActionsInLIFOOrder()
     {
         // Arrange - Test compensation within a single complex event
-        var compensationLog = new System.Collections.Concurrent.ConcurrentBag<(DateTime Time, string Action)>();
+        var compensationLog = new System.Collections.Concurrent.ConcurrentBag<(DateTimeOffset Time, string Action)>();
 
         var repository = new InMemorySagaRepository<CompensationTrackingSaga>(TimeProvider.System);
         var stateMachine = BuildCompensationTrackingStateMachine(compensationLog);
@@ -538,7 +538,7 @@ public class OrchestrationWorkflowTests
     }
 
     private static StateMachineDefinition<CompensationTrackingSaga> BuildCompensationTrackingStateMachine(
-        System.Collections.Concurrent.ConcurrentBag<(DateTime Time, string Action)> compensationLog)
+        System.Collections.Concurrent.ConcurrentBag<(DateTimeOffset Time, string Action)> compensationLog)
     {
         var builder = new StateMachineBuilder<CompensationTrackingSaga>();
 
