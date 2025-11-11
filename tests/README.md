@@ -13,22 +13,75 @@ This directory contains feature-based test projects organized by domain concern.
 - Common test patterns
 - Shared test data and mocks
 
-### HeroMessaging.Core.Tests (~15,000 LOC)
-**Purpose**: Tests for core messaging infrastructure
+### HeroMessaging.Core.Tests (~5,000 LOC)
+**Purpose**: Tests for core messaging processing infrastructure
 **Test Categories**: Unit, Integration
 **Key Areas**:
-- Message processing pipeline
-- Storage implementations (InMemory)
-- Configuration and builders
-- Error handling
-- Retry policies
-- Command and Query processors
+- Message processing (Command/Query processors, Event bus)
+- Message validation (Composite validators)
 - Plugin system
 - Utilities (serialization, buffer pooling)
+- Decorator patterns
+- Pipeline integration tests
 
 **Run tests**:
 ```bash
 dotnet test tests/HeroMessaging.Core.Tests
+```
+
+### HeroMessaging.Storage.Tests (~3,000 LOC)
+**Purpose**: Tests for storage implementations
+**Test Categories**: Unit
+**Key Areas**:
+- InMemory message storage
+- InMemory inbox storage
+- InMemory outbox storage
+- InMemory queue storage
+
+**Run tests**:
+```bash
+dotnet test tests/HeroMessaging.Storage.Tests
+```
+
+### HeroMessaging.Policies.Tests (~1,500 LOC)
+**Purpose**: Tests for retry and circuit breaker policies
+**Test Categories**: Unit
+**Key Areas**:
+- Exponential backoff retry policy
+- Linear retry policy
+- No-retry policy
+- Circuit breaker retry policy
+
+**Run tests**:
+```bash
+dotnet test tests/HeroMessaging.Policies.Tests
+```
+
+### HeroMessaging.ErrorHandling.Tests (~1,200 LOC)
+**Purpose**: Tests for error handling infrastructure
+**Test Categories**: Unit
+**Key Areas**:
+- Default error handler
+- Dead letter queue (InMemory)
+- Error classification and handling
+
+**Run tests**:
+```bash
+dotnet test tests/HeroMessaging.ErrorHandling.Tests
+```
+
+### HeroMessaging.Configuration.Tests (~3,000 LOC)
+**Purpose**: Tests for configuration and dependency injection
+**Test Categories**: Unit
+**Key Areas**:
+- HeroMessaging builder (fluent API)
+- Service registration and configuration
+- Builder patterns
+- HeroMessaging service lifecycle
+
+**Run tests**:
+```bash
+dotnet test tests/HeroMessaging.Configuration.Tests
 ```
 
 ### HeroMessaging.Idempotency.Tests (~2,500 LOC)
