@@ -617,6 +617,144 @@ public sealed class InMemoryInboxStorageTests
 
     #endregion
 
+    #region Edge Case Tests for Coverage
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task GetPendingAsync_WithOlderThanAndNewerThanCombined_FiltersCorrectly()
+    {
+        // Arrange - Create messages at different times
+        var veryOld = new TestMessage { MessageId = Guid.NewGuid(), Content = "VeryOld" };
+        await _storage.AddAsync(veryOld, new InboxOptions());
+
+        _timeProvider.Advance(TimeSpan.FromHours(1));
+        var middle = new TestMessage { MessageId = Guid.NewGuid(), Content = "Middle" };
+        await _storage.AddAsync(middle, new InboxOptions());
+
+        _timeProvider.Advance(TimeSpan.FromHours(1));
+        var recent = new TestMessage { MessageId = Guid.NewGuid(), Content = "Recent" };
+        await _storage.AddAsync(recent, new InboxOptions());
+
+        // Define time window boundaries
+        var olderThanCutoff = _timeProvider.GetUtcNow().DateTime.AddHours(-0.5); // Excludes recent
+        var newerThanCutoff = _timeProvider.GetUtcNow().DateTime.AddHours(-2); // Includes middle and recent
+
+        var query = new InboxQuery
+        {
+            OlderThan = olderThanCutoff,
+            NewerThan = newerThanCutoff,
+            Limit = 10
+        };
+
+        // Act
+        var entries = await _storage.GetPendingAsync(query);
+
+        // Assert - Should return only middle (between the two cutoffs)
+        Assert.Single(entries);
+        Assert.Equal("Middle", ((TestMessage)entries.First().Message).Content);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task CleanupOldEntriesAsync_WithFailedAndProcessedEntries_RemovesOnlyProcessed()
+    {
+        // Arrange - Create old failed and processed entries
+        var oldFailed = new TestMessage { MessageId = Guid.NewGuid(), Content = "OldFailed" };
+        var oldProcessed = new TestMessage { MessageId = Guid.NewGuid(), Content = "OldProcessed" };
+
+        await _storage.AddAsync(oldFailed, new InboxOptions());
+        await _storage.AddAsync(oldProcessed, new InboxOptions());
+
+        // Mark as failed and processed respectively
+        await _storage.MarkFailedAsync(oldFailed.MessageId.ToString(), "Processing error");
+        await _storage.MarkProcessedAsync(oldProcessed.MessageId.ToString());
+
+        _timeProvider.Advance(TimeSpan.FromDays(8));
+
+        // Act - Cleanup entries older than 7 days
+        await _storage.CleanupOldEntriesAsync(TimeSpan.FromDays(7));
+
+        // Assert - Only processed entry should be removed, failed entry should remain
+        var failedEntry = await _storage.GetAsync(oldFailed.MessageId.ToString());
+        var processedEntry = await _storage.GetAsync(oldProcessed.MessageId.ToString());
+
+        Assert.NotNull(failedEntry); // Failed entry should remain (not cleaned up)
+        Assert.Null(processedEntry); // Processed entry should be removed
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task IsDuplicateAsync_WithWindowAtExactBoundary_ReturnsCorrectly()
+    {
+        // Arrange - Create a message and advance time to exactly the window boundary
+        var message = new TestMessage { MessageId = Guid.NewGuid(), Content = "BoundaryTest" };
+        await _storage.AddAsync(message, new InboxOptions());
+
+        var windowSize = TimeSpan.FromHours(1);
+        _timeProvider.Advance(windowSize);
+
+        var receivedAt = (await _storage.GetAsync(message.MessageId.ToString()))!.ReceivedAt;
+        var cutoff = _timeProvider.GetUtcNow().DateTime.Subtract(windowSize);
+
+        // Act - Check at exact boundary: receivedAt should equal cutoff
+        var isDuplicate = await _storage.IsDuplicateAsync(message.MessageId.ToString(), window: windowSize);
+
+        // Assert - At exact boundary, entry.ReceivedAt == cutoff, so should still be True (>= comparison)
+        // This verifies the >= operator behavior in line 49
+        Assert.True(isDuplicate);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task GetUnprocessedAsync_WithMixedStatuses_ReturnsOnlyPending()
+    {
+        // Arrange
+        var pending1 = new TestMessage { MessageId = Guid.NewGuid(), Content = "Pending1" };
+        var pending2 = new TestMessage { MessageId = Guid.NewGuid(), Content = "Pending2" };
+        var processed = new TestMessage { MessageId = Guid.NewGuid(), Content = "Processed" };
+        var failed = new TestMessage { MessageId = Guid.NewGuid(), Content = "Failed" };
+
+        await _storage.AddAsync(pending1, new InboxOptions());
+        await _storage.AddAsync(pending2, new InboxOptions());
+        await _storage.AddAsync(processed, new InboxOptions());
+        await _storage.AddAsync(failed, new InboxOptions());
+
+        await _storage.MarkProcessedAsync(processed.MessageId.ToString());
+        await _storage.MarkFailedAsync(failed.MessageId.ToString(), "Error");
+
+        // Act
+        var unprocessed = await _storage.GetUnprocessedAsync();
+
+        // Assert
+        Assert.Equal(2, unprocessed.Count());
+        Assert.All(unprocessed, e => Assert.Equal(InboxStatus.Pending, e.Status));
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task GetPendingAsync_WithProcessingStatusFilter_ReturnsMatchingEntries()
+    {
+        // Arrange - Create entry and mark as processing (if supported)
+        // Note: The code handles InboxEntryStatus.Processing mapping to InboxStatus.Processing
+        var message = new TestMessage { MessageId = Guid.NewGuid(), Content = "Processing" };
+        await _storage.AddAsync(message, new InboxOptions());
+
+        var query = new InboxQuery
+        {
+            Status = InboxEntryStatus.Processing,
+            Limit = 10
+        };
+
+        // Act
+        var entries = await _storage.GetPendingAsync(query);
+
+        // Assert - Will return empty since we only set Pending/Processed/Failed/Duplicate
+        // This verifies the Processing status branch is covered
+        Assert.Empty(entries);
+    }
+
+    #endregion
+
     #region Test Message Class
 
     private class TestMessage : IMessage

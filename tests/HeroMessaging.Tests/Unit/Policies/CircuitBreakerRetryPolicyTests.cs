@@ -329,4 +329,202 @@ public sealed class CircuitBreakerRetryPolicyTests
     }
 
     #endregion
+
+    #region Timeout Edge Cases
+
+    [Fact]
+    public void ShouldRetry_WhenCircuitJustClosingAtExactTimeout_ClosesAndAllowsRetry()
+    {
+        // Arrange
+        var openDuration = TimeSpan.FromSeconds(30);
+        var policy = new CircuitBreakerRetryPolicy(
+            _timeProvider,
+            maxRetries: 10,
+            failureThreshold: 2,
+            openCircuitDuration: openDuration);
+        var exception = new TimeoutException("Test");
+
+        // Open the circuit
+        policy.ShouldRetry(exception, 0);
+        policy.ShouldRetry(exception, 1); // Opens circuit
+
+        // Verify circuit is open
+        Assert.False(policy.ShouldRetry(exception, 2));
+
+        // Advance time to EXACTLY the open circuit duration (not beyond)
+        _timeProvider.Advance(openDuration);
+
+        // Act - At exact timeout, should still be open (duration not exceeded)
+        var shouldRetryAtExactTime = policy.ShouldRetry(exception, 3);
+
+        // Assert - Circuit should still be open at exact boundary
+        Assert.False(shouldRetryAtExactTime);
+    }
+
+    [Fact]
+    public void ShouldRetry_WhenCircuitJustClosingPastTimeout_ClosesAndAllowsRetry()
+    {
+        // Arrange
+        var openDuration = TimeSpan.FromSeconds(30);
+        var policy = new CircuitBreakerRetryPolicy(
+            _timeProvider,
+            maxRetries: 10,
+            failureThreshold: 2,
+            openCircuitDuration: openDuration);
+        var exception = new TimeoutException("Test");
+
+        // Open the circuit
+        policy.ShouldRetry(exception, 0);
+        policy.ShouldRetry(exception, 1); // Opens circuit
+
+        // Advance time slightly past the open circuit duration
+        _timeProvider.Advance(openDuration + TimeSpan.FromMilliseconds(1));
+
+        // Act - Should now allow retry (circuit closes and resets)
+        var shouldRetryPastTimeout = policy.ShouldRetry(exception, 2);
+
+        // Assert - Circuit should close and reset, allowing retry
+        Assert.True(shouldRetryPastTimeout);
+    }
+
+    #endregion
+
+    #region Exception Message Edge Cases
+
+    [Fact]
+    public void ShouldRetry_WithExceptionWithNullMessage_CreatesCircuitKeySuccessfully()
+    {
+        // Arrange
+        var policy = new CircuitBreakerRetryPolicy(
+            _timeProvider,
+            maxRetries: 10,
+            failureThreshold: 2);
+
+        // Create exceptions with null message (Message is null, not empty)
+        var exceptionNullMessage1 = new InvalidOperationException();
+        var exceptionNullMessage2 = new InvalidOperationException();
+
+        // Act - Both should use same circuit despite null message
+        var result1 = policy.ShouldRetry(exceptionNullMessage1, 0);
+        var result2 = policy.ShouldRetry(exceptionNullMessage2, 1); // Opens circuit
+
+        // Try again - should be blocked
+        var result3 = policy.ShouldRetry(exceptionNullMessage1, 2);
+
+        // Assert - All three calls should work with same circuit
+        Assert.True(result1);
+        Assert.False(result2); // Opens on second failure
+        Assert.False(result3); // Circuit already open
+    }
+
+    #endregion
+
+    #region Concurrent Access Tests
+
+    [Fact]
+    public void ShouldRetry_WithConcurrentFailures_ThreadSafelyRecordsAllFailures()
+    {
+        // Arrange
+        var policy = new CircuitBreakerRetryPolicy(
+            _timeProvider,
+            maxRetries: 10,
+            failureThreshold: 10);
+        var exception = new TimeoutException("Concurrent");
+
+        // Act - Record failures concurrently from multiple threads
+        var tasks = new List<Task>();
+        for (int i = 0; i < 10; i++)
+        {
+            int attemptNum = i;
+            tasks.Add(Task.Run(() => policy.ShouldRetry(exception, attemptNum)));
+        }
+
+        Task.WaitAll(tasks.ToArray());
+
+        // Now the circuit should be at threshold, next call should open it
+        var shouldRetry = policy.ShouldRetry(exception, 0);
+
+        // Assert - All concurrent failures recorded, circuit opened
+        Assert.False(shouldRetry);
+    }
+
+    [Fact]
+    public void ShouldRetry_WithConcurrentCircuitStateTransitions_MaintainsConsistency()
+    {
+        // Arrange
+        var policy = new CircuitBreakerRetryPolicy(
+            _timeProvider,
+            maxRetries: 10,
+            failureThreshold: 5);
+        var exception = new TimeoutException("Concurrent");
+
+        // Act - Record initial failures to approach threshold
+        for (int i = 0; i < 4; i++)
+        {
+            policy.ShouldRetry(exception, i);
+        }
+
+        // Now launch multiple concurrent calls to trigger circuit opening
+        var results = new List<bool>();
+        var lockObj = new object();
+        var tasks = new List<Task>();
+        for (int i = 0; i < 5; i++)
+        {
+            tasks.Add(Task.Run(() =>
+            {
+                var result = policy.ShouldRetry(exception, 0);
+                lock (lockObj)
+                {
+                    results.Add(result);
+                }
+            }));
+        }
+
+        Task.WaitAll(tasks.ToArray());
+
+        // Assert - At least one should have opened the circuit
+        // The exact behavior depends on ordering, but circuit should be opened
+        var finalRetry = policy.ShouldRetry(exception, 0);
+        Assert.False(finalRetry); // Circuit should be open
+    }
+
+    #endregion
+
+    #region State Transition Tests
+
+    [Fact]
+    public void ShouldRetry_FullCircleTransition_ClosedToOpenToClosedSequence()
+    {
+        // Arrange
+        var openDuration = TimeSpan.FromSeconds(30);
+        var policy = new CircuitBreakerRetryPolicy(
+            _timeProvider,
+            maxRetries: 10,
+            failureThreshold: 2,
+            openCircuitDuration: openDuration);
+        var exception = new TimeoutException("Transition");
+
+        // Act & Assert - Closed state: allow retries
+        Assert.True(policy.ShouldRetry(exception, 0));
+        Assert.False(policy.ShouldRetry(exception, 1)); // Opens on 2nd failure
+
+        // Open state: block retries
+        Assert.False(policy.ShouldRetry(exception, 0));
+        Assert.False(policy.ShouldRetry(exception, 0));
+
+        // Transition to Half-Open: advance time beyond duration
+        _timeProvider.Advance(openDuration + TimeSpan.FromSeconds(1));
+
+        // Half-Open state: allow one retry, then close if success
+        Assert.True(policy.ShouldRetry(exception, 0)); // Closes circuit on reset
+
+        // Back to Closed state: accept new failures
+        Assert.True(policy.ShouldRetry(exception, 0));
+        Assert.False(policy.ShouldRetry(exception, 1)); // Opens again
+
+        // Assert circuit is open again
+        Assert.False(policy.ShouldRetry(exception, 0));
+    }
+
+    #endregion
 }

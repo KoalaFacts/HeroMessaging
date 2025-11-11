@@ -594,6 +594,77 @@ public sealed class InMemoryOutboxStorageTests
 
     #endregion
 
+    #region Additional Coverage Tests
+
+    [Fact]
+    public async Task GetPendingAsync_WithDefaultStatusWhenStatusNotSpecified_ReturnsPendingOnly()
+    {
+        // Arrange
+        var pendingMsg = new TestMessage { MessageId = Guid.NewGuid(), Content = "Pending" };
+        var processedMsg = new TestMessage { MessageId = Guid.NewGuid(), Content = "Processed" };
+        var failedMsg = new TestMessage { MessageId = Guid.NewGuid(), Content = "Failed" };
+
+        var entry1 = await _storage.AddAsync(pendingMsg, new OutboxOptions());
+        var entry2 = await _storage.AddAsync(processedMsg, new OutboxOptions());
+        var entry3 = await _storage.AddAsync(failedMsg, new OutboxOptions());
+
+        await _storage.MarkProcessedAsync(entry2.Id);
+        await _storage.MarkFailedAsync(entry3.Id, "Error");
+
+        // Act - Query with no status filter (should default to Pending)
+        var query = new OutboxQuery { Status = null, Limit = 10 };
+        var entries = await _storage.GetPendingAsync(query);
+
+        // Assert - Should only return pending entry
+        Assert.Single(entries);
+        Assert.Equal(entry1.Id, entries.First().Id);
+        Assert.Equal(OutboxStatus.Pending, entries.First().Status);
+    }
+
+    [Fact]
+    public async Task UpdateRetryCountAsync_AtExactMaxRetriesThreshold_TransitionsToFailed()
+    {
+        // Arrange
+        var message = new TestMessage { MessageId = Guid.NewGuid(), Content = "MaxRetries" };
+        var maxRetries = 3;
+        var entry = await _storage.AddAsync(message, new OutboxOptions { MaxRetries = maxRetries });
+
+        // Act - Set retry count to exactly MaxRetries (transition boundary)
+        var result = await _storage.UpdateRetryCountAsync(entry.Id, maxRetries, null);
+
+        // Assert
+        Assert.True(result);
+        Assert.Equal(maxRetries, entry.RetryCount);
+        Assert.Equal(OutboxStatus.Failed, entry.Status);
+    }
+
+    [Fact]
+    public async Task GetPendingAsync_WithProcessingStatus_ReturnsOnlyProcessingEntries()
+    {
+        // Arrange
+        var message1 = new TestMessage { MessageId = Guid.NewGuid(), Content = "Pending" };
+        var message2 = new TestMessage { MessageId = Guid.NewGuid(), Content = "Processing" };
+        var message3 = new TestMessage { MessageId = Guid.NewGuid(), Content = "Processed" };
+
+        var entry1 = await _storage.AddAsync(message1, new OutboxOptions());
+        var entry2 = await _storage.AddAsync(message2, new OutboxOptions());
+        var entry3 = await _storage.AddAsync(message3, new OutboxOptions());
+
+        // Manually set one to Processing status (testing the switch case coverage)
+        entry2.Status = OutboxStatus.Processing;
+
+        // Act
+        var query = new OutboxQuery { Status = OutboxEntryStatus.Processing, Limit = 10 };
+        var entries = await _storage.GetPendingAsync(query);
+
+        // Assert
+        Assert.Single(entries);
+        Assert.Equal(entry2.Id, entries.First().Id);
+        Assert.Equal(OutboxStatus.Processing, entries.First().Status);
+    }
+
+    #endregion
+
     #region Test Message Class
 
     private class TestMessage : IMessage
