@@ -1,5 +1,6 @@
 using System.Data;
 using HeroMessaging.Abstractions.Events;
+using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Abstractions.Storage;
 using Microsoft.Extensions.Logging;
 
@@ -39,6 +40,8 @@ public class TransactionEventBusDecorator(
         _logger.LogDebug("Event {EventType} with ID {EventId} published successfully",
             @event.GetType().Name, @event.MessageId);
     }
+
+    public IEventBusMetrics GetMetrics() => _inner.GetMetrics();
 }
 
 /// <summary>

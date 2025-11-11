@@ -31,8 +31,8 @@ public class EventBusBenchmarks
         services.AddSingleton<TimeProvider>(TimeProvider.System);
 
         _serviceProvider = services.BuildServiceProvider();
-        var timeProvider = _serviceProvider.GetRequiredService<TimeProvider>();
-        _eventBus = new EventBus(_serviceProvider, timeProvider);
+        var logger = _serviceProvider.GetRequiredService<ILogger<EventBus>>();
+        _eventBus = new EventBus(_serviceProvider, logger);
 
         // Setup for multiple handler benchmark
         var multiServices = new ServiceCollection();
@@ -43,8 +43,8 @@ public class EventBusBenchmarks
         multiServices.AddSingleton<TimeProvider>(TimeProvider.System);
 
         _multiHandlerServiceProvider = multiServices.BuildServiceProvider();
-        var multiTimeProvider = _multiHandlerServiceProvider.GetRequiredService<TimeProvider>();
-        _multiHandlerEventBus = new EventBus(_multiHandlerServiceProvider, multiTimeProvider);
+        var multiLogger = _multiHandlerServiceProvider.GetRequiredService<ILogger<EventBus>>();
+        _multiHandlerEventBus = new EventBus(_multiHandlerServiceProvider, multiLogger);
 
         _testEvent = new TestEvent { Id = 1, Name = "TestEvent" };
     }

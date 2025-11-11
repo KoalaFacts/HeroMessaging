@@ -115,7 +115,7 @@ services.AddHeroMessaging(builder => builder
     .WithEventBus()      // Enable event publishing
     .ScanAssembly(typeof(Program).Assembly)); // Auto-register handlers
 
-// UseCorrelation() is added by default in EventBusV2
+// UseCorrelation() is added by default in EventBus
 ```
 
 ### 4. Start a Workflow

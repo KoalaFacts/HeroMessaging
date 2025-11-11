@@ -2,6 +2,7 @@ using System.Reflection;
 using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Configuration;
 using HeroMessaging.Abstractions.ErrorHandling;
+using HeroMessaging.Abstractions.Events;
 using HeroMessaging.Abstractions.Handlers;
 using HeroMessaging.Abstractions.Plugins;
 using HeroMessaging.Abstractions.Processing;
@@ -208,8 +209,8 @@ public class HeroMessagingBuilder(IServiceCollection services) : IHeroMessagingB
 
         if (_withEventBus)
         {
-            // Register the new pipeline-based EventBus
-            _services.AddSingleton<IEventBus, EventBusV2>();
+            // Register the pipeline-based EventBus
+            _services.AddSingleton<IEventBus, EventBus>();
 
             // Register pipeline services
             _services.AddMessageProcessingPipeline();

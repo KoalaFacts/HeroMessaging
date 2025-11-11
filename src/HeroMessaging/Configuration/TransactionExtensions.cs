@@ -1,5 +1,6 @@
 using System.Data;
 using HeroMessaging.Abstractions.Configuration;
+using HeroMessaging.Abstractions.Events;
 using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Abstractions.Storage;
 using HeroMessaging.Processing;
