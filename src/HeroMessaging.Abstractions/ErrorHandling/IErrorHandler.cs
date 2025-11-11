@@ -14,8 +14,8 @@ public sealed record ErrorContext
     public string Component { get; init; } = string.Empty;
     public string? QueueName { get; init; }
     public Dictionary<string, object> Metadata { get; init; } = new();
-    public DateTime FirstFailureTime { get; init; }
-    public DateTime LastFailureTime { get; init; }
+    public DateTimeOffset FirstFailureTime { get; init; }
+    public DateTimeOffset LastFailureTime { get; init; }
 }
 
 public sealed record ErrorHandlingResult

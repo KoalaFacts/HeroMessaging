@@ -23,7 +23,7 @@ public sealed record DeadLetterContext
     public Exception? Exception { get; init; }
     public string Component { get; init; } = string.Empty;
     public int RetryCount { get; init; }
-    public DateTime FailureTime { get; init; } = TimeProvider.System.GetUtcNow().DateTime;
+    public DateTimeOffset FailureTime { get; init; } = TimeProvider.System.GetUtcNow();
     public Dictionary<string, object> Metadata { get; init; } = new();
 }
 
@@ -34,10 +34,10 @@ public interface IDeadLetterEntry
 {
     string Id { get; }
     DeadLetterContext Context { get; }
-    DateTime CreatedAt { get; }
+    DateTimeOffset CreatedAt { get; }
     DeadLetterStatus Status { get; }
-    DateTime? RetriedAt { get; }
-    DateTime? DiscardedAt { get; }
+    DateTimeOffset? RetriedAt { get; }
+    DateTimeOffset? DiscardedAt { get; }
 }
 
 public sealed record DeadLetterEntry<T> : IDeadLetterEntry where T : IMessage
@@ -45,10 +45,10 @@ public sealed record DeadLetterEntry<T> : IDeadLetterEntry where T : IMessage
     public string Id { get; init; } = Guid.NewGuid().ToString();
     public T Message { get; init; } = default!;
     public DeadLetterContext Context { get; init; } = new();
-    public DateTime CreatedAt { get; init; } = TimeProvider.System.GetUtcNow().DateTime;
+    public DateTimeOffset CreatedAt { get; init; } = TimeProvider.System.GetUtcNow();
     public DeadLetterStatus Status { get; init; } = DeadLetterStatus.Active;
-    public DateTime? RetriedAt { get; init; }
-    public DateTime? DiscardedAt { get; init; }
+    public DateTimeOffset? RetriedAt { get; init; }
+    public DateTimeOffset? DiscardedAt { get; init; }
 }
 
 public enum DeadLetterStatus
@@ -67,6 +67,6 @@ public sealed record DeadLetterStatistics
     public long DiscardedCount { get; init; }
     public Dictionary<string, long> CountByComponent { get; init; } = new();
     public Dictionary<string, long> CountByReason { get; init; } = new();
-    public DateTime? OldestEntry { get; init; }
-    public DateTime? NewestEntry { get; init; }
+    public DateTimeOffset? OldestEntry { get; init; }
+    public DateTimeOffset? NewestEntry { get; init; }
 }

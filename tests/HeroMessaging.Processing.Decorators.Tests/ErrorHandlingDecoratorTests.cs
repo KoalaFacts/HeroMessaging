@@ -535,8 +535,8 @@ public sealed class ErrorHandlingDecoratorTests
         Assert.Equal(0, capturedContext.RetryCount);
         Assert.Equal(3, capturedContext.MaxRetries);
         Assert.Equal(component, capturedContext.Component);
-        Assert.Equal(_timeProvider.GetUtcNow().DateTime, capturedContext.FirstFailureTime);
-        Assert.Equal(_timeProvider.GetUtcNow().DateTime, capturedContext.LastFailureTime);
+        Assert.Equal(_timeProvider.GetUtcNow(), capturedContext.FirstFailureTime);
+        Assert.Equal(_timeProvider.GetUtcNow(), capturedContext.LastFailureTime);
     }
 
     [Fact]
@@ -666,7 +666,7 @@ public sealed class ErrorHandlingDecoratorTests
     private class TestMessage : IMessage
     {
         public Guid MessageId { get; } = Guid.NewGuid();
-        public DateTime Timestamp { get; } = DateTime.UtcNow;
+        public DateTimeOffset Timestamp { get; } = DateTimeOffset.UtcNow;
         public string? CorrelationId { get; set; }
         public string? CausationId { get; set; }
         public Dictionary<string, object>? Metadata { get; set; }

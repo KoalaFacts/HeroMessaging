@@ -19,12 +19,12 @@ public interface ISaga
     /// <summary>
     /// When this saga instance was created
     /// </summary>
-    DateTime CreatedAt { get; set; }
+    DateTimeOffset CreatedAt { get; set; }
 
     /// <summary>
     /// When this saga instance was last updated
     /// </summary>
-    DateTime UpdatedAt { get; set; }
+    DateTimeOffset UpdatedAt { get; set; }
 
     /// <summary>
     /// Whether this saga has completed (successfully or failed)

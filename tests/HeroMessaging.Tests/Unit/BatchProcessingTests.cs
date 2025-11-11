@@ -303,7 +303,7 @@ public class BatchProcessingTests
         {
             ProcessingResult.Successful()
         };
-        var testData = new { BatchId = 123, ProcessedAt = DateTime.UtcNow };
+        var testData = new { BatchId = 123, ProcessedAt = DateTimeOffset.UtcNow };
 
         // Act
         var batchResult = BatchProcessingResult.Create(results, "Test", testData);

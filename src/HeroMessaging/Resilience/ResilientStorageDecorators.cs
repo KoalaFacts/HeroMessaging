@@ -132,7 +132,7 @@ public class ResilientOutboxStorageDecorator(
             await _inner.MarkFailedAsync(entryId, error, cancellationToken), "MarkOutboxFailed", cancellationToken);
     }
 
-    public async Task<bool> UpdateRetryCountAsync(string entryId, int retryCount, DateTime? nextRetry = null, CancellationToken cancellationToken = default)
+    public async Task<bool> UpdateRetryCountAsync(string entryId, int retryCount, DateTimeOffset? nextRetry = null, CancellationToken cancellationToken = default)
     {
         return await _resiliencePolicy.ExecuteAsync(async () =>
             await _inner.UpdateRetryCountAsync(entryId, retryCount, nextRetry, cancellationToken), "UpdateOutboxRetryCount", cancellationToken);

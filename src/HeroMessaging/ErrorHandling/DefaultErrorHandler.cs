@@ -43,7 +43,7 @@ public class DefaultErrorHandler(ILogger<DefaultErrorHandler> logger, IDeadLette
                 Exception = error,
                 Component = context.Component,
                 RetryCount = context.RetryCount,
-                FailureTime = _timeProvider.GetUtcNow().DateTime,
+                FailureTime = _timeProvider.GetUtcNow(),
                 Metadata = context.Metadata
             }, cancellationToken);
 
@@ -58,7 +58,7 @@ public class DefaultErrorHandler(ILogger<DefaultErrorHandler> logger, IDeadLette
             Exception = error,
             Component = context.Component,
             RetryCount = context.RetryCount,
-            FailureTime = _timeProvider.GetUtcNow().DateTime,
+            FailureTime = _timeProvider.GetUtcNow(),
             Metadata = context.Metadata
         }, cancellationToken);
 

@@ -80,7 +80,7 @@ public record TestCommand : ICommand
     public int Id { get; init; }
     public string Name { get; init; } = string.Empty;
     public Guid MessageId { get; init; } = Guid.NewGuid();
-    public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+    public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
     public string? CorrelationId { get; init; }
     public string? CausationId { get; init; }
     public Dictionary<string, object>? Metadata { get; init; }
@@ -100,7 +100,7 @@ public record TestCommandWithResponse : ICommand<int>
     public int Id { get; init; }
     public string Name { get; init; } = string.Empty;
     public Guid MessageId { get; init; } = Guid.NewGuid();
-    public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+    public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
     public string? CorrelationId { get; init; }
     public string? CausationId { get; init; }
     public Dictionary<string, object>? Metadata { get; init; }

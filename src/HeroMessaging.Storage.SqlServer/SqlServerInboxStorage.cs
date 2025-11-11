@@ -103,7 +103,7 @@ public class SqlServerInboxStorage : IInboxStorage
         {
 
             var messageId = message.MessageId.ToString();
-            var now = _timeProvider.GetUtcNow().DateTime;
+            var now = _timeProvider.GetUtcNow();
 
             // Check for duplicates if idempotency is required
             if (options.RequireIdempotency)
@@ -163,7 +163,7 @@ public class SqlServerInboxStorage : IInboxStorage
 
             if (window.HasValue)
             {
-                var windowStart = _timeProvider.GetUtcNow().DateTime.Subtract(window.Value);
+                var windowStart = _timeProvider.GetUtcNow().Subtract(window.Value);
                 command.Parameters.Add("@WindowStart", SqlDbType.DateTime2).Value = windowStart;
             }
 
@@ -200,7 +200,7 @@ public class SqlServerInboxStorage : IInboxStorage
                 var source = reader.IsDBNull(2) ? null : reader.GetString(2);
                 var status = Enum.Parse<InboxStatus>(reader.GetString(3));
                 var receivedAt = reader.GetDateTime(4);
-                var processedAt = reader.IsDBNull(5) ? (DateTime?)null : reader.GetDateTime(5);
+                var processedAt = reader.IsDBNull(5) ? (DateTimeOffset?)null : reader.GetDateTime(5);
                 var error = reader.IsDBNull(6) ? null : reader.GetString(6);
                 var requireIdempotency = reader.GetBoolean(7);
                 var deduplicationWindowMinutes = reader.IsDBNull(8) ? (int?)null : reader.GetInt32(8);
@@ -251,7 +251,7 @@ public class SqlServerInboxStorage : IInboxStorage
             using var command = new SqlCommand(sql, connection, transaction);
             command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = messageId;
             command.Parameters.Add("@Status", SqlDbType.NVarChar, 50).Value = "Processed";
-            command.Parameters.Add("@ProcessedAt", SqlDbType.DateTime2).Value = _timeProvider.GetUtcNow().DateTime;
+            command.Parameters.Add("@ProcessedAt", SqlDbType.DateTime2).Value = _timeProvider.GetUtcNow();
 
             var rowsAffected = await command.ExecuteNonQueryAsync(cancellationToken);
             return rowsAffected > 0;
@@ -278,7 +278,7 @@ public class SqlServerInboxStorage : IInboxStorage
             using var command = new SqlCommand(sql, connection, transaction);
             command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = messageId;
             command.Parameters.Add("@Status", SqlDbType.NVarChar, 50).Value = "Failed";
-            command.Parameters.Add("@ProcessedAt", SqlDbType.DateTime2).Value = _timeProvider.GetUtcNow().DateTime;
+            command.Parameters.Add("@ProcessedAt", SqlDbType.DateTime2).Value = _timeProvider.GetUtcNow();
             command.Parameters.Add("@Error", SqlDbType.NVarChar, -1).Value = error;
 
             var rowsAffected = await command.ExecuteNonQueryAsync(cancellationToken);
@@ -346,7 +346,7 @@ public class SqlServerInboxStorage : IInboxStorage
                 var source = reader.IsDBNull(3) ? null : reader.GetString(3);
                 var status = Enum.Parse<InboxStatus>(reader.GetString(4));
                 var receivedAt = reader.GetDateTime(5);
-                var processedAt = reader.IsDBNull(6) ? (DateTime?)null : reader.GetDateTime(6);
+                var processedAt = reader.IsDBNull(6) ? (DateTimeOffset?)null : reader.GetDateTime(6);
                 var error = reader.IsDBNull(7) ? null : reader.GetString(7);
                 var requireIdempotency = reader.GetBoolean(8);
                 var deduplicationWindowMinutes = reader.IsDBNull(9) ? (int?)null : reader.GetInt32(9);
@@ -417,7 +417,7 @@ public class SqlServerInboxStorage : IInboxStorage
         try
         {
 
-            var cutoffTime = _timeProvider.GetUtcNow().DateTime.Subtract(olderThan);
+            var cutoffTime = _timeProvider.GetUtcNow().Subtract(olderThan);
 
             var sql = $"""
                 DELETE FROM {_tableName}

@@ -24,7 +24,7 @@ public abstract class ComponentMetricsBase
     /// <summary>
     /// When the last error occurred
     /// </summary>
-    public DateTime? LastErrorOccurredAt { get; set; }
+    public DateTimeOffset? LastErrorOccurredAt { get; set; }
 
     /// <summary>
     /// Calculate success rate (0.0 - 1.0)
@@ -63,7 +63,7 @@ public abstract class ComponentMetricsBase
         if (error != null)
         {
             LastError = error;
-            LastErrorOccurredAt = (timeProvider ?? TimeProvider.System).GetUtcNow().DateTime;
+            LastErrorOccurredAt = (timeProvider ?? TimeProvider.System).GetUtcNow();
         }
     }
 

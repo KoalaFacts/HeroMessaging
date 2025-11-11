@@ -423,7 +423,7 @@ public sealed class IdempotencyPipelineIntegrationTests
     private sealed class TestMessage : IMessage
     {
         public Guid MessageId { get; set; }
-        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+        public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
         public string? CorrelationId { get; set; }
         public string? CausationId { get; set; }
         public Dictionary<string, object>? Metadata { get; set; }
@@ -513,8 +513,8 @@ public sealed class IdempotencyPipelineIntegrationTests
                 IdempotencyKey = key,
                 Status = IdempotencyStatus.Success,
                 SuccessResult = result,
-                StoredAt = DateTime.UtcNow,
-                ExpiresAt = DateTime.UtcNow + ttl
+                StoredAt = DateTimeOffset.UtcNow,
+                ExpiresAt = DateTimeOffset.UtcNow + ttl
             };
             return ValueTask.CompletedTask;
         }
@@ -527,8 +527,8 @@ public sealed class IdempotencyPipelineIntegrationTests
                 Status = IdempotencyStatus.Failure,
                 FailureType = exception.GetType().AssemblyQualifiedName,
                 FailureMessage = exception.Message,
-                StoredAt = DateTime.UtcNow,
-                ExpiresAt = DateTime.UtcNow + ttl
+                StoredAt = DateTimeOffset.UtcNow,
+                ExpiresAt = DateTimeOffset.UtcNow + ttl
             };
             return ValueTask.CompletedTask;
         }
@@ -540,7 +540,7 @@ public sealed class IdempotencyPipelineIntegrationTests
 
         public ValueTask<int> CleanupExpiredAsync(CancellationToken cancellationToken = default)
         {
-            var now = DateTime.UtcNow;
+            var now = DateTimeOffset.UtcNow;
             var expiredKeys = _store.Where(kvp => kvp.Value.ExpiresAt <= now).Select(kvp => kvp.Key).ToList();
             foreach (var key in expiredKeys)
             {

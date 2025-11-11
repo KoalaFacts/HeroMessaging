@@ -20,7 +20,7 @@ public class SagaOrchestratorTests
     private record TestEvent(string Data) : IEvent, IMessage
     {
         public Guid MessageId { get; init; } = Guid.NewGuid();
-        public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+        public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
         public string? CorrelationId { get; init; }
         public string? CausationId { get; init; }
         public Dictionary<string, object>? Metadata { get; init; }
@@ -29,7 +29,7 @@ public class SagaOrchestratorTests
     private record AnotherTestEvent(string Value) : IEvent, IMessage
     {
         public Guid MessageId { get; init; } = Guid.NewGuid();
-        public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+        public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
         public string? CorrelationId { get; init; }
         public string? CausationId { get; init; }
         public Dictionary<string, object>? Metadata { get; init; }
@@ -291,7 +291,7 @@ public class SagaOrchestratorTests
 
         var correlationId = Guid.NewGuid();
         var testEvent = new TestEvent("data") { CorrelationId = correlationId.ToString() };
-        var beforeTime = DateTime.UtcNow;
+        var beforeTime = DateTimeOffset.UtcNow;
 
         // Act
         await orchestrator.ProcessAsync(testEvent);

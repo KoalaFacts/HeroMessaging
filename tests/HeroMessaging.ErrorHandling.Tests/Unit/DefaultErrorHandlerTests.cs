@@ -262,7 +262,7 @@ public sealed class DefaultErrorHandlerTests
             MaxRetries = 5
         };
 
-        var expectedTime = _timeProvider.GetUtcNow().DateTime;
+        var expectedTime = _timeProvider.GetUtcNow();
         DeadLetterContext? capturedContext = null;
 
         _deadLetterQueueMock
@@ -456,7 +456,7 @@ public sealed class DefaultErrorHandlerTests
     private class TestMessage : IMessage
     {
         public Guid MessageId { get; set; }
-        public DateTime Timestamp { get; set; }
+        public DateTimeOffset Timestamp { get; set; }
         public string? CorrelationId { get; set; }
         public string? CausationId { get; set; }
         public Dictionary<string, object>? Metadata { get; set; }

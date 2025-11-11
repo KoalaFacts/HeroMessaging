@@ -29,7 +29,7 @@ public class TransportHealth
     /// When the health check was performed.
     /// Defaults to system time when not explicitly set.
     /// </summary>
-    public DateTime Timestamp { get; set; } = TimeProvider.System.GetUtcNow().DateTime;
+    public DateTimeOffset Timestamp { get; set; } = TimeProvider.System.GetUtcNow();
 
     /// <summary>
     /// Duration of the health check
@@ -64,7 +64,7 @@ public class TransportHealth
     /// <summary>
     /// When the last error occurred
     /// </summary>
-    public DateTime? LastErrorTime { get; set; }
+    public DateTimeOffset? LastErrorTime { get; set; }
 
     /// <summary>
     /// Additional health data
@@ -76,7 +76,7 @@ public class TransportHealth
     /// </summary>
     public static TransportHealth Healthy(string transportName, TransportState state = TransportState.Connected, TimeProvider? timeProvider = null)
     {
-        var now = (timeProvider ?? TimeProvider.System).GetUtcNow().DateTime;
+        var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
         return new TransportHealth
         {
             TransportName = transportName,
@@ -95,7 +95,7 @@ public class TransportHealth
     /// </summary>
     public static TransportHealth Degraded(string transportName, string reason, TransportState state = TransportState.Connected, TimeProvider? timeProvider = null)
     {
-        var now = (timeProvider ?? TimeProvider.System).GetUtcNow().DateTime;
+        var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
         return new TransportHealth
         {
             TransportName = transportName,
@@ -114,7 +114,7 @@ public class TransportHealth
     /// </summary>
     public static TransportHealth Unhealthy(string transportName, string reason, TransportState state = TransportState.Disconnected, TimeProvider? timeProvider = null)
     {
-        var now = (timeProvider ?? TimeProvider.System).GetUtcNow().DateTime;
+        var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
         return new TransportHealth
         {
             TransportName = transportName,
@@ -133,7 +133,7 @@ public class TransportHealth
     /// </summary>
     public static TransportHealth FromException(string transportName, Exception exception, TimeProvider? timeProvider = null)
     {
-        var now = (timeProvider ?? TimeProvider.System).GetUtcNow().DateTime;
+        var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
         return new TransportHealth
         {
             TransportName = transportName,

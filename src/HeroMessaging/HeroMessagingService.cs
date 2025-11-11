@@ -168,7 +168,7 @@ public class HeroMessagingService(
 
     public MessagingHealth GetHealth()
     {
-        var now = _timeProvider.GetUtcNow().DateTime;
+        var now = _timeProvider.GetUtcNow();
         return new MessagingHealth
         {
             IsHealthy = true,

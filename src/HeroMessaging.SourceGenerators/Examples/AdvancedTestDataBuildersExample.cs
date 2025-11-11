@@ -22,7 +22,7 @@ public class AdvancedTestDataBuildersExample
             CustomerEmail = "[email protected]",
             Amount = 299.99m,
             Quantity = 2,
-            OrderDate = DateTime.UtcNow.AddDays(-5),
+            OrderDate = DateTimeOffset.UtcNow.AddDays(-5),
             Status = OrderStatus.Created,
             Items = new List<OrderItem>
             {
@@ -153,7 +153,7 @@ public record Order
     public int Quantity { get; init; }
 
     [RandomDateTime(DaysFromNow = -90, DaysToNow = 0)]  // Orders from past 90 days
-    public DateTime OrderDate { get; init; } = DateTime.UtcNow;
+    public DateTime OrderDate { get; init; } = DateTimeOffset.UtcNow;
 
     [RandomEnum]
     public OrderStatus Status { get; init; } = OrderStatus.Created;
@@ -170,7 +170,7 @@ public record Order
         CustomerEmail = "[email protected]",
         Amount = 99.99m,
         Quantity = 1,
-        OrderDate = DateTime.UtcNow,
+        OrderDate = DateTimeOffset.UtcNow,
         Status = OrderStatus.Created,
         Items = new List<OrderItem>
         {
@@ -186,7 +186,7 @@ public record Order
         CustomerEmail = "[email protected]",
         Amount = 9999.99m,
         Quantity = 10,
-        OrderDate = DateTime.UtcNow,
+        OrderDate = DateTimeOffset.UtcNow,
         Status = OrderStatus.Created,
         Items = new List<OrderItem>
         {
@@ -307,7 +307,7 @@ public static class Assert
  *             _quantity = _random.Next(1, 101);
  *
  *             // Uses [RandomDateTime] attribute
- *             _orderDate = DateTime.UtcNow.AddDays(_random.Next(-90, 1));
+ *             _orderDate = DateTimeOffset.UtcNow.AddDays(_random.Next(-90, 1));
  *
  *             // Uses [RandomEnum] attribute
  *             _status = (OrderStatus)_random.Next(0, Enum.GetValues(typeof(OrderStatus)).Length);
@@ -383,7 +383,7 @@ public static class Assert
  *     CustomerEmail = "test@example.com",
  *     Amount = 99.99m,
  *     Quantity = 1,
- *     OrderDate = DateTime.UtcNow,
+ *     OrderDate = DateTimeOffset.UtcNow,
  *     Status = OrderStatus.Created,
  *     Items = new List<OrderItem>
  *     {

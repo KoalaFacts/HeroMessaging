@@ -50,7 +50,7 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxEntry>, IOutbo
             PendingMessages = 0, // TODO: Track metrics
             ProcessedMessages = 0,
             FailedMessages = 0,
-            LastProcessedTime = _timeProvider.GetUtcNow().DateTime
+            LastProcessedTime = _timeProvider.GetUtcNow()
         };
     }
 
@@ -59,7 +59,7 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxEntry>, IOutbo
         public long PendingMessages { get; init; }
         public long ProcessedMessages { get; init; }
         public long FailedMessages { get; init; }
-        public DateTime? LastProcessedTime { get; init; }
+        public DateTimeOffset? LastProcessedTime { get; init; }
     }
 
     protected override string GetServiceName() => "Outbox processor";
@@ -117,7 +117,7 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxEntry>, IOutbo
             else
             {
                 var delay = entry.Options.RetryDelay ?? TimeSpan.FromSeconds(Math.Pow(2, entry.RetryCount));
-                var nextRetry = _timeProvider.GetUtcNow().DateTime.Add(delay);
+                var nextRetry = _timeProvider.GetUtcNow().Add(delay);
 
                 await _outboxStorage.UpdateRetryCountAsync(entry.Id, entry.RetryCount, nextRetry);
 

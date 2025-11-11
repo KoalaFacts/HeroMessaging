@@ -196,7 +196,7 @@ public class WhenConfigurator<TSaga, TEvent>
             context.Instance.IsCompleted = true;
             var timeProvider = (TimeProvider)context.Services.GetService(typeof(TimeProvider))
                 ?? throw new InvalidOperationException("TimeProvider is not registered in the service collection. Ensure TimeProvider is registered before using saga orchestration.");
-            context.Instance.UpdatedAt = timeProvider.GetUtcNow().DateTime;
+            context.Instance.UpdatedAt = timeProvider.GetUtcNow();
         };
 
         return this;

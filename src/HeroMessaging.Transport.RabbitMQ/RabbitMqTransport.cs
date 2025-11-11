@@ -439,7 +439,7 @@ public sealed class RabbitMqTransport : IMessageTransport
             Status = isHealthy ? HealthStatus.Healthy : HealthStatus.Unhealthy,
             State = _state,
             StatusMessage = isHealthy ? "RabbitMQ transport is healthy" : $"Transport state: {_state}",
-            Timestamp = _timeProvider.GetUtcNow().DateTime,
+            Timestamp = _timeProvider.GetUtcNow(),
             Duration = TimeSpan.Zero,
             ActiveConsumers = _consumers.Count,
             Data = new Dictionary<string, object>

@@ -436,7 +436,7 @@ public class ObservabilityTests : IAsyncDisposable
                         Name = name,
                         Value = 0,
                         Tags = tags != null ? new Dictionary<string, string>(tags) : new Dictionary<string, string>(),
-                        Timestamp = DateTime.UtcNow
+                        Timestamp = DateTimeOffset.UtcNow
                     };
                     _metrics[name] = metric;
                 }
@@ -448,7 +448,7 @@ public class ObservabilityTests : IAsyncDisposable
                     }
                 }
 
-                metric.Timestamp = DateTime.UtcNow;
+                metric.Timestamp = DateTimeOffset.UtcNow;
                 metric.Value = IsCounterMetric(name) ? metric.Value + value : value;
             }
         }
@@ -505,7 +505,7 @@ public class ObservabilityTests : IAsyncDisposable
             {
                 TraceId = traceId,
                 OperationName = operationName,
-                StartTime = DateTime.UtcNow
+                StartTime = DateTimeOffset.UtcNow
             };
         }
 
@@ -517,7 +517,7 @@ public class ObservabilityTests : IAsyncDisposable
                 ParentTraceId = context.ParentTraceId,
                 OperationName = context.OperationName,
                 StartTime = context.StartTime,
-                Duration = DateTime.UtcNow - context.StartTime,
+                Duration = DateTimeOffset.UtcNow - context.StartTime,
                 Tags = context.Tags
             });
         }
@@ -636,7 +636,7 @@ public class ObservabilityTests : IAsyncDisposable
         public string Name { get; set; } = "";
         public double Value { get; set; }
         public Dictionary<string, string> Tags { get; set; } = new();
-        public DateTime Timestamp { get; set; }
+        public DateTimeOffset Timestamp { get; set; }
     }
 
     private class Trace
@@ -715,7 +715,7 @@ public class ObservabilityTests : IAsyncDisposable
 
         public void ReportMetric(string metricName, double value)
         {
-            var metric = new Metric { Name = metricName, Value = value, Timestamp = DateTime.UtcNow };
+            var metric = new Metric { Name = metricName, Value = value, Timestamp = DateTimeOffset.UtcNow };
 
             foreach (var ruleEntry in _alertRules)
             {
@@ -741,7 +741,7 @@ public class ObservabilityTests : IAsyncDisposable
                     Name = ruleEntry.Key,
                     MetricName = metricName,
                     MetricValue = value,
-                    Timestamp = DateTime.UtcNow
+                    Timestamp = DateTimeOffset.UtcNow
                 });
             }
         }
@@ -792,7 +792,7 @@ public class ObservabilityTests : IAsyncDisposable
         public string Name { get; set; } = "";
         public string MetricName { get; set; } = "";
         public double MetricValue { get; set; }
-        public DateTime Timestamp { get; set; }
+        public DateTimeOffset Timestamp { get; set; }
     }
 }
 

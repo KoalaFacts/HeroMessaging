@@ -44,7 +44,7 @@ public record OrderCreatedEvent(
     List<OrderItem> Items) : IEvent, IMessage
 {
     public Guid MessageId { get; init; } = Guid.NewGuid();
-    public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+    public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
     public string? CorrelationId { get; init; }
     public string? CausationId { get; init; }
     public Dictionary<string, object>? Metadata { get; init; }
@@ -56,7 +56,7 @@ public record PaymentProcessedEvent(
     decimal Amount) : IEvent, IMessage
 {
     public Guid MessageId { get; init; } = Guid.NewGuid();
-    public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+    public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
     public string? CorrelationId { get; init; }
     public string? CausationId { get; init; }
     public Dictionary<string, object>? Metadata { get; init; }
@@ -67,7 +67,7 @@ public record PaymentFailedEvent(
     string Reason) : IEvent, IMessage
 {
     public Guid MessageId { get; init; } = Guid.NewGuid();
-    public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+    public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
     public string? CorrelationId { get; init; }
     public string? CausationId { get; init; }
     public Dictionary<string, object>? Metadata { get; init; }
@@ -79,7 +79,7 @@ public record InventoryReservedEvent(
     List<OrderItem> Items) : IEvent, IMessage
 {
     public Guid MessageId { get; init; } = Guid.NewGuid();
-    public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+    public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
     public string? CorrelationId { get; init; }
     public string? CausationId { get; init; }
     public Dictionary<string, object>? Metadata { get; init; }
@@ -90,7 +90,7 @@ public record InventoryReservationFailedEvent(
     string Reason) : IEvent, IMessage
 {
     public Guid MessageId { get; init; } = Guid.NewGuid();
-    public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+    public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
     public string? CorrelationId { get; init; }
     public string? CausationId { get; init; }
     public Dictionary<string, object>? Metadata { get; init; }
@@ -101,7 +101,7 @@ public record OrderShippedEvent(
     string TrackingNumber) : IEvent, IMessage
 {
     public Guid MessageId { get; init; } = Guid.NewGuid();
-    public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+    public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
     public string? CorrelationId { get; init; }
     public string? CausationId { get; init; }
     public Dictionary<string, object>? Metadata { get; init; }
@@ -112,7 +112,7 @@ public record ShipmentFailedEvent(
     string Reason) : IEvent, IMessage
 {
     public Guid MessageId { get; init; } = Guid.NewGuid();
-    public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+    public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
     public string? CorrelationId { get; init; }
     public string? CausationId { get; init; }
     public Dictionary<string, object>? Metadata { get; init; }
@@ -123,7 +123,7 @@ public record OrderCancelledEvent(
     string Reason) : IEvent, IMessage
 {
     public Guid MessageId { get; init; } = Guid.NewGuid();
-    public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+    public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
     public string? CorrelationId { get; init; }
     public string? CausationId { get; init; }
     public Dictionary<string, object>? Metadata { get; init; }

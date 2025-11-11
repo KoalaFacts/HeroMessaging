@@ -88,13 +88,13 @@ public class PipelineTests : IAsyncDisposable
             .Select(i => TestMessageBuilder.CreateValidMessage($"High throughput message {i}"))
             .ToArray();
 
-        var startTime = DateTime.UtcNow;
+        var startTime = DateTimeOffset.UtcNow;
 
         // Act
         var processingTasks = messages.Select(msg => pipeline.ProcessMessageAsync(msg)).ToArray();
         var results = await Task.WhenAll(processingTasks);
 
-        var endTime = DateTime.UtcNow;
+        var endTime = DateTimeOffset.UtcNow;
         var totalDuration = endTime - startTime;
 
         // Assert
@@ -458,7 +458,7 @@ public class PipelineTests : IAsyncDisposable
 
         public async Task<PipelineResult> ProcessMessageAsync(IMessage message)
         {
-            var startTime = DateTime.UtcNow;
+            var startTime = DateTimeOffset.UtcNow;
 
             // Implement retry logic if enabled
             if (_includeRetry)
@@ -538,7 +538,7 @@ public class PipelineTests : IAsyncDisposable
                     _storage[message.MessageId] = message;
                 }
 
-                var duration = DateTime.UtcNow - startTime;
+                var duration = DateTimeOffset.UtcNow - startTime;
 
                 RecordMetric("pipeline.messages.processed", 1);
                 RecordMetric("pipeline.processing.latency_ms", duration.TotalMilliseconds);
@@ -555,7 +555,7 @@ public class PipelineTests : IAsyncDisposable
             }
             catch (Exception ex)
             {
-                var duration = DateTime.UtcNow - startTime;
+                var duration = DateTimeOffset.UtcNow - startTime;
                 RecordMetric("pipeline.messages.failed", 1);
 
                 return new PipelineResult
@@ -686,12 +686,12 @@ public class PipelineTests : IAsyncDisposable
                     {
                         Name = name,
                         Value = 0,
-                        Timestamp = DateTime.UtcNow
+                        Timestamp = DateTimeOffset.UtcNow
                     };
                     _metrics[name] = metric;
                 }
 
-                metric.Timestamp = DateTime.UtcNow;
+                metric.Timestamp = DateTimeOffset.UtcNow;
                 metric.Value = IsCounterMetric(name) ? metric.Value + value : value;
             }
         }
@@ -742,7 +742,7 @@ public class PipelineTests : IAsyncDisposable
     {
         public string Name { get; set; } = "";
         public double Value { get; set; }
-        public DateTime Timestamp { get; set; }
+        public DateTimeOffset Timestamp { get; set; }
     }
 
     private class HealthReport

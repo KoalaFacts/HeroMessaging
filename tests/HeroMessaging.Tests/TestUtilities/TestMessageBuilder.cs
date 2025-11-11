@@ -16,13 +16,13 @@ public static class TestMessageBuilder
     {
         return new TestMessage(
             messageId: Guid.NewGuid(),
-            timestamp: DateTime.UtcNow,
+            timestamp: DateTimeOffset.UtcNow,
             correlationId: correlationId,
             causationId: causationId,
             content: content,
             metadata: new Dictionary<string, object>
             {
-                ["TestCreated"] = DateTime.UtcNow,
+                ["TestCreated"] = DateTimeOffset.UtcNow,
                 ["TestEnvironment"] = "Unit"
             }
         );
@@ -47,7 +47,7 @@ public static class TestMessageBuilder
     {
         return new TestMessage(
             messageId: Guid.NewGuid(),
-            timestamp: DateTime.UtcNow,
+            timestamp: DateTimeOffset.UtcNow,
             correlationId: null,
             causationId: null,
             content: new string('x', contentSize),
@@ -87,7 +87,7 @@ public class TestMessage : IMessage
     }
 
     public Guid MessageId { get; set; }
-    public DateTime Timestamp { get; set; }
+    public DateTimeOffset Timestamp { get; set; }
     public string? CorrelationId { get; set; }
     public string? CausationId { get; set; }
     public Dictionary<string, object>? Metadata { get; set; }

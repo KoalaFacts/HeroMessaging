@@ -27,7 +27,7 @@ internal class PackageValidation
     {
         var results = new PackageValidationResults
         {
-            StartTime = DateTime.UtcNow,
+            StartTime = DateTimeOffset.UtcNow,
             PackageDirectory = packageDirectory
         };
 
@@ -85,7 +85,7 @@ internal class PackageValidation
         }
         finally
         {
-            results.EndTime = DateTime.UtcNow;
+            results.EndTime = DateTimeOffset.UtcNow;
             results.Duration = results.EndTime - results.StartTime;
         }
 
@@ -710,7 +710,7 @@ internal class PackageValidation
         var report = new List<string>
         {
             "# Package Validation Report",
-            $"Generated: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC",
+            $"Generated: {DateTimeOffset.UtcNow:yyyy-MM-dd HH:mm:ss} UTC",
             $"Total Packages: {results.TotalPackagesFound}",
             $"Valid Packages: {results.ValidPackagesCount}",
             $"Invalid Packages: {results.InvalidPackagesCount}",

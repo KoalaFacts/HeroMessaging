@@ -83,7 +83,7 @@ public sealed class InMemoryInboxStorageTests
         // Arrange
         var message = new TestMessage { MessageId = Guid.NewGuid(), Content = "Timestamped" };
         var options = new InboxOptions();
-        var expectedTime = _timeProvider.GetUtcNow().DateTime;
+        var expectedTime = _timeProvider.GetUtcNow();
 
         // Act
         var entry = await _storage.AddAsync(message, options);
@@ -229,7 +229,7 @@ public sealed class InMemoryInboxStorageTests
         await _storage.AddAsync(message, new InboxOptions());
 
         _timeProvider.Advance(TimeSpan.FromMinutes(5));
-        var expectedProcessedAt = _timeProvider.GetUtcNow().DateTime;
+        var expectedProcessedAt = _timeProvider.GetUtcNow();
 
         // Act
         await _storage.MarkProcessedAsync(message.MessageId.ToString());
@@ -461,7 +461,7 @@ public sealed class InMemoryInboxStorageTests
         var recent = new TestMessage { MessageId = Guid.NewGuid(), Content = "Recent" };
         await _storage.AddAsync(recent, new InboxOptions());
 
-        var cutoff = _timeProvider.GetUtcNow().DateTime.AddHours(-1);
+        var cutoff = _timeProvider.GetUtcNow().AddHours(-1);
         var query = new InboxQuery
         {
             OlderThan = cutoff,
@@ -488,7 +488,7 @@ public sealed class InMemoryInboxStorageTests
         await _storage.AddAsync(recent1, new InboxOptions());
         await _storage.AddAsync(recent2, new InboxOptions());
 
-        var cutoff = _timeProvider.GetUtcNow().DateTime.AddHours(-1);
+        var cutoff = _timeProvider.GetUtcNow().AddHours(-1);
         var query = new InboxQuery
         {
             NewerThan = cutoff,
@@ -636,8 +636,8 @@ public sealed class InMemoryInboxStorageTests
         await _storage.AddAsync(recent, new InboxOptions());
 
         // Define time window boundaries
-        var olderThanCutoff = _timeProvider.GetUtcNow().DateTime.AddHours(-0.5); // Excludes recent
-        var newerThanCutoff = _timeProvider.GetUtcNow().DateTime.AddHours(-2); // Includes middle and recent
+        var olderThanCutoff = _timeProvider.GetUtcNow().AddHours(-0.5); // Excludes recent
+        var newerThanCutoff = _timeProvider.GetUtcNow().AddHours(-2); // Includes middle and recent
 
         var query = new InboxQuery
         {
@@ -694,7 +694,7 @@ public sealed class InMemoryInboxStorageTests
         _timeProvider.Advance(windowSize);
 
         var receivedAt = (await _storage.GetAsync(message.MessageId.ToString()))!.ReceivedAt;
-        var cutoff = _timeProvider.GetUtcNow().DateTime.Subtract(windowSize);
+        var cutoff = _timeProvider.GetUtcNow().Subtract(windowSize);
 
         // Act - Check at exact boundary: receivedAt should equal cutoff
         var isDuplicate = await _storage.IsDuplicateAsync(message.MessageId.ToString(), window: windowSize);
@@ -760,7 +760,7 @@ public sealed class InMemoryInboxStorageTests
     private class TestMessage : IMessage
     {
         public Guid MessageId { get; set; }
-        public DateTime Timestamp { get; set; }
+        public DateTimeOffset Timestamp { get; set; }
         public string? CorrelationId { get; set; }
         public string? CausationId { get; set; }
         public Dictionary<string, object>? Metadata { get; set; }

@@ -23,7 +23,7 @@ public class InMemoryOutboxStorage : IOutboxStorage
             Message = message,
             Options = options,
             Status = OutboxStatus.Pending,
-            CreatedAt = _timeProvider.GetUtcNow().DateTime
+            CreatedAt = _timeProvider.GetUtcNow()
         };
 
         _entries[entry.Id] = entry;
@@ -51,7 +51,7 @@ public class InMemoryOutboxStorage : IOutboxStorage
             pending = pending.Where(e => e.Status == OutboxStatus.Pending);
         }
 
-        pending = pending.Where(e => e.NextRetryAt == null || e.NextRetryAt <= _timeProvider.GetUtcNow().DateTime);
+        pending = pending.Where(e => e.NextRetryAt == null || e.NextRetryAt <= _timeProvider.GetUtcNow());
 
         if (query.OlderThan.HasValue)
         {
@@ -75,7 +75,7 @@ public class InMemoryOutboxStorage : IOutboxStorage
     {
         var pending = _entries.Values
             .Where(e => e.Status == OutboxStatus.Pending &&
-                       (e.NextRetryAt == null || e.NextRetryAt <= _timeProvider.GetUtcNow().DateTime))
+                       (e.NextRetryAt == null || e.NextRetryAt <= _timeProvider.GetUtcNow()))
             .OrderBy(e => e.Options.Priority)
             .ThenBy(e => e.CreatedAt)
             .Take(limit);
@@ -88,7 +88,7 @@ public class InMemoryOutboxStorage : IOutboxStorage
         if (_entries.TryGetValue(entryId, out var entry))
         {
             entry.Status = OutboxStatus.Processed;
-            entry.ProcessedAt = _timeProvider.GetUtcNow().DateTime;
+            entry.ProcessedAt = _timeProvider.GetUtcNow();
             return Task.FromResult(true);
         }
 
@@ -107,7 +107,7 @@ public class InMemoryOutboxStorage : IOutboxStorage
         return Task.FromResult(false);
     }
 
-    public Task<bool> UpdateRetryCountAsync(string entryId, int retryCount, DateTime? nextRetry = null, CancellationToken cancellationToken = default)
+    public Task<bool> UpdateRetryCountAsync(string entryId, int retryCount, DateTimeOffset? nextRetry = null, CancellationToken cancellationToken = default)
     {
         if (_entries.TryGetValue(entryId, out var entry))
         {

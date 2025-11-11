@@ -104,7 +104,7 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
         {
 
             var entryId = Guid.NewGuid().ToString();
-            var now = _timeProvider.GetUtcNow().DateTime;
+            var now = _timeProvider.GetUtcNow();
 
             var sql = $"""
                 INSERT INTO {_tableName} (id, message_type, payload, destination, status, retry_count, max_retries, created_at)
@@ -196,8 +196,8 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
                 var retryCount = reader.GetInt32(5);
                 var maxRetries = reader.GetInt32(6);
                 var createdAt = reader.GetDateTime(7);
-                var processedAt = reader.IsDBNull(8) ? (DateTime?)null : reader.GetDateTime(8);
-                var nextRetryAt = reader.IsDBNull(9) ? (DateTime?)null : reader.GetDateTime(9);
+                var processedAt = reader.IsDBNull(8) ? (DateTimeOffset?)null : reader.GetDateTime(8);
+                var nextRetryAt = reader.IsDBNull(9) ? (DateTimeOffset?)null : reader.GetDateTime(9);
                 var lastError = reader.IsDBNull(10) ? null : reader.GetString(10);
 
                 var message = _jsonSerializer.DeserializeFromString<IMessage>(payload, _jsonOptionsProvider.GetOptions());
@@ -255,7 +255,7 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
             using var command = new NpgsqlCommand(sql, connection, transaction);
             command.Parameters.AddWithValue("id", entryId);
             command.Parameters.AddWithValue("status", "Processed");
-            command.Parameters.AddWithValue("processed_at", _timeProvider.GetUtcNow().DateTime);
+            command.Parameters.AddWithValue("processed_at", _timeProvider.GetUtcNow());
 
             var rowsAffected = await command.ExecuteNonQueryAsync(cancellationToken);
             return rowsAffected > 0;
@@ -282,7 +282,7 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
             using var command = new NpgsqlCommand(sql, connection, transaction);
             command.Parameters.AddWithValue("id", entryId);
             command.Parameters.AddWithValue("status", "Failed");
-            command.Parameters.AddWithValue("processed_at", _timeProvider.GetUtcNow().DateTime);
+            command.Parameters.AddWithValue("processed_at", _timeProvider.GetUtcNow());
             command.Parameters.AddWithValue("last_error", error);
 
             var rowsAffected = await command.ExecuteNonQueryAsync(cancellationToken);
@@ -293,7 +293,7 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
         }
     }
 
-    public async Task<bool> UpdateRetryCountAsync(string entryId, int retryCount, DateTime? nextRetry = null, CancellationToken cancellationToken = default)
+    public async Task<bool> UpdateRetryCountAsync(string entryId, int retryCount, DateTimeOffset? nextRetry = null, CancellationToken cancellationToken = default)
     {
         var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
         var transaction = _connectionProvider.GetTransaction();

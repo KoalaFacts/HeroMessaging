@@ -259,7 +259,7 @@ public class OpenTelemetryDecoratorTests
     private class TestMessage : IMessage
     {
         public Guid MessageId { get; set; }
-        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+        public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
         public IDictionary<string, object>? Metadata { get; set; }
     }
 }

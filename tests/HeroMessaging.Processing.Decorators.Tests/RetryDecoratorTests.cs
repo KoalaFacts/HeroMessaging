@@ -569,7 +569,7 @@ public sealed class RetryDecoratorTests
         // Arrange
         var message = new TestMessage { Content = "test" };
         var initialContext = new ProcessingContext();
-        DateTime? capturedFirstFailureTime = null;
+        DateTimeOffset? capturedFirstFailureTime = null;
         var callCount = 0;
 
         _innerProcessorMock.Setup(p => p.ProcessAsync(message, It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
@@ -798,7 +798,7 @@ public sealed class RetryDecoratorTests
     private class TestMessage : IMessage
     {
         public Guid MessageId { get; } = Guid.NewGuid();
-        public DateTime Timestamp { get; } = DateTime.UtcNow;
+        public DateTimeOffset Timestamp { get; } = DateTimeOffset.UtcNow;
         public string? CorrelationId { get; set; }
         public string? CausationId { get; set; }
         public Dictionary<string, object>? Metadata { get; set; }

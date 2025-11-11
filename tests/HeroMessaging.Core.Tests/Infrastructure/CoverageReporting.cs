@@ -30,7 +30,7 @@ internal class CoverageReporting
     {
         var results = new CoverageReportResults
         {
-            StartTime = DateTime.UtcNow,
+            StartTime = DateTimeOffset.UtcNow,
             OutputDirectory = outputDirectory
         };
 
@@ -87,7 +87,7 @@ internal class CoverageReporting
         }
         finally
         {
-            results.EndTime = DateTime.UtcNow;
+            results.EndTime = DateTimeOffset.UtcNow;
             results.Duration = results.EndTime - results.StartTime;
         }
 
@@ -167,7 +167,7 @@ internal class CoverageReporting
         var trendAnalysis = new CoverageTrendAnalysis
         {
             CurrentCoverage = currentCoverage.OverallCoverage.LinePercentage,
-            AnalysisDate = DateTime.UtcNow
+            AnalysisDate = DateTimeOffset.UtcNow
         };
 
         try
@@ -180,7 +180,7 @@ internal class CoverageReporting
             // Add current data point
             historicalData.Add(new CoverageDataPoint
             {
-                Date = DateTime.UtcNow,
+                Date = DateTimeOffset.UtcNow,
                 OverallCoverage = currentCoverage.OverallCoverage.LinePercentage,
                 AssemblyCoverages = currentCoverage.Assemblies.ToDictionary(
                     a => a.Name,
@@ -244,7 +244,7 @@ internal class CoverageReporting
     {
         var diffAnalysis = new DiffCoverageAnalysis
         {
-            AnalysisDate = DateTime.UtcNow
+            AnalysisDate = DateTimeOffset.UtcNow
         };
 
         try
@@ -496,7 +496,7 @@ internal class CoverageReporting
             "",
             $"**Overall Coverage:** {coverageData.OverallCoverage.LinePercentage:F1}%",
             $"**Branch Coverage:** {coverageData.OverallCoverage.BranchPercentage:F1}%",
-            $"**Generated:** {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC",
+            $"**Generated:** {DateTimeOffset.UtcNow:yyyy-MM-dd HH:mm:ss} UTC",
             "",
             "## Assembly Coverage",
             ""

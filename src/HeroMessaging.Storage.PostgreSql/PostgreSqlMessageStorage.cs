@@ -125,8 +125,8 @@ public class PostgreSqlMessageStorage : IMessageStorage
 
             var messageId = Guid.NewGuid().ToString();
             var expiresAt = options?.Ttl != null
-                ? _timeProvider.GetUtcNow().DateTime.Add(options.Ttl.Value)
-                : (DateTime?)null;
+                ? _timeProvider.GetUtcNow().Add(options.Ttl.Value)
+                : (DateTimeOffset?)null;
 
             var sql = $"""
                 INSERT INTO {_tableName} (id, message_type, payload, timestamp, correlation_id, collection, metadata, expires_at, created_at)
@@ -144,7 +144,7 @@ public class PostgreSqlMessageStorage : IMessageStorage
                 ? _jsonSerializer.SerializeToString(options.Metadata, _jsonOptions)
                 : DBNull.Value);
             command.Parameters.AddWithValue("expires_at", (object?)expiresAt ?? DBNull.Value);
-            command.Parameters.AddWithValue("created_at", _timeProvider.GetUtcNow().DateTime);
+            command.Parameters.AddWithValue("created_at", _timeProvider.GetUtcNow());
 
             await command.ExecuteNonQueryAsync(cancellationToken);
             return messageId;
@@ -435,7 +435,7 @@ public class PostgreSqlMessageStorage : IMessageStorage
             command.Parameters.AddWithValue("payload", _jsonSerializer.SerializeToString(message, messageType, _jsonOptions));
             command.Parameters.AddWithValue("timestamp", message.Timestamp);
             command.Parameters.AddWithValue("correlation_id", (object?)message.CorrelationId ?? DBNull.Value);
-            command.Parameters.AddWithValue("created_at", _timeProvider.GetUtcNow().DateTime);
+            command.Parameters.AddWithValue("created_at", _timeProvider.GetUtcNow());
 
             await command.ExecuteNonQueryAsync(cancellationToken);
         }

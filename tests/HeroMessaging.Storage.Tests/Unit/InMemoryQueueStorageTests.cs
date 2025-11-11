@@ -106,7 +106,7 @@ public sealed class InMemoryQueueStorageTests
         Assert.NotNull(entry);
         Assert.NotNull(entry.Id);
         Assert.Equal(message, entry.Message);
-        Assert.Equal(_timeProvider.GetUtcNow().DateTime, entry.EnqueuedAt);
+        Assert.Equal(_timeProvider.GetUtcNow(), entry.EnqueuedAt);
     }
 
     [Fact]
@@ -120,7 +120,7 @@ public sealed class InMemoryQueueStorageTests
         var entry = await _storage.EnqueueAsync("test-queue", message, options);
 
         // Assert
-        Assert.Equal(_timeProvider.GetUtcNow().DateTime.AddMinutes(5), entry.VisibleAt);
+        Assert.Equal(_timeProvider.GetUtcNow().AddMinutes(5), entry.VisibleAt);
     }
 
     [Fact]
@@ -148,7 +148,7 @@ public sealed class InMemoryQueueStorageTests
 
         // Assert
         Assert.NotNull(entry.Options);
-        Assert.Equal(_timeProvider.GetUtcNow().DateTime, entry.VisibleAt);
+        Assert.Equal(_timeProvider.GetUtcNow(), entry.VisibleAt);
     }
 
     #endregion
@@ -243,7 +243,7 @@ public sealed class InMemoryQueueStorageTests
 
         // Assert
         Assert.NotNull(entry);
-        Assert.Equal(_timeProvider.GetUtcNow().DateTime.AddMinutes(2), entry.VisibleAt);
+        Assert.Equal(_timeProvider.GetUtcNow().AddMinutes(2), entry.VisibleAt);
     }
 
     [Fact]
@@ -736,7 +736,7 @@ public sealed class InMemoryQueueStorageTests
     private class TestMessage : IMessage
     {
         public Guid MessageId { get; } = Guid.NewGuid();
-        public DateTime Timestamp { get; } = DateTime.UtcNow;
+        public DateTimeOffset Timestamp { get; } = DateTimeOffset.UtcNow;
         public string? CorrelationId { get; set; }
         public string? CausationId { get; set; }
         public Dictionary<string, object>? Metadata { get; set; }

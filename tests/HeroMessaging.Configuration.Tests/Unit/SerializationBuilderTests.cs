@@ -1,4 +1,3 @@
-using HeroMessaging.Abstractions.Configuration;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Serialization;
 using HeroMessaging.Configuration;
@@ -6,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Moq;
 using Xunit;
+using CompressionLevel = HeroMessaging.Abstractions.Configuration.CompressionLevel;
 
 namespace HeroMessaging.Configuration.Tests.Unit;
 
@@ -382,34 +382,44 @@ public sealed class SerializationBuilderTests
     private sealed class TestMessage : IMessage
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
-        public string MessageType { get; set; } = nameof(TestMessage);
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
         public string? CorrelationId { get; set; }
         public string? CausationId { get; set; }
-        public Dictionary<string, string> Metadata { get; set; } = new();
+        public Dictionary<string, object>? Metadata { get; set; } = new();
     }
 
     private sealed class AnotherTestMessage : IMessage
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
-        public string MessageType { get; set; } = nameof(AnotherTestMessage);
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
         public string? CorrelationId { get; set; }
         public string? CausationId { get; set; }
-        public Dictionary<string, string> Metadata { get; set; } = new();
+        public Dictionary<string, object>? Metadata { get; set; } = new();
     }
 
     private sealed class TestSerializer : IMessageSerializer
     {
-        public byte[] Serialize<T>(T message) where T : class => Array.Empty<byte>();
-        public T Deserialize<T>(byte[] data) where T : class => null!;
-        public object Deserialize(byte[] data, Type messageType) => null!;
+        public string ContentType => "application/test";
+        public ValueTask<byte[]> SerializeAsync<T>(T message, CancellationToken cancellationToken = default) => ValueTask.FromResult(Array.Empty<byte>());
+        public int Serialize<T>(T message, Span<byte> destination) => 0;
+        public bool TrySerialize<T>(T message, Span<byte> destination, out int bytesWritten) { bytesWritten = 0; return true; }
+        public int GetRequiredBufferSize<T>(T message) => 0;
+        public ValueTask<T> DeserializeAsync<T>(byte[] data, CancellationToken cancellationToken = default) where T : class => ValueTask.FromResult<T>(null!);
+        public T Deserialize<T>(ReadOnlySpan<byte> data) where T : class => null!;
+        public ValueTask<object?> DeserializeAsync(byte[] data, Type messageType, CancellationToken cancellationToken = default) => ValueTask.FromResult<object?>(null);
+        public object? Deserialize(ReadOnlySpan<byte> data, Type messageType) => null;
     }
 
     private sealed class AnotherTestSerializer : IMessageSerializer
     {
-        public byte[] Serialize<T>(T message) where T : class => Array.Empty<byte>();
-        public T Deserialize<T>(byte[] data) where T : class => null!;
-        public object Deserialize(byte[] data, Type messageType) => null!;
+        public string ContentType => "application/another";
+        public ValueTask<byte[]> SerializeAsync<T>(T message, CancellationToken cancellationToken = default) => ValueTask.FromResult(Array.Empty<byte>());
+        public int Serialize<T>(T message, Span<byte> destination) => 0;
+        public bool TrySerialize<T>(T message, Span<byte> destination, out int bytesWritten) { bytesWritten = 0; return true; }
+        public int GetRequiredBufferSize<T>(T message) => 0;
+        public ValueTask<T> DeserializeAsync<T>(byte[] data, CancellationToken cancellationToken = default) where T : class => ValueTask.FromResult<T>(null!);
+        public T Deserialize<T>(ReadOnlySpan<byte> data) where T : class => null!;
+        public ValueTask<object?> DeserializeAsync(byte[] data, Type messageType, CancellationToken cancellationToken = default) => ValueTask.FromResult<object?>(null);
+        public object? Deserialize(ReadOnlySpan<byte> data, Type messageType) => null;
     }
 }

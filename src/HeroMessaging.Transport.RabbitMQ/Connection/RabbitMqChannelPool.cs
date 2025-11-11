@@ -208,14 +208,14 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
 
         public IChannel Channel { get; }
         public bool IsHealthy => Channel.IsOpen && !_disposed;
-        public bool IsExpired => (_timeProvider.GetUtcNow().DateTime - _created) > _lifetime;
+        public bool IsExpired => (_timeProvider.GetUtcNow() - _created) > _lifetime;
 
         public PooledChannel(IChannel channel, TimeSpan lifetime, TimeProvider timeProvider)
         {
             Channel = channel;
             _lifetime = lifetime;
             _timeProvider = timeProvider;
-            _created = _timeProvider.GetUtcNow().DateTime;
+            _created = _timeProvider.GetUtcNow();
         }
 
         public void Dispose()

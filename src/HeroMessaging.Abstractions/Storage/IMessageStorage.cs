@@ -57,8 +57,8 @@ public class MessageStorageOptions
 public class MessageQuery
 {
     public string? Collection { get; set; }
-    public DateTime? FromTimestamp { get; set; }
-    public DateTime? ToTimestamp { get; set; }
+    public DateTimeOffset? FromTimestamp { get; set; }
+    public DateTimeOffset? ToTimestamp { get; set; }
     public Dictionary<string, object>? MetadataFilters { get; set; }
     public int? Limit { get; set; }
     public int? Offset { get; set; }

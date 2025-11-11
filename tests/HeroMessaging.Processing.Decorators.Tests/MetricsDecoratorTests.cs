@@ -392,7 +392,7 @@ public sealed class MetricsDecoratorTests
     private class TestMessage : IMessage
     {
         public Guid MessageId { get; } = Guid.NewGuid();
-        public DateTime Timestamp { get; } = DateTime.UtcNow;
+        public DateTimeOffset Timestamp { get; } = DateTimeOffset.UtcNow;
         public string? CorrelationId { get; set; }
         public string? CausationId { get; set; }
         public Dictionary<string, object>? Metadata { get; set; }
@@ -402,7 +402,7 @@ public sealed class MetricsDecoratorTests
     private class AnotherTestMessage : IMessage
     {
         public Guid MessageId { get; } = Guid.NewGuid();
-        public DateTime Timestamp { get; } = DateTime.UtcNow;
+        public DateTimeOffset Timestamp { get; } = DateTimeOffset.UtcNow;
         public string? CorrelationId { get; set; }
         public string? CausationId { get; set; }
         public Dictionary<string, object>? Metadata { get; set; }

@@ -39,8 +39,8 @@ public class SagaTimeoutHandlerTests
             CorrelationId = Guid.NewGuid(),
             CurrentState = "Processing",
             Data = "test",
-            UpdatedAt = DateTime.UtcNow.AddHours(-2), // 2 hours old
-            CreatedAt = DateTime.UtcNow.AddHours(-2),
+            UpdatedAt = DateTimeOffset.UtcNow.AddHours(-2), // 2 hours old
+            CreatedAt = DateTimeOffset.UtcNow.AddHours(-2),
             IsCompleted = false,
             Version = 0
         };
@@ -52,9 +52,9 @@ public class SagaTimeoutHandlerTests
         var handlerTask = handler.StartAsync(cts.Token);
 
         // Poll for the timeout to be processed (with timeout)
-        var pollTimeout = DateTime.UtcNow.AddSeconds(5);
+        var pollTimeout = DateTimeOffset.UtcNow.AddSeconds(5);
         TestSaga? updatedSaga = null;
-        while (DateTime.UtcNow < pollTimeout)
+        while (DateTimeOffset.UtcNow < pollTimeout)
         {
             updatedSaga = await repository.FindAsync(staleSaga.CorrelationId);
             if (updatedSaga?.CurrentState == "TimedOut")
@@ -110,8 +110,8 @@ public class SagaTimeoutHandlerTests
         {
             CorrelationId = Guid.NewGuid(),
             CurrentState = "Completed",
-            UpdatedAt = DateTime.UtcNow.AddHours(-2),
-            CreatedAt = DateTime.UtcNow.AddHours(-2),
+            UpdatedAt = DateTimeOffset.UtcNow.AddHours(-2),
+            CreatedAt = DateTimeOffset.UtcNow.AddHours(-2),
             IsCompleted = true, // Already completed
             Version = 0
         };
@@ -168,8 +168,8 @@ public class SagaTimeoutHandlerTests
         {
             CorrelationId = Guid.NewGuid(),
             CurrentState = "Processing",
-            UpdatedAt = DateTime.UtcNow.AddMinutes(-5), // Only 5 minutes old
-            CreatedAt = DateTime.UtcNow.AddMinutes(-5),
+            UpdatedAt = DateTimeOffset.UtcNow.AddMinutes(-5), // Only 5 minutes old
+            CreatedAt = DateTimeOffset.UtcNow.AddMinutes(-5),
             IsCompleted = false,
             Version = 0
         };
@@ -226,8 +226,8 @@ public class SagaTimeoutHandlerTests
         {
             CorrelationId = Guid.NewGuid(),
             CurrentState = "Processing",
-            UpdatedAt = DateTime.UtcNow.AddHours(-2),
-            CreatedAt = DateTime.UtcNow.AddHours(-2),
+            UpdatedAt = DateTimeOffset.UtcNow.AddHours(-2),
+            CreatedAt = DateTimeOffset.UtcNow.AddHours(-2),
             Version = 0
         };
 
@@ -235,8 +235,8 @@ public class SagaTimeoutHandlerTests
         {
             CorrelationId = Guid.NewGuid(),
             CurrentState = "AwaitingPayment",
-            UpdatedAt = DateTime.UtcNow.AddHours(-3),
-            CreatedAt = DateTime.UtcNow.AddHours(-3),
+            UpdatedAt = DateTimeOffset.UtcNow.AddHours(-3),
+            CreatedAt = DateTimeOffset.UtcNow.AddHours(-3),
             Version = 0
         };
 
@@ -244,8 +244,8 @@ public class SagaTimeoutHandlerTests
         {
             CorrelationId = Guid.NewGuid(),
             CurrentState = "AwaitingInventory",
-            UpdatedAt = DateTime.UtcNow.AddHours(-4),
-            CreatedAt = DateTime.UtcNow.AddHours(-4),
+            UpdatedAt = DateTimeOffset.UtcNow.AddHours(-4),
+            CreatedAt = DateTimeOffset.UtcNow.AddHours(-4),
             Version = 0
         };
 
@@ -258,8 +258,8 @@ public class SagaTimeoutHandlerTests
         var handlerTask = handler.StartAsync(cts.Token);
 
         // Poll for all sagas to be timed out (with timeout)
-        var pollTimeout = DateTime.UtcNow.AddSeconds(5);
-        while (DateTime.UtcNow < pollTimeout)
+        var pollTimeout = DateTimeOffset.UtcNow.AddSeconds(5);
+        while (DateTimeOffset.UtcNow < pollTimeout)
         {
             var updated1 = await repository.FindAsync(saga1.CorrelationId);
             var updated2 = await repository.FindAsync(saga2.CorrelationId);

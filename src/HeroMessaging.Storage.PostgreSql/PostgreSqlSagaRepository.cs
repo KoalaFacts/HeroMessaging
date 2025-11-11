@@ -243,7 +243,7 @@ public class PostgreSqlSagaRepository<TSaga> : ISagaRepository<TSaga>, IDisposab
         await EnsureInitializedAsync(cancellationToken);
 
         // Set timestamps for new saga
-        var now = _timeProvider.GetUtcNow().DateTime;
+        var now = _timeProvider.GetUtcNow();
         saga.CreatedAt = now;
         saga.UpdatedAt = now;
 
@@ -341,7 +341,7 @@ public class PostgreSqlSagaRepository<TSaga> : ISagaRepository<TSaga>, IDisposab
 
             // Increment version and update timestamp
             saga.Version++;
-            saga.UpdatedAt = _timeProvider.GetUtcNow().DateTime;
+            saga.UpdatedAt = _timeProvider.GetUtcNow();
 
             // Update saga
             var updateSql = $"""
@@ -420,7 +420,7 @@ public class PostgreSqlSagaRepository<TSaga> : ISagaRepository<TSaga>, IDisposab
         using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
 
-        var cutoffTime = _timeProvider.GetUtcNow().DateTime - olderThan;
+        var cutoffTime = _timeProvider.GetUtcNow() - olderThan;
 
         var sql = $"""
             SELECT saga_data

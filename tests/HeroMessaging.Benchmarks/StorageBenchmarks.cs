@@ -26,7 +26,7 @@ public class StorageBenchmarks
         {
             MessageId = Guid.NewGuid(),
             CorrelationId = Guid.NewGuid().ToString(),
-            Timestamp = DateTime.UtcNow
+            Timestamp = DateTimeOffset.UtcNow
         };
     }
 
@@ -50,7 +50,7 @@ public class StorageBenchmarks
         {
             MessageId = id,
             CorrelationId = Guid.NewGuid().ToString(),
-            Timestamp = DateTime.UtcNow
+            Timestamp = DateTimeOffset.UtcNow
         };
         await _messageStorage.StoreAsync(message);
         await _messageStorage.RetrieveAsync<IMessage>(id.ToString());
@@ -69,7 +69,7 @@ public class StorageBenchmarks
             {
                 MessageId = Guid.NewGuid(),
                 CorrelationId = Guid.NewGuid().ToString(),
-                Timestamp = DateTime.UtcNow
+                Timestamp = DateTimeOffset.UtcNow
             };
             await _messageStorage.StoreAsync(message);
         }
@@ -81,7 +81,7 @@ public class TestMessage : IMessage
 {
     public Guid MessageId { get; set; } = Guid.NewGuid();
     public string? CorrelationId { get; set; } = string.Empty;
-    public DateTime Timestamp { get; set; }
+    public DateTimeOffset Timestamp { get; set; }
     public string? CausationId { get; set; }
     public Dictionary<string, object>? Metadata { get; set; }
 }

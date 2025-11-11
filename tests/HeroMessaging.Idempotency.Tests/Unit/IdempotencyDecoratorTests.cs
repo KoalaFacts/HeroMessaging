@@ -67,8 +67,8 @@ public sealed class IdempotencyDecoratorTests
             IdempotencyKey = idempotencyKey,
             SuccessResult = cachedData,
             Status = IdempotencyStatus.Success,
-            StoredAt = DateTime.UtcNow,
-            ExpiresAt = DateTime.UtcNow.AddHours(1)
+            StoredAt = DateTimeOffset.UtcNow,
+            ExpiresAt = DateTimeOffset.UtcNow.AddHours(1)
         };
 
         _storeMock
@@ -104,8 +104,8 @@ public sealed class IdempotencyDecoratorTests
             FailureType = typeof(InvalidOperationException).FullName,
             FailureMessage = "Cached error",
             Status = IdempotencyStatus.Failure,
-            StoredAt = DateTime.UtcNow,
-            ExpiresAt = DateTime.UtcNow.AddMinutes(10)
+            StoredAt = DateTimeOffset.UtcNow,
+            ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(10)
         };
 
         _storeMock
@@ -433,8 +433,8 @@ public sealed class IdempotencyDecoratorTests
             FailureMessage = "Invalid argument",
             FailureStackTrace = null,
             Status = IdempotencyStatus.Failure,
-            StoredAt = DateTime.UtcNow,
-            ExpiresAt = DateTime.UtcNow.AddMinutes(10)
+            StoredAt = DateTimeOffset.UtcNow,
+            ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(10)
         };
 
         _storeMock
@@ -469,8 +469,8 @@ public sealed class IdempotencyDecoratorTests
             FailureType = "NonExistent.Exception.Type",
             FailureMessage = "Unknown error",
             Status = IdempotencyStatus.Failure,
-            StoredAt = DateTime.UtcNow,
-            ExpiresAt = DateTime.UtcNow.AddMinutes(10)
+            StoredAt = DateTimeOffset.UtcNow,
+            ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(10)
         };
 
         _storeMock

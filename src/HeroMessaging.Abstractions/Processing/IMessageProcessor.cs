@@ -44,7 +44,7 @@ public readonly record struct ProcessingContext
     public object? Handler { get; init; }
     public Type? HandlerType { get; init; }
     public int RetryCount { get; init; }
-    public DateTime? FirstFailureTime { get; init; }
+    public DateTimeOffset? FirstFailureTime { get; init; }
     public ImmutableDictionary<string, object> Metadata { get; init; } = ImmutableDictionary<string, object>.Empty;
 
     public ProcessingContext WithMetadata(string key, object value)
@@ -52,7 +52,7 @@ public readonly record struct ProcessingContext
         return this with { Metadata = Metadata.SetItem(key, value) };
     }
 
-    public ProcessingContext WithRetry(int retryCount, DateTime? firstFailureTime = null)
+    public ProcessingContext WithRetry(int retryCount, DateTimeOffset? firstFailureTime = null)
     {
         return this with
         {

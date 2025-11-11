@@ -125,7 +125,7 @@ public class PostgreSqlQueueStorage : IQueueStorage
         {
 
             var entryId = Guid.NewGuid().ToString();
-            var now = _timeProvider.GetUtcNow().DateTime;
+            var now = _timeProvider.GetUtcNow();
             var visibleAt = options?.Delay.HasValue == true
                 ? now.Add(options.Delay.Value)
                 : now;
@@ -170,7 +170,7 @@ public class PostgreSqlQueueStorage : IQueueStorage
         try
         {
 
-            var now = _timeProvider.GetUtcNow().DateTime;
+            var now = _timeProvider.GetUtcNow();
 
             // Use a transaction to ensure atomic dequeue
             var localTransaction = transaction ?? await connection.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
@@ -205,7 +205,7 @@ public class PostgreSqlQueueStorage : IQueueStorage
                 var payload = reader.GetString(2);
                 var priority = reader.GetInt32(3);
                 var enqueuedAt = reader.GetDateTime(4);
-                var visibleAt = reader.IsDBNull(5) ? (DateTime?)null : reader.GetDateTime(5);
+                var visibleAt = reader.IsDBNull(5) ? (DateTimeOffset?)null : reader.GetDateTime(5);
                 var dequeueCount = reader.GetInt32(6);
                 var delayMinutes = reader.IsDBNull(7) ? (int?)null : reader.GetInt32(7);
 
@@ -262,7 +262,7 @@ public class PostgreSqlQueueStorage : IQueueStorage
         try
         {
 
-            var now = _timeProvider.GetUtcNow().DateTime;
+            var now = _timeProvider.GetUtcNow();
 
             var sql = $"""
                 SELECT id, message_type, payload, priority, enqueued_at, visible_at, dequeue_count, delay_minutes
@@ -288,7 +288,7 @@ public class PostgreSqlQueueStorage : IQueueStorage
                 var payload = reader.GetString(2);
                 var priority = reader.GetInt32(3);
                 var enqueuedAt = reader.GetDateTime(4);
-                var visibleAt = reader.IsDBNull(5) ? (DateTime?)null : reader.GetDateTime(5);
+                var visibleAt = reader.IsDBNull(5) ? (DateTimeOffset?)null : reader.GetDateTime(5);
                 var dequeueCount = reader.GetInt32(6);
                 var delayMinutes = reader.IsDBNull(7) ? (int?)null : reader.GetInt32(7);
 
@@ -362,7 +362,7 @@ public class PostgreSqlQueueStorage : IQueueStorage
                 using var command = new NpgsqlCommand(sql, connection, transaction);
                 command.Parameters.AddWithValue("id", entryId);
                 command.Parameters.AddWithValue("queue_name", queueName);
-                command.Parameters.AddWithValue("now", _timeProvider.GetUtcNow().DateTime);
+                command.Parameters.AddWithValue("now", _timeProvider.GetUtcNow());
 
                 var rowsAffected = await command.ExecuteNonQueryAsync(cancellationToken);
                 return rowsAffected > 0;

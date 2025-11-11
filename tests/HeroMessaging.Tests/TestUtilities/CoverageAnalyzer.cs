@@ -84,7 +84,7 @@ public class CoverageAnalyzer
                 ["HeroMessaging.Serialization.Json"] = 91.3m
             },
             ExcludedPaths = _config.ExcludedPaths,
-            Timestamp = DateTime.UtcNow,
+            Timestamp = DateTimeOffset.UtcNow,
             Framework = "net8.0"
         };
     }
@@ -122,7 +122,7 @@ public class CoverageReport
     public decimal BranchCoverage { get; set; }
     public Dictionary<string, decimal> AssemblyCoverage { get; set; } = new();
     public IReadOnlyList<string> ExcludedPaths { get; set; } = Array.Empty<string>();
-    public DateTime Timestamp { get; set; }
+    public DateTimeOffset Timestamp { get; set; }
     public string Framework { get; set; } = string.Empty;
 }
 

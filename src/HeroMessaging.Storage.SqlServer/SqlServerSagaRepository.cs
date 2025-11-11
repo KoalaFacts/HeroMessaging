@@ -247,7 +247,7 @@ public class SqlServerSagaRepository<TSaga> : ISagaRepository<TSaga>, IDisposabl
         await EnsureInitializedAsync(cancellationToken);
 
         // Set timestamps for new saga
-        var now = _timeProvider.GetUtcNow().DateTime;
+        var now = _timeProvider.GetUtcNow();
         saga.CreatedAt = now;
         saga.UpdatedAt = now;
 
@@ -339,7 +339,7 @@ public class SqlServerSagaRepository<TSaga> : ISagaRepository<TSaga>, IDisposabl
 
             // Increment version and update timestamp
             saga.Version++;
-            saga.UpdatedAt = _timeProvider.GetUtcNow().DateTime;
+            saga.UpdatedAt = _timeProvider.GetUtcNow();
 
             // Update saga
             var updateSql = $"""
@@ -418,7 +418,7 @@ public class SqlServerSagaRepository<TSaga> : ISagaRepository<TSaga>, IDisposabl
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
 
-        var cutoffTime = _timeProvider.GetUtcNow().DateTime - olderThan;
+        var cutoffTime = _timeProvider.GetUtcNow() - olderThan;
 
         var sql = $"""
             SELECT TOP (1000) SagaData

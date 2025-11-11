@@ -186,7 +186,7 @@ public sealed class InMemoryMessageStorageTests
     public async Task QueryAsync_WithTimestampRange_ReturnsMessagesInRange()
     {
         // Arrange
-        var now = _timeProvider.GetUtcNow().DateTime;
+        var now = _timeProvider.GetUtcNow();
         var message1 = new TestMessage { MessageId = Guid.NewGuid(), Timestamp = now, Content = "Old" };
         var message2 = new TestMessage { MessageId = Guid.NewGuid(), Timestamp = now.AddHours(1), Content = "Recent" };
         var message3 = new TestMessage { MessageId = Guid.NewGuid(), Timestamp = now.AddHours(2), Content = "Future" };
@@ -239,7 +239,7 @@ public sealed class InMemoryMessageStorageTests
     public async Task QueryAsync_WithOrderByTimestamp_ReturnsOrderedResults()
     {
         // Arrange
-        var now = _timeProvider.GetUtcNow().DateTime;
+        var now = _timeProvider.GetUtcNow();
         var message1 = new TestMessage { MessageId = Guid.NewGuid(), Timestamp = now.AddHours(2), Content = "Latest" };
         var message2 = new TestMessage { MessageId = Guid.NewGuid(), Timestamp = now, Content = "Oldest" };
         var message3 = new TestMessage { MessageId = Guid.NewGuid(), Timestamp = now.AddHours(1), Content = "Middle" };
@@ -264,7 +264,7 @@ public sealed class InMemoryMessageStorageTests
     public async Task QueryAsync_WithDescendingOrder_ReturnsReversedResults()
     {
         // Arrange
-        var now = _timeProvider.GetUtcNow().DateTime;
+        var now = _timeProvider.GetUtcNow();
         var message1 = new TestMessage { MessageId = Guid.NewGuid(), Timestamp = now, Content = "First" };
         var message2 = new TestMessage { MessageId = Guid.NewGuid(), Timestamp = now.AddHours(1), Content = "Second" };
 
@@ -563,7 +563,7 @@ public sealed class InMemoryMessageStorageTests
     public async Task QueryAsync_WithUnrecognizedOrderBy_IgnoresOrderingAndReturnsAll()
     {
         // Arrange
-        var now = _timeProvider.GetUtcNow().DateTime;
+        var now = _timeProvider.GetUtcNow();
         var message1 = new TestMessage { MessageId = Guid.NewGuid(), Timestamp = now.AddHours(2), Content = "Latest" };
         var message2 = new TestMessage { MessageId = Guid.NewGuid(), Timestamp = now, Content = "Oldest" };
         var message3 = new TestMessage { MessageId = Guid.NewGuid(), Timestamp = now.AddHours(1), Content = "Middle" };
@@ -635,7 +635,7 @@ public sealed class InMemoryMessageStorageTests
     public async Task QueryAsync_WithNoFilters_ReturnsAllMessages()
     {
         // Arrange - Store messages with expiration but query should return all
-        var now = _timeProvider.GetUtcNow().DateTime;
+        var now = _timeProvider.GetUtcNow();
         var message1 = new TestMessage { MessageId = Guid.NewGuid(), Content = "Message1", Timestamp = now };
         var message2 = new TestMessage { MessageId = Guid.NewGuid(), Content = "Message2", Timestamp = now };
 
@@ -697,15 +697,15 @@ public sealed class InMemoryMessageStorageTests
     public async Task QueryAsync_OrderByStoredAtAscending_ReturnsCorrectly()
     {
         // Arrange
-        var message1 = new TestMessage { MessageId = Guid.NewGuid(), Content = "First", Timestamp = DateTime.UtcNow };
+        var message1 = new TestMessage { MessageId = Guid.NewGuid(), Content = "First", Timestamp = DateTimeOffset.UtcNow };
         await _storage.StoreAsync(message1);
         _timeProvider.Advance(TimeSpan.FromMilliseconds(10));
 
-        var message2 = new TestMessage { MessageId = Guid.NewGuid(), Content = "Second", Timestamp = DateTime.UtcNow };
+        var message2 = new TestMessage { MessageId = Guid.NewGuid(), Content = "Second", Timestamp = DateTimeOffset.UtcNow };
         await _storage.StoreAsync(message2);
         _timeProvider.Advance(TimeSpan.FromMilliseconds(10));
 
-        var message3 = new TestMessage { MessageId = Guid.NewGuid(), Content = "Third", Timestamp = DateTime.UtcNow };
+        var message3 = new TestMessage { MessageId = Guid.NewGuid(), Content = "Third", Timestamp = DateTimeOffset.UtcNow };
         await _storage.StoreAsync(message3);
 
         var query = new MessageQuery { OrderBy = "storedat", Ascending = true };
@@ -727,7 +727,7 @@ public sealed class InMemoryMessageStorageTests
     private class TestMessage : IMessage
     {
         public Guid MessageId { get; set; }
-        public DateTime Timestamp { get; set; }
+        public DateTimeOffset Timestamp { get; set; }
         public string? CorrelationId { get; set; }
         public string? CausationId { get; set; }
         public Dictionary<string, object>? Metadata { get; set; }
@@ -737,7 +737,7 @@ public sealed class InMemoryMessageStorageTests
     private class AnotherTestMessage : IMessage
     {
         public Guid MessageId { get; set; }
-        public DateTime Timestamp { get; set; }
+        public DateTimeOffset Timestamp { get; set; }
         public string? CorrelationId { get; set; }
         public string? CausationId { get; set; }
         public Dictionary<string, object>? Metadata { get; set; }

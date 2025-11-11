@@ -32,7 +32,7 @@ internal class TestRunner
     {
         var results = new TestExecutionResults
         {
-            StartTime = DateTime.UtcNow,
+            StartTime = DateTimeOffset.UtcNow,
             Configuration = _config
         };
 
@@ -73,7 +73,7 @@ internal class TestRunner
         finally
         {
             stopwatch.Stop();
-            results.EndTime = DateTime.UtcNow;
+            results.EndTime = DateTimeOffset.UtcNow;
             results.TotalDuration = stopwatch.Elapsed;
 
             LogMessage($"Test execution completed in {results.TotalDuration.TotalSeconds:F2}s");
@@ -102,7 +102,7 @@ internal class TestRunner
         var categoryResults = new CategoryTestResults
         {
             Category = category,
-            StartTime = DateTime.UtcNow
+            StartTime = DateTimeOffset.UtcNow
         };
 
         var stopwatch = Stopwatch.StartNew();
@@ -167,7 +167,7 @@ internal class TestRunner
         finally
         {
             stopwatch.Stop();
-            categoryResults.EndTime = DateTime.UtcNow;
+            categoryResults.EndTime = DateTimeOffset.UtcNow;
             categoryResults.Duration = stopwatch.Elapsed;
 
             LogMessage($"Completed {category} tests in {categoryResults.Duration.TotalSeconds:F2}s " +
@@ -372,7 +372,7 @@ internal class TestRunner
         var groupResults = new TestGroupResults
         {
             TestClassName = testClass.FullName ?? testClass.Name,
-            StartTime = DateTime.UtcNow
+            StartTime = DateTimeOffset.UtcNow
         };
 
         var stopwatch = Stopwatch.StartNew();
@@ -413,7 +413,7 @@ internal class TestRunner
         finally
         {
             stopwatch.Stop();
-            groupResults.EndTime = DateTime.UtcNow;
+            groupResults.EndTime = DateTimeOffset.UtcNow;
             groupResults.Duration = stopwatch.Elapsed;
         }
 
@@ -431,7 +431,7 @@ internal class TestRunner
             return new CoverageReport
             {
                 OverallCoveragePercent = 85.0, // Placeholder
-                GeneratedAt = DateTime.UtcNow,
+                GeneratedAt = DateTimeOffset.UtcNow,
                 ReportPath = Path.Combine(_config.ReportOutputPath, "coverage-report.xml")
             };
         }
@@ -491,7 +491,7 @@ internal class TestRunner
 
     private void LogMessage(string message)
     {
-        var timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
+        var timestamp = DateTimeOffset.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
         var logMessage = $"[{timestamp}] {message}";
 
         _outputHelper?.WriteLine(logMessage);

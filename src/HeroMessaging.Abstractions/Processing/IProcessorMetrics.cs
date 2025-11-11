@@ -34,7 +34,7 @@ public interface IOutboxProcessorMetrics
     long PendingMessages { get; }
     long ProcessedMessages { get; }
     long FailedMessages { get; }
-    DateTime? LastProcessedTime { get; }
+    DateTimeOffset? LastProcessedTime { get; }
 }
 
 public interface IInboxProcessorMetrics

@@ -1393,7 +1393,7 @@ public class HeroMessagingBuilderTests
     private class TestCommand : ICommand
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
-        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+        public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
         public string? CorrelationId { get; set; }
         public string? CausationId { get; set; }
         public Dictionary<string, object>? Metadata { get; set; }
@@ -1410,7 +1410,7 @@ public class HeroMessagingBuilderTests
     private class TestQuery : IQuery<string>
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
-        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+        public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
         public string? CorrelationId { get; set; }
         public string? CausationId { get; set; }
         public Dictionary<string, object>? Metadata { get; set; }

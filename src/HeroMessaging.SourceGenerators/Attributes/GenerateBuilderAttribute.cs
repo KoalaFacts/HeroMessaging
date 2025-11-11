@@ -17,7 +17,7 @@ namespace HeroMessaging.SourceGeneration;
 /// // Usage: var evt = OrderCreatedEventBuilder.New()
 /// //                      .WithOrderId("123")
 /// //                      .WithAmount(99.99m)
-/// //                      .WithCreatedAt(DateTime.UtcNow)
+/// //                      .WithCreatedAt(DateTimeOffset.UtcNow)
 /// //                      .Build();
 /// </code>
 /// </example>

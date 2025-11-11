@@ -218,13 +218,13 @@ public class RabbitMqTransportTests : IAsyncLifetime
     public async Task GetHealthAsync_HasTimestamp()
     {
         // Arrange
-        var before = DateTime.UtcNow;
+        var before = DateTimeOffset.UtcNow;
 
         // Act
         var health = await _transport!.GetHealthAsync();
 
         // Assert
-        var after = DateTime.UtcNow;
+        var after = DateTimeOffset.UtcNow;
         Assert.InRange(health.Timestamp, before, after);
     }
 

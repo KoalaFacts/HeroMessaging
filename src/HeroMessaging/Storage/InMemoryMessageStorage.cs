@@ -17,7 +17,7 @@ public class InMemoryMessageStorage : IMessageStorage
     public Task<string> StoreAsync(IMessage message, MessageStorageOptions? options = null, CancellationToken cancellationToken = default)
     {
         var id = Guid.NewGuid().ToString();
-        var now = _timeProvider.GetUtcNow().DateTime;
+        var now = _timeProvider.GetUtcNow();
         var stored = new StoredMessage
         {
             Id = id,
@@ -36,7 +36,7 @@ public class InMemoryMessageStorage : IMessageStorage
     {
         if (_messages.TryGetValue(messageId, out var stored))
         {
-            if (stored.ExpiresAt.HasValue && stored.ExpiresAt < _timeProvider.GetUtcNow().DateTime)
+            if (stored.ExpiresAt.HasValue && stored.ExpiresAt < _timeProvider.GetUtcNow())
             {
                 _messages.TryRemove(messageId, out _);
                 return Task.FromResult<T?>(default);
@@ -121,7 +121,7 @@ public class InMemoryMessageStorage : IMessageStorage
         if (_messages.TryGetValue(messageId, out var stored))
         {
             stored.Message = message;
-            stored.UpdatedAt = _timeProvider.GetUtcNow().DateTime;
+            stored.UpdatedAt = _timeProvider.GetUtcNow();
             return Task.FromResult(true);
         }
 
@@ -180,8 +180,8 @@ public class InMemoryMessageStorage : IMessageStorage
         public string Id { get; set; } = null!;
         public IMessage Message { get; set; } = null!;
         public DateTime StoredAt { get; set; }
-        public DateTime? UpdatedAt { get; set; }
-        public DateTime? ExpiresAt { get; set; }
+        public DateTimeOffset? UpdatedAt { get; set; }
+        public DateTimeOffset? ExpiresAt { get; set; }
         public string? Collection { get; set; }
         public Dictionary<string, object>? Metadata { get; set; }
     }

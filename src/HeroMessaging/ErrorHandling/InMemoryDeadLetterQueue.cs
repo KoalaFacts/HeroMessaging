@@ -18,7 +18,7 @@ public class InMemoryDeadLetterQueue(ILogger<InMemoryDeadLetterQueue> logger, Ti
             Id = Guid.NewGuid().ToString(),
             Message = message,
             Context = context,
-            CreatedAt = _timeProvider.GetUtcNow().DateTime,
+            CreatedAt = _timeProvider.GetUtcNow(),
             Status = DeadLetterStatus.Active
         };
 
@@ -50,7 +50,7 @@ public class InMemoryDeadLetterQueue(ILogger<InMemoryDeadLetterQueue> logger, Ti
                 var updatedEntry = typedEntry with
                 {
                     Status = DeadLetterStatus.Retried,
-                    RetriedAt = _timeProvider.GetUtcNow().DateTime
+                    RetriedAt = _timeProvider.GetUtcNow()
                 };
                 _deadLetters[deadLetterId] = updatedEntry;
 
@@ -71,7 +71,7 @@ public class InMemoryDeadLetterQueue(ILogger<InMemoryDeadLetterQueue> logger, Ti
                 var updatedEntry = typedEntry with
                 {
                     Status = DeadLetterStatus.Discarded,
-                    DiscardedAt = _timeProvider.GetUtcNow().DateTime
+                    DiscardedAt = _timeProvider.GetUtcNow()
                 };
                 _deadLetters[deadLetterId] = updatedEntry;
 

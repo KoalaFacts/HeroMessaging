@@ -334,7 +334,7 @@ public static partial class TestData
         else if (type == "bool" || type == "Boolean")
             return "_random.Next(0, 2) == 1";
         else if (type == "DateTime")
-            return "DateTime.UtcNow.AddDays(-_random.Next(0, 365))";
+            return "DateTimeOffset.UtcNow.AddDays(-_random.Next(0, 365))";
         else if (type == "DateTimeOffset")
             return "DateTimeOffset.UtcNow.AddDays(-_random.Next(0, 365))";
         else if (type == "Guid")
@@ -356,7 +356,7 @@ public static partial class TestData
             RandomAttributeType.Email => GenerateRandomEmail(attr),
             RandomAttributeType.Int => $"_random.Next({attr.Min}, {attr.Max} + 1)",
             RandomAttributeType.Decimal => $"Math.Round((decimal)(_random.NextDouble() * ({attr.MaxDecimal} - {attr.MinDecimal}) + {attr.MinDecimal}), {attr.DecimalPlaces})",
-            RandomAttributeType.DateTime => $"DateTime.UtcNow.AddDays(_random.Next({attr.DaysFromNow}, {attr.DaysToNow} + 1))",
+            RandomAttributeType.DateTime => $"DateTimeOffset.UtcNow.AddDays(_random.Next({attr.DaysFromNow}, {attr.DaysToNow} + 1))",
             RandomAttributeType.Guid => $"Guid.NewGuid().ToString(\"{attr.GuidFormat}\")",
             RandomAttributeType.Bool => "_random.Next(0, 2) == 1",
             RandomAttributeType.Enum => $"({prop.Type})_random.Next(0, Enum.GetValues(typeof({prop.Type})).Length)",

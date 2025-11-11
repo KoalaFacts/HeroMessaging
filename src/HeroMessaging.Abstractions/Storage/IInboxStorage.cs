@@ -29,8 +29,8 @@ public class InboxEntry
     public IMessage Message { get; set; } = null!;
     public InboxOptions Options { get; set; } = new();
     public InboxStatus Status { get; set; } = InboxStatus.Pending;
-    public DateTime ReceivedAt { get; set; } = TimeProvider.System.GetUtcNow().DateTime;
-    public DateTime? ProcessedAt { get; set; }
+    public DateTimeOffset ReceivedAt { get; set; } = TimeProvider.System.GetUtcNow();
+    public DateTimeOffset? ProcessedAt { get; set; }
     public string? Error { get; set; }
 }
 
@@ -56,6 +56,6 @@ public class InboxQuery
 {
     public InboxEntryStatus? Status { get; set; }
     public int Limit { get; set; } = 100;
-    public DateTime? OlderThan { get; set; }
-    public DateTime? NewerThan { get; set; }
+    public DateTimeOffset? OlderThan { get; set; }
+    public DateTimeOffset? NewerThan { get; set; }
 }

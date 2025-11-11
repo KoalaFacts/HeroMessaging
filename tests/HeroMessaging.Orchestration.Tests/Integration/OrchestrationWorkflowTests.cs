@@ -531,7 +531,7 @@ public class OrchestrationWorkflowTests
     private record ComplexOperationEvent(string Data, bool shouldFail) : IEvent, IMessage
     {
         public Guid MessageId { get; init; } = Guid.NewGuid();
-        public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+        public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
         public string? CorrelationId { get; init; }
         public string? CausationId { get; init; }
         public Dictionary<string, object>? Metadata { get; init; }
@@ -558,15 +558,15 @@ public class OrchestrationWorkflowTests
 
                     // Step 1: Allocate resource
                     ctx.Compensation.AddCompensation("CompensateStep1",
-                        async ct => compensationLog.Add((DateTime.UtcNow, "CompensateStep1")));
+                        async ct => compensationLog.Add((DateTimeOffset.UtcNow, "CompensateStep1")));
 
                     // Step 2: Reserve capacity
                     ctx.Compensation.AddCompensation("CompensateStep2",
-                        async ct => compensationLog.Add((DateTime.UtcNow, "CompensateStep2")));
+                        async ct => compensationLog.Add((DateTimeOffset.UtcNow, "CompensateStep2")));
 
                     // Step 3: Lock records
                     ctx.Compensation.AddCompensation("CompensateStep3",
-                        async ct => compensationLog.Add((DateTime.UtcNow, "CompensateStep3")));
+                        async ct => compensationLog.Add((DateTimeOffset.UtcNow, "CompensateStep3")));
 
                     // Simulate failure after registering compensations
                     if (ctx.Data.shouldFail)
@@ -596,7 +596,7 @@ public class OrchestrationWorkflowTests
     private record StateBasedPaymentEvent(string TransactionId) : IEvent, IMessage
     {
         public Guid MessageId { get; init; } = Guid.NewGuid();
-        public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+        public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
         public string? CorrelationId { get; init; }
         public string? CausationId { get; init; }
         public Dictionary<string, object>? Metadata { get; init; }
@@ -605,7 +605,7 @@ public class OrchestrationWorkflowTests
     private record StateBasedInventoryFailedEvent(string Reason) : IEvent, IMessage
     {
         public Guid MessageId { get; init; } = Guid.NewGuid();
-        public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+        public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
         public string? CorrelationId { get; init; }
         public string? CausationId { get; init; }
         public Dictionary<string, object>? Metadata { get; init; }

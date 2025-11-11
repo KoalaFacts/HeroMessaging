@@ -12,7 +12,7 @@ public readonly record struct MessageContext
     {
         TransportName = string.Empty;
         SourceAddress = default;
-        ReceiveTimestamp = TimeProvider.System.GetUtcNow().DateTime;
+        ReceiveTimestamp = TimeProvider.System.GetUtcNow();
         Properties = ImmutableDictionary<string, object>.Empty;
     }
 
@@ -20,7 +20,7 @@ public readonly record struct MessageContext
     {
         TransportName = transportName;
         SourceAddress = sourceAddress;
-        ReceiveTimestamp = (timeProvider ?? TimeProvider.System).GetUtcNow().DateTime;
+        ReceiveTimestamp = (timeProvider ?? TimeProvider.System).GetUtcNow();
         Properties = ImmutableDictionary<string, object>.Empty;
     }
 
@@ -37,7 +37,7 @@ public readonly record struct MessageContext
     /// <summary>
     /// When the message was received by the transport
     /// </summary>
-    public DateTime ReceiveTimestamp { get; init; }
+    public DateTimeOffset ReceiveTimestamp { get; init; }
 
     /// <summary>
     /// Transport-specific properties

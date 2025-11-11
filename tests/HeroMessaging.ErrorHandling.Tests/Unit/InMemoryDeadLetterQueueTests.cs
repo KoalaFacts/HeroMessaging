@@ -68,7 +68,7 @@ public sealed class InMemoryDeadLetterQueueTests
         // Arrange
         var message = new TestMessage { MessageId = Guid.NewGuid(), Content = "Failed" };
         var context = new DeadLetterContext { Reason = "Error" };
-        var expectedTime = _timeProvider.GetUtcNow().DateTime;
+        var expectedTime = _timeProvider.GetUtcNow();
 
         // Act
         var entryId = await _queue.SendToDeadLetterAsync(message, context);
@@ -258,7 +258,7 @@ public sealed class InMemoryDeadLetterQueueTests
         var entryId = await _queue.SendToDeadLetterAsync(message, new DeadLetterContext { Reason = "Error" });
 
         _timeProvider.Advance(TimeSpan.FromMinutes(5));
-        var expectedRetriedAt = _timeProvider.GetUtcNow().DateTime;
+        var expectedRetriedAt = _timeProvider.GetUtcNow();
 
         // Act
         await _queue.RetryAsync<TestMessage>(entryId);
@@ -590,7 +590,7 @@ public sealed class InMemoryDeadLetterQueueTests
     public async Task GetStatisticsAsync_TracksOldestAndNewestEntries()
     {
         // Arrange
-        var firstTime = _timeProvider.GetUtcNow().DateTime;
+        var firstTime = _timeProvider.GetUtcNow();
         var message1 = new TestMessage { MessageId = Guid.NewGuid(), Content = "First" };
         await _queue.SendToDeadLetterAsync(message1, new DeadLetterContext { Reason = "Error" });
 
@@ -599,7 +599,7 @@ public sealed class InMemoryDeadLetterQueueTests
         await _queue.SendToDeadLetterAsync(message2, new DeadLetterContext { Reason = "Error" });
 
         _timeProvider.Advance(TimeSpan.FromHours(2));
-        var lastTime = _timeProvider.GetUtcNow().DateTime;
+        var lastTime = _timeProvider.GetUtcNow();
         var message3 = new TestMessage { MessageId = Guid.NewGuid(), Content = "Last" };
         await _queue.SendToDeadLetterAsync(message3, new DeadLetterContext { Reason = "Error" });
 
@@ -618,7 +618,7 @@ public sealed class InMemoryDeadLetterQueueTests
     private class TestMessage : IMessage
     {
         public Guid MessageId { get; set; }
-        public DateTime Timestamp { get; set; }
+        public DateTimeOffset Timestamp { get; set; }
         public string? CorrelationId { get; set; }
         public string? CausationId { get; set; }
         public Dictionary<string, object>? Metadata { get; set; }
@@ -628,7 +628,7 @@ public sealed class InMemoryDeadLetterQueueTests
     private class AnotherTestMessage : IMessage
     {
         public Guid MessageId { get; set; }
-        public DateTime Timestamp { get; set; }
+        public DateTimeOffset Timestamp { get; set; }
         public string? CorrelationId { get; set; }
         public string? CausationId { get; set; }
         public Dictionary<string, object>? Metadata { get; set; }

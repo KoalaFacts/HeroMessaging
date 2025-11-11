@@ -14,7 +14,7 @@ public class EventTests
     private record SimpleEvent(string Value) : IEvent, IMessage
     {
         public Guid MessageId { get; init; } = Guid.NewGuid();
-        public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+        public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
         public string? CorrelationId { get; init; }
         public string? CausationId { get; init; }
         public Dictionary<string, object>? Metadata { get; init; }
@@ -23,7 +23,7 @@ public class EventTests
     private record AnotherEvent(int Number) : IEvent, IMessage
     {
         public Guid MessageId { get; init; } = Guid.NewGuid();
-        public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+        public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
         public string? CorrelationId { get; init; }
         public string? CausationId { get; init; }
         public Dictionary<string, object>? Metadata { get; init; }
@@ -33,7 +33,7 @@ public class EventTests
         : IEvent, IMessage
     {
         public Guid MessageId { get; init; } = Guid.NewGuid();
-        public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+        public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
         public string? CorrelationId { get; init; }
         public string? CausationId { get; init; }
         public Dictionary<string, object>? Metadata { get; init; }

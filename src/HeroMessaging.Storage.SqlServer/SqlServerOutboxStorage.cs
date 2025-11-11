@@ -148,7 +148,7 @@ public class SqlServerOutboxStorage : IOutboxStorage
             Options = options,
             Status = OutboxStatus.Pending,
             RetryCount = 0,
-            CreatedAt = _timeProvider.GetUtcNow().DateTime,
+            CreatedAt = _timeProvider.GetUtcNow(),
             NextRetryAt = null
         };
 
@@ -223,7 +223,7 @@ public class SqlServerOutboxStorage : IOutboxStorage
 
         using var command = new SqlCommand(sql, connection, transaction);
         command.Parameters.AddWithValue("@Limit", query.Limit);
-        command.Parameters.AddWithValue("@Now", _timeProvider.GetUtcNow().DateTime);
+        command.Parameters.AddWithValue("@Now", _timeProvider.GetUtcNow());
 
         if (query.Status.HasValue)
         {
@@ -276,7 +276,7 @@ public class SqlServerOutboxStorage : IOutboxStorage
             selectCommand.CommandTimeout = _options.CommandTimeout;
             selectCommand.Parameters.Add("@Limit", SqlDbType.Int).Value = limit;
             selectCommand.Parameters.Add("@PendingStatus", SqlDbType.Int).Value = (int)OutboxStatus.Pending;
-            selectCommand.Parameters.Add("@Now", SqlDbType.DateTime2).Value = _timeProvider.GetUtcNow().DateTime;
+            selectCommand.Parameters.Add("@Now", SqlDbType.DateTime2).Value = _timeProvider.GetUtcNow();
 
             using var reader = await selectCommand.ExecuteReaderAsync(cancellationToken);
             while (await reader.ReadAsync(cancellationToken))
@@ -347,7 +347,7 @@ public class SqlServerOutboxStorage : IOutboxStorage
         using var command = new SqlCommand(sql, connection);
         command.CommandTimeout = _options.CommandTimeout;
         command.Parameters.Add("@Status", SqlDbType.Int).Value = (int)OutboxStatus.Processed;
-        command.Parameters.Add("@ProcessedAt", SqlDbType.DateTime2).Value = _timeProvider.GetUtcNow().DateTime;
+        command.Parameters.Add("@ProcessedAt", SqlDbType.DateTime2).Value = _timeProvider.GetUtcNow();
         command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = entryId;
 
         var result = await command.ExecuteNonQueryAsync(cancellationToken);
@@ -375,7 +375,7 @@ public class SqlServerOutboxStorage : IOutboxStorage
         return result > 0;
     }
 
-    public async Task<bool> UpdateRetryCountAsync(string entryId, int retryCount, DateTime? nextRetry = null, CancellationToken cancellationToken = default)
+    public async Task<bool> UpdateRetryCountAsync(string entryId, int retryCount, DateTimeOffset? nextRetry = null, CancellationToken cancellationToken = default)
     {
         using var connection = new SqlConnection(_options.ConnectionString);
         await connection.OpenAsync(cancellationToken);

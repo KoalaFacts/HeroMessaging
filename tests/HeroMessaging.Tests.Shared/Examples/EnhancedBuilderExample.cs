@@ -25,7 +25,7 @@ public class ShoppingCartSaga : SagaBase
 public record CartCreatedEvent(string UserId, decimal TotalAmount, bool IsPremiumCustomer) : IEvent, IMessage
 {
     public Guid MessageId { get; init; } = Guid.NewGuid();
-    public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+    public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
     public string? CorrelationId { get; init; }
     public string? CausationId { get; init; }
     public Dictionary<string, object>? Metadata { get; init; }
@@ -34,7 +34,7 @@ public record CartCreatedEvent(string UserId, decimal TotalAmount, bool IsPremiu
 public record DiscountAppliedEvent(string UserId, string DiscountCode, decimal DiscountAmount) : IEvent, IMessage
 {
     public Guid MessageId { get; init; } = Guid.NewGuid();
-    public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+    public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
     public string? CorrelationId { get; init; }
     public string? CausationId { get; init; }
     public Dictionary<string, object>? Metadata { get; init; }
@@ -43,7 +43,7 @@ public record DiscountAppliedEvent(string UserId, string DiscountCode, decimal D
 public record PaymentAuthorizedEvent(string UserId, string PaymentId, decimal Amount) : IEvent, IMessage
 {
     public Guid MessageId { get; init; } = Guid.NewGuid();
-    public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+    public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
     public string? CorrelationId { get; init; }
     public string? CausationId { get; init; }
     public Dictionary<string, object>? Metadata { get; init; }
@@ -52,7 +52,7 @@ public record PaymentAuthorizedEvent(string UserId, string PaymentId, decimal Am
 public record CartPaymentFailedEvent(string UserId, string Reason) : IEvent, IMessage
 {
     public Guid MessageId { get; init; } = Guid.NewGuid();
-    public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+    public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
     public string? CorrelationId { get; init; }
     public string? CausationId { get; init; }
     public Dictionary<string, object>? Metadata { get; init; }
@@ -61,7 +61,7 @@ public record CartPaymentFailedEvent(string UserId, string Reason) : IEvent, IMe
 public record CartCompletedEvent(string UserId, string PaymentId) : IEvent, IMessage
 {
     public Guid MessageId { get; init; } = Guid.NewGuid();
-    public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+    public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
     public string? CorrelationId { get; init; }
     public string? CausationId { get; init; }
     public Dictionary<string, object>? Metadata { get; init; }
@@ -259,7 +259,7 @@ public static class AdvancedBuilderExample
                     {
                         ctx.Instance.CurrentState = "Completed";
                     }
-                    ctx.Instance.UpdatedAt = DateTime.UtcNow;
+                    ctx.Instance.UpdatedAt = DateTimeOffset.UtcNow;
                 });
 
         return builder.Build();

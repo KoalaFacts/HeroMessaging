@@ -46,14 +46,14 @@ public class MessageStorageHealthCheck(IMessageStorage storage, TimeProvider tim
     private class TestMessage : IMessage
     {
         public Guid MessageId { get; } = Guid.NewGuid();
-        public DateTime Timestamp { get; }
+        public DateTimeOffset Timestamp { get; }
         public string? CorrelationId { get; }
         public string? CausationId { get; }
         public Dictionary<string, object>? Metadata { get; }
 
         public TestMessage(TimeProvider timeProvider)
         {
-            Timestamp = timeProvider.GetUtcNow().DateTime;
+            Timestamp = timeProvider.GetUtcNow();
         }
     }
 }

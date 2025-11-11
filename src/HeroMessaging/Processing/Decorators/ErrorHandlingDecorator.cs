@@ -65,8 +65,8 @@ public class ErrorHandlingDecorator(
                     RetryCount = retryCount,
                     MaxRetries = _maxRetries,
                     Component = context.Component,
-                    FirstFailureTime = context.FirstFailureTime ?? _timeProvider.GetUtcNow().DateTime,
-                    LastFailureTime = _timeProvider.GetUtcNow().DateTime,
+                    FirstFailureTime = context.FirstFailureTime ?? _timeProvider.GetUtcNow(),
+                    LastFailureTime = _timeProvider.GetUtcNow(),
                     Metadata = context.Metadata.ToDictionary(kvp => kvp.Key, kvp => kvp.Value)
                 };
 

@@ -32,7 +32,7 @@ public class InMemoryInboxStorage : IInboxStorage
             Message = message,
             Options = options,
             Status = InboxStatus.Pending,
-            ReceivedAt = _timeProvider.GetUtcNow().DateTime
+            ReceivedAt = _timeProvider.GetUtcNow()
         };
 
         _entries[messageId] = entry;
@@ -45,7 +45,7 @@ public class InMemoryInboxStorage : IInboxStorage
         {
             if (window.HasValue)
             {
-                var cutoff = _timeProvider.GetUtcNow().DateTime.Subtract(window.Value);
+                var cutoff = _timeProvider.GetUtcNow().Subtract(window.Value);
                 return Task.FromResult(entry.ReceivedAt >= cutoff);
             }
 
@@ -66,7 +66,7 @@ public class InMemoryInboxStorage : IInboxStorage
         if (_entries.TryGetValue(messageId, out var entry))
         {
             entry.Status = InboxStatus.Processed;
-            entry.ProcessedAt = _timeProvider.GetUtcNow().DateTime;
+            entry.ProcessedAt = _timeProvider.GetUtcNow();
             return Task.FromResult(true);
         }
 
@@ -142,7 +142,7 @@ public class InMemoryInboxStorage : IInboxStorage
 
     public Task CleanupOldEntriesAsync(TimeSpan olderThan, CancellationToken cancellationToken = default)
     {
-        var cutoff = _timeProvider.GetUtcNow().DateTime.Subtract(olderThan);
+        var cutoff = _timeProvider.GetUtcNow().Subtract(olderThan);
         var toRemove = _entries
             .Where(kvp => kvp.Value.ReceivedAt < cutoff &&
                          kvp.Value.Status == InboxStatus.Processed)

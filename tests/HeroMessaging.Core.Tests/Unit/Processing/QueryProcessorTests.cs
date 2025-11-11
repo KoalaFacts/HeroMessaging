@@ -607,7 +607,7 @@ public sealed class QueryProcessorTests
     public class TestQuery : IQuery<string>
     {
         public Guid MessageId { get; } = Guid.NewGuid();
-        public DateTime Timestamp { get; } = DateTime.UtcNow;
+        public DateTimeOffset Timestamp { get; } = DateTimeOffset.UtcNow;
         public string? CorrelationId { get; set; }
         public string? CausationId { get; set; }
         public Dictionary<string, object>? Metadata { get; set; }
@@ -617,7 +617,7 @@ public sealed class QueryProcessorTests
     public class TestComplexQuery : IQuery<QueryResult>
     {
         public Guid MessageId { get; } = Guid.NewGuid();
-        public DateTime Timestamp { get; } = DateTime.UtcNow;
+        public DateTimeOffset Timestamp { get; } = DateTimeOffset.UtcNow;
         public string? CorrelationId { get; set; }
         public string? CausationId { get; set; }
         public Dictionary<string, object>? Metadata { get; set; }
@@ -633,7 +633,7 @@ public sealed class QueryProcessorTests
     public class IntQueryTest : IQuery<int>
     {
         public Guid MessageId { get; } = Guid.NewGuid();
-        public DateTime Timestamp { get; } = DateTime.UtcNow;
+        public DateTimeOffset Timestamp { get; } = DateTimeOffset.UtcNow;
         public string? CorrelationId { get; set; }
         public string? CausationId { get; set; }
         public Dictionary<string, object>? Metadata { get; set; }
@@ -642,7 +642,7 @@ public sealed class QueryProcessorTests
     public class BoolQueryTest : IQuery<bool>
     {
         public Guid MessageId { get; } = Guid.NewGuid();
-        public DateTime Timestamp { get; } = DateTime.UtcNow;
+        public DateTimeOffset Timestamp { get; } = DateTimeOffset.UtcNow;
         public string? CorrelationId { get; set; }
         public string? CausationId { get; set; }
         public Dictionary<string, object>? Metadata { get; set; }

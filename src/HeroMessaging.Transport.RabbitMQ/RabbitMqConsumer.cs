@@ -212,7 +212,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
             {
                 TransportName = _transport.Name,
                 SourceAddress = Source,
-                ReceiveTimestamp = DateTime.UtcNow,
+                ReceiveTimestamp = DateTimeOffset.UtcNow,
                 Properties = new Dictionary<string, object>
                 {
                     ["DeliveryTag"] = ea.DeliveryTag,

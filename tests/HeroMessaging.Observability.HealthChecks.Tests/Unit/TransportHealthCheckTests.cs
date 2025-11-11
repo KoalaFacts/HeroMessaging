@@ -102,7 +102,7 @@ public class TransportHealthCheckTests
             State = TransportState.Faulted,
             StatusMessage = "Connection failed",
             LastError = "Network error",
-            LastErrorTime = DateTime.UtcNow.AddMinutes(-5),
+            LastErrorTime = DateTimeOffset.UtcNow.AddMinutes(-5),
             ActiveConnections = 0,
             ActiveConsumers = 0
         };

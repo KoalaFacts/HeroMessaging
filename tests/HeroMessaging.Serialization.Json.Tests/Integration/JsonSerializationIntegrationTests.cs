@@ -142,7 +142,7 @@ public class JsonSerializationIntegrationTests
     {
         return new TestMessage(
             messageId: Guid.NewGuid(),
-            timestamp: DateTime.UtcNow,
+            timestamp: DateTimeOffset.UtcNow,
             correlationId: Guid.NewGuid().ToString(),
             causationId: Guid.NewGuid().ToString(),
             content: "Complex message with nested data",

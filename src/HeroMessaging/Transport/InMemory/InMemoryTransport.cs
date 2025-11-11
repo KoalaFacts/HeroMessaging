@@ -268,7 +268,7 @@ public class InMemoryTransport(
             Status = _state == TransportState.Connected ? HealthStatus.Healthy : HealthStatus.Unhealthy,
             State = _state,
             StatusMessage = _state == TransportState.Connected ? "In-memory transport is healthy" : $"Transport state: {_state}",
-            Timestamp = _timeProvider.GetUtcNow().DateTime,
+            Timestamp = _timeProvider.GetUtcNow(),
             Duration = TimeSpan.Zero,
             ActiveConnections = 1,
             ActiveConsumers = _consumers.Count,

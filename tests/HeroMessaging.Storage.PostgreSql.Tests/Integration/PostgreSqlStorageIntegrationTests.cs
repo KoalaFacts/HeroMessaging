@@ -98,7 +98,7 @@ public class PostgreSqlStorageIntegrationTests : PostgreSqlIntegrationTestBase
     {
         // Arrange
         var storage = CreateMessageStorage();
-        var baseTime = DateTime.UtcNow;
+        var baseTime = DateTimeOffset.UtcNow;
         var messages = new[]
         {
             CreateMessageWithTimestamp("Query test 1", baseTime),

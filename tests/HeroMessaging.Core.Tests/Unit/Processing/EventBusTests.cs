@@ -29,8 +29,8 @@ public sealed class EventBusTests
     // Helper to wait for async event processing to complete
     private static async Task WaitForConditionAsync(Func<bool> condition, int timeoutMs = 10000, int pollIntervalMs = 50)
     {
-        var startTime = DateTime.UtcNow;
-        while ((DateTime.UtcNow - startTime).TotalMilliseconds < timeoutMs)
+        var startTime = DateTimeOffset.UtcNow;
+        while ((DateTimeOffset.UtcNow - startTime).TotalMilliseconds < timeoutMs)
         {
             if (condition())
                 return;
@@ -625,7 +625,7 @@ public sealed class EventBusTests
     public class TestEvent : IEvent
     {
         public Guid MessageId { get; } = Guid.NewGuid();
-        public DateTime Timestamp { get; } = DateTime.UtcNow;
+        public DateTimeOffset Timestamp { get; } = DateTimeOffset.UtcNow;
         public string? CorrelationId { get; set; }
         public string? CausationId { get; set; }
         public Dictionary<string, object>? Metadata { get; set; }

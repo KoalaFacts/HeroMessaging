@@ -134,7 +134,7 @@ public class SqlServerQueueStorage : IQueueStorage
         {
 
             var entryId = Guid.NewGuid().ToString();
-            var now = _timeProvider.GetUtcNow().DateTime;
+            var now = _timeProvider.GetUtcNow();
             var visibleAt = options?.Delay.HasValue == true
                 ? now.Add(options.Delay.Value)
                 : now;
@@ -179,7 +179,7 @@ public class SqlServerQueueStorage : IQueueStorage
         try
         {
 
-            var now = _timeProvider.GetUtcNow().DateTime;
+            var now = _timeProvider.GetUtcNow();
 
             // Use a transaction to ensure atomic dequeue
             var localTransaction = transaction ?? connection.BeginTransaction(IsolationLevel.ReadCommitted);
@@ -212,7 +212,7 @@ public class SqlServerQueueStorage : IQueueStorage
                 var payload = reader.GetString(2);
                 var priority = reader.GetInt32(3);
                 var enqueuedAt = reader.GetDateTime(4);
-                var visibleAt = reader.IsDBNull(5) ? (DateTime?)null : reader.GetDateTime(5);
+                var visibleAt = reader.IsDBNull(5) ? (DateTimeOffset?)null : reader.GetDateTime(5);
                 var dequeueCount = reader.GetInt32(6);
                 var delayMinutes = reader.IsDBNull(7) ? (int?)null : reader.GetInt32(7);
 
@@ -269,7 +269,7 @@ public class SqlServerQueueStorage : IQueueStorage
         try
         {
 
-            var now = _timeProvider.GetUtcNow().DateTime;
+            var now = _timeProvider.GetUtcNow();
 
             var sql = $"""
                 SELECT TOP (@Count) Id, MessageType, Payload, Priority, EnqueuedAt, VisibleAt, DequeueCount, DelayMinutes
@@ -294,7 +294,7 @@ public class SqlServerQueueStorage : IQueueStorage
                 var payload = reader.GetString(2);
                 var priority = reader.GetInt32(3);
                 var enqueuedAt = reader.GetDateTime(4);
-                var visibleAt = reader.IsDBNull(5) ? (DateTime?)null : reader.GetDateTime(5);
+                var visibleAt = reader.IsDBNull(5) ? (DateTimeOffset?)null : reader.GetDateTime(5);
                 var dequeueCount = reader.GetInt32(6);
                 var delayMinutes = reader.IsDBNull(7) ? (int?)null : reader.GetInt32(7);
 
@@ -368,7 +368,7 @@ public class SqlServerQueueStorage : IQueueStorage
                 using var command = new SqlCommand(sql, connection, transaction);
                 command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = entryId;
                 command.Parameters.Add("@QueueName", SqlDbType.NVarChar, 200).Value = queueName;
-                command.Parameters.Add("@Now", SqlDbType.DateTime2).Value = _timeProvider.GetUtcNow().DateTime;
+                command.Parameters.Add("@Now", SqlDbType.DateTime2).Value = _timeProvider.GetUtcNow();
 
                 var rowsAffected = await command.ExecuteNonQueryAsync(cancellationToken);
                 return rowsAffected > 0;

@@ -30,8 +30,8 @@ public class QueueEntry
     public string Id { get; set; } = Guid.NewGuid().ToString();
     public IMessage Message { get; set; } = null!;
     public EnqueueOptions Options { get; set; } = new();
-    public DateTime EnqueuedAt { get; set; } = TimeProvider.System.GetUtcNow().DateTime;
-    public DateTime? VisibleAt { get; set; }
+    public DateTimeOffset EnqueuedAt { get; set; } = TimeProvider.System.GetUtcNow();
+    public DateTimeOffset? VisibleAt { get; set; }
     public int DequeueCount { get; set; }
 }
 

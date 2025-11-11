@@ -14,7 +14,7 @@ public abstract record MessageBase : IMessage
     /// <summary>
     /// When this message was created. Defaults to system time when not explicitly set.
     /// </summary>
-    public DateTime Timestamp { get; init; } = TimeProvider.System.GetUtcNow().DateTime;
+    public DateTimeOffset Timestamp { get; init; } = TimeProvider.System.GetUtcNow();
 
     /// <summary>
     /// Correlation identifier for linking related messages in a workflow

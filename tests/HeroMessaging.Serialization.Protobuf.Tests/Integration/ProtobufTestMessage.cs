@@ -14,7 +14,7 @@ public class ProtobufTestMessage : IMessage
     public Guid MessageId { get; set; }
 
     [ProtoMember(2)]
-    public DateTime Timestamp { get; set; }
+    public DateTimeOffset Timestamp { get; set; }
 
     [ProtoMember(3)]
     public string? CorrelationId { get; set; }
@@ -51,7 +51,7 @@ public static class ProtobufTestMessageBuilder
     {
         return new ProtobufTestMessage(
             messageId: Guid.NewGuid(),
-            timestamp: DateTime.UtcNow,
+            timestamp: DateTimeOffset.UtcNow,
             correlationId: Guid.NewGuid().ToString(),
             causationId: Guid.NewGuid().ToString(),
             content: content
@@ -62,7 +62,7 @@ public static class ProtobufTestMessageBuilder
     {
         return new ProtobufTestMessage(
             messageId: Guid.NewGuid(),
-            timestamp: DateTime.UtcNow,
+            timestamp: DateTimeOffset.UtcNow,
             correlationId: null,
             causationId: null,
             content: new string('x', contentSize)

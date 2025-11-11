@@ -13,7 +13,7 @@ public interface IMessage
     /// <summary>
     /// When this message was created
     /// </summary>
-    DateTime Timestamp { get; }
+    DateTimeOffset Timestamp { get; }
 
     /// <summary>
     /// Correlation identifier for linking related messages in a workflow

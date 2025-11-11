@@ -32,7 +32,7 @@ public class ContractTestingExample
         [ContractRequired]
         public decimal TotalAmount { get; init; }
 
-        public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; init; } = DateTimeOffset.UtcNow;
 
         // Sample for testing
         [ContractSample("ValidOrder")]
@@ -75,7 +75,7 @@ public class ContractTestingExample
         [ContractRequired]
         public decimal TotalAmount { get; init; }
 
-        public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; init; } = DateTimeOffset.UtcNow;
 
         // NEW: Optional fields added in v1.1 (backward compatible)
         public string? ShippingAddress { get; init; }  // Optional - old messages work without this
@@ -88,7 +88,7 @@ public class ContractTestingExample
             OrderId = "ORD-12345",
             CustomerId = "CUST-999",
             TotalAmount = 299.99m,
-            CreatedAt = DateTime.UtcNow,
+            CreatedAt = DateTimeOffset.UtcNow,
             ShippingAddress = "123 Main St, City, State 12345",
             Items = new List<OrderItem>
             {
@@ -123,7 +123,7 @@ public class ContractTestingExample
         [ContractRequired]
         public decimal TotalAmount { get; init; }
 
-        public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; init; } = DateTimeOffset.UtcNow;
 
         [ContractSample("NewFormat")]
         public static OrderCreatedEvent_V1_2 NewFormatSample() => new()
@@ -169,7 +169,7 @@ public class ContractTestingExample
         [ContractRequired]
         public Money TotalAmount { get; init; } = new();
 
-        public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; init; } = DateTimeOffset.UtcNow;
 
         [ContractSample("ValidOrder")]
         public static OrderCreatedEvent_V2 ValidSample() => new()

@@ -32,7 +32,7 @@ public class CircuitBreakerRetryPolicy(
         // Check if circuit is open
         if (state.IsOpen)
         {
-            if (_timeProvider.GetUtcNow().DateTime - state.OpenedAt > _openCircuitDuration)
+            if (_timeProvider.GetUtcNow() - state.OpenedAt > _openCircuitDuration)
             {
                 // Try to close the circuit
                 state.Reset();
@@ -97,7 +97,7 @@ public class CircuitBreakerRetryPolicy(
             lock (_lock)
             {
                 _isOpen = true;
-                _openedAt = _timeProvider.GetUtcNow().DateTime;
+                _openedAt = _timeProvider.GetUtcNow();
             }
         }
 

@@ -199,7 +199,7 @@ internal sealed class RabbitMqConnectionPool : IAsyncDisposable
                 _logger.LogDebug(
                     "Connection {ConnectionId} has been idle for {IdleTime}",
                     pooledConnection.Connection.ClientProvidedName,
-                    _timeProvider.GetUtcNow().DateTime - pooledConnection.LastUsed);
+                    _timeProvider.GetUtcNow() - pooledConnection.LastUsed);
 
                 // Keep at least MinPoolSize connections
                 if (_connectionCount > _options.MinPoolSize)
@@ -312,14 +312,14 @@ internal sealed class RabbitMqConnectionPool : IAsyncDisposable
         public IConnection Connection { get; }
         public DateTime LastUsed => _lastUsed;
         public bool IsHealthy => Connection.IsOpen && !_disposed;
-        public bool IsIdle => (_timeProvider.GetUtcNow().DateTime - _lastUsed) > _idleTimeout && _inUseCount == 0;
+        public bool IsIdle => (_timeProvider.GetUtcNow() - _lastUsed) > _idleTimeout && _inUseCount == 0;
 
         public PooledConnection(IConnection connection, TimeSpan idleTimeout, TimeProvider timeProvider)
         {
             Connection = connection;
             _idleTimeout = idleTimeout;
             _timeProvider = timeProvider;
-            _lastUsed = _timeProvider.GetUtcNow().DateTime;
+            _lastUsed = _timeProvider.GetUtcNow();
         }
 
         public bool TryAcquire()
@@ -327,14 +327,14 @@ internal sealed class RabbitMqConnectionPool : IAsyncDisposable
             if (!IsHealthy || _disposed) return false;
 
             Interlocked.Increment(ref _inUseCount);
-            _lastUsed = _timeProvider.GetUtcNow().DateTime;
+            _lastUsed = _timeProvider.GetUtcNow();
             return true;
         }
 
         public void Release()
         {
             Interlocked.Decrement(ref _inUseCount);
-            _lastUsed = _timeProvider.GetUtcNow().DateTime;
+            _lastUsed = _timeProvider.GetUtcNow();
         }
 
         public void Dispose()

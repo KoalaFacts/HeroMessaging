@@ -138,8 +138,8 @@ public class SqlServerMessageStorage : IMessageStorage
 
         var messageId = message.MessageId.ToString();
         var expiresAt = options?.Ttl != null
-            ? _timeProvider.GetUtcNow().DateTime.Add(options.Ttl.Value)
-            : (DateTime?)null;
+            ? _timeProvider.GetUtcNow().Add(options.Ttl.Value)
+            : (DateTimeOffset?)null;
 
         var sql = $"""
             INSERT INTO {_tableName} (Id, MessageType, Payload, Timestamp, CorrelationId, Collection, Metadata, ExpiresAt, CreatedAt)
@@ -157,7 +157,7 @@ public class SqlServerMessageStorage : IMessageStorage
             ? _jsonSerializer.SerializeToString(options.Metadata, _jsonOptions)
             : DBNull.Value;
         command.Parameters.Add("@ExpiresAt", SqlDbType.DateTime2).Value = (object?)expiresAt ?? DBNull.Value;
-        command.Parameters.Add("@CreatedAt", SqlDbType.DateTime2).Value = _timeProvider.GetUtcNow().DateTime;
+        command.Parameters.Add("@CreatedAt", SqlDbType.DateTime2).Value = _timeProvider.GetUtcNow();
 
         await command.ExecuteNonQueryAsync(cancellationToken);
         return messageId;
@@ -388,7 +388,7 @@ public class SqlServerMessageStorage : IMessageStorage
             command.Parameters.Add("@Payload", SqlDbType.NVarChar, -1).Value = _jsonSerializer.SerializeToString(message, messageType, _jsonOptions);
             command.Parameters.Add("@Timestamp", SqlDbType.DateTime2).Value = message.Timestamp;
             command.Parameters.Add("@CorrelationId", SqlDbType.NVarChar, 100).Value = (object?)message.CorrelationId ?? DBNull.Value;
-            command.Parameters.Add("@CreatedAt", SqlDbType.DateTime2).Value = _timeProvider.GetUtcNow().DateTime;
+            command.Parameters.Add("@CreatedAt", SqlDbType.DateTime2).Value = _timeProvider.GetUtcNow();
 
             await command.ExecuteNonQueryAsync(cancellationToken);
         }

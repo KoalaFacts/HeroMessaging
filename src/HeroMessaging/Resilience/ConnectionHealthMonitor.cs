@@ -79,7 +79,7 @@ public class ConnectionHealthMonitor(
         return new ConnectionHealthReport
         {
             OverallStatus = GetOverallHealth(),
-            Timestamp = _timeProvider.GetUtcNow().DateTime,
+            Timestamp = _timeProvider.GetUtcNow(),
             OperationMetrics = _metrics.ToDictionary(
                 kvp => kvp.Key,
                 kvp => new OperationHealthData
@@ -130,7 +130,7 @@ public class ConnectionHealthMonitor(
 
     private void CleanupOldMetrics()
     {
-        var cutoff = _timeProvider.GetUtcNow().DateTime - _options.MetricsRetention;
+        var cutoff = _timeProvider.GetUtcNow() - _options.MetricsRetention;
 
         foreach (var metrics in _metrics.Values)
         {
@@ -186,7 +186,7 @@ public class ConnectionHealthMetrics
         {
             Success = true,
             Duration = duration,
-            Timestamp = _timeProvider.GetUtcNow().DateTime
+            Timestamp = _timeProvider.GetUtcNow()
         });
 
         _circuitBreakerOpen = false;
@@ -197,7 +197,7 @@ public class ConnectionHealthMetrics
         Interlocked.Increment(ref _totalRequests);
         Interlocked.Increment(ref _failedRequests);
 
-        var now = _timeProvider.GetUtcNow().DateTime;
+        var now = _timeProvider.GetUtcNow();
         _lastFailureTime = now;
         _lastFailureReason = exception.Message;
 
@@ -232,7 +232,7 @@ public class ConnectionHealthMetrics
     {
         public bool Success { get; init; }
         public TimeSpan Duration { get; init; }
-        public DateTime Timestamp { get; init; }
+        public DateTimeOffset Timestamp { get; init; }
         public Exception? Exception { get; init; }
     }
 }
@@ -264,7 +264,7 @@ public enum ConnectionHealthStatus
 public class ConnectionHealthReport
 {
     public ConnectionHealthStatus OverallStatus { get; set; }
-    public DateTime Timestamp { get; set; }
+    public DateTimeOffset Timestamp { get; set; }
     public Dictionary<string, OperationHealthData> OperationMetrics { get; set; } = new();
 }
 

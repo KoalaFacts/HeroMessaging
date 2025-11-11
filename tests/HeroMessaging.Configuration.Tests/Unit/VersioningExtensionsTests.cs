@@ -329,10 +329,9 @@ public sealed class VersioningExtensionsTests
     private sealed class TestMessage : IMessage
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
-        public string MessageType { get; set; } = nameof(TestMessage);
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
         public string? CorrelationId { get; set; }
         public string? CausationId { get; set; }
-        public Dictionary<string, string> Metadata { get; set; } = new();
+        public Dictionary<string, object>? Metadata { get; set; } = new();
     }
 }

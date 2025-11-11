@@ -19,7 +19,7 @@ public sealed class MessageIdKeyGeneratorTests
         var messageId = Guid.NewGuid();
         var message = new TestMessage(
             messageId: messageId,
-            timestamp: DateTime.UtcNow,
+            timestamp: DateTimeOffset.UtcNow,
             correlationId: null,
             causationId: null,
             content: "test",
@@ -45,7 +45,7 @@ public sealed class MessageIdKeyGeneratorTests
         var messageId = Guid.NewGuid();
         var message = new TestMessage(
             messageId: messageId,
-            timestamp: DateTime.UtcNow,
+            timestamp: DateTimeOffset.UtcNow,
             correlationId: null,
             causationId: null,
             content: "test",
@@ -68,14 +68,14 @@ public sealed class MessageIdKeyGeneratorTests
         // Arrange
         var message1 = new TestMessage(
             messageId: Guid.NewGuid(),
-            timestamp: DateTime.UtcNow,
+            timestamp: DateTimeOffset.UtcNow,
             correlationId: null,
             causationId: null,
             content: "test1",
             metadata: null);
         var message2 = new TestMessage(
             messageId: Guid.NewGuid(),
-            timestamp: DateTime.UtcNow,
+            timestamp: DateTimeOffset.UtcNow,
             correlationId: null,
             causationId: null,
             content: "test2",
@@ -112,7 +112,7 @@ public sealed class MessageIdKeyGeneratorTests
         // Arrange
         var message = new TestMessage(
             messageId: Guid.Empty,
-            timestamp: DateTime.UtcNow,
+            timestamp: DateTimeOffset.UtcNow,
             correlationId: null,
             causationId: null,
             content: "test",
@@ -138,7 +138,7 @@ public sealed class MessageIdKeyGeneratorTests
         var messageId = Guid.NewGuid();
         var message = new TestMessage(
             messageId: messageId,
-            timestamp: DateTime.UtcNow,
+            timestamp: DateTimeOffset.UtcNow,
             correlationId: null,
             causationId: null,
             content: "test",
@@ -204,7 +204,7 @@ public sealed class MessageIdKeyGeneratorTests
         var messageId = new Guid("12345678-1234-1234-1234-123456789012");
         var message = new TestMessage(
             messageId: messageId,
-            timestamp: DateTime.UtcNow,
+            timestamp: DateTimeOffset.UtcNow,
             correlationId: null,
             causationId: null,
             content: "test",
@@ -230,7 +230,7 @@ public sealed class MessageIdKeyGeneratorTests
         var messageId = Guid.Parse(guidString);
         var message = new TestMessage(
             messageId: messageId,
-            timestamp: DateTime.UtcNow,
+            timestamp: DateTimeOffset.UtcNow,
             correlationId: null,
             causationId: null,
             content: "test",

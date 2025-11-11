@@ -82,5 +82,5 @@ public class ComponentHealth
     public bool IsHealthy { get; set; }
     public string? Status { get; set; }
     public string? Message { get; set; }
-    public DateTime LastChecked { get; set; }
+    public DateTimeOffset LastChecked { get; set; }
 }

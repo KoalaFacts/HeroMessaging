@@ -67,7 +67,7 @@ public sealed class IdempotencyResponse
     /// Gets or initializes the UTC timestamp when this response was stored in the cache.
     /// </summary>
     /// <value>The UTC date and time when the response was cached.</value>
-    public DateTime StoredAt { get; init; }
+    public DateTimeOffset StoredAt { get; init; }
 
     /// <summary>
     /// Gets or initializes the UTC timestamp when this cached response will expire.
@@ -80,7 +80,7 @@ public sealed class IdempotencyResponse
     /// Calculated as <see cref="StoredAt"/> + TTL from the idempotency policy.
     /// Implementations should automatically clean up expired entries.
     /// </remarks>
-    public DateTime ExpiresAt { get; init; }
+    public DateTimeOffset ExpiresAt { get; init; }
 
     /// <summary>
     /// Gets or initializes the status of this idempotency entry.

@@ -19,7 +19,7 @@ public readonly record struct TransportEnvelope
         Body = Array.Empty<byte>();
         ContentType = "application/octet-stream";
         Headers = ImmutableDictionary<string, object>.Empty;
-        Timestamp = TimeProvider.System.GetUtcNow().DateTime;
+        Timestamp = TimeProvider.System.GetUtcNow();
         ExpiresAt = null;
         Priority = 0;
     }
@@ -39,7 +39,7 @@ public readonly record struct TransportEnvelope
         Body = body;
         ContentType = "application/octet-stream";
         Headers = ImmutableDictionary<string, object>.Empty;
-        Timestamp = TimeProvider.System.GetUtcNow().DateTime;
+        Timestamp = TimeProvider.System.GetUtcNow();
         ExpiresAt = null;
         Priority = 0;
     }
@@ -89,12 +89,12 @@ public readonly record struct TransportEnvelope
     /// <summary>
     /// Message timestamp
     /// </summary>
-    public DateTime Timestamp { get; init; }
+    public DateTimeOffset Timestamp { get; init; }
 
     /// <summary>
     /// Message expiration time (TTL)
     /// </summary>
-    public DateTime? ExpiresAt { get; init; }
+    public DateTimeOffset? ExpiresAt { get; init; }
 
     /// <summary>
     /// Message priority (0-255, higher is more important)
@@ -169,7 +169,7 @@ public readonly record struct TransportEnvelope
     /// <param name="timeProvider">Optional time provider for testability. Uses system time if null.</param>
     public bool IsExpired(TimeProvider? timeProvider = null)
     {
-        var now = (timeProvider ?? TimeProvider.System).GetUtcNow().DateTime;
+        var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
         return ExpiresAt.HasValue && now > ExpiresAt.Value;
     }
 

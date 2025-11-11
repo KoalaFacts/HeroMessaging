@@ -333,9 +333,9 @@ public abstract class PluginTestBase<TPlugin> : IAsyncDisposable where TPlugin :
 
         for (int i = 0; i < iterations; i++)
         {
-            var start = DateTime.UtcNow;
+            var start = DateTimeOffset.UtcNow;
             await plugin.ExecutePerformanceTestAsync();
-            var end = DateTime.UtcNow;
+            var end = DateTimeOffset.UtcNow;
 
             latencies.Add((end - start).TotalMilliseconds);
         }
@@ -357,16 +357,16 @@ public abstract class PluginTestBase<TPlugin> : IAsyncDisposable where TPlugin :
         var testDurationSeconds = 5;
         var operations = 0;
 
-        var start = DateTime.UtcNow;
+        var start = DateTimeOffset.UtcNow;
         var end = start.AddSeconds(testDurationSeconds);
 
-        while (DateTime.UtcNow < end)
+        while (DateTimeOffset.UtcNow < end)
         {
             await plugin.ExecutePerformanceTestAsync();
             operations++;
         }
 
-        var actualDuration = (DateTime.UtcNow - start).TotalSeconds;
+        var actualDuration = (DateTimeOffset.UtcNow - start).TotalSeconds;
         var throughput = operations / actualDuration;
 
         return new ThroughputTestResult

@@ -149,7 +149,7 @@ internal class InMemoryConsumer : ITransportConsumer
 
         var startTime = _timeProvider.GetTimestamp();
         _metrics.MessagesReceived++;
-        _metrics.LastMessageReceived = _timeProvider.GetUtcNow().DateTime;
+        _metrics.LastMessageReceived = _timeProvider.GetUtcNow();
 
         Activity? activity = null;
 
@@ -221,7 +221,7 @@ internal class InMemoryConsumer : ITransportConsumer
             }
 
             _metrics.RecordSuccess();
-            _metrics.LastMessageProcessed = _timeProvider.GetUtcNow().DateTime;
+            _metrics.LastMessageProcessed = _timeProvider.GetUtcNow();
 
             // Record successful operation
             var durationMs = _timeProvider.GetElapsedTime(startTime).TotalMilliseconds;
@@ -229,7 +229,7 @@ internal class InMemoryConsumer : ITransportConsumer
             _instrumentation.RecordOperation(_transport.Name, "receive", "success");
 
             // Update average processing duration
-            var duration = _timeProvider.GetUtcNow().DateTime - _metrics.LastMessageReceived;
+            var duration = _timeProvider.GetUtcNow() - _metrics.LastMessageReceived;
             UpdateAverageProcessingDuration(duration ?? TimeSpan.Zero);
         }
         catch (Exception ex)

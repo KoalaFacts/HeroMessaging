@@ -26,7 +26,7 @@ public class ConditionalWhenConfiguratorTests
     private record TestEvent(int Value, string? Type = null) : IEvent, IMessage
     {
         public Guid MessageId { get; init; } = Guid.NewGuid();
-        public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+        public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
         public string? CorrelationId { get; init; }
         public string? CausationId { get; init; }
         public Dictionary<string, object>? Metadata { get; init; }
@@ -35,7 +35,7 @@ public class ConditionalWhenConfiguratorTests
     private record ConditionEvent(int Amount, string Category) : IEvent, IMessage
     {
         public Guid MessageId { get; init; } = Guid.NewGuid();
-        public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+        public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
         public string? CorrelationId { get; init; }
         public string? CausationId { get; init; }
         public Dictionary<string, object>? Metadata { get; init; }

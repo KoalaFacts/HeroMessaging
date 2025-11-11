@@ -183,12 +183,12 @@ public class ConsumerMetrics : ComponentMetricsBase
     /// <summary>
     /// Last message received timestamp
     /// </summary>
-    public DateTime? LastMessageReceived { get; set; }
+    public DateTimeOffset? LastMessageReceived { get; set; }
 
     /// <summary>
     /// Last message processed timestamp
     /// </summary>
-    public DateTime? LastMessageProcessed { get; set; }
+    public DateTimeOffset? LastMessageProcessed { get; set; }
 
     /// <summary>
     /// Currently processing message count

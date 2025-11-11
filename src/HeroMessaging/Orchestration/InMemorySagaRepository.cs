@@ -68,7 +68,7 @@ public class InMemorySagaRepository<TSaga> : ISagaRepository<TSaga>
         }
 
         // Set timestamps for new saga
-        var now = _timeProvider.GetUtcNow().DateTime;
+        var now = _timeProvider.GetUtcNow();
         saga.CreatedAt = now;
         saga.UpdatedAt = now;
 
@@ -117,7 +117,7 @@ public class InMemorySagaRepository<TSaga> : ISagaRepository<TSaga>
 
         // Increment version and update timestamp for this update
         saga.Version++;
-        saga.UpdatedAt = _timeProvider.GetUtcNow().DateTime;
+        saga.UpdatedAt = _timeProvider.GetUtcNow();
 
         // Update both saga and tracked version
         _sagas[saga.CorrelationId] = saga;
@@ -146,7 +146,7 @@ public class InMemorySagaRepository<TSaga> : ISagaRepository<TSaga>
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var cutoffTime = _timeProvider.GetUtcNow().DateTime - olderThan;
+        var cutoffTime = _timeProvider.GetUtcNow() - olderThan;
         var staleSagas = _sagas.Values
             .Where(s => !s.IsCompleted && s.UpdatedAt < cutoffTime)
             .ToList();

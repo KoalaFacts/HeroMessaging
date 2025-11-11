@@ -20,13 +20,13 @@ public abstract class SagaBase : ISaga
     /// When this saga instance was created
     /// Set by the saga repository during SaveAsync
     /// </summary>
-    public DateTime CreatedAt { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
 
     /// <summary>
     /// When this saga instance was last updated
     /// Set by the saga repository during UpdateAsync
     /// </summary>
-    public DateTime UpdatedAt { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
 
     /// <summary>
     /// Whether this saga has completed (successfully or failed)

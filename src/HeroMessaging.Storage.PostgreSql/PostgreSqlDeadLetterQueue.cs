@@ -105,7 +105,7 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         command.Parameters.AddWithValue("@retry_count", context.RetryCount);
         command.Parameters.AddWithValue("@failure_time", context.FailureTime);
         command.Parameters.AddWithValue("@status", (int)DeadLetterStatus.Active);
-        command.Parameters.AddWithValue("@created_at", _timeProvider.GetUtcNow().DateTime);
+        command.Parameters.AddWithValue("@created_at", _timeProvider.GetUtcNow());
         command.Parameters.AddWithValue("@exception_message", context.Exception?.Message ?? (object)DBNull.Value);
         command.Parameters.AddWithValue("@metadata", NpgsqlDbType.Jsonb,
             context.Metadata.Any() ? _jsonSerializer.SerializeToString(context.Metadata, _jsonOptions) : (object)DBNull.Value);
@@ -195,7 +195,7 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         };
 
         command.Parameters.AddWithValue("@status", (int)DeadLetterStatus.Retried);
-        command.Parameters.AddWithValue("@retried_at", _timeProvider.GetUtcNow().DateTime);
+        command.Parameters.AddWithValue("@retried_at", _timeProvider.GetUtcNow());
         command.Parameters.AddWithValue("@id", deadLetterId);
         command.Parameters.AddWithValue("@active_status", (int)DeadLetterStatus.Active);
 
@@ -220,7 +220,7 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         };
 
         command.Parameters.AddWithValue("@status", (int)DeadLetterStatus.Discarded);
-        command.Parameters.AddWithValue("@discarded_at", _timeProvider.GetUtcNow().DateTime);
+        command.Parameters.AddWithValue("@discarded_at", _timeProvider.GetUtcNow());
         command.Parameters.AddWithValue("@id", deadLetterId);
         command.Parameters.AddWithValue("@active_status", (int)DeadLetterStatus.Active);
 
@@ -252,7 +252,7 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         await connection.OpenAsync(cancellationToken);
 
         long activeCount = 0, retriedCount = 0, discardedCount = 0, totalCount = 0;
-        DateTime? oldestEntry = null, newestEntry = null;
+        DateTimeOffset? oldestEntry = null, newestEntry = null;
         var countByComponent = new Dictionary<string, long>();
         var countByReason = new Dictionary<string, long>();
 

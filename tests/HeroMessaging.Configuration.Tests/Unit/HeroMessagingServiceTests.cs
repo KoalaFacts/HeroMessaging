@@ -682,7 +682,7 @@ public sealed class HeroMessagingServiceTests
     public void GetHealth_UsesCurrentTime()
     {
         // Arrange
-        var expectedTime = _timeProvider.GetUtcNow().DateTime;
+        var expectedTime = _timeProvider.GetUtcNow();
 
         // Act
         var health = _service.GetHealth();
@@ -698,7 +698,7 @@ public sealed class HeroMessagingServiceTests
     private class TestCommand : ICommand
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
-        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+        public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
         public string? CorrelationId { get; set; }
         public string? CausationId { get; set; }
         public Dictionary<string, object>? Metadata { get; set; }
@@ -708,7 +708,7 @@ public sealed class HeroMessagingServiceTests
     {
         public int Value { get; set; }
         public Guid MessageId { get; set; } = Guid.NewGuid();
-        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+        public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
         public string? CorrelationId { get; set; }
         public string? CausationId { get; set; }
         public Dictionary<string, object>? Metadata { get; set; }
@@ -723,7 +723,7 @@ public sealed class HeroMessagingServiceTests
     {
         public int Id { get; set; }
         public Guid MessageId { get; set; } = Guid.NewGuid();
-        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+        public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
         public string? CorrelationId { get; set; }
         public string? CausationId { get; set; }
         public Dictionary<string, object>? Metadata { get; set; }
@@ -737,7 +737,7 @@ public sealed class HeroMessagingServiceTests
     private class TestEvent : IEvent
     {
         public Guid MessageId { get; set; }
-        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+        public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
         public string? CorrelationId { get; set; }
         public string? CausationId { get; set; }
         public Dictionary<string, object>? Metadata { get; set; }
@@ -746,7 +746,7 @@ public sealed class HeroMessagingServiceTests
     private class TestMessage : IMessage
     {
         public Guid MessageId { get; set; }
-        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+        public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
         public string? CorrelationId { get; set; }
         public string? CausationId { get; set; }
         public Dictionary<string, object>? Metadata { get; set; }

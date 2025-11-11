@@ -48,7 +48,7 @@ public sealed class InMemoryOutboxStorageTests
         // Arrange
         var message = new TestMessage { MessageId = Guid.NewGuid(), Content = "Timestamped" };
         var options = new OutboxOptions();
-        var expectedTime = _timeProvider.GetUtcNow().DateTime;
+        var expectedTime = _timeProvider.GetUtcNow();
 
         // Act
         var entry = await _storage.AddAsync(message, options);
@@ -215,7 +215,7 @@ public sealed class InMemoryOutboxStorageTests
         // Arrange
         var message = new TestMessage { MessageId = Guid.NewGuid(), Content = "Retry" };
         var entry = await _storage.AddAsync(message, new OutboxOptions());
-        var nextRetry = _timeProvider.GetUtcNow().DateTime.AddMinutes(5);
+        var nextRetry = _timeProvider.GetUtcNow().AddMinutes(5);
 
         // Act
         var updated = await _storage.UpdateRetryCountAsync(entry.Id, 1, nextRetry);
@@ -364,7 +364,7 @@ public sealed class InMemoryOutboxStorageTests
         var message3 = new TestMessage { MessageId = Guid.NewGuid(), Content = "Recent" };
         await _storage.AddAsync(message3, new OutboxOptions());
 
-        var cutoff = _timeProvider.GetUtcNow().DateTime.AddHours(-1);
+        var cutoff = _timeProvider.GetUtcNow().AddHours(-1);
         var query = new OutboxQuery
         {
             OlderThan = cutoff,
@@ -391,7 +391,7 @@ public sealed class InMemoryOutboxStorageTests
         await _storage.AddAsync(message2, new OutboxOptions());
         await _storage.AddAsync(message3, new OutboxOptions());
 
-        var cutoff = _timeProvider.GetUtcNow().DateTime.AddHours(-1);
+        var cutoff = _timeProvider.GetUtcNow().AddHours(-1);
         var query = new OutboxQuery
         {
             NewerThan = cutoff,
@@ -435,7 +435,7 @@ public sealed class InMemoryOutboxStorageTests
         var entry2 = await _storage.AddAsync(message2, new OutboxOptions());
 
         // Set next retry in the future for message2
-        var futureRetry = _timeProvider.GetUtcNow().DateTime.AddMinutes(10);
+        var futureRetry = _timeProvider.GetUtcNow().AddMinutes(10);
         await _storage.UpdateRetryCountAsync(entry2.Id, 1, futureRetry);
 
         var query = new OutboxQuery { Limit = 10 };
@@ -456,7 +456,7 @@ public sealed class InMemoryOutboxStorageTests
         var entry = await _storage.AddAsync(message, new OutboxOptions());
 
         // Set next retry in the past
-        var pastRetry = _timeProvider.GetUtcNow().DateTime.AddMinutes(-10);
+        var pastRetry = _timeProvider.GetUtcNow().AddMinutes(-10);
         await _storage.UpdateRetryCountAsync(entry.Id, 1, pastRetry);
 
         var query = new OutboxQuery { Limit = 10 };
@@ -567,7 +567,7 @@ public sealed class InMemoryOutboxStorageTests
         var entry2 = await _storage.AddAsync(message2, new OutboxOptions());
 
         // Set next retry in the future
-        var futureRetry = _timeProvider.GetUtcNow().DateTime.AddMinutes(10);
+        var futureRetry = _timeProvider.GetUtcNow().AddMinutes(10);
         await _storage.UpdateRetryCountAsync(entry2.Id, 1, futureRetry);
 
         // Act
@@ -670,7 +670,7 @@ public sealed class InMemoryOutboxStorageTests
     private class TestMessage : IMessage
     {
         public Guid MessageId { get; set; }
-        public DateTime Timestamp { get; set; }
+        public DateTimeOffset Timestamp { get; set; }
         public string? CorrelationId { get; set; }
         public string? CausationId { get; set; }
         public Dictionary<string, object>? Metadata { get; set; }

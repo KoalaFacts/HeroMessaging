@@ -18,7 +18,7 @@ public class InMemoryQueueStorage : IQueueStorage
     public Task<QueueEntry> EnqueueAsync(string queueName, IMessage message, EnqueueOptions? options = null, CancellationToken cancellationToken = default)
     {
         var queue = _queues.GetOrAdd(queueName, _ => new Queue());
-        var now = _timeProvider.GetUtcNow().DateTime;
+        var now = _timeProvider.GetUtcNow();
 
         var entry = new QueueEntry
         {
@@ -42,7 +42,7 @@ public class InMemoryQueueStorage : IQueueStorage
             return Task.FromResult<QueueEntry?>(null);
         }
 
-        var now = _timeProvider.GetUtcNow().DateTime;
+        var now = _timeProvider.GetUtcNow();
         var entry = queue.Entries.Values
             .Where(e => e.VisibleAt <= now && e.DequeueCount < (queue.Options?.MaxDequeueCount ?? 10))
             .OrderByDescending(e => e.Options.Priority)
@@ -65,7 +65,7 @@ public class InMemoryQueueStorage : IQueueStorage
             return Task.FromResult(Enumerable.Empty<QueueEntry>());
         }
 
-        var now = _timeProvider.GetUtcNow().DateTime;
+        var now = _timeProvider.GetUtcNow();
         var entries = queue.Entries.Values
             .Where(e => e.VisibleAt <= now)
             .OrderByDescending(e => e.Options.Priority)
@@ -93,7 +93,7 @@ public class InMemoryQueueStorage : IQueueStorage
             {
                 if (requeue)
                 {
-                    entry.VisibleAt = _timeProvider.GetUtcNow().DateTime;
+                    entry.VisibleAt = _timeProvider.GetUtcNow();
                     entry.DequeueCount = 0;
                     return Task.FromResult(true);
                 }
@@ -111,7 +111,7 @@ public class InMemoryQueueStorage : IQueueStorage
     {
         if (_queues.TryGetValue(queueName, out var queue))
         {
-            var count = queue.Entries.Values.Count(e => e.VisibleAt <= _timeProvider.GetUtcNow().DateTime);
+            var count = queue.Entries.Values.Count(e => e.VisibleAt <= _timeProvider.GetUtcNow());
             return Task.FromResult((long)count);
         }
 

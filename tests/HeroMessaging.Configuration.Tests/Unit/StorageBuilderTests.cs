@@ -1,4 +1,6 @@
+using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Configuration;
+using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Storage;
 using HeroMessaging.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -464,40 +466,57 @@ public sealed class StorageBuilderTests
     // Test helper classes
     private sealed class TestMessageStorage : IMessageStorage
     {
-        public Task StoreAsync(IStoredMessage message, CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task<IStoredMessage?> GetAsync(Guid messageId, CancellationToken cancellationToken = default) => Task.FromResult<IStoredMessage?>(null);
-        public Task<IEnumerable<IStoredMessage>> GetAllAsync(CancellationToken cancellationToken = default) => Task.FromResult(Enumerable.Empty<IStoredMessage>());
+        public Task<string> StoreAsync(IMessage message, MessageStorageOptions? options = null, CancellationToken cancellationToken = default) => Task.FromResult(Guid.NewGuid().ToString());
+        public Task<T?> RetrieveAsync<T>(string messageId, CancellationToken cancellationToken = default) where T : IMessage => Task.FromResult<T?>(default);
+        public Task<IEnumerable<T>> QueryAsync<T>(MessageQuery query, CancellationToken cancellationToken = default) where T : IMessage => Task.FromResult(Enumerable.Empty<T>());
+        public Task<bool> DeleteAsync(string messageId, CancellationToken cancellationToken = default) => Task.FromResult(true);
+        public Task<bool> UpdateAsync(string messageId, IMessage message, CancellationToken cancellationToken = default) => Task.FromResult(true);
+        public Task<bool> ExistsAsync(string messageId, CancellationToken cancellationToken = default) => Task.FromResult(false);
+        public Task<long> CountAsync(MessageQuery? query = null, CancellationToken cancellationToken = default) => Task.FromResult(0L);
+        public Task ClearAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task StoreAsync(IMessage message, IStorageTransaction? transaction = null, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<IMessage?> RetrieveAsync(Guid messageId, IStorageTransaction? transaction = null, CancellationToken cancellationToken = default) => Task.FromResult<IMessage?>(null);
+        public Task<List<IMessage>> QueryAsync(MessageQuery query, CancellationToken cancellationToken = default) => Task.FromResult(new List<IMessage>());
         public Task DeleteAsync(Guid messageId, CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task<bool> ExistsAsync(Guid messageId, CancellationToken cancellationToken = default) => Task.FromResult(false);
+        public Task<IStorageTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default) => Task.FromResult<IStorageTransaction>(null!);
     }
 
     private sealed class TestOutboxStorage : IOutboxStorage
     {
-        public Task AddAsync(IOutboxMessage message, CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task<IEnumerable<IOutboxMessage>> GetPendingAsync(int batchSize = 100, CancellationToken cancellationToken = default) => Task.FromResult(Enumerable.Empty<IOutboxMessage>());
-        public Task MarkAsPublishedAsync(Guid messageId, CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task MarkAsFailedAsync(Guid messageId, string error, CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task DeleteAsync(Guid messageId, CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task<IOutboxMessage?> GetAsync(Guid messageId, CancellationToken cancellationToken = default) => Task.FromResult<IOutboxMessage?>(null);
+        public Task<OutboxEntry> AddAsync(IMessage message, Abstractions.OutboxOptions options, CancellationToken cancellationToken = default) => Task.FromResult(new OutboxEntry());
+        public Task<IEnumerable<OutboxEntry>> GetPendingAsync(OutboxQuery query, CancellationToken cancellationToken = default) => Task.FromResult(Enumerable.Empty<OutboxEntry>());
+        public Task<IEnumerable<OutboxEntry>> GetPendingAsync(int limit = 100, CancellationToken cancellationToken = default) => Task.FromResult(Enumerable.Empty<OutboxEntry>());
+        public Task<bool> MarkProcessedAsync(string entryId, CancellationToken cancellationToken = default) => Task.FromResult(true);
+        public Task<bool> MarkFailedAsync(string entryId, string error, CancellationToken cancellationToken = default) => Task.FromResult(true);
+        public Task<bool> UpdateRetryCountAsync(string entryId, int retryCount, DateTimeOffset? nextRetry = null, CancellationToken cancellationToken = default) => Task.FromResult(true);
+        public Task<long> GetPendingCountAsync(CancellationToken cancellationToken = default) => Task.FromResult(0L);
+        public Task<IEnumerable<OutboxEntry>> GetFailedAsync(int limit = 100, CancellationToken cancellationToken = default) => Task.FromResult(Enumerable.Empty<OutboxEntry>());
     }
 
     private sealed class TestInboxStorage : IInboxStorage
     {
-        public Task AddAsync(IInboxMessage message, CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task<IEnumerable<IInboxMessage>> GetPendingAsync(int batchSize = 100, CancellationToken cancellationToken = default) => Task.FromResult(Enumerable.Empty<IInboxMessage>());
-        public Task MarkAsProcessedAsync(Guid messageId, CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task MarkAsFailedAsync(Guid messageId, string error, CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task<bool> ExistsAsync(Guid messageId, CancellationToken cancellationToken = default) => Task.FromResult(false);
-        public Task<IInboxMessage?> GetAsync(Guid messageId, CancellationToken cancellationToken = default) => Task.FromResult<IInboxMessage?>(null);
+        public Task<InboxEntry?> AddAsync(IMessage message, InboxOptions options, CancellationToken cancellationToken = default) => Task.FromResult<InboxEntry?>(null);
+        public Task<bool> IsDuplicateAsync(string messageId, TimeSpan? window = null, CancellationToken cancellationToken = default) => Task.FromResult(false);
+        public Task<InboxEntry?> GetAsync(string messageId, CancellationToken cancellationToken = default) => Task.FromResult<InboxEntry?>(null);
+        public Task<bool> MarkProcessedAsync(string messageId, CancellationToken cancellationToken = default) => Task.FromResult(true);
+        public Task<bool> MarkFailedAsync(string messageId, string error, CancellationToken cancellationToken = default) => Task.FromResult(true);
+        public Task<IEnumerable<InboxEntry>> GetPendingAsync(InboxQuery query, CancellationToken cancellationToken = default) => Task.FromResult(Enumerable.Empty<InboxEntry>());
+        public Task<IEnumerable<InboxEntry>> GetUnprocessedAsync(int limit = 100, CancellationToken cancellationToken = default) => Task.FromResult(Enumerable.Empty<InboxEntry>());
+        public Task<long> GetUnprocessedCountAsync(CancellationToken cancellationToken = default) => Task.FromResult(0L);
+        public Task CleanupOldEntriesAsync(TimeSpan olderThan, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
     private sealed class TestQueueStorage : IQueueStorage
     {
-        public Task EnqueueAsync(IQueueMessage message, CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task<IQueueMessage?> DequeueAsync(string queueName, CancellationToken cancellationToken = default) => Task.FromResult<IQueueMessage?>(null);
-        public Task<IEnumerable<IQueueMessage>> PeekAsync(string queueName, int count = 1, CancellationToken cancellationToken = default) => Task.FromResult(Enumerable.Empty<IQueueMessage>());
-        public Task<int> GetCountAsync(string queueName, CancellationToken cancellationToken = default) => Task.FromResult(0);
-        public Task DeleteAsync(Guid messageId, CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task AcknowledgeAsync(Guid messageId, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<QueueEntry> EnqueueAsync(string queueName, IMessage message, EnqueueOptions? options = null, CancellationToken cancellationToken = default) => Task.FromResult(new QueueEntry());
+        public Task<QueueEntry?> DequeueAsync(string queueName, CancellationToken cancellationToken = default) => Task.FromResult<QueueEntry?>(null);
+        public Task<IEnumerable<QueueEntry>> PeekAsync(string queueName, int count = 1, CancellationToken cancellationToken = default) => Task.FromResult(Enumerable.Empty<QueueEntry>());
+        public Task<bool> AcknowledgeAsync(string queueName, string entryId, CancellationToken cancellationToken = default) => Task.FromResult(true);
+        public Task<bool> RejectAsync(string queueName, string entryId, bool requeue = false, CancellationToken cancellationToken = default) => Task.FromResult(true);
+        public Task<long> GetQueueDepthAsync(string queueName, CancellationToken cancellationToken = default) => Task.FromResult(0L);
+        public Task<bool> CreateQueueAsync(string queueName, QueueOptions? options = null, CancellationToken cancellationToken = default) => Task.FromResult(true);
+        public Task<bool> DeleteQueueAsync(string queueName, CancellationToken cancellationToken = default) => Task.FromResult(true);
+        public Task<IEnumerable<string>> GetQueuesAsync(CancellationToken cancellationToken = default) => Task.FromResult(Enumerable.Empty<string>());
+        public Task<bool> QueueExistsAsync(string queueName, CancellationToken cancellationToken = default) => Task.FromResult(false);
     }
 }

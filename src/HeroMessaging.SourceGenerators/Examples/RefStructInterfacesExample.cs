@@ -22,7 +22,7 @@ public static class RefStructInterfacesExample
     {
         public string MessageId { get; init; } = Guid.NewGuid().ToString();
         public string? CorrelationId { get; init; }
-        public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+        public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
 
         public string OrderId { get; init; } = string.Empty;
         public string CustomerId { get; init; } = string.Empty;
