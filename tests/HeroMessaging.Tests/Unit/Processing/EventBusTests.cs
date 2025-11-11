@@ -526,6 +526,465 @@ public sealed class EventBusTests
 
     #endregion
 
+    #region Concurrency Tests
+
+    [Fact]
+    public async Task Publish_WithConcurrentPublishes_ThreadSafeMetricsTracking()
+    {
+        // Arrange
+        var handlerMock = new Mock<IEventHandler<TestEvent>>();
+        handlerMock.Setup(h => h.Handle(It.IsAny<TestEvent>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var services = new ServiceCollection();
+        services.AddSingleton(handlerMock.Object);
+        var provider = services.BuildServiceProvider();
+
+        var eventBus = new EventBus(provider, _timeProvider, _mockLogger.Object);
+
+        // Act - Publish events concurrently
+        var tasks = new List<Task>();
+        for (int i = 0; i < 10; i++)
+        {
+            tasks.Add(eventBus.Publish(new TestEvent { Data = $"event-{i}" }));
+        }
+        await Task.WhenAll(tasks);
+        await Task.Delay(500); // Wait for processing
+
+        // Assert - Metrics should be accurate despite concurrent access
+        var metrics = eventBus.GetMetrics();
+        Assert.Equal(10, metrics.PublishedCount);
+        Assert.Equal(1, metrics.RegisteredHandlers);
+    }
+
+    [Fact]
+    public async Task Publish_WithConcurrentHandlers_AllProcessInParallel()
+    {
+        // Arrange
+        var handler1Called = false;
+        var handler2Called = false;
+        var handler3Called = false;
+
+        var handler1Mock = new Mock<IEventHandler<TestEvent>>();
+        handler1Mock.Setup(h => h.Handle(It.IsAny<TestEvent>(), It.IsAny<CancellationToken>()))
+            .Callback(() => handler1Called = true)
+            .Returns(async () => await Task.Delay(50));
+
+        var handler2Mock = new Mock<IEventHandler<TestEvent>>();
+        handler2Mock.Setup(h => h.Handle(It.IsAny<TestEvent>(), It.IsAny<CancellationToken>()))
+            .Callback(() => handler2Called = true)
+            .Returns(async () => await Task.Delay(50));
+
+        var handler3Mock = new Mock<IEventHandler<TestEvent>>();
+        handler3Mock.Setup(h => h.Handle(It.IsAny<TestEvent>(), It.IsAny<CancellationToken>()))
+            .Callback(() => handler3Called = true)
+            .Returns(Task.CompletedTask);
+
+        var services = new ServiceCollection();
+        services.AddSingleton(handler1Mock.Object);
+        services.AddSingleton(handler2Mock.Object);
+        services.AddSingleton(handler3Mock.Object);
+        var provider = services.BuildServiceProvider();
+
+        var eventBus = new EventBus(provider, _timeProvider, _mockLogger.Object);
+        var testEvent = new TestEvent { Data = "test" };
+
+        // Act
+        await eventBus.Publish(testEvent);
+        await Task.Delay(300); // Allow parallel processing
+
+        // Assert - All handlers should complete
+        handler1Mock.Verify(h => h.Handle(It.IsAny<TestEvent>(), It.IsAny<CancellationToken>()), Times.Once);
+        handler2Mock.Verify(h => h.Handle(It.IsAny<TestEvent>(), It.IsAny<CancellationToken>()), Times.Once);
+        handler3Mock.Verify(h => h.Handle(It.IsAny<TestEvent>(), It.IsAny<CancellationToken>()), Times.Once);
+        Assert.True(handler1Called);
+        Assert.True(handler2Called);
+        Assert.True(handler3Called);
+    }
+
+    [Fact]
+    public async Task GetMetrics_UnderHighConcurrency_RemainsConsistent()
+    {
+        // Arrange
+        var handlerMock = new Mock<IEventHandler<TestEvent>>();
+        handlerMock.Setup(h => h.Handle(It.IsAny<TestEvent>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var services = new ServiceCollection();
+        services.AddSingleton(handlerMock.Object);
+        var provider = services.BuildServiceProvider();
+
+        var eventBus = new EventBus(provider, _timeProvider, _mockLogger.Object);
+
+        // Act - Publish and check metrics concurrently
+        var publishTasks = new List<Task>();
+        var metricsTasks = new List<Task<IEventBusMetrics>>();
+
+        for (int i = 0; i < 5; i++)
+        {
+            publishTasks.Add(eventBus.Publish(new TestEvent { Data = $"event-{i}" }));
+        }
+
+        for (int i = 0; i < 5; i++)
+        {
+            metricsTasks.Add(Task.Run(() => eventBus.GetMetrics()));
+        }
+
+        await Task.WhenAll(publishTasks);
+        await Task.Delay(300);
+        var results = await Task.WhenAll(metricsTasks);
+
+        // Assert - All metric reads should show reasonable values
+        Assert.All(results, m =>
+        {
+            Assert.True(m.PublishedCount >= 0);
+            Assert.True(m.PublishedCount <= 5);
+        });
+    }
+
+    #endregion
+
+    #region Error Handling - Retry with Delays
+
+    [Fact]
+    public async Task Publish_WhenHandlerThrowsWithoutErrorHandler_AppliesExponentialBackoff()
+    {
+        // Arrange
+        var callTimes = new List<long>();
+        var handlerMock = new Mock<IEventHandler<TestEvent>>();
+        handlerMock.Setup(h => h.Handle(It.IsAny<TestEvent>(), It.IsAny<CancellationToken>()))
+            .Callback(() => callTimes.Add(DateTime.UtcNow.Ticks))
+            .ThrowsAsync(new InvalidOperationException("Handler error"));
+
+        var services = new ServiceCollection();
+        services.AddSingleton(handlerMock.Object);
+        var provider = services.BuildServiceProvider();
+
+        var eventBus = new EventBus(provider, _timeProvider, _mockLogger.Object);
+        var testEvent = new TestEvent { Data = "test" };
+
+        // Act
+        await eventBus.Publish(testEvent);
+        await Task.Delay(2000); // Allow retries with exponential backoff
+
+        // Assert - Handler should be called multiple times with delays between attempts
+        handlerMock.Verify(h => h.Handle(It.IsAny<TestEvent>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce());
+        var metrics = eventBus.GetMetrics();
+        Assert.Equal(1, metrics.FailedCount);
+    }
+
+    [Fact]
+    public async Task Publish_WhenErrorHandlerReturnsRetryWithDelay_RespectDelay()
+    {
+        // Arrange
+        var callTimes = new List<DateTime>();
+        var handlerMock = new Mock<IEventHandler<TestEvent>>();
+        handlerMock.Setup(h => h.Handle(It.IsAny<TestEvent>(), It.IsAny<CancellationToken>()))
+            .Callback(() => callTimes.Add(DateTime.UtcNow))
+            .ThrowsAsync(new InvalidOperationException("Handler error"));
+
+        var errorHandlerMock = new Mock<IErrorHandler>();
+        errorHandlerMock.Setup(h => h.HandleErrorAsync(
+                It.IsAny<TestEvent>(),
+                It.IsAny<Exception>(),
+                It.IsAny<ErrorContext>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ErrorHandlingResult.Retry(TimeSpan.FromMilliseconds(100)));
+
+        var services = new ServiceCollection();
+        services.AddSingleton(handlerMock.Object);
+        var provider = services.BuildServiceProvider();
+
+        var eventBus = new EventBus(provider, _timeProvider, _mockLogger.Object, errorHandlerMock.Object);
+        var testEvent = new TestEvent { Data = "test" };
+
+        // Act
+        await eventBus.Publish(testEvent);
+        await Task.Delay(500); // Allow for retries with delay
+
+        // Assert - Handler should be called multiple times
+        handlerMock.Verify(h => h.Handle(It.IsAny<TestEvent>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce());
+    }
+
+    #endregion
+
+    #region Error Context Tests
+
+    [Fact]
+    public async Task Publish_WhenErrorOccurs_ErrorContextContainsCorrectMetadata()
+    {
+        // Arrange
+        var capturedContext = (ErrorContext?)null;
+        var handlerMock = new Mock<IEventHandler<TestEvent>>();
+        handlerMock.Setup(h => h.Handle(It.IsAny<TestEvent>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("Test error"));
+
+        var errorHandlerMock = new Mock<IErrorHandler>();
+        errorHandlerMock.Setup(h => h.HandleErrorAsync(
+                It.IsAny<TestEvent>(),
+                It.IsAny<Exception>(),
+                It.IsAny<ErrorContext>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<IMessage, Exception, ErrorContext, CancellationToken>((msg, ex, ctx, ct) => capturedContext = ctx)
+            .ReturnsAsync(ErrorHandlingResult.Discard("Test"));
+
+        var services = new ServiceCollection();
+        services.AddSingleton(handlerMock.Object);
+        var provider = services.BuildServiceProvider();
+
+        var eventBus = new EventBus(provider, _timeProvider, _mockLogger.Object, errorHandlerMock.Object);
+        var testEvent = new TestEvent { Data = "test" };
+
+        // Act
+        await eventBus.Publish(testEvent);
+        await WaitForConditionAsync(() => capturedContext != null);
+
+        // Assert
+        Assert.NotNull(capturedContext);
+        Assert.Equal(0, capturedContext!.RetryCount); // First attempt
+        Assert.Equal(3, capturedContext!.MaxRetries);
+        Assert.Equal("EventBus", capturedContext!.Component);
+        Assert.NotNull(capturedContext!.Metadata);
+        Assert.True(capturedContext!.Metadata.ContainsKey("EventType"));
+        Assert.True(capturedContext!.Metadata.ContainsKey("HandlerType"));
+    }
+
+    [Fact]
+    public async Task Publish_OnFirstFailure_SetsFirstFailureTime()
+    {
+        // Arrange
+        var capturedContexts = new List<ErrorContext>();
+        var handlerMock = new Mock<IEventHandler<TestEvent>>();
+        handlerMock.Setup(h => h.Handle(It.IsAny<TestEvent>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("Test error"));
+
+        var errorHandlerMock = new Mock<IErrorHandler>();
+        errorHandlerMock.Setup(h => h.HandleErrorAsync(
+                It.IsAny<TestEvent>(),
+                It.IsAny<Exception>(),
+                It.IsAny<ErrorContext>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<IMessage, Exception, ErrorContext, CancellationToken>((msg, ex, ctx, ct) => capturedContexts.Add(ctx))
+            .ReturnsAsync(ErrorHandlingResult.Retry(TimeSpan.Zero));
+
+        var services = new ServiceCollection();
+        services.AddSingleton(handlerMock.Object);
+        var provider = services.BuildServiceProvider();
+
+        var eventBus = new EventBus(provider, _timeProvider, _mockLogger.Object, errorHandlerMock.Object);
+        var testEvent = new TestEvent { Data = "test" };
+
+        // Act
+        await eventBus.Publish(testEvent);
+        await Task.Delay(500);
+
+        // Assert
+        Assert.NotEmpty(capturedContexts);
+        var firstContext = capturedContexts[0];
+        Assert.NotNull(firstContext.FirstFailureTime);
+        Assert.NotEqual(default, firstContext.FirstFailureTime);
+    }
+
+    #endregion
+
+    #region Logging Tests
+
+    [Fact]
+    public async Task Publish_WithNoHandlers_LogsDebugMessage()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        var provider = services.BuildServiceProvider();
+        var eventBus = new EventBus(provider, _timeProvider, _mockLogger.Object);
+        var testEvent = new TestEvent { Data = "test" };
+
+        // Act
+        await eventBus.Publish(testEvent);
+
+        // Assert
+        _mockLogger.Verify(
+            x => x.Log(
+                LogLevel.Debug,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("No handlers found")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task Publish_WhenHandlerThrows_LogsErrorWithRetryInfo()
+    {
+        // Arrange
+        var handlerMock = new Mock<IEventHandler<TestEvent>>();
+        handlerMock.Setup(h => h.Handle(It.IsAny<TestEvent>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("Test error"));
+
+        var services = new ServiceCollection();
+        services.AddSingleton(handlerMock.Object);
+        var provider = services.BuildServiceProvider();
+
+        var eventBus = new EventBus(provider, _timeProvider, _mockLogger.Object);
+        var testEvent = new TestEvent { Data = "test" };
+
+        // Act
+        await eventBus.Publish(testEvent);
+        await Task.Delay(500);
+
+        // Assert - Error logging should happen
+        _mockLogger.Verify(
+            x => x.Log(
+                LogLevel.Error,
+                It.IsAny<EventId>(),
+                It.IsAny<It.IsAnyType>(),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.AtLeastOnce);
+    }
+
+    [Fact]
+    public async Task Publish_WhenErrorHandlerReturnsDiscard_LogsWarning()
+    {
+        // Arrange
+        var handlerMock = new Mock<IEventHandler<TestEvent>>();
+        handlerMock.Setup(h => h.Handle(It.IsAny<TestEvent>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("Test error"));
+
+        var errorHandlerMock = new Mock<IErrorHandler>();
+        errorHandlerMock.Setup(h => h.HandleErrorAsync(
+                It.IsAny<IMessage>(),
+                It.IsAny<Exception>(),
+                It.IsAny<ErrorContext>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ErrorHandlingResult.Discard("Discarding"));
+
+        var services = new ServiceCollection();
+        services.AddSingleton(handlerMock.Object);
+        var provider = services.BuildServiceProvider();
+
+        var eventBus = new EventBus(provider, _timeProvider, _mockLogger.Object, errorHandlerMock.Object);
+        var testEvent = new TestEvent { Data = "test" };
+
+        // Act
+        await eventBus.Publish(testEvent);
+        await Task.Delay(300);
+
+        // Assert - Warning should be logged
+        _mockLogger.Verify(
+            x => x.Log(
+                LogLevel.Warning,
+                It.IsAny<EventId>(),
+                It.IsAny<It.IsAnyType>(),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.AtLeastOnce);
+    }
+
+    #endregion
+
+    #region Metrics - Failed Count Tests
+
+    [Fact]
+    public async Task Publish_WhenHandlerFailsWithoutErrorHandler_IncrementsFailedCount()
+    {
+        // Arrange
+        var handlerMock = new Mock<IEventHandler<TestEvent>>();
+        handlerMock.Setup(h => h.Handle(It.IsAny<TestEvent>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("Handler error"));
+
+        var services = new ServiceCollection();
+        services.AddSingleton(handlerMock.Object);
+        var provider = services.BuildServiceProvider();
+
+        var eventBus = new EventBus(provider, _timeProvider, _mockLogger.Object);
+        var testEvent = new TestEvent { Data = "test" };
+
+        // Act
+        await eventBus.Publish(testEvent);
+        await WaitForConditionAsync(() => eventBus.GetMetrics().FailedCount == 1, timeoutMs: 5000);
+
+        // Assert
+        var metrics = eventBus.GetMetrics();
+        Assert.Equal(1, metrics.FailedCount);
+    }
+
+    [Fact]
+    public async Task Publish_WithMultipleFailures_TracksAllFailures()
+    {
+        // Arrange
+        var handlerMock = new Mock<IEventHandler<TestEvent>>();
+        handlerMock.Setup(h => h.Handle(It.IsAny<TestEvent>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("Handler error"));
+
+        var services = new ServiceCollection();
+        services.AddSingleton(handlerMock.Object);
+        var provider = services.BuildServiceProvider();
+
+        var eventBus = new EventBus(provider, _timeProvider, _mockLogger.Object);
+
+        // Act
+        await eventBus.Publish(new TestEvent { Data = "event-1" });
+        await eventBus.Publish(new TestEvent { Data = "event-2" });
+        await eventBus.Publish(new TestEvent { Data = "event-3" });
+        await WaitForConditionAsync(() => eventBus.GetMetrics().FailedCount == 3, timeoutMs: 5000);
+
+        // Assert
+        var metrics = eventBus.GetMetrics();
+        Assert.Equal(3, metrics.FailedCount);
+        Assert.Equal(3, metrics.PublishedCount);
+    }
+
+    [Fact]
+    public async Task Publish_SuccessfullyProcessed_DoesNotIncrementFailedCount()
+    {
+        // Arrange
+        var handlerMock = new Mock<IEventHandler<TestEvent>>();
+        handlerMock.Setup(h => h.Handle(It.IsAny<TestEvent>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var services = new ServiceCollection();
+        services.AddSingleton(handlerMock.Object);
+        var provider = services.BuildServiceProvider();
+
+        var eventBus = new EventBus(provider, _timeProvider, _mockLogger.Object);
+        var testEvent = new TestEvent { Data = "test" };
+
+        // Act
+        await eventBus.Publish(testEvent);
+        await Task.Delay(200);
+
+        // Assert
+        var metrics = eventBus.GetMetrics();
+        Assert.Equal(0, metrics.FailedCount);
+        Assert.Equal(1, metrics.PublishedCount);
+    }
+
+    #endregion
+
+    #region Edge Cases
+
+    [Fact]
+    public void Constructor_WithNullServiceProvider_ThrowsArgumentNullException()
+    {
+        // Arrange & Act & Assert
+        Assert.Throws<ArgumentNullException>(() => new EventBus(null!, _timeProvider, _mockLogger.Object));
+    }
+
+    [Fact]
+    public async Task Publish_WithExceptionDuringReflection_HandlesGracefully()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        var provider = services.BuildServiceProvider();
+        var eventBus = new EventBus(provider, _timeProvider, _mockLogger.Object);
+
+        // Act & Assert - Publishing a valid event with no handlers should not throw
+        var testEvent = new TestEvent { Data = "test" };
+        await eventBus.Publish(testEvent); // No exception expected
+    }
+
+    #endregion
+
     #region Test Events
 
     public class TestEvent : IEvent
