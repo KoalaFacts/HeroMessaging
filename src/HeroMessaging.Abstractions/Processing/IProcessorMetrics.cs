@@ -1,4 +1,6 @@
+using HeroMessaging.Abstractions.Commands;
 using HeroMessaging.Abstractions.Messages;
+using HeroMessaging.Abstractions.Queries;
 using HeroMessaging.Abstractions.Storage;
 
 namespace HeroMessaging.Abstractions.Processing;
@@ -8,6 +10,19 @@ public interface IProcessorMetrics
     long ProcessedCount { get; }
     long FailedCount { get; }
     TimeSpan AverageDuration { get; }
+}
+
+public interface ICommandProcessor : IProcessor
+{
+    Task Send(ICommand command, CancellationToken cancellationToken = default);
+    Task<TResponse> Send<TResponse>(ICommand<TResponse> command, CancellationToken cancellationToken = default);
+    IProcessorMetrics GetMetrics();
+}
+
+public interface IQueryProcessor : IProcessor
+{
+    Task<TResponse> Send<TResponse>(IQuery<TResponse> query, CancellationToken cancellationToken = default);
+    IQueryProcessorMetrics GetMetrics();
 }
 
 public interface IEventBusMetrics

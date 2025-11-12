@@ -4,6 +4,7 @@ using HeroMessaging.Abstractions.Commands;
 using HeroMessaging.Abstractions.Handlers;
 using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Utilities;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace HeroMessaging.Processing;
@@ -173,10 +174,4 @@ public class ProcessorMetrics : IProcessorMetrics
     public long ProcessedCount { get; init; }
     public long FailedCount { get; init; }
     public TimeSpan AverageDuration { get; init; }
-}
-
-public interface ICommandProcessor
-{
-    Task Send(ICommand command, CancellationToken cancellationToken = default);
-    Task<TResponse> Send<TResponse>(ICommand<TResponse> command, CancellationToken cancellationToken = default);
 }

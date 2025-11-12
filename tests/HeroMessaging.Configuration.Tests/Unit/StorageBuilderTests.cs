@@ -62,14 +62,14 @@ public sealed class StorageBuilderTests
         // Act
         builder.UseInMemory(options =>
         {
-            options.MaxMessageCount = 1000;
+            options.MaxMessages = 1000;
         });
         var provider = services.BuildServiceProvider();
 
         // Assert
         var options = provider.GetService<InMemoryStorageOptions>();
         Assert.NotNull(options);
-        Assert.Equal(1000, options.MaxMessageCount);
+        Assert.Equal(1000, options.MaxMessages);
         Assert.NotNull(provider.GetService<IMessageStorage>());
     }
 

@@ -4,6 +4,7 @@ using HeroMessaging.Abstractions.Handlers;
 using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Abstractions.Queries;
 using HeroMessaging.Utilities;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace HeroMessaging.Processing;
@@ -118,9 +119,4 @@ public class QueryProcessorMetrics : IQueryProcessorMetrics
     public long FailedCount { get; init; }
     public TimeSpan AverageDuration { get; init; }
     public double CacheHitRate { get; init; }
-}
-
-public interface IQueryProcessor
-{
-    Task<TResponse> Send<TResponse>(IQuery<TResponse> query, CancellationToken cancellationToken = default);
 }

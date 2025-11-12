@@ -59,7 +59,7 @@ public sealed class SerializationBuilderTests
         // Act
         builder.UseJson(options =>
         {
-            options.PrettyPrint = true;
+            options.Indented = true;
             options.CamelCase = true;
         });
         var provider = services.BuildServiceProvider();
@@ -67,7 +67,7 @@ public sealed class SerializationBuilderTests
         // Assert
         var options = provider.GetService<JsonSerializationOptions>();
         Assert.NotNull(options);
-        Assert.True(options.PrettyPrint);
+        Assert.True(options.Indented);
         Assert.True(options.CamelCase);
     }
 
@@ -97,14 +97,14 @@ public sealed class SerializationBuilderTests
         // Act
         builder.UseProtobuf(options =>
         {
-            options.UseWireFormat = true;
+            options.IncludeTypeInfo = true;
         });
         var provider = services.BuildServiceProvider();
 
         // Assert
         var options = provider.GetService<ProtobufSerializationOptions>();
         Assert.NotNull(options);
-        Assert.True(options.UseWireFormat);
+        Assert.True(options.IncludeTypeInfo);
     }
 
     [Fact]
@@ -133,14 +133,14 @@ public sealed class SerializationBuilderTests
         // Act
         builder.UseMessagePack(options =>
         {
-            options.UseLZ4Compression = true;
+            options.UseCompression = true;
         });
         var provider = services.BuildServiceProvider();
 
         // Assert
         var options = provider.GetService<MessagePackSerializationOptions>();
         Assert.NotNull(options);
-        Assert.True(options.UseLZ4Compression);
+        Assert.True(options.UseCompression);
     }
 
     [Fact]

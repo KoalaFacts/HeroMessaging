@@ -136,7 +136,7 @@ public sealed class ObservabilityBuilderTests
             options.EnableCounters = false;
             options.EnableGauges = true;
             options.FlushInterval = TimeSpan.FromSeconds(30);
-            options.CustomMetrics["test"] = "value";
+            options.CustomMetrics = new[] { "test" };
         });
         var provider = services.BuildServiceProvider();
 
@@ -147,7 +147,7 @@ public sealed class ObservabilityBuilderTests
         Assert.False(options.Value.EnableCounters);
         Assert.True(options.Value.EnableGauges);
         Assert.Equal(TimeSpan.FromSeconds(30), options.Value.FlushInterval);
-        Assert.Contains("test", options.Value.CustomMetrics.Keys);
+        Assert.Contains("test", options.Value.CustomMetrics);
     }
 
     [Fact]
@@ -178,7 +178,7 @@ public sealed class ObservabilityBuilderTests
             options.SamplingRate = 0.5;
             options.RecordExceptions = true;
             options.RecordEvents = false;
-            options.IgnoredOperations.Add("health-check");
+            options.IgnoredOperations = new[] { "health-check" };
         });
         var provider = services.BuildServiceProvider();
 

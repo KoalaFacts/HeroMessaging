@@ -1,5 +1,6 @@
 using System.Data;
 using HeroMessaging.Abstractions.Commands;
+using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Abstractions.Queries;
 using HeroMessaging.Abstractions.Storage;
 
@@ -34,6 +35,10 @@ public class TransactionCommandProcessorDecorator(
             _defaultIsolationLevel,
             cancellationToken);
     }
+
+    public bool IsRunning => (_inner as IProcessor)?.IsRunning ?? true;
+
+    public IProcessorMetrics GetMetrics() => _inner.GetMetrics();
 }
 
 /// <summary>
@@ -54,4 +59,8 @@ public class TransactionQueryProcessorDecorator(
             IsolationLevel.ReadCommitted,
             cancellationToken);
     }
+
+    public bool IsRunning => (_inner as IProcessor)?.IsRunning ?? true;
+
+    public IQueryProcessorMetrics GetMetrics() => _inner.GetMetrics();
 }
