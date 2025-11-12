@@ -43,6 +43,14 @@ public sealed class ResilienceExtensionsTests
         var services = new ServiceCollection();
         services.AddSingleton(TimeProvider.System);
         services.AddLogging();
+
+        // Register storage services that will be decorated
+        services.AddSingleton<IUnitOfWorkFactory>(new Mock<IUnitOfWorkFactory>().Object);
+        services.AddSingleton<IMessageStorage>(new Mock<IMessageStorage>().Object);
+        services.AddSingleton<IOutboxStorage>(new Mock<IOutboxStorage>().Object);
+        services.AddSingleton<IInboxStorage>(new Mock<IInboxStorage>().Object);
+        services.AddSingleton<IQueueStorage>(new Mock<IQueueStorage>().Object);
+
         var builder = new HeroMessagingBuilder(services);
 
         // Act
@@ -60,6 +68,14 @@ public sealed class ResilienceExtensionsTests
         var services = new ServiceCollection();
         services.AddSingleton(TimeProvider.System);
         services.AddLogging();
+
+        // Register storage services that will be decorated
+        services.AddSingleton<IUnitOfWorkFactory>(new Mock<IUnitOfWorkFactory>().Object);
+        services.AddSingleton<IMessageStorage>(new Mock<IMessageStorage>().Object);
+        services.AddSingleton<IOutboxStorage>(new Mock<IOutboxStorage>().Object);
+        services.AddSingleton<IInboxStorage>(new Mock<IInboxStorage>().Object);
+        services.AddSingleton<IQueueStorage>(new Mock<IQueueStorage>().Object);
+
         var builder = new HeroMessagingBuilder(services);
 
         var options = new ConnectionResilienceOptions
@@ -86,6 +102,14 @@ public sealed class ResilienceExtensionsTests
         var services = new ServiceCollection();
         services.AddSingleton(TimeProvider.System);
         services.AddLogging();
+
+        // Register storage services that will be decorated
+        services.AddSingleton<IUnitOfWorkFactory>(new Mock<IUnitOfWorkFactory>().Object);
+        services.AddSingleton<IMessageStorage>(new Mock<IMessageStorage>().Object);
+        services.AddSingleton<IOutboxStorage>(new Mock<IOutboxStorage>().Object);
+        services.AddSingleton<IInboxStorage>(new Mock<IInboxStorage>().Object);
+        services.AddSingleton<IQueueStorage>(new Mock<IQueueStorage>().Object);
+
         var builder = new HeroMessagingBuilder(services);
 
         // Act
@@ -108,6 +132,14 @@ public sealed class ResilienceExtensionsTests
         var services = new ServiceCollection();
         services.AddSingleton(TimeProvider.System);
         services.AddLogging();
+
+        // Register storage services that will be decorated
+        services.AddSingleton<IUnitOfWorkFactory>(new Mock<IUnitOfWorkFactory>().Object);
+        services.AddSingleton<IMessageStorage>(new Mock<IMessageStorage>().Object);
+        services.AddSingleton<IOutboxStorage>(new Mock<IOutboxStorage>().Object);
+        services.AddSingleton<IInboxStorage>(new Mock<IInboxStorage>().Object);
+        services.AddSingleton<IQueueStorage>(new Mock<IQueueStorage>().Object);
+
         var builder = new HeroMessagingBuilder(services);
 
         // Act
@@ -125,6 +157,14 @@ public sealed class ResilienceExtensionsTests
         var services = new ServiceCollection();
         services.AddSingleton(TimeProvider.System);
         services.AddLogging();
+
+        // Register storage services that will be decorated
+        services.AddSingleton<IUnitOfWorkFactory>(new Mock<IUnitOfWorkFactory>().Object);
+        services.AddSingleton<IMessageStorage>(new Mock<IMessageStorage>().Object);
+        services.AddSingleton<IOutboxStorage>(new Mock<IOutboxStorage>().Object);
+        services.AddSingleton<IInboxStorage>(new Mock<IInboxStorage>().Object);
+        services.AddSingleton<IQueueStorage>(new Mock<IQueueStorage>().Object);
+
         var builder = new HeroMessagingBuilder(services);
 
         // Act
@@ -165,6 +205,13 @@ public sealed class ResilienceExtensionsTests
         var services = new ServiceCollection();
         services.AddSingleton(TimeProvider.System);
         services.AddLogging();
+
+        // Register storage services that will be decorated
+        services.AddSingleton<IUnitOfWorkFactory>(new Mock<IUnitOfWorkFactory>().Object);
+        services.AddSingleton<IOutboxStorage>(new Mock<IOutboxStorage>().Object);
+        services.AddSingleton<IInboxStorage>(new Mock<IInboxStorage>().Object);
+        services.AddSingleton<IQueueStorage>(new Mock<IQueueStorage>().Object);
+
         var builder = new HeroMessagingBuilder(services);
 
         // Act
@@ -182,6 +229,14 @@ public sealed class ResilienceExtensionsTests
         var services = new ServiceCollection();
         services.AddSingleton(TimeProvider.System);
         services.AddLogging();
+
+        // Register storage services that will be decorated
+        services.AddSingleton<IUnitOfWorkFactory>(new Mock<IUnitOfWorkFactory>().Object);
+        services.AddSingleton<IMessageStorage>(new Mock<IMessageStorage>().Object);
+        services.AddSingleton<IOutboxStorage>(new Mock<IOutboxStorage>().Object);
+        services.AddSingleton<IInboxStorage>(new Mock<IInboxStorage>().Object);
+        services.AddSingleton<IQueueStorage>(new Mock<IQueueStorage>().Object);
+
         var builder = new HeroMessagingBuilder(services);
 
         // Act
@@ -276,7 +331,12 @@ public sealed class ResilienceExtensionsTests
         var services = new ServiceCollection();
         services.AddSingleton(TimeProvider.System);
         services.AddLogging();
+        services.AddSingleton<IUnitOfWorkFactory>(new Mock<IUnitOfWorkFactory>().Object);
         services.AddSingleton<IMessageStorage, TestMessageStorage>();
+        // Register other storage types required by WithConnectionResilience
+        services.AddSingleton<IOutboxStorage>(new Mock<IOutboxStorage>().Object);
+        services.AddSingleton<IInboxStorage>(new Mock<IInboxStorage>().Object);
+        services.AddSingleton<IQueueStorage>(new Mock<IQueueStorage>().Object);
         var builder = new HeroMessagingBuilder(services);
 
         // Act
@@ -296,7 +356,12 @@ public sealed class ResilienceExtensionsTests
         var services = new ServiceCollection();
         services.AddSingleton(TimeProvider.System);
         services.AddLogging();
+        services.AddSingleton<IUnitOfWorkFactory>(new Mock<IUnitOfWorkFactory>().Object);
         services.AddSingleton<IOutboxStorage, TestOutboxStorage>();
+        // Register other storage types required by WithConnectionResilience
+        services.AddSingleton<IMessageStorage>(new Mock<IMessageStorage>().Object);
+        services.AddSingleton<IInboxStorage>(new Mock<IInboxStorage>().Object);
+        services.AddSingleton<IQueueStorage>(new Mock<IQueueStorage>().Object);
         var builder = new HeroMessagingBuilder(services);
 
         // Act
@@ -316,7 +381,12 @@ public sealed class ResilienceExtensionsTests
         var services = new ServiceCollection();
         services.AddSingleton(TimeProvider.System);
         services.AddLogging();
+        services.AddSingleton<IUnitOfWorkFactory>(new Mock<IUnitOfWorkFactory>().Object);
         services.AddSingleton<IInboxStorage, TestInboxStorage>();
+        // Register other storage types required by WithConnectionResilience
+        services.AddSingleton<IMessageStorage>(new Mock<IMessageStorage>().Object);
+        services.AddSingleton<IOutboxStorage>(new Mock<IOutboxStorage>().Object);
+        services.AddSingleton<IQueueStorage>(new Mock<IQueueStorage>().Object);
         var builder = new HeroMessagingBuilder(services);
 
         // Act
@@ -336,7 +406,12 @@ public sealed class ResilienceExtensionsTests
         var services = new ServiceCollection();
         services.AddSingleton(TimeProvider.System);
         services.AddLogging();
+        services.AddSingleton<IUnitOfWorkFactory>(new Mock<IUnitOfWorkFactory>().Object);
         services.AddSingleton<IQueueStorage, TestQueueStorage>();
+        // Register other storage types required by WithConnectionResilience
+        services.AddSingleton<IMessageStorage>(new Mock<IMessageStorage>().Object);
+        services.AddSingleton<IOutboxStorage>(new Mock<IOutboxStorage>().Object);
+        services.AddSingleton<IInboxStorage>(new Mock<IInboxStorage>().Object);
         var builder = new HeroMessagingBuilder(services);
 
         // Act
@@ -356,7 +431,12 @@ public sealed class ResilienceExtensionsTests
         var services = new ServiceCollection();
         services.AddSingleton(TimeProvider.System);
         services.AddLogging();
+        services.AddSingleton<IUnitOfWorkFactory>(new Mock<IUnitOfWorkFactory>().Object);
         services.AddSingleton<IMessageStorage, TestMessageStorage>();
+        // Register other storage types that WithWriteOnlyResilience decorates
+        services.AddSingleton<IOutboxStorage>(new Mock<IOutboxStorage>().Object);
+        services.AddSingleton<IInboxStorage>(new Mock<IInboxStorage>().Object);
+        services.AddSingleton<IQueueStorage>(new Mock<IQueueStorage>().Object);
         var builder = new HeroMessagingBuilder(services);
 
         // Act
@@ -376,6 +456,14 @@ public sealed class ResilienceExtensionsTests
         var services = new ServiceCollection();
         services.AddSingleton(TimeProvider.System);
         services.AddLogging();
+
+        // Register storage services that will be decorated
+        services.AddSingleton<IUnitOfWorkFactory>(new Mock<IUnitOfWorkFactory>().Object);
+        services.AddSingleton<IMessageStorage>(new Mock<IMessageStorage>().Object);
+        services.AddSingleton<IOutboxStorage>(new Mock<IOutboxStorage>().Object);
+        services.AddSingleton<IInboxStorage>(new Mock<IInboxStorage>().Object);
+        services.AddSingleton<IQueueStorage>(new Mock<IQueueStorage>().Object);
+
         var builder = new HeroMessagingBuilder(services);
 
         // Act

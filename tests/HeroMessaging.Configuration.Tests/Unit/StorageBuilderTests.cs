@@ -57,6 +57,7 @@ public sealed class StorageBuilderTests
     {
         // Arrange
         var services = new ServiceCollection();
+        services.AddSingleton(TimeProvider.System);
         var builder = new StorageBuilder(services);
 
         // Act
@@ -336,6 +337,7 @@ public sealed class StorageBuilderTests
     {
         // Arrange
         var services = new ServiceCollection();
+        services.AddSingleton(TimeProvider.System);
         var builder = new StorageBuilder(services);
 
         // Act
