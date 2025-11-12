@@ -31,6 +31,11 @@ public sealed class StorageBackedSchedulerTests : IAsyncDisposable
             MaxConcurrency = 2,
             AutoCleanup = false // Disable for most tests to avoid background tasks
         };
+
+        // Setup default behavior for background polling to prevent errors
+        _storageMock
+            .Setup(s => s.GetDueAsync(It.IsAny<DateTimeOffset>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<ScheduledMessageEntry>());
     }
 
     [Fact]
@@ -133,7 +138,7 @@ public sealed class StorageBackedSchedulerTests : IAsyncDisposable
         // Assert
         Assert.True(result.Success);
         Assert.NotEqual(Guid.Empty, result.ScheduleId);
-        Assert.True(result.DeliverAt > DateTimeOffset.UtcNow);
+        Assert.True(result.ScheduledFor > DateTimeOffset.UtcNow);
 
         _storageMock.Verify(
             s => s.AddAsync(It.Is<ScheduledMessage>(sm =>
@@ -196,7 +201,7 @@ public sealed class StorageBackedSchedulerTests : IAsyncDisposable
         // Assert
         Assert.True(result.Success);
         Assert.NotEqual(Guid.Empty, result.ScheduleId);
-        Assert.Equal(deliverAt, result.DeliverAt);
+        Assert.Equal(deliverAt, result.ScheduledFor);
 
         _storageMock.Verify(
             s => s.AddAsync(It.Is<ScheduledMessage>(sm =>
