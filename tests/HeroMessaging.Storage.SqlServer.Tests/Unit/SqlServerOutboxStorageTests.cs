@@ -1,4 +1,4 @@
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using System.Text.Json;
 using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Messages;
@@ -60,10 +60,7 @@ public sealed class SqlServerOutboxStorageTests : IDisposable
         var storage = new SqlServerOutboxStorage(
             _options,
             _mockTimeProvider.Object,
-            _mockJsonSerializer.Object,
-            _mockConnectionProvider.Object,
-            _mockSchemaInitializer.Object,
-            _mockJsonOptionsProvider.Object);
+            _mockJsonSerializer.Object);
         Assert.NotNull(storage);
     }
 
@@ -72,7 +69,7 @@ public sealed class SqlServerOutboxStorageTests : IDisposable
     {
         Assert.Throws<ArgumentNullException>(() =>
             new SqlServerOutboxStorage(
-                null!,
+                (SqlServerStorageOptions)null!,
                 _mockTimeProvider.Object,
                 _mockJsonSerializer.Object));
     }
@@ -142,10 +139,7 @@ public sealed class SqlServerOutboxStorageTests : IDisposable
         return new SqlServerOutboxStorage(
             _options,
             _mockTimeProvider.Object,
-            _mockJsonSerializer.Object,
-            _mockConnectionProvider.Object,
-            _mockSchemaInitializer.Object,
-            _mockJsonOptionsProvider.Object);
+            _mockJsonSerializer.Object);
     }
 
     private static IMessage CreateTestMessage()
@@ -153,17 +147,12 @@ public sealed class SqlServerOutboxStorageTests : IDisposable
         var mockMessage = new Mock<IMessage>();
         mockMessage.Setup(x => x.MessageId).Returns(Guid.NewGuid());
         mockMessage.Setup(x => x.Timestamp).Returns(DateTimeOffset.UtcNow);
-        mockMessage.Setup(x => x.CorrelationId).Returns(Guid.NewGuid());
+        mockMessage.Setup(x => x.CorrelationId).Returns(Guid.NewGuid().ToString());
         return mockMessage.Object;
     }
 
     public void Dispose()
     {
-        _mockConnectionProvider?.Dispose();
-        _mockSchemaInitializer?.Dispose();
-        _mockJsonOptionsProvider?.Dispose();
-        _mockTimeProvider?.Dispose();
-        _mockJsonSerializer?.Dispose();
-        _mockConnection?.Dispose();
+        // Mock objects don't need disposal
     }
 }

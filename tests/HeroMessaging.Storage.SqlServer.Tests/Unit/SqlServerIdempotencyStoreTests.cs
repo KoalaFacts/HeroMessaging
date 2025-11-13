@@ -216,7 +216,6 @@ public sealed class SqlServerIdempotencyStoreTests : IDisposable
 
     public void Dispose()
     {
-        _mockTimeProvider?.Dispose();
-        _mockJsonSerializer?.Dispose();
+        // Mock objects don't need disposal
     }
 }

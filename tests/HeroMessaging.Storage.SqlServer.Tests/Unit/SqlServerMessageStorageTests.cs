@@ -190,13 +190,12 @@ public sealed class SqlServerMessageStorageTests : IDisposable
         var mockMessage = new Mock<IMessage>();
         mockMessage.Setup(x => x.MessageId).Returns(Guid.NewGuid());
         mockMessage.Setup(x => x.Timestamp).Returns(DateTimeOffset.UtcNow);
-        mockMessage.Setup(x => x.CorrelationId).Returns(Guid.NewGuid());
+        mockMessage.Setup(x => x.CorrelationId).Returns(Guid.NewGuid().ToString());
         return mockMessage.Object;
     }
 
     public void Dispose()
     {
-        _mockTimeProvider?.Dispose();
-        _mockJsonSerializer?.Dispose();
+        // Mock objects don't need disposal
     }
 }

@@ -122,7 +122,7 @@ public sealed class PostgreSqlMessageStorageTests : IDisposable
         var message = CreateTestMessage();
 
         // Act
-        var messageId = await storage.StoreAsync(message, null);
+        var messageId = await storage.StoreAsync(message, (MessageStorageOptions?)null);
 
         // Assert
         Assert.NotNull(messageId);
@@ -400,7 +400,7 @@ public sealed class PostgreSqlMessageStorageTests : IDisposable
 
         // Act & Assert
         await Assert.ThrowsAsync<OperationCanceledException>(async () =>
-            await storage.StoreAsync(message, null, cts.Token));
+            await storage.StoreAsync(message, (MessageStorageOptions?)null, cts.Token));
     }
 
     private PostgreSqlMessageStorage CreateStorage()
@@ -416,13 +416,12 @@ public sealed class PostgreSqlMessageStorageTests : IDisposable
         var mockMessage = new Mock<IMessage>();
         mockMessage.Setup(x => x.MessageId).Returns(Guid.NewGuid());
         mockMessage.Setup(x => x.Timestamp).Returns(DateTimeOffset.UtcNow);
-        mockMessage.Setup(x => x.CorrelationId).Returns(Guid.NewGuid());
+        mockMessage.Setup(x => x.CorrelationId).Returns(Guid.NewGuid().ToString());
         return mockMessage.Object;
     }
 
     public void Dispose()
     {
-        _mockTimeProvider?.Dispose();
-        _mockJsonSerializer?.Dispose();
+        // Mock objects don't need disposal
     }
 }

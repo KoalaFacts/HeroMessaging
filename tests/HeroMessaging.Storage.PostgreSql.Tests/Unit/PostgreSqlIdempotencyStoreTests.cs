@@ -383,7 +383,6 @@ public sealed class PostgreSqlIdempotencyStoreTests : IDisposable
 
     public void Dispose()
     {
-        _mockTimeProvider?.Dispose();
-        _mockJsonSerializer?.Dispose();
+        // Mock objects don't need disposal
     }
 }

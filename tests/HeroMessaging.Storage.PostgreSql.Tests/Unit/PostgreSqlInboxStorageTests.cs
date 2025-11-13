@@ -452,18 +452,12 @@ public sealed class PostgreSqlInboxStorageTests : IDisposable
         var mockMessage = new Mock<IMessage>();
         mockMessage.Setup(x => x.MessageId).Returns(Guid.NewGuid());
         mockMessage.Setup(x => x.Timestamp).Returns(DateTimeOffset.UtcNow);
-        mockMessage.Setup(x => x.CorrelationId).Returns(Guid.NewGuid());
+        mockMessage.Setup(x => x.CorrelationId).Returns(Guid.NewGuid().ToString());
         return mockMessage.Object;
     }
 
     public void Dispose()
     {
-        _mockConnectionProvider?.Dispose();
-        _mockSchemaInitializer?.Dispose();
-        _mockJsonOptionsProvider?.Dispose();
-        _mockTimeProvider?.Dispose();
-        _mockJsonSerializer?.Dispose();
-        _mockConnection?.Dispose();
-        _mockCommand?.Dispose();
+        // Mock objects don't need disposal
     }
 }
