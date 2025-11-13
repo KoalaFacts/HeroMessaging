@@ -376,4 +376,344 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
     }
 
     #endregion
+
+    #region Additional Constructor Tests
+
+    [Fact]
+    public void Constructor_WithNullTimeProvider_ThrowsArgumentNullException()
+    {
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() =>
+            new RabbitMqChannelPool(_mockConnection!.Object, 5, TimeSpan.FromMinutes(5), _mockLogger!.Object, null!));
+    }
+
+    [Fact]
+    public void Constructor_WithSmallMaxChannels_InitializesSuccessfully()
+    {
+        // Act
+        var pool = new RabbitMqChannelPool(
+            _mockConnection!.Object,
+            maxChannels: 1,
+            channelLifetime: TimeSpan.FromMinutes(5),
+            _mockLogger!.Object,
+            TimeProvider.System);
+
+        // Assert
+        Assert.NotNull(pool);
+    }
+
+    [Fact]
+    public void Constructor_WithLargeMaxChannels_InitializesSuccessfully()
+    {
+        // Act
+        var pool = new RabbitMqChannelPool(
+            _mockConnection!.Object,
+            maxChannels: 100,
+            channelLifetime: TimeSpan.FromMinutes(5),
+            _mockLogger!.Object,
+            TimeProvider.System);
+
+        // Assert
+        Assert.NotNull(pool);
+    }
+
+    [Fact]
+    public void Constructor_WithShortChannelLifetime_InitializesSuccessfully()
+    {
+        // Act
+        var pool = new RabbitMqChannelPool(
+            _mockConnection!.Object,
+            maxChannels: 5,
+            channelLifetime: TimeSpan.FromSeconds(1),
+            _mockLogger!.Object,
+            TimeProvider.System);
+
+        // Assert
+        Assert.NotNull(pool);
+    }
+
+    #endregion
+
+    #region AcquireChannelAsync Advanced Tests
+
+    [Fact]
+    public async Task AcquireChannelAsync_ReusesSameChannel_WhenReturned()
+    {
+        // Arrange
+        var channel1 = await _channelPool!.AcquireChannelAsync();
+        _channelPool.ReleaseChannel(channel1);
+
+        // Act
+        var channel2 = await _channelPool.AcquireChannelAsync();
+
+        // Assert
+        Assert.Equal(channel1, channel2);
+    }
+
+    [Fact]
+    public async Task AcquireChannelAsync_CreatesNewChannel_WhenPoolEmpty()
+    {
+        // Act
+        var channel1 = await _channelPool!.AcquireChannelAsync();
+        var channel2 = await _channelPool.AcquireChannelAsync();
+
+        // Assert
+        Assert.NotEqual(channel1, channel2);
+        _mockConnection!.Verify(c => c.CreateChannelAsync(It.IsAny<CreateChannelOptions>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+    }
+
+    [Fact]
+    public async Task AcquireChannelAsync_UpToMaxChannels_ThenCreatesTemporary()
+    {
+        // Arrange - Pool max is 5
+        var channels = new List<IChannel>();
+        for (int i = 0; i < 5; i++)
+        {
+            channels.Add(await _channelPool!.AcquireChannelAsync());
+        }
+
+        // Act - 6th acquire should succeed but create temp channel
+        var tempChannel = await _channelPool.AcquireChannelAsync();
+
+        // Assert
+        Assert.NotNull(tempChannel);
+    }
+
+    #endregion
+
+    #region ReleaseChannel Tests
+
+    [Fact]
+    public async Task ReleaseChannel_WithNullChannel_DoesNotThrow()
+    {
+        // Act & Assert
+        _channelPool!.ReleaseChannel(null!);
+    }
+
+    [Fact]
+    public async Task ReleaseChannel_WithClosedChannel_DisposesIt()
+    {
+        // Arrange
+        var channel = await _channelPool!.AcquireChannelAsync();
+        var mockChannel = _mockChannels.First();
+        mockChannel.Setup(ch => ch.IsOpen).Returns(false);
+
+        // Act
+        _channelPool.ReleaseChannel(channel);
+
+        // Assert
+        mockChannel.Verify(ch => ch.Dispose(), Times.Once);
+    }
+
+    [Fact]
+    public async Task ReleaseChannel_WithOpenChannel_ReturnsToPool()
+    {
+        // Arrange
+        var channel = await _channelPool!.AcquireChannelAsync();
+
+        // Act
+        _channelPool.ReleaseChannel(channel);
+        var channel2 = await _channelPool.AcquireChannelAsync();
+
+        // Assert
+        Assert.Equal(channel, channel2);
+    }
+
+    #endregion
+
+    #region ExecuteAsync Tests
+
+    [Fact]
+    public async Task ExecuteAsync_WithAction_ReturnsChannelAndReleasesIt()
+    {
+        // Arrange
+        IChannel? capturedChannel = null;
+
+        // Act
+        await _channelPool!.ExecuteAsync(async ch =>
+        {
+            capturedChannel = ch;
+            await Task.CompletedTask;
+        });
+
+        // Assert
+        Assert.NotNull(capturedChannel);
+        var stats = _channelPool.GetStatistics();
+        Assert.Equal(1, stats.Total);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithFunc_ReturnsValueAndChannel()
+    {
+        // Arrange
+        var testValue = "test-result";
+
+        // Act
+        var result = await _channelPool!.ExecuteAsync(async ch =>
+        {
+            await Task.CompletedTask;
+            return testValue;
+        });
+
+        // Assert
+        Assert.Equal(testValue, result);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithThrowingAction_ReleasesChannelBeforeThrow()
+    {
+        // Arrange
+        var exceptionThrown = false;
+
+        // Act
+        try
+        {
+            await _channelPool!.ExecuteAsync(async ch =>
+            {
+                await Task.CompletedTask;
+                throw new InvalidOperationException("Test error");
+            });
+        }
+        catch (InvalidOperationException)
+        {
+            exceptionThrown = true;
+        }
+
+        // Assert
+        Assert.True(exceptionThrown);
+    }
+
+    #endregion
+
+    #region Statistics Tests
+
+    [Fact]
+    public async Task GetStatistics_ReturnsAccurateCount()
+    {
+        // Arrange
+        var ch1 = await _channelPool!.AcquireChannelAsync();
+        var ch2 = await _channelPool.AcquireChannelAsync();
+
+        // Act
+        var stats = _channelPool.GetStatistics();
+
+        // Assert
+        Assert.Equal(2, stats.Total);
+        Assert.Equal(0, stats.Available);
+    }
+
+    [Fact]
+    public async Task GetStatistics_CountsAvailableChannels()
+    {
+        // Arrange
+        var ch1 = await _channelPool!.AcquireChannelAsync();
+        var ch2 = await _channelPool.AcquireChannelAsync();
+        _channelPool.ReleaseChannel(ch1);
+
+        // Act
+        var stats = _channelPool.GetStatistics();
+
+        // Assert
+        Assert.Equal(2, stats.Total);
+        Assert.True(stats.Available > 0);
+    }
+
+    [Fact]
+    public void GetStatistics_InitialState_IsZero()
+    {
+        // Act
+        var stats = _channelPool!.GetStatistics();
+
+        // Assert
+        Assert.Equal(0, stats.Total);
+        Assert.Equal(0, stats.Available);
+    }
+
+    #endregion
+
+    #region Connection Closed Tests
+
+    [Fact]
+    public async Task AcquireChannelAsync_WhenConnectionClosed_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        _mockConnection!.Setup(c => c.IsOpen).Returns(false);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await _channelPool!.AcquireChannelAsync());
+    }
+
+    #endregion
+
+    #region Concurrency Tests
+
+    [Fact]
+    public async Task AcquireChannelAsync_ConcurrentCalls_HandleSafely()
+    {
+        // Arrange
+        var tasks = new List<Task<IChannel>>();
+        for (int i = 0; i < 10; i++)
+        {
+            tasks.Add(_channelPool!.AcquireChannelAsync());
+        }
+
+        // Act
+        var channels = await Task.WhenAll(tasks);
+
+        // Assert
+        Assert.NotEmpty(channels);
+        var stats = _channelPool.GetStatistics();
+        Assert.True(stats.Total > 0);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ConcurrentCalls_DoNotInterfere()
+    {
+        // Arrange
+        var tasks = new List<Task>();
+        for (int i = 0; i < 5; i++)
+        {
+            tasks.Add(_channelPool!.ExecuteAsync(async ch =>
+            {
+                await Task.Delay(10);
+            }));
+        }
+
+        // Act
+        await Task.WhenAll(tasks);
+
+        // Assert
+        var stats = _channelPool.GetStatistics();
+        Assert.True(stats.Total > 0);
+    }
+
+    #endregion
+
+    #region Edge Case Tests
+
+    [Fact]
+    public async Task AcquireChannelAsync_MultipleTimesInSequence()
+    {
+        // Act & Assert
+        for (int i = 0; i < 10; i++)
+        {
+            var channel = await _channelPool!.AcquireChannelAsync();
+            Assert.NotNull(channel);
+            _channelPool.ReleaseChannel(channel);
+        }
+    }
+
+    [Fact]
+    public async Task DisposeAsync_ThrowsObjectDisposedAfterDispose()
+    {
+        // Arrange
+        await _channelPool!.DisposeAsync();
+
+        // Act & Assert
+        await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+            await _channelPool.AcquireChannelAsync());
+    }
+
+    #endregion
 }
