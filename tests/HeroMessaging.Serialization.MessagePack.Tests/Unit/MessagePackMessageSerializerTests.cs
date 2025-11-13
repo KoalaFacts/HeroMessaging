@@ -12,7 +12,7 @@ namespace HeroMessaging.Serialization.MessagePack.Tests.Unit;
 public class MessagePackMessageSerializerTests
 {
     [MessagePackObject]
-    private class TestMessage
+    internal class TestMessage
     {
         [Key(0)]
         public int Id { get; set; }
@@ -28,7 +28,7 @@ public class MessagePackMessageSerializerTests
     }
 
     [MessagePackObject]
-    private class ComplexTestMessage
+    internal class ComplexTestMessage
     {
         [Key(0)]
         public string Id { get; set; } = Guid.NewGuid().ToString();
