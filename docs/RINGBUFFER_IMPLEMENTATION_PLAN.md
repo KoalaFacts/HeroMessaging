@@ -1,6 +1,6 @@
-# In-House Disruptor Implementation Plan for HeroMessaging
+# In-House Ring Buffer Implementation Plan for HeroMessaging
 
-**Document Version**: 1.0
+**Document Version**: 1.1
 **Date**: 2025-11-13
 **Status**: Planning Phase
 **Estimated Timeline**: 12-16 weeks
@@ -10,7 +10,7 @@
 
 ## Executive Summary
 
-This document outlines a comprehensive plan to build Disruptor-inspired high-performance concurrent data structures in-house for HeroMessaging. Rather than taking a dependency on Disruptor.NET, we will implement the core patterns and optimizations that make the Disruptor pattern effective, tailored specifically for HeroMessaging's architecture.
+This document outlines a comprehensive plan to build high-performance ring buffer concurrent data structures in-house for HeroMessaging. Rather than taking a dependency on Disruptor.NET or similar libraries, we will implement the core lock-free ring buffer patterns tailored specifically for HeroMessaging's architecture.
 
 ### Why In-House Implementation?
 
@@ -22,12 +22,24 @@ This document outlines a comprehensive plan to build Disruptor-inspired high-per
 
 ### Expected Performance Gains
 
-| Metric | Current (Channels) | Target (Ring Buffer) | Improvement |
+| Metric | Current (Channel) | Target (RingBuffer) | Improvement |
 |--------|-------------------|---------------------|-------------|
 | **Latency (p99)** | <1ms | <0.05ms | 20x faster |
 | **Throughput** | 100K msg/s | 500K+ msg/s | 5x increase |
 | **Allocations** | ~200B/msg | 0B/msg | Zero GC |
 | **CPU Cache Misses** | Moderate | Minimal | 10x reduction |
+
+### Implementation Strategy
+
+**Keep Both Implementations** (Channel + RingBuffer):
+- **Channel-based** (existing): Remains the **default** - async/await, flexible backpressure
+- **RingBuffer-based** (new): Opt-in via configuration - lock-free, zero-allocation, ultra-low latency
+
+**Migration Path**:
+1. RingBuffer implementation is **opt-in** via `QueueMode` configuration
+2. Users can A/B test and compare performance
+3. Instant rollback via feature flag if issues arise
+4. After 6-12 months of proven stability, consider making RingBuffer the default
 
 ---
 
@@ -35,7 +47,7 @@ This document outlines a comprehensive plan to build Disruptor-inspired high-per
 
 ### 1.1 Ring Buffer Data Structure
 
-**File**: `src/HeroMessaging.Disruptor/RingBuffer.cs`
+**File**: `src/HeroMessaging.RingBuffer/RingBuffer.cs`
 
 **Core Responsibilities**:
 - Lock-free circular buffer with power-of-2 sizing
@@ -46,8 +58,10 @@ This document outlines a comprehensive plan to build Disruptor-inspired high-per
 **Key Components**:
 
 ```csharp
+namespace HeroMessaging.RingBuffer;
+
 /// <summary>
-/// High-performance ring buffer for lock-free message passing.
+/// High-performance lock-free ring buffer for message passing.
 /// Uses power-of-2 sizing and sequence numbers for optimal CPU cache performance.
 /// </summary>
 /// <typeparam name="T">The type of events stored in the ring buffer</typeparam>
@@ -162,9 +176,9 @@ public enum ProducerType
 ### 1.2 Sequencer Implementation
 
 **Files**:
-- `src/HeroMessaging.Disruptor/Sequencer.cs` (abstract base)
-- `src/HeroMessaging.Disruptor/SingleProducerSequencer.cs`
-- `src/HeroMessaging.Disruptor/MultiProducerSequencer.cs`
+- `src/HeroMessaging.RingBuffer/Sequencer.cs` (abstract base)
+- `src/HeroMessaging.RingBuffer/SingleProducerSequencer.cs`
+- `src/HeroMessaging.RingBuffer/MultiProducerSequencer.cs`
 
 **Responsibilities**:
 - Coordinate sequence number allocation
@@ -320,7 +334,7 @@ public sealed class MultiProducerSequencer : Sequencer
                 continue;
             }
         }
-        while (!Interlocked.CompareExchange(ref _cursor.Value, next, current) == current);
+        while (Interlocked.CompareExchange(ref _cursor.Value, next, current) != current);
 
         return next;
     }
@@ -374,7 +388,7 @@ public interface ISequence
 
 ### 1.3 Wait Strategies
 
-**File**: `src/HeroMessaging.Disruptor/WaitStrategies/`
+**File**: `src/HeroMessaging.RingBuffer/WaitStrategies/`
 
 **Responsibilities**:
 - Control how consumers wait for new events
@@ -384,6 +398,8 @@ public interface ISequence
 **Implementations**:
 
 ```csharp
+namespace HeroMessaging.RingBuffer.WaitStrategies;
+
 /// <summary>
 /// Strategy for waiting on new events in the ring buffer
 /// </summary>
@@ -588,7 +604,7 @@ public sealed class TimeoutBlockingWaitStrategy : IWaitStrategy
 
 ### 1.4 Event Processor
 
-**File**: `src/HeroMessaging.Disruptor/EventProcessor.cs`
+**File**: `src/HeroMessaging.RingBuffer/EventProcessor.cs`
 
 **Responsibilities**:
 - Consume events from ring buffer
@@ -596,6 +612,8 @@ public sealed class TimeoutBlockingWaitStrategy : IWaitStrategy
 - Coordinate with other processors via sequence barriers
 
 ```csharp
+namespace HeroMessaging.RingBuffer;
+
 /// <summary>
 /// Processes events from the ring buffer
 /// </summary>
@@ -769,18 +787,287 @@ public interface ISequenceBarrier
 
 ## Phase 2: HeroMessaging Integration (3 weeks, 120 hours)
 
-### 2.1 Disruptor-Based InMemoryQueue
+### 2.1 Configuration with Queue Mode
 
-**File**: `src/HeroMessaging/Transport/InMemory/DisruptorInMemoryQueue.cs`
+**File**: `src/HeroMessaging.Abstractions/Transport/InMemoryQueueOptions.cs`
 
-**Goal**: Drop-in replacement for existing `InMemoryQueue` using ring buffer
+**Goal**: Allow users to choose between Channel-based or RingBuffer-based implementation
 
 ```csharp
+namespace HeroMessaging.Abstractions.Transport;
+
 /// <summary>
-/// High-performance in-memory queue using Disruptor ring buffer pattern.
-/// Drop-in replacement for Channel-based InMemoryQueue with 20x lower latency.
+/// Configuration options for in-memory queues
 /// </summary>
-internal class DisruptorInMemoryQueue : IDisposable, IAsyncDisposable
+public class InMemoryQueueOptions
+{
+    /// <summary>
+    /// Queue implementation mode. Default is Channel (existing implementation).
+    /// </summary>
+    public QueueMode Mode { get; set; } = QueueMode.Channel;
+
+    /// <summary>
+    /// Maximum queue buffer size (must be power of 2 for RingBuffer mode)
+    /// </summary>
+    public int BufferSize { get; set; } = 1024;
+
+    /// <summary>
+    /// Drop oldest messages when buffer is full (Channel mode only)
+    /// </summary>
+    public bool DropWhenFull { get; set; } = false;
+
+    /// <summary>
+    /// Wait strategy for consumers (RingBuffer mode only)
+    /// </summary>
+    public WaitStrategy WaitStrategy { get; set; } = WaitStrategy.Sleeping;
+
+    /// <summary>
+    /// Producer type (RingBuffer mode only)
+    /// </summary>
+    public ProducerMode ProducerMode { get; set; } = ProducerMode.Multi;
+}
+
+/// <summary>
+/// Queue implementation mode
+/// </summary>
+public enum QueueMode
+{
+    /// <summary>
+    /// Use System.Threading.Channels (async/await, flexible backpressure)
+    /// Default mode - best for general purpose use
+    /// </summary>
+    Channel,
+
+    /// <summary>
+    /// Use lock-free ring buffer (pre-allocated, zero GC, ultra-low latency)
+    /// Opt-in mode - best for high-performance scenarios
+    /// </summary>
+    RingBuffer
+}
+
+/// <summary>
+/// Wait strategy for RingBuffer mode
+/// </summary>
+public enum WaitStrategy
+{
+    /// <summary>
+    /// Block using Monitor.Wait (lowest CPU, ~1-5ms latency)
+    /// </summary>
+    Blocking,
+
+    /// <summary>
+    /// Progressive backoff: spin, yield, sleep (balanced, ~100μs-1ms latency)
+    /// </summary>
+    Sleeping,
+
+    /// <summary>
+    /// Spin then yield (low latency, ~50-100μs)
+    /// </summary>
+    Yielding,
+
+    /// <summary>
+    /// Busy spin (ultra-low latency <10μs, 100% CPU)
+    /// </summary>
+    BusySpin,
+
+    /// <summary>
+    /// Block with timeout (deadlock detection)
+    /// </summary>
+    TimeoutBlocking
+}
+
+/// <summary>
+/// Producer mode for RingBuffer
+/// </summary>
+public enum ProducerMode
+{
+    /// <summary>
+    /// Single producer (faster, no CAS operations)
+    /// </summary>
+    Single,
+
+    /// <summary>
+    /// Multiple producers (CAS-based coordination)
+    /// </summary>
+    Multi
+}
+```
+
+**Configuration API**:
+
+```csharp
+// File: src/HeroMessaging/Extensions/InMemoryQueueServiceCollectionExtensions.cs
+
+namespace HeroMessaging.Extensions;
+
+public static class InMemoryQueueServiceCollectionExtensions
+{
+    public static IServiceCollection AddHeroMessaging(
+        this IServiceCollection services,
+        Action<HeroMessagingOptionsBuilder> configure)
+    {
+        var builder = new HeroMessagingOptionsBuilder(services);
+        configure(builder);
+        return services;
+    }
+}
+
+public class HeroMessagingOptionsBuilder
+{
+    private readonly IServiceCollection _services;
+
+    public HeroMessagingOptionsBuilder(IServiceCollection services)
+    {
+        _services = services;
+    }
+
+    /// <summary>
+    /// Configure in-memory queue options
+    /// </summary>
+    public HeroMessagingOptionsBuilder UseInMemoryQueue(
+        Action<InMemoryQueueOptionsBuilder> configure)
+    {
+        var options = new InMemoryQueueOptions();
+        var builder = new InMemoryQueueOptionsBuilder(options);
+        configure(builder);
+
+        _services.AddSingleton(options);
+        return this;
+    }
+}
+
+public class InMemoryQueueOptionsBuilder
+{
+    private readonly InMemoryQueueOptions _options;
+
+    public InMemoryQueueOptionsBuilder(InMemoryQueueOptions options)
+    {
+        _options = options;
+    }
+
+    /// <summary>
+    /// Use Channel-based implementation (default)
+    /// </summary>
+    public InMemoryQueueOptionsBuilder UseChannelMode()
+    {
+        _options.Mode = QueueMode.Channel;
+        return this;
+    }
+
+    /// <summary>
+    /// Use RingBuffer-based implementation (high performance)
+    /// </summary>
+    public InMemoryQueueOptionsBuilder UseRingBufferMode()
+    {
+        _options.Mode = QueueMode.RingBuffer;
+        return this;
+    }
+
+    /// <summary>
+    /// Set buffer size (must be power of 2 for RingBuffer mode)
+    /// </summary>
+    public InMemoryQueueOptionsBuilder WithBufferSize(int size)
+    {
+        if (_options.Mode == QueueMode.RingBuffer && !IsPowerOf2(size))
+        {
+            throw new ArgumentException(
+                "Buffer size must be power of 2 when using RingBuffer mode",
+                nameof(size));
+        }
+
+        _options.BufferSize = size;
+        return this;
+    }
+
+    /// <summary>
+    /// Set wait strategy (RingBuffer mode only)
+    /// </summary>
+    public InMemoryQueueOptionsBuilder WithWaitStrategy(WaitStrategy strategy)
+    {
+        _options.WaitStrategy = strategy;
+        return this;
+    }
+
+    /// <summary>
+    /// Set producer mode (RingBuffer mode only)
+    /// </summary>
+    public InMemoryQueueOptionsBuilder WithProducerMode(ProducerMode mode)
+    {
+        _options.ProducerMode = mode;
+        return this;
+    }
+
+    /// <summary>
+    /// Drop oldest messages when buffer is full (Channel mode only)
+    /// </summary>
+    public InMemoryQueueOptionsBuilder DropWhenFull(bool drop = true)
+    {
+        _options.DropWhenFull = drop;
+        return this;
+    }
+
+    private static bool IsPowerOf2(int value)
+    {
+        return value > 0 && (value & (value - 1)) == 0;
+    }
+}
+```
+
+**Usage Examples**:
+
+```csharp
+// Example 1: Use default Channel mode (existing behavior)
+services.AddHeroMessaging(builder =>
+{
+    builder.UseInMemoryQueue(queue =>
+    {
+        queue.UseChannelMode()
+             .WithBufferSize(1024)
+             .DropWhenFull(false);
+    });
+});
+
+// Example 2: Use RingBuffer mode for high performance
+services.AddHeroMessaging(builder =>
+{
+    builder.UseInMemoryQueue(queue =>
+    {
+        queue.UseRingBufferMode()
+             .WithBufferSize(4096)              // Must be power of 2
+             .WithWaitStrategy(WaitStrategy.Sleeping)
+             .WithProducerMode(ProducerMode.Multi);
+    });
+});
+
+// Example 3: Ultra-low latency configuration
+services.AddHeroMessaging(builder =>
+{
+    builder.UseInMemoryQueue(queue =>
+    {
+        queue.UseRingBufferMode()
+             .WithBufferSize(8192)
+             .WithWaitStrategy(WaitStrategy.BusySpin)  // <10μs latency, 100% CPU
+             .WithProducerMode(ProducerMode.Single);   // Single producer optimization
+    });
+});
+```
+
+---
+
+### 2.2 RingBuffer-Based InMemoryQueue
+
+**File**: `src/HeroMessaging/Transport/InMemory/RingBufferQueue.cs`
+
+**Goal**: RingBuffer implementation that implements the same interface as Channel-based queue
+
+```csharp
+namespace HeroMessaging.Transport.InMemory;
+
+/// <summary>
+/// High-performance in-memory queue using lock-free ring buffer.
+/// Provides 20x lower latency and 5x higher throughput vs Channel-based implementation.
+/// </summary>
+internal class RingBufferQueue : IDisposable, IAsyncDisposable
 {
     private readonly RingBuffer<MessageEvent> _ringBuffer;
     private readonly List<InMemoryConsumer> _consumers = new();
@@ -795,25 +1082,38 @@ internal class DisruptorInMemoryQueue : IDisposable, IAsyncDisposable
         public TransportEnvelope? Envelope { get; set; }
     }
 
+    private class MessageEventFactory : IEventFactory<MessageEvent>
+    {
+        public MessageEvent Create() => new();
+    }
+
     public long MessageCount => Interlocked.Read(ref _messageCount);
     public long Depth => Interlocked.Read(ref _depth);
 
-    public DisruptorInMemoryQueue(int bufferSize, DisruptorQueueOptions options)
+    public RingBufferQueue(InMemoryQueueOptions options)
     {
-        // Validate power of 2
-        if (!IsPowerOf2(bufferSize))
+        // Validate configuration
+        if (!IsPowerOf2(options.BufferSize))
         {
             throw new ArgumentException(
-                "Buffer size must be power of 2 for optimal performance",
-                nameof(bufferSize));
+                "Buffer size must be power of 2 for RingBuffer mode",
+                nameof(options.BufferSize));
         }
+
+        // Create wait strategy
+        var waitStrategy = CreateWaitStrategy(options.WaitStrategy);
 
         // Create ring buffer
         var eventFactory = new MessageEventFactory();
+        var producerType = options.ProducerMode == ProducerMode.Single
+            ? ProducerType.Single
+            : ProducerType.Multi;
+
         _ringBuffer = new RingBuffer<MessageEvent>(
-            bufferSize,
+            options.BufferSize,
             eventFactory,
-            options.ProducerType);
+            producerType,
+            waitStrategy);
     }
 
     public ValueTask<bool> EnqueueAsync(
@@ -860,14 +1160,23 @@ internal class DisruptorInMemoryQueue : IDisposable, IAsyncDisposable
 
         _processors.Add(processor);
         processor.Start();
+
+        // Add processor sequence as gating sequence for backpressure
+        _ringBuffer.AddGatingSequence(processor.Sequence);
+    }
+
+    public void RemoveConsumer(InMemoryConsumer consumer)
+    {
+        _consumers.Remove(consumer);
+        // Note: Processor cleanup would happen here
     }
 
     private class ConsumerEventHandler : IEventHandler<MessageEvent>
     {
         private readonly InMemoryConsumer _consumer;
-        private readonly DisruptorInMemoryQueue _queue;
+        private readonly RingBufferQueue _queue;
 
-        public ConsumerEventHandler(InMemoryConsumer consumer, DisruptorInMemoryQueue queue)
+        public ConsumerEventHandler(InMemoryConsumer consumer, RingBufferQueue queue)
         {
             _consumer = consumer;
             _queue = queue;
@@ -879,22 +1188,48 @@ internal class DisruptorInMemoryQueue : IDisposable, IAsyncDisposable
             {
                 try
                 {
+                    // Process message (synchronous to avoid allocation)
                     _consumer.DeliverMessageAsync(evt.Envelope, default).AsTask().Wait();
                     Interlocked.Decrement(ref _queue._depth);
                 }
                 catch (Exception)
                 {
-                    // Log error
+                    // Log error (would use ILogger in real implementation)
                 }
                 finally
                 {
-                    evt.Envelope = null; // Clear for reuse
+                    evt.Envelope = null; // Clear for reuse (zero allocation)
                 }
             }
         }
 
-        public void OnError(Exception ex) { }
-        public void OnShutdown() { }
+        public void OnError(Exception ex)
+        {
+            // Log error
+        }
+
+        public void OnShutdown()
+        {
+            // Cleanup
+        }
+    }
+
+    private static IWaitStrategy CreateWaitStrategy(WaitStrategy strategy)
+    {
+        return strategy switch
+        {
+            WaitStrategy.Blocking => new BlockingWaitStrategy(),
+            WaitStrategy.Sleeping => new SleepingWaitStrategy(),
+            WaitStrategy.Yielding => new YieldingWaitStrategy(),
+            WaitStrategy.BusySpin => new BusySpinWaitStrategy(),
+            WaitStrategy.TimeoutBlocking => new TimeoutBlockingWaitStrategy(TimeSpan.FromSeconds(30)),
+            _ => new SleepingWaitStrategy()
+        };
+    }
+
+    private static bool IsPowerOf2(int value)
+    {
+        return value > 0 && (value & (value - 1)) == 0;
     }
 
     public async ValueTask DisposeAsync()
@@ -915,67 +1250,66 @@ internal class DisruptorInMemoryQueue : IDisposable, IAsyncDisposable
         DisposeAsync().AsTask().GetAwaiter().GetResult();
     }
 }
+```
 
-/// <summary>
-/// Configuration options for Disruptor-based queue
-/// </summary>
-public class DisruptorQueueOptions
+**Factory Pattern for Queue Creation**:
+
+```csharp
+// File: src/HeroMessaging/Transport/InMemory/InMemoryQueueFactory.cs
+
+namespace HeroMessaging.Transport.InMemory;
+
+internal static class InMemoryQueueFactory
 {
-    /// <summary>
-    /// Ring buffer size (must be power of 2)
-    /// </summary>
-    public int BufferSize { get; set; } = 1024;
+    public static object CreateQueue(InMemoryQueueOptions options)
+    {
+        return options.Mode switch
+        {
+            QueueMode.Channel => new InMemoryQueue(
+                options.BufferSize,
+                options.DropWhenFull),
 
-    /// <summary>
-    /// Single or multi-producer mode
-    /// </summary>
-    public ProducerType ProducerType { get; set; } = ProducerType.Multi;
+            QueueMode.RingBuffer => new RingBufferQueue(options),
 
-    /// <summary>
-    /// Wait strategy for consumers
-    /// </summary>
-    public WaitStrategyType WaitStrategy { get; set; } = WaitStrategyType.Sleeping;
-}
-
-public enum WaitStrategyType
-{
-    Blocking,
-    Sleeping,
-    Yielding,
-    BusySpin,
-    TimeoutBlocking
+            _ => throw new ArgumentException($"Unknown queue mode: {options.Mode}")
+        };
+    }
 }
 ```
 
 **Migration Path**:
-1. **Feature Flag**: `UseDisruptorQueue` in configuration
-2. **A/B Testing**: Run both implementations side-by-side
-3. **Gradual Rollout**: Start with 1% traffic, increase to 100%
-4. **Rollback Plan**: Instant switch back to Channel-based implementation
+1. **Default Behavior**: Channel-based (no breaking changes)
+2. **Opt-In**: Users explicitly configure RingBuffer mode
+3. **Feature Flag**: Easy toggle between modes for A/B testing
+4. **Gradual Rollout**: Monitor performance, collect metrics
+5. **Future Default**: After 6-12 months, consider making RingBuffer default
 
 **Testing Requirements**:
 - Drop-in replacement tests: Verify identical behavior to Channel-based queue
 - Performance tests: Confirm 20x latency improvement
 - Load tests: 500K+ messages/second sustained throughput
 - Concurrency tests: 100+ concurrent producers/consumers
+- Configuration tests: Verify all mode combinations work correctly
 
 ---
 
-### 2.2 Disruptor-Based EventBus
+### 2.3 RingBuffer-Based EventBus
 
-**File**: `src/HeroMessaging/Processing/DisruptorEventBus.cs`
+**File**: `src/HeroMessaging/Processing/RingBufferEventBus.cs`
 
 **Goal**: Replace TPL Dataflow ActionBlock with ring buffer for lock-free event distribution
 
 ```csharp
+namespace HeroMessaging.Processing;
+
 /// <summary>
-/// Lock-free event bus implementation using Disruptor ring buffer.
+/// Lock-free event bus implementation using ring buffer.
 /// Eliminates ActionBlock overhead for 10x+ throughput improvement.
 /// </summary>
-public class DisruptorEventBus : IEventBus, IProcessor
+public class RingBufferEventBus : IEventBus, IProcessor
 {
     private readonly IServiceProvider _serviceProvider;
-    private readonly ILogger<DisruptorEventBus> _logger;
+    private readonly ILogger<RingBufferEventBus> _logger;
     private readonly RingBuffer<EventEnvelope> _ringBuffer;
     private readonly MessageProcessingPipelineBuilder _pipelineBuilder;
     private readonly List<IEventProcessor> _processors = new();
@@ -984,25 +1318,28 @@ public class DisruptorEventBus : IEventBus, IProcessor
     private long _failedCount;
     private int _registeredHandlers;
 
-    public DisruptorEventBus(
+    public RingBufferEventBus(
         IServiceProvider serviceProvider,
-        DisruptorEventBusOptions options,
-        ILogger<DisruptorEventBus>? logger = null)
+        EventBusOptions options,
+        ILogger<RingBufferEventBus>? logger = null)
     {
         _serviceProvider = serviceProvider;
-        _logger = logger ?? NullLogger<DisruptorEventBus>.Instance;
+        _logger = logger ?? NullLogger<RingBufferEventBus>.Instance;
         _pipelineBuilder = new MessageProcessingPipelineBuilder(serviceProvider);
 
         ConfigurePipeline();
 
         // Create ring buffer
         var eventFactory = new EventEnvelopeFactory();
+        var waitStrategy = CreateWaitStrategy(options.WaitStrategy);
+
         _ringBuffer = new RingBuffer<EventEnvelope>(
             options.BufferSize,
             eventFactory,
-            ProducerType.Multi); // Multiple threads publish events
+            ProducerType.Multi,  // Multiple threads publish events
+            waitStrategy);
 
-        // Create processors (one per CPU core)
+        // Create processors (one per CPU core for parallelism)
         for (int i = 0; i < Environment.ProcessorCount; i++)
         {
             var handler = new EventProcessingHandler(this);
@@ -1014,7 +1351,23 @@ public class DisruptorEventBus : IEventBus, IProcessor
 
             _processors.Add(processor);
             processor.Start();
+
+            // Add as gating sequence for backpressure
+            _ringBuffer.AddGatingSequence(processor.Sequence);
         }
+    }
+
+    public bool IsRunning { get; private set; } = true;
+
+    private void ConfigurePipeline()
+    {
+        _pipelineBuilder
+            .UseMetrics()           // Outermost - collect metrics for everything
+            .UseLogging()           // Log the entire process
+            .UseCorrelation()       // Track correlation/causation for choreography
+            .UseValidation()        // Validate before processing
+            .UseErrorHandling()     // Handle errors with dead letter queue
+            .UseRetry();            // Innermost - retry the actual processing
     }
 
     public async Task Publish(IEvent @event, CancellationToken cancellationToken = default)
@@ -1054,9 +1407,9 @@ public class DisruptorEventBus : IEventBus, IProcessor
 
     private class EventProcessingHandler : IEventHandler<EventEnvelope>
     {
-        private readonly DisruptorEventBus _eventBus;
+        private readonly RingBufferEventBus _eventBus;
 
-        public EventProcessingHandler(DisruptorEventBus eventBus)
+        public EventProcessingHandler(RingBufferEventBus eventBus)
         {
             _eventBus = eventBus;
         }
@@ -1065,16 +1418,79 @@ public class DisruptorEventBus : IEventBus, IProcessor
         {
             if (envelope.Event == null) return;
 
-            // Process through pipeline (synchronous to avoid allocation)
+            // Process through pipeline
             _eventBus.ProcessEventWithPipelineSync(envelope);
 
-            // Clear for reuse
+            // Clear for reuse (zero allocation)
             envelope.Event = null;
             envelope.Handler = null;
         }
 
-        public void OnError(Exception ex) { }
-        public void OnShutdown() { }
+        public void OnError(Exception ex)
+        {
+            _eventBus._logger.LogError(ex, "Error processing event");
+        }
+
+        public void OnShutdown()
+        {
+            // Cleanup
+        }
+    }
+
+    private void ProcessEventWithPipelineSync(EventEnvelope envelope)
+    {
+        // Create the core processor that executes the handler
+        var coreProcessor = new CoreMessageProcessor(async (message, context, ct) =>
+        {
+            var handleMethod = envelope.HandlerType!.GetMethod("Handle");
+            if (handleMethod == null)
+            {
+                throw new InvalidOperationException(
+                    $"Handle method not found on {envelope.HandlerType.Name}");
+            }
+
+            await (Task)handleMethod.Invoke(envelope.Handler, [envelope.Event, ct])!;
+        });
+
+        // Build the pipeline
+        var pipeline = _pipelineBuilder.Build(coreProcessor);
+
+        // Create processing context
+        var context = new ProcessingContext
+        {
+            Component = "EventBus",
+            Handler = envelope.Handler,
+            HandlerType = envelope.HandlerType
+        }
+        .WithMetadata("EventType", envelope.Event!.GetType().Name)
+        .WithMetadata("HandlerType", envelope.Handler!.GetType().Name);
+
+        // Process through the pipeline (synchronous to avoid allocation)
+        var result = pipeline.ProcessAsync(
+            envelope.Event,
+            context,
+            envelope.CancellationToken).GetAwaiter().GetResult();
+
+        if (!result.Success && result.Exception != null)
+        {
+            Interlocked.Increment(ref _failedCount);
+
+            _logger.LogError(result.Exception,
+                "Failed to process event {EventType} with handler {HandlerType}: {Message}",
+                envelope.Event.GetType().Name,
+                envelope.Handler.GetType().Name,
+                result.Message);
+        }
+    }
+
+    public IEventBusMetrics GetMetrics()
+    {
+        return new EventBusMetrics
+        {
+            PublishedCount = _publishedCount,
+            FailedCount = _failedCount,
+            RegisteredHandlers = _registeredHandlers
+        };
     }
 
     private class EventEnvelope
@@ -1084,15 +1500,31 @@ public class DisruptorEventBus : IEventBus, IProcessor
         public Type? HandlerType { get; set; }
         public CancellationToken CancellationToken { get; set; }
     }
-}
 
-/// <summary>
-/// Configuration for Disruptor-based event bus
-/// </summary>
-public class DisruptorEventBusOptions
-{
-    public int BufferSize { get; set; } = 2048;
-    public WaitStrategyType WaitStrategy { get; set; } = WaitStrategyType.Sleeping;
+    private class EventEnvelopeFactory : IEventFactory<EventEnvelope>
+    {
+        public EventEnvelope Create() => new();
+    }
+
+    private static IWaitStrategy CreateWaitStrategy(WaitStrategy strategy)
+    {
+        return strategy switch
+        {
+            WaitStrategy.Blocking => new BlockingWaitStrategy(),
+            WaitStrategy.Sleeping => new SleepingWaitStrategy(),
+            WaitStrategy.Yielding => new YieldingWaitStrategy(),
+            WaitStrategy.BusySpin => new BusySpinWaitStrategy(),
+            WaitStrategy.TimeoutBlocking => new TimeoutBlockingWaitStrategy(TimeSpan.FromSeconds(30)),
+            _ => new SleepingWaitStrategy()
+        };
+    }
+
+    private class EventBusMetrics : IEventBusMetrics
+    {
+        public long PublishedCount { get; init; }
+        public long FailedCount { get; init; }
+        public int RegisteredHandlers { get; init; }
+    }
 }
 ```
 
@@ -1113,7 +1545,7 @@ public class DisruptorEventBusOptions
 
 ### 3.1 Sequence Barriers and Dependencies
 
-**File**: `src/HeroMessaging.Disruptor/SequenceBarrier.cs`
+**File**: `src/HeroMessaging.RingBuffer/SequenceBarrier.cs`
 
 **Capabilities**:
 - Create processing stages with dependencies
@@ -1122,6 +1554,8 @@ public class DisruptorEventBusOptions
 - Diamond dependencies: Complex processing graphs
 
 ```csharp
+namespace HeroMessaging.RingBuffer;
+
 /// <summary>
 /// Coordinates dependencies between event processors
 /// </summary>
@@ -1208,21 +1642,17 @@ var loggingBarrier = ringBuffer.NewBarrier(processingProcessor.Sequence);
 var loggingProcessor = new BatchEventProcessor<Event>(ringBuffer, loggingBarrier, logger);
 ```
 
-**Testing Requirements**:
-- Dependency chain tests: Verify correct ordering
-- Multi-cast tests: Multiple consumers receive same events
-- Diamond dependency tests: Complex graphs work correctly
-- Performance tests: Verify minimal overhead
-
 ---
 
 ### 3.2 Object Pooling and Zero-Allocation Paths
 
-**File**: `src/HeroMessaging.Disruptor/EventTranslator.cs`
+**File**: `src/HeroMessaging.RingBuffer/EventTranslator.cs`
 
 **Goal**: Eliminate all allocations in hot path
 
 ```csharp
+namespace HeroMessaging.RingBuffer;
+
 /// <summary>
 /// Translates input data into ring buffer events without allocation
 /// </summary>
@@ -1316,33 +1746,6 @@ public static class RingBufferExtensions
 }
 ```
 
-**Usage Example**:
-
-```csharp
-// Old way (allocation)
-await queue.EnqueueAsync(new TransportEnvelope { ... });
-
-// New way (zero allocation)
-var translator = new EnvelopeTranslator(messageId, payload, headers);
-ringBuffer.PublishEvent(translator);
-
-// Translator can be pooled and reused
-class EnvelopeTranslator : IEventTranslatorOneArg<MessageEvent, byte[]>
-{
-    public void TranslateTo(MessageEvent evt, long sequence, byte[] payload)
-    {
-        evt.MessageId = _messageId;
-        evt.Payload = payload;
-        evt.Headers = _headers;
-    }
-}
-```
-
-**Testing Requirements**:
-- Allocation tests: Verify 0 bytes allocated
-- Performance tests: Measure improvement vs traditional approach
-- Pooling tests: Verify translators can be reused
-
 ---
 
 ## Phase 4: Performance Optimization (2 weeks, 80 hours)
@@ -1403,38 +1806,51 @@ if (sequence > endOfBatch) { ... }
 
 ### 4.2 Benchmarking Infrastructure
 
-**File**: `tests/HeroMessaging.Disruptor.Benchmarks/DisruptorBenchmarks.cs`
+**File**: `tests/HeroMessaging.RingBuffer.Benchmarks/RingBufferBenchmarks.cs`
 
 ```csharp
+using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Diagnostics.Windows.Configs;
+
+namespace HeroMessaging.RingBuffer.Benchmarks;
+
 [MemoryDiagnoser]
 [ThreadingDiagnoser]
-public class DisruptorBenchmarks
+[EtwProfiler] // CPU cache analysis
+public class QueueModeBenchmarks
 {
-    private RingBuffer<MessageEvent> _ringBuffer = null!;
+    private RingBufferQueue _ringBufferQueue = null!;
     private InMemoryQueue _channelQueue = null!;
 
     [Params(1024, 4096, 16384)]
     public int BufferSize { get; set; }
 
-    [Params(WaitStrategyType.Sleeping, WaitStrategyType.Yielding)]
-    public WaitStrategyType WaitStrategy { get; set; }
-
     [GlobalSetup]
     public void Setup()
     {
-        // Setup ring buffer
-        _ringBuffer = new RingBuffer<MessageEvent>(
-            BufferSize,
-            new MessageEventFactory(),
-            ProducerType.Single);
+        // Setup ring buffer queue
+        var ringBufferOptions = new InMemoryQueueOptions
+        {
+            Mode = QueueMode.RingBuffer,
+            BufferSize = BufferSize,
+            WaitStrategy = WaitStrategy.Sleeping,
+            ProducerMode = ProducerMode.Single
+        };
+        _ringBufferQueue = new RingBufferQueue(ringBufferOptions);
 
         // Setup channel queue
+        var channelOptions = new InMemoryQueueOptions
+        {
+            Mode = QueueMode.Channel,
+            BufferSize = BufferSize,
+            DropWhenFull = false
+        };
         _channelQueue = new InMemoryQueue(BufferSize, false);
     }
 
     [Benchmark(Baseline = true)]
     [BenchmarkCategory("Latency")]
-    public void Channel_SingleProducerSingleConsumer()
+    public void Channel_SingleMessage()
     {
         var envelope = new TransportEnvelope();
         _channelQueue.EnqueueAsync(envelope).AsTask().Wait();
@@ -1442,36 +1858,20 @@ public class DisruptorBenchmarks
 
     [Benchmark]
     [BenchmarkCategory("Latency")]
-    public void Disruptor_SingleProducerSingleConsumer()
+    public void RingBuffer_SingleMessage()
     {
-        long sequence = _ringBuffer.Next();
-        try
-        {
-            var evt = _ringBuffer.Get(sequence);
-            evt.Envelope = new TransportEnvelope();
-        }
-        finally
-        {
-            _ringBuffer.Publish(sequence);
-        }
+        var envelope = new TransportEnvelope();
+        _ringBufferQueue.EnqueueAsync(envelope).AsTask().Wait();
     }
 
     [Benchmark]
     [BenchmarkCategory("Throughput")]
-    public void Disruptor_Throughput_1M_Messages()
+    public void RingBuffer_Throughput_1M_Messages()
     {
         for (int i = 0; i < 1_000_000; i++)
         {
-            long sequence = _ringBuffer.Next();
-            try
-            {
-                var evt = _ringBuffer.Get(sequence);
-                evt.Envelope = new TransportEnvelope();
-            }
-            finally
-            {
-                _ringBuffer.Publish(sequence);
-            }
+            var envelope = new TransportEnvelope();
+            _ringBufferQueue.EnqueueAsync(envelope).AsTask().Wait();
         }
     }
 }
@@ -1494,147 +1894,17 @@ public class DisruptorBenchmarks
 
 ## Phase 5: Production Readiness (2 weeks, 80 hours)
 
-### 5.1 Configuration API
+### 5.1 Observability and Diagnostics
 
-**File**: `src/HeroMessaging/Extensions/DisruptorServiceCollectionExtensions.cs`
-
-```csharp
-/// <summary>
-/// Extension methods for configuring Disruptor-based components
-/// </summary>
-public static class DisruptorServiceCollectionExtensions
-{
-    public static IServiceCollection AddHeroMessagingWithDisruptor(
-        this IServiceCollection services,
-        Action<DisruptorOptionsBuilder> configure)
-    {
-        var builder = new DisruptorOptionsBuilder(services);
-        configure(builder);
-
-        return services;
-    }
-}
-
-/// <summary>
-/// Fluent API for configuring Disruptor components
-/// </summary>
-public class DisruptorOptionsBuilder
-{
-    private readonly IServiceCollection _services;
-
-    public DisruptorOptionsBuilder(IServiceCollection services)
-    {
-        _services = services;
-    }
-
-    /// <summary>
-    /// Use Disruptor-based queue instead of Channel-based queue
-    /// </summary>
-    public DisruptorOptionsBuilder UseDisruptorQueue(
-        Action<DisruptorQueueOptionsBuilder>? configure = null)
-    {
-        var options = new DisruptorQueueOptions();
-        var builder = new DisruptorQueueOptionsBuilder(options);
-        configure?.Invoke(builder);
-
-        _services.AddSingleton(options);
-        _services.AddSingleton<IQueue, DisruptorInMemoryQueue>();
-
-        return this;
-    }
-
-    /// <summary>
-    /// Use Disruptor-based event bus instead of TPL Dataflow
-    /// </summary>
-    public DisruptorOptionsBuilder UseDisruptorEventBus(
-        Action<DisruptorEventBusOptionsBuilder>? configure = null)
-    {
-        var options = new DisruptorEventBusOptions();
-        var builder = new DisruptorEventBusOptionsBuilder(options);
-        configure?.Invoke(builder);
-
-        _services.AddSingleton(options);
-        _services.AddSingleton<IEventBus, DisruptorEventBus>();
-
-        return this;
-    }
-}
-
-/// <summary>
-/// Builder for queue options
-/// </summary>
-public class DisruptorQueueOptionsBuilder
-{
-    private readonly DisruptorQueueOptions _options;
-
-    public DisruptorQueueOptionsBuilder(DisruptorQueueOptions options)
-    {
-        _options = options;
-    }
-
-    public DisruptorQueueOptionsBuilder WithBufferSize(int size)
-    {
-        if (!IsPowerOf2(size))
-            throw new ArgumentException("Buffer size must be power of 2");
-
-        _options.BufferSize = size;
-        return this;
-    }
-
-    public DisruptorQueueOptionsBuilder WithWaitStrategy(WaitStrategyType strategy)
-    {
-        _options.WaitStrategy = strategy;
-        return this;
-    }
-
-    public DisruptorQueueOptionsBuilder WithSingleProducer()
-    {
-        _options.ProducerType = ProducerType.Single;
-        return this;
-    }
-
-    public DisruptorQueueOptionsBuilder WithMultiProducer()
-    {
-        _options.ProducerType = ProducerType.Multi;
-        return this;
-    }
-}
-```
-
-**Usage Example**:
+**File**: `src/HeroMessaging.RingBuffer/Diagnostics/RingBufferMetrics.cs`
 
 ```csharp
-// Startup.cs or Program.cs
-services.AddHeroMessagingWithDisruptor(disruptor =>
-{
-    disruptor.UseDisruptorQueue(queue =>
-    {
-        queue
-            .WithBufferSize(4096)              // Power of 2
-            .WithWaitStrategy(WaitStrategyType.Sleeping)
-            .WithMultiProducer();              // Multiple publishers
-    });
+namespace HeroMessaging.RingBuffer.Diagnostics;
 
-    disruptor.UseDisruptorEventBus(eventBus =>
-    {
-        eventBus
-            .WithBufferSize(8192)
-            .WithWaitStrategy(WaitStrategyType.Yielding);
-    });
-});
-```
-
----
-
-### 5.2 Observability and Diagnostics
-
-**File**: `src/HeroMessaging.Disruptor/Diagnostics/DisruptorMetrics.cs`
-
-```csharp
 /// <summary>
-/// Metrics for Disruptor ring buffer performance
+/// Metrics for ring buffer performance
 /// </summary>
-public interface IDisruptorMetrics
+public interface IRingBufferMetrics
 {
     /// <summary>
     /// Current sequence number being published
@@ -1711,7 +1981,7 @@ public class DiagnosticEventHandler<T> : IEventHandler<T>
         var rate = _eventsProcessed / elapsed.TotalSeconds;
 
         _logger.LogInformation(
-            "Disruptor Performance: {EventsProcessed:N0} events, " +
+            "RingBuffer Performance: {EventsProcessed:N0} events, " +
             "{Rate:N0} events/sec, {Errors:N0} errors",
             _eventsProcessed, rate, _errorsEncountered);
     }
@@ -1729,55 +1999,21 @@ public class DiagnosticEventHandler<T> : IEventHandler<T>
 }
 ```
 
-**OpenTelemetry Integration**:
-
-```csharp
-/// <summary>
-/// OpenTelemetry metrics for Disruptor
-/// </summary>
-public class DisruptorOpenTelemetryMetrics
-{
-    private readonly Meter _meter;
-    private readonly Counter<long> _eventsPublished;
-    private readonly Histogram<double> _publishLatency;
-    private readonly ObservableGauge<long> _bufferDepth;
-
-    public DisruptorOpenTelemetryMetrics(IMeterFactory meterFactory)
-    {
-        _meter = meterFactory.Create("HeroMessaging.Disruptor");
-
-        _eventsPublished = _meter.CreateCounter<long>(
-            "disruptor.events.published",
-            description: "Number of events published to ring buffer");
-
-        _publishLatency = _meter.CreateHistogram<double>(
-            "disruptor.publish.duration",
-            unit: "ms",
-            description: "Time to publish event to ring buffer");
-
-        _bufferDepth = _meter.CreateObservableGauge<long>(
-            "disruptor.buffer.depth",
-            () => GetCurrentBufferDepth(),
-            description: "Current number of events in buffer");
-    }
-}
-```
-
 ---
 
-### 5.3 Documentation
+### 5.2 Documentation
 
 **Files to Create**:
 
 1. **Architecture Decision Record**:
-   - `docs/adr/0006-disruptor-implementation.md`
+   - `docs/adr/0006-ringbuffer-implementation.md`
    - Rationale for in-house vs library
    - Performance characteristics
    - Trade-offs and limitations
 
 2. **Developer Guide**:
-   - `docs/disruptor-developer-guide.md`
-   - How to use Disruptor components
+   - `docs/ringbuffer-developer-guide.md`
+   - How to use RingBuffer components
    - When to use which wait strategy
    - Performance tuning guide
 
@@ -1787,152 +2023,17 @@ public class DisruptorOpenTelemetryMetrics
    - Performance best practices
 
 4. **Migration Guide**:
-   - `docs/migration-to-disruptor.md`
-   - Step-by-step migration from Channels
-   - Feature flag configuration
+   - `docs/migration-to-ringbuffer.md`
+   - Step-by-step migration from Channel mode
+   - Configuration examples
    - Rollback procedures
-
----
-
-## Testing Strategy
-
-### Unit Tests (200+ tests)
-
-**Categories**:
-1. **Ring Buffer Tests** (50 tests)
-   - Power-of-2 validation
-   - Sequence wrapping
-   - Multi-producer coordination
-   - Consumer gating
-
-2. **Sequencer Tests** (40 tests)
-   - Single vs multi-producer
-   - Backpressure handling
-   - Sequence claim/publish
-   - Batch operations
-
-3. **Wait Strategy Tests** (30 tests)
-   - Latency measurements
-   - CPU usage profiling
-   - Timeout behavior
-   - Signal/wake correctness
-
-4. **Event Processor Tests** (40 tests)
-   - Event processing order
-   - Exception handling
-   - Shutdown behavior
-   - Batch processing
-
-5. **Integration Tests** (40 tests)
-   - End-to-end message flow
-   - Pipeline integration
-   - Feature parity with Channels
-   - Migration scenarios
-
-**Testing Framework**: Xunit.v3 (constitutional requirement)
-
-**Coverage Target**: 80% minimum, 100% for public APIs
-
----
-
-### Performance Tests
-
-**Benchmark Suites**:
-
-1. **Latency Benchmarks**:
-   ```bash
-   # Measure p50, p99, p99.9 latencies
-   dotnet run --project tests/HeroMessaging.Disruptor.Benchmarks \
-       --filter "*Latency*" \
-       --job Short \
-       --statisticalTest 3ms
-   ```
-
-2. **Throughput Benchmarks**:
-   ```bash
-   # Measure messages per second
-   dotnet run --project tests/HeroMessaging.Disruptor.Benchmarks \
-       --filter "*Throughput*" \
-       --runtimes net8.0 net9.0 net10.0
-   ```
-
-3. **Memory Benchmarks**:
-   ```bash
-   # Measure allocations
-   dotnet run --project tests/HeroMessaging.Disruptor.Benchmarks \
-       --filter "*Memory*" \
-       --memory
-   ```
-
-4. **CPU Benchmarks**:
-   ```bash
-   # Measure CPU cache efficiency
-   dotnet run --project tests/HeroMessaging.Disruptor.Benchmarks \
-       --filter "*CPU*" \
-       --profiler EP  # Event Pipe profiler
-   ```
-
-**Performance Gates** (CI enforcement):
-- Latency: Must be <50μs p99
-- Throughput: Must be >500K msg/s
-- Allocations: Must be 0 bytes in hot path
-- Regression: <10% degradation from baseline
-
----
-
-### Integration Tests
-
-**Scenarios**:
-
-1. **Drop-in Replacement Test**:
-   - Run all existing HeroMessaging tests with Disruptor
-   - Verify identical behavior
-   - Zero breaking changes
-
-2. **Load Test**:
-   - 1M+ messages sustained throughput
-   - 100+ concurrent producers/consumers
-   - 24+ hour endurance test
-
-3. **Failure Scenarios**:
-   - Buffer full behavior
-   - Consumer crash recovery
-   - Out of memory handling
-
-4. **Multi-Framework Test**:
-   - netstandard2.0, net8.0, net9.0, net10.0
-   - Windows, Linux, macOS
-   - x64, ARM64 architectures
-
----
-
-## Risk Mitigation
-
-### Technical Risks
-
-| Risk | Likelihood | Impact | Mitigation |
-|------|-----------|--------|------------|
-| Performance regression | Low | High | Comprehensive benchmarks, CI gates |
-| Memory leaks | Medium | High | Long-running tests, memory profiling |
-| Thread safety bugs | Medium | High | Concurrency tests, ThreadSanitizer |
-| Buffer overflow | Low | High | Power-of-2 validation, wraparound tests |
-| Breaking changes | Low | High | Feature flags, backward compatibility |
-
-### Operational Risks
-
-| Risk | Likelihood | Impact | Mitigation |
-|------|-----------|--------|------------|
-| Learning curve | Medium | Medium | Comprehensive docs, examples |
-| Configuration errors | Medium | Medium | Validation, sensible defaults |
-| Production issues | Low | High | Gradual rollout, instant rollback |
-| Support burden | Medium | Low | Self-service docs, diagnostics |
 
 ---
 
 ## Project Structure
 
 ```
-src/HeroMessaging.Disruptor/
+src/HeroMessaging.RingBuffer/
 ├── RingBuffer.cs                    # Core ring buffer implementation
 ├── Sequences/
 │   ├── ISequence.cs                 # Sequence interface
@@ -1962,18 +2063,30 @@ src/HeroMessaging.Disruptor/
 │   ├── IEventTranslatorOneArg.cs
 │   └── IEventTranslatorTwoArg.cs
 ├── Diagnostics/
-│   ├── DisruptorMetrics.cs          # Performance metrics
-│   └── DisruptorOpenTelemetryMetrics.cs
+│   ├── RingBufferMetrics.cs         # Performance metrics
+│   └── DiagnosticEventHandler.cs
 └── Extensions/
     └── RingBufferExtensions.cs      # Convenience methods
 
+src/HeroMessaging.Abstractions/
+├── Transport/
+│   ├── InMemoryQueueOptions.cs      # Configuration options
+│   ├── QueueMode.cs                 # Channel vs RingBuffer
+│   ├── WaitStrategy.cs              # Wait strategy enum
+│   └── ProducerMode.cs              # Single vs Multi
+
 src/HeroMessaging/
 ├── Transport/InMemory/
-│   └── DisruptorInMemoryQueue.cs    # Disruptor-based queue
-└── Processing/
-    └── DisruptorEventBus.cs         # Disruptor-based event bus
+│   ├── InMemoryQueue.cs             # Existing Channel-based (DEFAULT)
+│   ├── RingBufferQueue.cs           # New RingBuffer-based (OPT-IN)
+│   └── InMemoryQueueFactory.cs      # Factory pattern
+├── Processing/
+│   ├── EventBus.cs                  # Existing ActionBlock-based
+│   └── RingBufferEventBus.cs        # New RingBuffer-based
+└── Extensions/
+    └── InMemoryQueueServiceCollectionExtensions.cs
 
-tests/HeroMessaging.Disruptor.Tests/
+tests/HeroMessaging.RingBuffer.Tests/
 ├── Unit/
 │   ├── RingBufferTests.cs
 │   ├── SequencerTests.cs
@@ -1986,19 +2099,19 @@ tests/HeroMessaging.Disruptor.Tests/
 └── Performance/
     └── PerformanceRegressionTests.cs
 
-tests/HeroMessaging.Disruptor.Benchmarks/
+tests/HeroMessaging.RingBuffer.Benchmarks/
 ├── LatencyBenchmarks.cs
 ├── ThroughputBenchmarks.cs
 ├── MemoryBenchmarks.cs
 ├── CpuCacheBenchmarks.cs
-└── ComparisonBenchmarks.cs
+└── QueueModeComparisonBenchmarks.cs
 
 docs/
 ├── adr/
-│   └── 0006-disruptor-implementation.md
-├── disruptor-developer-guide.md
-├── disruptor-performance-tuning.md
-└── migration-to-disruptor.md
+│   └── 0006-ringbuffer-implementation.md
+├── ringbuffer-developer-guide.md
+├── ringbuffer-performance-tuning.md
+└── migration-to-ringbuffer.md
 ```
 
 ---
@@ -2021,11 +2134,7 @@ docs/
 
 ### Week 5: Wait Strategies
 - [ ] IWaitStrategy interface
-- [ ] BlockingWaitStrategy
-- [ ] SleepingWaitStrategy
-- [ ] YieldingWaitStrategy
-- [ ] BusySpinWaitStrategy
-- [ ] TimeoutBlockingWaitStrategy
+- [ ] 5 wait strategy implementations
 - [ ] Performance benchmarks
 - [ ] Unit tests (30+)
 
@@ -2034,14 +2143,14 @@ docs/
 - [ ] BatchEventProcessor
 - [ ] WorkProcessor
 - [ ] Exception handling
-- [ ] Shutdown logic
 - [ ] Unit tests (40+)
 
 ### Week 7-8: HeroMessaging Integration
-- [ ] DisruptorInMemoryQueue
-- [ ] DisruptorEventBus
-- [ ] Feature flags
-- [ ] Migration path
+- [ ] InMemoryQueueOptions with QueueMode
+- [ ] RingBufferQueue implementation
+- [ ] RingBufferEventBus implementation
+- [ ] Factory pattern for queue creation
+- [ ] Feature flags and configuration
 - [ ] Integration tests (40+)
 
 ### Week 9-10: Advanced Features
@@ -2060,10 +2169,10 @@ docs/
 - [ ] CI performance gates
 
 ### Week 13-14: Production Readiness
-- [ ] Configuration API
+- [ ] Configuration API refinement
 - [ ] Fluent builders
 - [ ] Observability metrics
-- [ ] OpenTelemetry integration
+- [ ] Diagnostic handlers
 - [ ] Documentation (ADR, guides, API docs)
 - [ ] Migration guide
 
@@ -2081,8 +2190,8 @@ docs/
 
 ### Performance Targets (Must Achieve)
 
-✅ **Latency**: <50μs p99 (20x improvement over Channels)
-✅ **Throughput**: >500K msg/s (5x improvement over Channels)
+✅ **Latency**: <50μs p99 (20x improvement over Channel)
+✅ **Throughput**: >500K msg/s (5x improvement over Channel)
 ✅ **Allocations**: 0 bytes in hot path (100% reduction)
 ✅ **CPU Cache Misses**: <1 per 1000 messages (10x improvement)
 
@@ -2095,42 +2204,40 @@ docs/
 
 ### Operational Targets (Must Achieve)
 
-✅ **Backward Compatibility**: 100% feature parity with Channels
-✅ **Feature Flags**: Instant rollback capability
+✅ **Backward Compatibility**: 100% feature parity with Channel mode
+✅ **Default Behavior**: Channel mode remains default (no breaking changes)
+✅ **Feature Flags**: Instant rollback capability via QueueMode configuration
 ✅ **Multi-Framework**: netstandard2.0, net8.0, net9.0, net10.0
 ✅ **Cross-Platform**: Windows, Linux, macOS, ARM64
 
 ---
 
-## Maintenance and Evolution
+## Risk Mitigation
 
-### Phase 6: Future Enhancements (Post-Launch)
+### Technical Risks
 
-1. **Advanced Wait Strategies**:
-   - Adaptive wait strategy (auto-tune based on load)
-   - NUMA-aware strategies
-   - Hardware timestamp counter (RDTSC) based waiting
+| Risk | Likelihood | Impact | Mitigation |
+|------|-----------|--------|------------|
+| Performance regression | Low | High | Comprehensive benchmarks, CI gates |
+| Memory leaks | Medium | High | Long-running tests, memory profiling |
+| Thread safety bugs | Medium | High | Concurrency tests, stress testing |
+| Buffer overflow | Low | High | Power-of-2 validation, wraparound tests |
+| Breaking changes | Very Low | High | Keep Channel as default, opt-in RingBuffer |
 
-2. **Advanced Event Processors**:
-   - Priority event processors
-   - Time-based batching
-   - Conditional processing
+### Operational Risks
 
-3. **Persistence Layer**:
-   - Durable ring buffer (memory-mapped files)
-   - Crash recovery
-   - Snapshot/restore
-
-4. **Distributed Disruptor**:
-   - Network-aware sequencing
-   - Cross-process ring buffers
-   - Distributed sequence coordination
+| Risk | Likelihood | Impact | Mitigation |
+|------|-----------|--------|------------|
+| Learning curve | Medium | Medium | Comprehensive docs, examples |
+| Configuration errors | Medium | Medium | Validation, sensible defaults |
+| Production issues | Low | High | Gradual rollout, instant rollback via Mode |
+| Support burden | Medium | Low | Self-service docs, diagnostics |
 
 ---
 
 ## Conclusion
 
-This comprehensive plan provides a roadmap for building high-performance Disruptor features in-house for HeroMessaging. By implementing these patterns natively, we achieve:
+This comprehensive plan provides a roadmap for building high-performance ring buffer features in-house for HeroMessaging. By implementing these patterns natively, we achieve:
 
 1. **Zero external dependencies**
 2. **20x latency improvement** (<1ms → <50μs)
@@ -2138,6 +2245,20 @@ This comprehensive plan provides a roadmap for building high-performance Disrupt
 4. **Zero allocations** in steady state
 5. **Full control** over implementation and optimization
 6. **Seamless integration** with existing HeroMessaging architecture
+7. **Zero breaking changes** - Channel mode remains default, RingBuffer is opt-in
+
+### Configuration Philosophy
+
+Users choose between two modes via `QueueMode`:
+
+- **QueueMode.Channel** (default): Async/await based, flexible backpressure, existing behavior
+- **QueueMode.RingBuffer** (opt-in): Lock-free, zero-allocation, ultra-low latency
+
+This approach ensures:
+- No breaking changes to existing users
+- Easy A/B testing and performance comparison
+- Instant rollback if issues arise
+- Gradual migration path
 
 The phased approach ensures incremental value delivery while maintaining constitutional compliance with testing excellence, code quality, and performance standards.
 
