@@ -368,7 +368,7 @@ public class MultipleTransportHealthCheckTests
                 TransportName = "Transport1",
                 Status = (TransportHealthStatus)999, // Unknown status
                 StatusMessage = "Unknown",
-                State = TransportState.Unknown
+                State = TransportState.Faulted
             });
 
         var healthCheck = new MultipleTransportHealthCheck(new[] { mockTransport.Object });

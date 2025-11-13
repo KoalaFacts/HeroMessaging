@@ -43,7 +43,7 @@ public class ServiceCollectionExtensionsTests
 
         Assert.NotNull(result);
         Assert.Contains(result.Entries, e => e.Key == "hero_messaging_transport");
-        Assert.Equal(HealthStatus.Healthy, result.Entries["hero_messaging_transport"].Status);
+        Assert.Equal(Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Healthy, result.Entries["hero_messaging_transport"].Status);
     }
 
     [Fact]
@@ -100,7 +100,7 @@ public class ServiceCollectionExtensionsTests
 
         Assert.NotNull(result);
         Assert.Contains(result.Entries, e => e.Key == "hero_messaging_transport");
-        Assert.Equal(HealthStatus.Healthy, result.Entries["hero_messaging_transport"].Status);
+        Assert.Equal(Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Healthy, result.Entries["hero_messaging_transport"].Status);
         Assert.Contains("not registered", result.Entries["hero_messaging_transport"].Description, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -134,7 +134,7 @@ public class ServiceCollectionExtensionsTests
         Assert.NotNull(result);
         Assert.Contains(result.Entries, e => e.Key == "hero_messaging_transport");
         var entry = result.Entries["hero_messaging_transport"];
-        Assert.Equal(HealthStatus.Healthy, entry.Status);
+        Assert.Equal(Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Healthy, entry.Status);
         Assert.Contains("RabbitMQ", entry.Description);
         Assert.Contains("Connected", entry.Description);
     }
@@ -171,7 +171,7 @@ public class ServiceCollectionExtensionsTests
         Assert.NotNull(result);
         Assert.Contains(result.Entries, e => e.Key == "hero_messaging_transport");
         var entry = result.Entries["hero_messaging_transport"];
-        Assert.Equal(HealthStatus.Healthy, entry.Status);
+        Assert.Equal(Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Healthy, entry.Status);
         Assert.Contains("2 healthy", entry.Description);
     }
 
@@ -281,7 +281,7 @@ public class ServiceCollectionExtensionsTests
         var result = await healthCheckService.CheckHealthAsync();
 
         Assert.Contains(result.Entries, e => e.Key == "empty_composite");
-        Assert.Equal(HealthStatus.Healthy, result.Entries["empty_composite"].Status);
+        Assert.Equal(Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Healthy, result.Entries["empty_composite"].Status);
     }
 
     [Fact]
