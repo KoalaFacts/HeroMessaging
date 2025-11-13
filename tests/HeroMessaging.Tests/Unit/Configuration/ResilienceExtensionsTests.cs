@@ -450,28 +450,14 @@ public class ResilienceExtensionsTests
 
     private class CustomTestPolicy : IConnectionResiliencePolicy
     {
-        public Task<T> ExecuteWithResilienceAsync<T>(
-            Func<CancellationToken, Task<T>> operation,
-            CancellationToken cancellationToken = default)
+        public Task ExecuteAsync(Func<Task> operation, string operationName, CancellationToken cancellationToken = default)
         {
-            return operation(cancellationToken);
+            return operation();
         }
 
-        public Task ExecuteWithResilienceAsync(
-            Func<CancellationToken, Task> operation,
-            CancellationToken cancellationToken = default)
+        public Task<T> ExecuteAsync<T>(Func<Task<T>> operation, string operationName, CancellationToken cancellationToken = default)
         {
-            return operation(cancellationToken);
-        }
-
-        public bool ShouldRetry(Exception exception, int attemptNumber)
-        {
-            return false;
-        }
-
-        public TimeSpan CalculateDelay(int attemptNumber)
-        {
-            return TimeSpan.Zero;
+            return operation();
         }
     }
 

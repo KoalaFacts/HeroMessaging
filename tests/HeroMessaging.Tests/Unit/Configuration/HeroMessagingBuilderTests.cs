@@ -1,6 +1,7 @@
 using System.Reflection;
 using HeroMessaging.Abstractions.Configuration;
 using HeroMessaging.Abstractions.ErrorHandling;
+using HeroMessaging.Abstractions.Events;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Plugins;
 using HeroMessaging.Abstractions.Processing;

@@ -1,4 +1,5 @@
 using HeroMessaging.Abstractions;
+using HeroMessaging.Abstractions.Configuration;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Storage;
 using HeroMessaging.Configuration;

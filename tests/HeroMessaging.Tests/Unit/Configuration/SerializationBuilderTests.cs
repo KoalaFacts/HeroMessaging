@@ -425,7 +425,7 @@ public sealed class SerializationBuilderTests
         var provider = _services.BuildServiceProvider();
 
         // Act
-        var options = provider.GetService<IOptions<SerializationOptions>>();
+        var options = provider.GetService<IOptions<HeroMessaging.Configuration.SerializationOptions>>();
 
         // Assert
         Assert.NotNull(options);
@@ -485,7 +485,7 @@ public sealed class SerializationBuilderTests
     public void SerializationOptions_HasDefaultMaxMessageSize()
     {
         // Arrange & Act
-        var options = new SerializationOptions();
+        var options = new HeroMessaging.Configuration.SerializationOptions();
 
         // Assert
         Assert.Equal(1024 * 1024 * 10, options.MaxMessageSize); // 10MB

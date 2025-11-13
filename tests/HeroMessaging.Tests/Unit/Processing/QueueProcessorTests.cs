@@ -56,9 +56,9 @@ public class QueueProcessorTests
         _mockQueueStorage.Setup(x => x.QueueExistsAsync(queueName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
         _mockQueueStorage.Setup(x => x.CreateQueueAsync(queueName, null, It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+            .ReturnsAsync(true);
         _mockQueueStorage.Setup(x => x.EnqueueAsync(queueName, message, options, It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+            .ReturnsAsync(new QueueEntry { Message = message });
 
         // Act
         await _sut.Enqueue(message, queueName, options);
@@ -80,7 +80,7 @@ public class QueueProcessorTests
         _mockQueueStorage.Setup(x => x.QueueExistsAsync(queueName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
         _mockQueueStorage.Setup(x => x.EnqueueAsync(queueName, message, options, It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+            .ReturnsAsync(new QueueEntry());
 
         // Act
         await _sut.Enqueue(message, queueName, options);
@@ -101,7 +101,7 @@ public class QueueProcessorTests
         _mockQueueStorage.Setup(x => x.QueueExistsAsync(queueName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
         _mockQueueStorage.Setup(x => x.EnqueueAsync(queueName, message, null, It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+            .ReturnsAsync(new QueueEntry());
 
         // Act
         await _sut.Enqueue(message, queueName, null);
@@ -122,7 +122,7 @@ public class QueueProcessorTests
         _mockQueueStorage.Setup(x => x.QueueExistsAsync(queueName, cancellationToken))
             .ReturnsAsync(true);
         _mockQueueStorage.Setup(x => x.EnqueueAsync(queueName, message, null, cancellationToken))
-            .Returns(Task.CompletedTask);
+            .ReturnsAsync(new QueueEntry());
 
         // Act
         await _sut.Enqueue(message, queueName, null, cancellationToken);
@@ -144,7 +144,7 @@ public class QueueProcessorTests
         _mockQueueStorage.Setup(x => x.QueueExistsAsync(queueName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
         _mockQueueStorage.Setup(x => x.CreateQueueAsync(queueName, null, It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+            .ReturnsAsync(true);
 
         // Act
         await _sut.StartQueue(queueName);
@@ -456,7 +456,14 @@ public class QueueProcessorTests
         message.Setup(x => x.MessageId).Returns(Guid.NewGuid());
 
         var entries = new Queue<QueueEntry>();
-        var queueEntry = new QueueEntry(Guid.NewGuid(), message.Object, 5, 0, DateTimeOffset.UtcNow);
+        var queueEntry = new QueueEntry
+        {
+            Id = Guid.NewGuid().ToString(),
+            Message = message.Object,
+            Options = new EnqueueOptions { Priority = 5 },
+            EnqueuedAt = DateTimeOffset.UtcNow,
+            DequeueCount = 0
+        };
         entries.Enqueue(queueEntry);
 
         _mockQueueStorage.Setup(x => x.QueueExistsAsync(queueName, It.IsAny<CancellationToken>()))
@@ -464,10 +471,17 @@ public class QueueProcessorTests
         _mockQueueStorage.Setup(x => x.EnqueueAsync(queueName, It.IsAny<IMessage>(), It.IsAny<EnqueueOptions>(), It.IsAny<CancellationToken>()))
             .Callback<string, IMessage, EnqueueOptions?, CancellationToken>((q, m, o, ct) =>
             {
-                var entry = new QueueEntry(Guid.NewGuid(), m, o?.Priority ?? 0, 0, DateTimeOffset.UtcNow);
+                var entry = new QueueEntry
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    Message = m,
+                    Options = o ?? new EnqueueOptions(),
+                    EnqueuedAt = DateTimeOffset.UtcNow,
+                    DequeueCount = 0
+                };
                 entries.Enqueue(entry);
             })
-            .Returns(Task.CompletedTask);
+            .ReturnsAsync(new QueueEntry());
 
         _mockQueueStorage.Setup(x => x.DequeueAsync(queueName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => entries.Count > 0 ? entries.Dequeue() : null);
@@ -488,8 +502,8 @@ public class QueueProcessorTests
         mockScopeFactory.Setup(x => x.CreateScope())
             .Returns(mockScope.Object);
 
-        _mockQueueStorage.Setup(x => x.AcknowledgeAsync(queueName, It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+        _mockQueueStorage.Setup(x => x.AcknowledgeAsync(queueName, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
 
         // Act
         await _sut.Enqueue(message.Object, queueName);

@@ -64,7 +64,7 @@ public sealed class ConfigurationValidatorTests
         var validator = new ConfigurationValidator(_services, _loggerMock.Object);
 
         // Act
-        var report = validator.Validate();
+        var report = (ValidationReport)validator.Validate();
 
         // Assert
         Assert.False(report.IsValid);
@@ -80,7 +80,7 @@ public sealed class ConfigurationValidatorTests
         var validator = new ConfigurationValidator(_services, _loggerMock.Object);
 
         // Act
-        var report = validator.Validate();
+        var report = (ValidationReport)validator.Validate();
 
         // Assert
         Assert.DoesNotContain(report.Errors, e => e.Message.Contains("IHeroMessaging is not registered"));
@@ -95,18 +95,17 @@ public sealed class ConfigurationValidatorTests
     {
         // Arrange
         _services.AddSingleton<Abstractions.IHeroMessaging>(Mock.Of<Abstractions.IHeroMessaging>());
-        _services.AddSingleton<object>(new { Type = typeof(object).FullName = "HeroMessaging.Processing.OutboxProcessor" });
 
         // Add a service with the OutboxProcessor type name
         var descriptor = ServiceDescriptor.Singleton(
             Type.GetType("HeroMessaging.Processing.OutboxProcessor, HeroMessaging") ?? typeof(object),
             _ => new object());
-        _services.Add(descriptor);
+        ((IList<ServiceDescriptor>)_services).Add(descriptor);
 
         var validator = new ConfigurationValidator(_services, _loggerMock.Object);
 
         // Act
-        var report = validator.Validate();
+        var report = (ValidationReport)validator.Validate();
 
         // Assert
         Assert.Contains(report.Errors, e => e.Message.Contains("IOutboxStorage is not configured"));
@@ -121,12 +120,12 @@ public sealed class ConfigurationValidatorTests
         var descriptor = ServiceDescriptor.Singleton(
             Type.GetType("HeroMessaging.Processing.OutboxProcessor, HeroMessaging") ?? typeof(object),
             _ => new object());
-        _services.Add(descriptor);
+        ((IList<ServiceDescriptor>)_services).Add(descriptor);
 
         var validator = new ConfigurationValidator(_services, _loggerMock.Object);
 
         // Act
-        var report = validator.Validate();
+        var report = (ValidationReport)validator.Validate();
 
         // Assert
         Assert.DoesNotContain(report.Errors, e => e.Message.Contains("IOutboxStorage is not configured"));
@@ -140,12 +139,12 @@ public sealed class ConfigurationValidatorTests
         var descriptor = ServiceDescriptor.Singleton(
             Type.GetType("HeroMessaging.Processing.InboxProcessor, HeroMessaging") ?? typeof(object),
             _ => new object());
-        _services.Add(descriptor);
+        ((IList<ServiceDescriptor>)_services).Add(descriptor);
 
         var validator = new ConfigurationValidator(_services, _loggerMock.Object);
 
         // Act
-        var report = validator.Validate();
+        var report = (ValidationReport)validator.Validate();
 
         // Assert
         Assert.Contains(report.Errors, e => e.Message.Contains("IInboxStorage is not configured"));
@@ -160,12 +159,12 @@ public sealed class ConfigurationValidatorTests
         var descriptor = ServiceDescriptor.Singleton(
             Type.GetType("HeroMessaging.Processing.InboxProcessor, HeroMessaging") ?? typeof(object),
             _ => new object());
-        _services.Add(descriptor);
+        ((IList<ServiceDescriptor>)_services).Add(descriptor);
 
         var validator = new ConfigurationValidator(_services, _loggerMock.Object);
 
         // Act
-        var report = validator.Validate();
+        var report = (ValidationReport)validator.Validate();
 
         // Assert
         Assert.DoesNotContain(report.Errors, e => e.Message.Contains("IInboxStorage is not configured"));
@@ -179,12 +178,12 @@ public sealed class ConfigurationValidatorTests
         var descriptor = ServiceDescriptor.Singleton(
             Type.GetType("HeroMessaging.Processing.QueueProcessor, HeroMessaging") ?? typeof(object),
             _ => new object());
-        _services.Add(descriptor);
+        ((IList<ServiceDescriptor>)_services).Add(descriptor);
 
         var validator = new ConfigurationValidator(_services, _loggerMock.Object);
 
         // Act
-        var report = validator.Validate();
+        var report = (ValidationReport)validator.Validate();
 
         // Assert
         Assert.True(report.HasWarnings);
@@ -204,12 +203,12 @@ public sealed class ConfigurationValidatorTests
         var descriptor = ServiceDescriptor.Singleton(
             Type.GetType("HeroMessaging.Processing.OutboxProcessor, HeroMessaging") ?? typeof(object),
             _ => new object());
-        _services.Add(descriptor);
+        ((IList<ServiceDescriptor>)_services).Add(descriptor);
 
         var validator = new ConfigurationValidator(_services, _loggerMock.Object);
 
         // Act
-        var report = validator.Validate();
+        var report = (ValidationReport)validator.Validate();
 
         // Assert
         Assert.True(report.HasWarnings);
@@ -226,12 +225,12 @@ public sealed class ConfigurationValidatorTests
         var descriptor = ServiceDescriptor.Singleton(
             Type.GetType("HeroMessaging.Processing.OutboxProcessor, HeroMessaging") ?? typeof(object),
             _ => new object());
-        _services.Add(descriptor);
+        ((IList<ServiceDescriptor>)_services).Add(descriptor);
 
         var validator = new ConfigurationValidator(_services, _loggerMock.Object);
 
         // Act
-        var report = validator.Validate();
+        var report = (ValidationReport)validator.Validate();
 
         // Assert
         Assert.DoesNotContain(report.Warnings, w => w.Message.Contains("IMessageSerializer is not configured"));
@@ -252,7 +251,7 @@ public sealed class ConfigurationValidatorTests
         var validator = new ConfigurationValidator(_services, _loggerMock.Object);
 
         // Act
-        var report = validator.Validate();
+        var report = (ValidationReport)validator.Validate();
 
         // Assert
         Assert.True(report.HasWarnings);

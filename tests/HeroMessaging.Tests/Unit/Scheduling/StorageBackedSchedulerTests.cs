@@ -114,16 +114,16 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
 
         _mockStorage.Setup(x => x.AddAsync(It.IsAny<ScheduledMessage>(), It.IsAny<CancellationToken>()))
             .Callback<ScheduledMessage, CancellationToken>((sm, ct) => capturedMessage = sm)
-            .Returns(Task.CompletedTask);
+            .ReturnsAsync(new ScheduledMessageEntry());
 
         // Act
         var result = await _sut.ScheduleAsync(message, delay);
 
         // Assert
-        Assert.True(result.IsSuccess);
+        Assert.True(result.Success);
         Assert.NotEqual(Guid.Empty, result.ScheduleId);
-        Assert.True(result.DeliverAt > DateTimeOffset.UtcNow);
-        Assert.True(result.DeliverAt <= DateTimeOffset.UtcNow.Add(delay).AddSeconds(1)); // Allow 1 second tolerance
+        Assert.True(result.ScheduledFor > DateTimeOffset.UtcNow);
+        Assert.True(result.ScheduledFor <= DateTimeOffset.UtcNow.Add(delay).AddSeconds(1)); // Allow 1 second tolerance
 
         _mockStorage.Verify(x => x.AddAsync(It.IsAny<ScheduledMessage>(), It.IsAny<CancellationToken>()), Times.Once);
         Assert.NotNull(capturedMessage);
@@ -170,13 +170,13 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
 
         _mockStorage.Setup(x => x.AddAsync(It.IsAny<ScheduledMessage>(), It.IsAny<CancellationToken>()))
             .Callback<ScheduledMessage, CancellationToken>((sm, ct) => capturedMessage = sm)
-            .Returns(Task.CompletedTask);
+            .ReturnsAsync(new ScheduledMessageEntry());
 
         // Act
         var result = await _sut.ScheduleAsync(message, delay, schedulingOptions);
 
         // Assert
-        Assert.True(result.IsSuccess);
+        Assert.True(result.Success);
         Assert.NotNull(capturedMessage);
         Assert.Equal(10, capturedMessage.Options.Priority);
         Assert.Equal("test-queue", capturedMessage.Options.Destination);
@@ -197,15 +197,15 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
 
         _mockStorage.Setup(x => x.AddAsync(It.IsAny<ScheduledMessage>(), It.IsAny<CancellationToken>()))
             .Callback<ScheduledMessage, CancellationToken>((sm, ct) => capturedMessage = sm)
-            .Returns(Task.CompletedTask);
+            .ReturnsAsync(new ScheduledMessageEntry());
 
         // Act
         var result = await _sut.ScheduleAsync(message, deliverAt);
 
         // Assert
-        Assert.True(result.IsSuccess);
+        Assert.True(result.Success);
         Assert.NotEqual(Guid.Empty, result.ScheduleId);
-        Assert.Equal(deliverAt, result.DeliverAt);
+        Assert.Equal(deliverAt, result.ScheduledFor);
 
         _mockStorage.Verify(x => x.AddAsync(It.IsAny<ScheduledMessage>(), It.IsAny<CancellationToken>()), Times.Once);
         Assert.NotNull(capturedMessage);
@@ -243,7 +243,7 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
         var result = await _sut.ScheduleAsync(message, deliverAt);
 
         // Assert
-        Assert.False(result.IsSuccess);
+        Assert.False(result.Success);
         Assert.Contains("Storage error", result.ErrorMessage);
     }
 
@@ -316,9 +316,10 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
         var message = new Mock<IMessage>();
         message.Setup(x => x.MessageId).Returns(Guid.NewGuid());
 
-        var entry = new ScheduledMessageEntry(
-            scheduleId,
-            new ScheduledMessage
+        var entry = new ScheduledMessageEntry
+        {
+            ScheduleId = scheduleId,
+            Message = new ScheduledMessage
             {
                 ScheduleId = scheduleId,
                 Message = message.Object,
@@ -326,8 +327,9 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
                 ScheduledAt = DateTimeOffset.UtcNow,
                 Options = new SchedulingOptions { Priority = 5 }
             },
-            ScheduledMessageStatus.Pending,
-            null);
+            Status = ScheduledMessageStatus.Pending,
+            DeliveredAt = null
+        };
 
         _mockStorage.Setup(x => x.GetAsync(scheduleId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(entry);
@@ -516,9 +518,10 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
         var message = new Mock<IMessage>();
         message.Setup(x => x.MessageId).Returns(Guid.NewGuid());
 
-        return new ScheduledMessageEntry(
-            scheduleId,
-            new ScheduledMessage
+        return new ScheduledMessageEntry
+        {
+            ScheduleId = scheduleId,
+            Message = new ScheduledMessage
             {
                 ScheduleId = scheduleId,
                 Message = message.Object,
@@ -526,8 +529,9 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
                 ScheduledAt = DateTimeOffset.UtcNow,
                 Options = new SchedulingOptions()
             },
-            status,
-            null);
+            Status = status,
+            DeliveredAt = null
+        };
     }
 
     #endregion

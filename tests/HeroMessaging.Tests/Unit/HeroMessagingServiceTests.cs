@@ -580,7 +580,7 @@ public class HeroMessagingServiceTests
         var options = new InboxOptions();
 
         _mockInboxProcessor.Setup(x => x.ProcessIncoming(message, options, It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+            .ReturnsAsync(true);
 
         // Act
         await _sut.ProcessIncomingAsync(message, options);
