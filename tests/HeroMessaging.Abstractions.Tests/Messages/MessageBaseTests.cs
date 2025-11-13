@@ -5,12 +5,12 @@ namespace HeroMessaging.Abstractions.Tests.Messages;
 [Trait("Category", "Unit")]
 public class MessageBaseTests
 {
-    private class TestMessage : MessageBase
+    private record TestMessage : MessageBase
     {
         public string Content { get; init; } = string.Empty;
     }
 
-    private class TestMessageWithResponse : MessageBase<string>
+    private record TestMessageWithResponse : MessageBase<string>
     {
         public string Query { get; init; } = string.Empty;
     }

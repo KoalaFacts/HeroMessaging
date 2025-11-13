@@ -186,7 +186,17 @@ public class IdempotencyResponseTests
 
         // Act & Assert - This test verifies that the properties use init accessors
         // We can only set them during initialization, not after
-        var newResponse = response with { IdempotencyKey = "new-key" };
+        var newResponse = new IdempotencyResponse
+        {
+            IdempotencyKey = "new-key",
+            SuccessResult = response.SuccessResult,
+            FailureType = response.FailureType,
+            FailureMessage = response.FailureMessage,
+            FailureStackTrace = response.FailureStackTrace,
+            StoredAt = response.StoredAt,
+            ExpiresAt = response.ExpiresAt,
+            Status = response.Status
+        };
         Assert.Equal("key", response.IdempotencyKey);
         Assert.Equal("new-key", newResponse.IdempotencyKey);
     }
@@ -205,7 +215,17 @@ public class IdempotencyResponseTests
         };
 
         // Act
-        var modified = original with { IdempotencyKey = "key-2" };
+        var modified = new IdempotencyResponse
+        {
+            IdempotencyKey = "key-2",
+            SuccessResult = original.SuccessResult,
+            FailureType = original.FailureType,
+            FailureMessage = original.FailureMessage,
+            FailureStackTrace = original.FailureStackTrace,
+            StoredAt = original.StoredAt,
+            ExpiresAt = original.ExpiresAt,
+            Status = original.Status
+        };
 
         // Assert
         Assert.Equal("key-1", original.IdempotencyKey);

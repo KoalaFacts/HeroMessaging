@@ -252,15 +252,15 @@ public class RateLimitResultTests
     public void Throttled_DifferentRetryPeriods_CreatesDifferentResults()
     {
         // Arrange & Act
-        var short = RateLimitResult.Throttled(TimeSpan.FromSeconds(1));
-        var medium = RateLimitResult.Throttled(TimeSpan.FromMinutes(1));
-        var long = RateLimitResult.Throttled(TimeSpan.FromHours(1));
+        var shortPeriod = RateLimitResult.Throttled(TimeSpan.FromSeconds(1));
+        var mediumPeriod = RateLimitResult.Throttled(TimeSpan.FromMinutes(1));
+        var longPeriod = RateLimitResult.Throttled(TimeSpan.FromHours(1));
 
         // Assert
-        Assert.Equal(TimeSpan.FromSeconds(1), short.RetryAfter);
-        Assert.Equal(TimeSpan.FromMinutes(1), medium.RetryAfter);
-        Assert.Equal(TimeSpan.FromHours(1), long.RetryAfter);
-        Assert.All(new[] { short, medium, long }, r => Assert.False(r.IsAllowed));
+        Assert.Equal(TimeSpan.FromSeconds(1), shortPeriod.RetryAfter);
+        Assert.Equal(TimeSpan.FromMinutes(1), mediumPeriod.RetryAfter);
+        Assert.Equal(TimeSpan.FromHours(1), longPeriod.RetryAfter);
+        Assert.All(new[] { shortPeriod, mediumPeriod, longPeriod }, r => Assert.False(r.IsAllowed));
     }
 
     [Fact]

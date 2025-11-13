@@ -451,7 +451,7 @@ public class TransportEnvelopeTests
         var messageType = "TestMessage";
 
         // Act
-        var envelope = body.AsMemory().ToEnvelope(messageType);
+        var envelope = ((ReadOnlyMemory<byte>)body.AsMemory()).ToEnvelope(messageType);
 
         // Assert
         Assert.Equal(messageType, envelope.MessageType);
@@ -468,7 +468,7 @@ public class TransportEnvelopeTests
         var causationId = "cause-456";
 
         // Act
-        var envelope = body.AsMemory().ToEnvelope(
+        var envelope = ((ReadOnlyMemory<byte>)body.AsMemory()).ToEnvelope(
             "TestMessage",
             messageId,
             correlationId,

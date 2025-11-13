@@ -202,11 +202,11 @@ public class SecurityExceptionTests
     public void AllExceptions_CanBeThrown()
     {
         // Arrange & Act & Assert
-        Assert.Throws<SecurityException>(() => throw new SecurityException("Test"));
-        Assert.Throws<EncryptionException>(() => throw new EncryptionException("Test"));
-        Assert.Throws<SignatureVerificationException>(() => throw new SignatureVerificationException("Test"));
-        Assert.Throws<AuthenticationException>(() => throw new AuthenticationException("Test"));
-        Assert.Throws<AuthorizationException>(() => throw new AuthorizationException("Test"));
+        Assert.Throws<SecurityException>((Action)(() => throw new SecurityException("Test")));
+        Assert.Throws<EncryptionException>((Action)(() => throw new EncryptionException("Test")));
+        Assert.Throws<SignatureVerificationException>((Action)(() => throw new SignatureVerificationException("Test")));
+        Assert.Throws<AuthenticationException>((Action)(() => throw new AuthenticationException("Test")));
+        Assert.Throws<AuthorizationException>((Action)(() => throw new AuthorizationException("Test")));
     }
 
     [Fact]

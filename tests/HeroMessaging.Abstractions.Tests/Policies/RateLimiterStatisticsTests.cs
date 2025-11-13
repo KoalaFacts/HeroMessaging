@@ -235,8 +235,16 @@ public class RateLimiterStatisticsTests
             Capacity = 100
         };
 
-        // Act - We can create a new instance with 'with' expression
-        var newStats = stats with { AvailablePermits = 75 };
+        // Act - Create a new instance with modified value
+        var newStats = new RateLimiterStatistics
+        {
+            AvailablePermits = 75,
+            Capacity = stats.Capacity,
+            RefillRate = stats.RefillRate,
+            LastRefillTime = stats.LastRefillTime,
+            TotalAcquired = stats.TotalAcquired,
+            TotalThrottled = stats.TotalThrottled
+        };
 
         // Assert
         Assert.Equal(50, stats.AvailablePermits);
