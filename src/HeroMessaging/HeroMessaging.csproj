@@ -25,6 +25,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\HeroMessaging.Abstractions\HeroMessaging.Abstractions.csproj" />
+		<ProjectReference Include="..\HeroMessaging.RingBuffer\HeroMessaging.RingBuffer.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>
