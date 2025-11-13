@@ -186,7 +186,7 @@ internal class RingBufferQueue : IDisposable, IAsyncDisposable
                 {
                     // Deliver message to consumer (synchronous to avoid allocation)
                     // The consumer has its own async processing pipeline
-                    _consumer.DeliverMessageAsync(evt.Envelope.Value, default).AsTask().Wait();
+                    _consumer.DeliverMessageAsync(evt.Envelope.Value, default).GetAwaiter().GetResult();
 
                     // Decrement depth counter
                     Interlocked.Decrement(ref _queue._depth);

@@ -421,7 +421,7 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
     }
 
     [Fact]
-    public async Task AuthorizeAsync_WithOnlyWildcard_AppliesTo AllMessages()
+    public async Task AuthorizeAsync_WithOnlyWildcard_AppliesToAllMessages()
     {
         // Arrange
         var provider = new PolicyAuthorizationProvider();
@@ -492,7 +492,7 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
         provider.AddPolicy("shared-name", policy2); // Overwrite
 
         var unauthPrincipal = new ClaimsPrincipal();
-        var result = provider.AuthorizeAsync(unauthPrincipal, "Test:Op").Result;
+        var result = provider.AuthorizeAsync(unauthPrincipal, "Test", "Op").Result;
 
         // Assert - Should use second policy (anonymous)
         Assert.True(result.Succeeded);

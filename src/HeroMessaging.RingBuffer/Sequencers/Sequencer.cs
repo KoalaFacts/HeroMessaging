@@ -77,7 +77,7 @@ public abstract class Sequencer
     /// </summary>
     /// <param name="defaultValue">Value to return if no gating sequences exist</param>
     /// <returns>The minimum sequence value</returns>
-    protected long GetMinimumGatingSequence(long defaultValue = long.MaxValue)
+    public long GetMinimumGatingSequence(long defaultValue = long.MaxValue)
     {
         if (_gatingSequences.Count == 0)
             return defaultValue;

@@ -10,9 +10,9 @@ namespace HeroMessaging.RingBuffer.Sequencers;
 /// </summary>
 public sealed class SingleProducerSequencer : Sequencer
 {
-    private readonly PaddedLong _cursor = new(-1);
-    private readonly PaddedLong _nextValue = new(-1);
-    private readonly PaddedLong _cachedGatingSequence = new(-1);
+    private readonly Sequence _cursor = new(-1);
+    private readonly Sequence _nextValue = new(-1);
+    private readonly Sequence _cachedGatingSequence = new(-1);
 
     /// <summary>
     /// Creates a new single-producer sequencer

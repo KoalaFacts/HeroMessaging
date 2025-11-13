@@ -63,7 +63,7 @@ public sealed class ClaimsAuthenticationProviderEdgeCasesTests
 
         // Act & Assert
         var exception = Assert.Throws<ArgumentException>(
-            () => provider.RegisterApiKey("key", null!));
+            () => provider.RegisterApiKey("key", (string)null!));
         Assert.Contains("Name cannot be empty", exception.Message);
     }
 

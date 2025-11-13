@@ -10,7 +10,7 @@ namespace HeroMessaging.RingBuffer.Sequencers;
 /// </summary>
 public sealed class MultiProducerSequencer : Sequencer
 {
-    private readonly PaddedLong _cursor = new(-1);
+    private readonly Sequence _cursor = new(-1);
     private readonly int[] _availableBuffer;
     private readonly int _indexMask;
     private readonly int _indexShift;
@@ -53,7 +53,7 @@ public sealed class MultiProducerSequencer : Sequencer
             }
         }
         // Use CAS to claim the sequence atomically
-        while (Interlocked.CompareExchange(ref _cursor.Value, next, current) != current);
+        while (_cursor.CompareExchange(current, next) != current);
 
         return next;
     }
@@ -85,7 +85,7 @@ public sealed class MultiProducerSequencer : Sequencer
                 continue;
             }
         }
-        while (Interlocked.CompareExchange(ref _cursor.Value, next, current) != current);
+        while (_cursor.CompareExchange(current, next) != current);
 
         return next;
     }
