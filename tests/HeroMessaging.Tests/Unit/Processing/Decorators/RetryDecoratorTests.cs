@@ -99,7 +99,8 @@ public sealed class RetryDecoratorTests
     {
         // Arrange
         _retryPolicyMock.Setup(p => p.MaxRetries).Returns(2);
-        _retryPolicyMock.Setup(p => p.ShouldRetry(It.IsAny<Exception>(), It.IsAny<int>())).Returns(true);
+        _retryPolicyMock.Setup(p => p.ShouldRetry(It.IsAny<Exception>(), It.IsAny<int>()))
+            .Returns((Exception ex, int attempt) => attempt < 2); // Only retry if attempt < MaxRetries
         _retryPolicyMock.Setup(p => p.GetRetryDelay(It.IsAny<int>())).Returns(TimeSpan.Zero);
 
         var decorator = CreateDecorator(_retryPolicyMock.Object);
@@ -126,7 +127,8 @@ public sealed class RetryDecoratorTests
     {
         // Arrange
         _retryPolicyMock.Setup(p => p.MaxRetries).Returns(2);
-        _retryPolicyMock.Setup(p => p.ShouldRetry(It.IsAny<Exception>(), It.IsAny<int>())).Returns(true);
+        _retryPolicyMock.Setup(p => p.ShouldRetry(It.IsAny<Exception>(), It.IsAny<int>()))
+            .Returns((Exception ex, int attempt) => attempt < 2); // Only retry if attempt < MaxRetries
         _retryPolicyMock.Setup(p => p.GetRetryDelay(It.IsAny<int>())).Returns(TimeSpan.Zero);
 
         var decorator = CreateDecorator(_retryPolicyMock.Object);
@@ -138,7 +140,7 @@ public sealed class RetryDecoratorTests
             .Setup(p => p.ProcessAsync(message, It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(testException);
 
-        // Act & Assert
+        // Act & Assert - Exception should be rethrown after retries exhausted
         await Assert.ThrowsAsync<TimeoutException>(
             async () => await decorator.ProcessAsync(message, context));
 

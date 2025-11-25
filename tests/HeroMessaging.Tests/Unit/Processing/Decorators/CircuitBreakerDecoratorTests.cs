@@ -196,27 +196,35 @@ public sealed class CircuitBreakerDecoratorTests
         };
         var decorator = CreateDecorator(options);
         var context = new ProcessingContext();
+        var callCount = 0;
 
-        // Act - 7 failures out of 10 = 70% failure rate
-        for (int i = 0; i < 10; i++)
+        // Setup: 6 successes, then 7 failures = 7/13 = 54% rate (below threshold)
+        // Then need more failures to push over 60%
+        _innerMock
+            .Setup(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() =>
+            {
+                callCount++;
+                // First 4 successes to build throughput
+                if (callCount <= 4)
+                {
+                    return ProcessingResult.Successful();
+                }
+                // Then failures to exceed rate: 7 failures out of 11 = 63.6%
+                if (callCount <= 11)
+                {
+                    return ProcessingResult.Failed(new Exception("Test error"));
+                }
+                return ProcessingResult.Successful();
+            });
+
+        // Act - Make requests until circuit opens
+        for (int i = 0; i < 11; i++)
         {
-            if (i < 7)
-            {
-                _innerMock
-                    .Setup(p => p.ProcessAsync(It.IsAny<TestMessage>(), context, It.IsAny<CancellationToken>()))
-                    .ReturnsAsync(ProcessingResult.Failed(new Exception("Test error")));
-            }
-            else
-            {
-                _innerMock
-                    .Setup(p => p.ProcessAsync(It.IsAny<TestMessage>(), context, It.IsAny<CancellationToken>()))
-                    .ReturnsAsync(ProcessingResult.Successful());
-            }
-
             await decorator.ProcessAsync(new TestMessage(), context);
         }
 
-        // Circuit should now be open
+        // Circuit should now be open (opened on 11th request which was a failure)
         var result = await decorator.ProcessAsync(new TestMessage(), context);
 
         // Assert
