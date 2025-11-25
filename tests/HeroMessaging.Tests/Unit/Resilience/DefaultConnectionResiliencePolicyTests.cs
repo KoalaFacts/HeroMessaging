@@ -529,12 +529,15 @@ public class DefaultConnectionResiliencePolicyTests
     public async Task ExecuteAsync_WithHealthMonitor_RecordsSuccess()
     {
         // Arrange
-        var mockHealthMonitor = new Mock<ConnectionHealthMonitor>();
+        // Create a real ConnectionHealthMonitor instance instead of mocking
+        var healthLogger = new Mock<ILogger<ConnectionHealthMonitor>>();
+        var healthMonitor = new ConnectionHealthMonitor(healthLogger.Object, _timeProvider);
+
         var policy = new DefaultConnectionResiliencePolicy(
             _options,
             _mockLogger.Object,
             _timeProvider,
-            mockHealthMonitor.Object);
+            healthMonitor);
 
         // Act
         await policy.ExecuteAsync(
@@ -542,9 +545,10 @@ public class DefaultConnectionResiliencePolicyTests
             "TestOperation");
 
         // Assert
-        mockHealthMonitor.Verify(
-            x => x.RecordSuccess("TestOperation", It.IsAny<TimeSpan>()),
-            Times.Once);
+        // Verify by checking metrics instead of mocking
+        var metrics = healthMonitor.GetMetrics("TestOperation");
+        Assert.Equal(1, metrics.TotalRequests);
+        Assert.Equal(1, metrics.SuccessfulRequests);
     }
 
     [Fact]
@@ -552,12 +556,14 @@ public class DefaultConnectionResiliencePolicyTests
     public async Task ExecuteAsync_WithHealthMonitor_RecordsFailure()
     {
         // Arrange
-        var mockHealthMonitor = new Mock<ConnectionHealthMonitor>();
+        var healthLogger = new Mock<ILogger<ConnectionHealthMonitor>>();
+        var healthMonitor = new ConnectionHealthMonitor(healthLogger.Object, _timeProvider);
+
         var policy = new DefaultConnectionResiliencePolicy(
             _options,
             _mockLogger.Object,
             _timeProvider,
-            mockHealthMonitor.Object);
+            healthMonitor);
 
         // Act
         try
@@ -576,9 +582,9 @@ public class DefaultConnectionResiliencePolicyTests
         }
 
         // Assert
-        mockHealthMonitor.Verify(
-            x => x.RecordFailure("TestOperation", It.IsAny<Exception>(), It.IsAny<TimeSpan>()),
-            Times.Once);
+        var metrics = healthMonitor.GetMetrics("TestOperation");
+        Assert.Equal(1, metrics.TotalRequests);
+        Assert.Equal(1, metrics.FailedRequests);
     }
 
     [Fact]
