@@ -215,7 +215,7 @@ namespace HeroMessaging.Tests.Unit.Plugins
             };
         }
 
-        private class TestPlugin
+        public class TestPlugin
         {
         }
 

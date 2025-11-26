@@ -592,14 +592,22 @@ public class DefaultConnectionResiliencePolicyTests
     public async Task ExecuteAsync_CircuitBreakerOpen_RecordsFailureInHealthMonitor()
     {
         // Arrange
-        var mockHealthMonitor = new Mock<ConnectionHealthMonitor>();
+        // Use real ConnectionHealthMonitor since it uses a primary constructor and cannot be mocked
+        var healthMonitor = new ConnectionHealthMonitor(
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<ConnectionHealthMonitor>.Instance,
+            _timeProvider);
         var policy = new DefaultConnectionResiliencePolicy(
             _options,
             _mockLogger.Object,
             _timeProvider,
-            mockHealthMonitor.Object);
+            healthMonitor);
 
-        // Open circuit
+        // Get initial failure count
+        var initialMetrics = healthMonitor.GetMetrics("TestOperation");
+        var initialFailures = initialMetrics.FailedRequests;
+
+        // Open circuit by triggering failures until circuit opens
+        // Catch both TimeoutException (when retries exhausted) and ConnectionResilienceException (when circuit opens)
         for (int i = 0; i < 5; i++)
         {
             try
@@ -614,13 +622,19 @@ public class DefaultConnectionResiliencePolicyTests
             }
             catch (TimeoutException)
             {
-                // Expected
+                // Expected - thrown when retries are exhausted but circuit hasn't opened yet
+            }
+            catch (ConnectionResilienceException)
+            {
+                // Expected - thrown when circuit breaker opens
             }
         }
 
-        mockHealthMonitor.Invocations.Clear();
+        // Get failures after opening circuit
+        var metricsBeforeOpenCircuit = healthMonitor.GetMetrics("TestOperation");
+        var failuresBeforeOpenCircuit = metricsBeforeOpenCircuit.FailedRequests;
 
-        // Act - Circuit is open
+        // Act - Circuit is open, make another call which should record a failure
         try
         {
             await policy.ExecuteAsync(
@@ -633,16 +647,13 @@ public class DefaultConnectionResiliencePolicyTests
         }
         catch (ConnectionResilienceException)
         {
-            // Expected
+            // Expected - circuit is open
         }
 
-        // Assert
-        mockHealthMonitor.Verify(
-            x => x.RecordFailure(
-                "TestOperation",
-                It.IsAny<ConnectionResilienceException>(),
-                It.IsAny<TimeSpan>()),
-            Times.Once);
+        // Assert - Verify that a failure was recorded for the open circuit call
+        var finalMetrics = healthMonitor.GetMetrics("TestOperation");
+        Assert.True(finalMetrics.FailedRequests > failuresBeforeOpenCircuit,
+            $"Expected failures to increase. Before: {failuresBeforeOpenCircuit}, After: {finalMetrics.FailedRequests}");
     }
 
     #endregion

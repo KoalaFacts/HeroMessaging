@@ -289,13 +289,13 @@ public class ServiceCollectionExtensionsTests
     #region Edge Cases Tests
 
     [Fact]
-    public void AddHeroMessaging_WithNullServices_ThrowsNullReferenceException()
+    public void AddHeroMessaging_WithNullServices_ThrowsArgumentNullException()
     {
         // Arrange
         ServiceCollection? services = null;
 
         // Act & Assert
-        Assert.Throws<NullReferenceException>(() =>
+        Assert.Throws<ArgumentNullException>(() =>
             services!.AddHeroMessaging());
     }
 
@@ -314,17 +314,15 @@ public class ServiceCollectionExtensionsTests
     }
 
     [Fact]
-    public void AddHeroMessagingDevelopment_WithNullAssemblies_DoesNotThrow()
+    public void AddHeroMessagingDevelopment_WithNullAssemblies_ThrowsArgumentNullException()
     {
         // Arrange
         var services = new ServiceCollection();
         IEnumerable<Assembly>? assemblies = null;
 
-        // Act
-        var result = services.AddHeroMessagingDevelopment(assemblies!);
-
-        // Assert
-        Assert.NotNull(result);
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() =>
+            services.AddHeroMessagingDevelopment(assemblies!));
     }
 
     #endregion

@@ -15,6 +15,7 @@ public static class PipelineConfigurations
     /// </summary>
     public static MessageProcessingPipelineBuilder HighThroughput(IServiceProvider serviceProvider)
     {
+        if (serviceProvider == null) throw new ArgumentNullException(nameof(serviceProvider));
         return new MessageProcessingPipelineBuilder(serviceProvider)
             .UseMetrics()
             .UseRetry(new ExponentialBackoffRetryPolicy(maxRetries: 1)); // Minimal retries
@@ -25,6 +26,7 @@ public static class PipelineConfigurations
     /// </summary>
     public static MessageProcessingPipelineBuilder CriticalBusiness(IServiceProvider serviceProvider)
     {
+        if (serviceProvider == null) throw new ArgumentNullException(nameof(serviceProvider));
         return new MessageProcessingPipelineBuilder(serviceProvider)
             .UseMetrics()
             .UseLogging(LogLevel.Information, logPayload: true)
@@ -45,6 +47,7 @@ public static class PipelineConfigurations
     /// </summary>
     public static MessageProcessingPipelineBuilder Development(IServiceProvider serviceProvider)
     {
+        if (serviceProvider == null) throw new ArgumentNullException(nameof(serviceProvider));
         return new MessageProcessingPipelineBuilder(serviceProvider)
             .UseLogging(LogLevel.Debug, logPayload: true)
             .UseValidation()
@@ -56,6 +59,7 @@ public static class PipelineConfigurations
     /// </summary>
     public static MessageProcessingPipelineBuilder Integration(IServiceProvider serviceProvider)
     {
+        if (serviceProvider == null) throw new ArgumentNullException(nameof(serviceProvider));
         return new MessageProcessingPipelineBuilder(serviceProvider)
             .UseMetrics()
             .UseLogging(LogLevel.Information)
@@ -79,6 +83,7 @@ public static class PipelineConfigurations
     /// </summary>
     public static MessageProcessingPipelineBuilder Minimal(IServiceProvider serviceProvider)
     {
+        if (serviceProvider == null) throw new ArgumentNullException(nameof(serviceProvider));
         return new MessageProcessingPipelineBuilder(serviceProvider);
     }
 }
@@ -90,6 +95,7 @@ public static class PipelineExtensions
 {
     public static IServiceCollection AddMessageProcessingPipeline(this IServiceCollection services)
     {
+        if (services == null) throw new ArgumentNullException(nameof(services));
         // Register default services for pipelines
         services.AddSingleton<IMetricsCollector, InMemoryMetricsCollector>();
 

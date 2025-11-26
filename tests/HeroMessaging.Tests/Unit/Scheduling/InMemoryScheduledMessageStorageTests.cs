@@ -914,7 +914,7 @@ public sealed class InMemoryScheduledMessageStorageTests
         };
     }
 
-    private sealed class TestMessage : IMessage
+    public sealed class TestMessage : IMessage
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;

@@ -45,8 +45,11 @@ public static class CorrelationContext
     /// </summary>
     public static IDisposable BeginScope(Abstractions.Messages.IMessage message)
     {
+        var correlationId = string.IsNullOrEmpty(message.CorrelationId)
+            ? message.MessageId.ToString()
+            : message.CorrelationId;
         return BeginScope(
-            message.CorrelationId ?? message.MessageId.ToString(),
+            correlationId,
             message.MessageId.ToString()
         );
     }

@@ -409,7 +409,7 @@ public class MessageVersionResolverTests
     #region Test Message Classes
 
     [MessageVersion(2, 1, 3)]
-    private class MessageWithAttribute : IMessage
+    public class MessageWithAttribute : IMessage
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
         public string MessageType => GetType().Name;
@@ -419,7 +419,7 @@ public class MessageVersionResolverTests
         public Dictionary<string, object>? Metadata { get; set; }
     }
 
-    private class VersionedMessageImpl : IVersionedMessage
+    public class VersionedMessageImpl : IVersionedMessage
     {
         public MessageVersion Version => new MessageVersion(3, 0, 0);
         public Guid MessageId { get; set; } = Guid.NewGuid();
@@ -430,7 +430,7 @@ public class MessageVersionResolverTests
         public Dictionary<string, object>? Metadata { get; set; }
     }
 
-    private class PlainMessage : IMessage
+    public class PlainMessage : IMessage
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
@@ -440,7 +440,7 @@ public class MessageVersionResolverTests
     }
 
     [MessageVersion(1, 5, 0)]
-    private class MessageWithProperties : IMessage
+    public class MessageWithProperties : IMessage
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;

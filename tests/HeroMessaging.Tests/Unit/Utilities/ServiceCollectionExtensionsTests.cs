@@ -243,7 +243,7 @@ public class ServiceCollectionExtensionsTests
         }
 
         [Fact]
-        public void ThrowsInvalidOperationException_WhenOriginalServiceCannotBeResolved()
+        public void ThrowsNullReferenceException_WhenOriginalServiceFactoryReturnsNull()
         {
             // Arrange
             var services = new ServiceCollection();
@@ -254,10 +254,10 @@ public class ServiceCollectionExtensionsTests
             // Act
             services.Decorate<ITestService>((inner, sp) => new DecoratedTestService(inner!));
 
-            // Assert
+            // Assert - the exception is thrown when calling Execute() because inner is null
             var provider = services.BuildServiceProvider();
-            var exception = Assert.Throws<NullReferenceException>(() =>
-                provider.GetRequiredService<ITestService>());
+            var service = provider.GetRequiredService<ITestService>();
+            Assert.Throws<NullReferenceException>(() => service.Execute());
         }
 
         [Fact]

@@ -551,7 +551,7 @@ public sealed class ObservabilityBuilderTests
 
     #region Test Helper Classes
 
-    private class TestObservabilityProvider
+    public class TestObservabilityProvider
     {
         public string Name { get; set; } = string.Empty;
     }

@@ -563,10 +563,10 @@ public class ResilientUnitOfWorkTests
             .ReturnsAsync(mockUnitOfWork.Object);
         mockPolicy
             .Setup(x => x.ExecuteAsync(
-                It.IsAny<Func<Task<IUnitOfWork>>>(),
+                It.IsAny<Func<Task<ResilientUnitOfWork>>>(),
                 "CreateUnitOfWork",
                 It.IsAny<CancellationToken>()))
-            .Returns<Func<Task<IUnitOfWork>>, string, CancellationToken>((func, _, _) => func());
+            .Returns<Func<Task<ResilientUnitOfWork>>, string, CancellationToken>(async (func, _, _) => await func());
 
         var factory = new ResilientUnitOfWorkFactory(
             mockFactory.Object,
@@ -581,7 +581,7 @@ public class ResilientUnitOfWorkTests
         Assert.IsType<ResilientUnitOfWork>(result);
         mockPolicy.Verify(
             x => x.ExecuteAsync(
-                It.IsAny<Func<Task<IUnitOfWork>>>(),
+                It.IsAny<Func<Task<ResilientUnitOfWork>>>(),
                 "CreateUnitOfWork",
                 It.IsAny<CancellationToken>()),
             Times.Once);
@@ -601,10 +601,10 @@ public class ResilientUnitOfWorkTests
             .ReturnsAsync(mockUnitOfWork.Object);
         mockPolicy
             .Setup(x => x.ExecuteAsync(
-                It.IsAny<Func<Task<IUnitOfWork>>>(),
+                It.IsAny<Func<Task<ResilientUnitOfWork>>>(),
                 "CreateUnitOfWork",
                 It.IsAny<CancellationToken>()))
-            .Returns<Func<Task<IUnitOfWork>>, string, CancellationToken>((func, _, _) => func());
+            .Returns<Func<Task<ResilientUnitOfWork>>, string, CancellationToken>(async (func, _, _) => await func());
 
         var factory = new ResilientUnitOfWorkFactory(
             mockFactory.Object,
@@ -634,12 +634,13 @@ public class ResilientUnitOfWorkTests
 
         mockFactory.Setup(x => x.CreateAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(mockUnitOfWork.Object);
+        // Setup the policy to actually execute the callback function
         mockPolicy
             .Setup(x => x.ExecuteAsync(
-                It.IsAny<Func<Task<IUnitOfWork>>>(),
+                It.IsAny<Func<Task<ResilientUnitOfWork>>>(),
                 "CreateUnitOfWork",
                 It.IsAny<CancellationToken>()))
-            .Returns<Func<Task<IUnitOfWork>>, string, CancellationToken>((func, _, _) => func());
+            .Returns<Func<Task<ResilientUnitOfWork>>, string, CancellationToken>(async (func, _, _) => await func());
 
         var factory = new ResilientUnitOfWorkFactory(
             mockFactory.Object,
@@ -672,12 +673,13 @@ public class ResilientUnitOfWorkTests
 
         mockFactory.Setup(x => x.CreateAsync(It.IsAny<IsolationLevel>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(mockUnitOfWork.Object);
+        // Setup the policy to actually execute the callback function
         mockPolicy
             .Setup(x => x.ExecuteAsync(
-                It.IsAny<Func<Task<IUnitOfWork>>>(),
+                It.IsAny<Func<Task<ResilientUnitOfWork>>>(),
                 "CreateUnitOfWork",
                 It.IsAny<CancellationToken>()))
-            .Returns<Func<Task<IUnitOfWork>>, string, CancellationToken>((func, _, _) => func());
+            .Returns<Func<Task<ResilientUnitOfWork>>, string, CancellationToken>(async (func, _, _) => await func());
 
         var factory = new ResilientUnitOfWorkFactory(
             mockFactory.Object,

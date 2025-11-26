@@ -354,7 +354,7 @@ public sealed class DefaultMessageDeliveryHandlerTests
 
     #region Test Message Classes
 
-    private sealed class TestMessage : IMessage
+    public sealed class TestMessage : IMessage
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
@@ -363,7 +363,7 @@ public sealed class DefaultMessageDeliveryHandlerTests
         public Dictionary<string, object>? Metadata { get; set; }
     }
 
-    private sealed class TestCommand : ICommand
+    public sealed class TestCommand : ICommand
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
@@ -372,7 +372,7 @@ public sealed class DefaultMessageDeliveryHandlerTests
         public Dictionary<string, object>? Metadata { get; set; }
     }
 
-    private sealed class TestCommandWithResponse : ICommand<string>
+    public sealed class TestCommandWithResponse : ICommand<string>
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
@@ -381,7 +381,7 @@ public sealed class DefaultMessageDeliveryHandlerTests
         public Dictionary<string, object>? Metadata { get; set; }
     }
 
-    private sealed class TestEvent : IEvent
+    public sealed class TestEvent : IEvent
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
@@ -390,7 +390,7 @@ public sealed class DefaultMessageDeliveryHandlerTests
         public Dictionary<string, object>? Metadata { get; set; }
     }
 
-    private sealed class TestQuery : IQuery<string>
+    public sealed class TestQuery : IQuery<string>
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;

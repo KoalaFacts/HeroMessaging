@@ -11,7 +11,7 @@ namespace HeroMessaging.Tests.Unit.Resilience;
 /// </summary>
 public class ResilientStorageDecoratorsTests
 {
-    private class TestMessage : IMessage
+    public class TestMessage : IMessage
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;

@@ -541,12 +541,12 @@ public sealed class SerializationBuilderTests
 
     #region Test Helper Classes
 
-    private class TestMessage
+    public class TestMessage
     {
         public string? Content { get; set; }
     }
 
-    private class TestMessageSerializer : IMessageSerializer
+    public class TestMessageSerializer : IMessageSerializer
     {
         public string ContentType => "application/test";
 

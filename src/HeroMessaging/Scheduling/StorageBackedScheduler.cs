@@ -30,6 +30,7 @@ public sealed class StorageBackedScheduler : IMessageScheduler, IAsyncDisposable
     private readonly Task _pollingTask;
     private readonly Task _deliveryTask;
     private readonly Task? _cleanupTask;
+    private volatile bool _disposed;
 
     public StorageBackedScheduler(
         IScheduledMessageStorage storage,
@@ -317,6 +318,12 @@ public sealed class StorageBackedScheduler : IMessageScheduler, IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        if (_disposed)
+        {
+            return;
+        }
+        _disposed = true;
+
         _logger.LogInformation("Shutting down StorageBackedScheduler");
 
         _shutdownCts.Cancel();
@@ -328,7 +335,20 @@ public sealed class StorageBackedScheduler : IMessageScheduler, IAsyncDisposable
             tasks.Add(_cleanupTask);
         }
 
-        await Task.WhenAll(tasks);
+        try
+        {
+            await Task.WhenAll(tasks);
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected during shutdown - ignore cancellation exceptions
+            _logger.LogDebug("Background tasks cancelled during shutdown");
+        }
+        catch (AggregateException ae) when (ae.InnerExceptions.All(e => e is OperationCanceledException or TaskCanceledException))
+        {
+            // Expected during shutdown - ignore cancellation exceptions
+            _logger.LogDebug("Background tasks cancelled during shutdown");
+        }
 
         _shutdownCts.Dispose();
 

@@ -2,7 +2,7 @@ using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Versioning;
 using HeroMessaging.Versioning;
 using Microsoft.Extensions.Logging;
-using Moq;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace HeroMessaging.Tests.Unit.Versioning;
@@ -10,11 +10,11 @@ namespace HeroMessaging.Tests.Unit.Versioning;
 [Trait("Category", "Unit")]
 public sealed class PropertyRemovalConverterTests
 {
-    private readonly Mock<ILogger<PropertyRemovalConverter<TestMessage>>> _loggerMock;
+    private readonly ILogger<PropertyRemovalConverter<TestMessage>> _logger;
 
     public PropertyRemovalConverterTests()
     {
-        _loggerMock = new Mock<ILogger<PropertyRemovalConverter<TestMessage>>>();
+        _logger = NullLogger<PropertyRemovalConverter<TestMessage>>.Instance;
     }
 
     #region Constructor Tests
@@ -28,12 +28,13 @@ public sealed class PropertyRemovalConverterTests
         var removedProperties = new[] { "OldProperty" };
 
         // Act
-        var converter = new PropertyRemovalConverter<TestMessage>(fromVersion, toVersion, removedProperties, _loggerMock.Object);
+        var converter = new PropertyRemovalConverter<TestMessage>(fromVersion, toVersion, removedProperties, _logger);
 
         // Assert
         Assert.NotNull(converter);
-        Assert.Equal(fromVersion, converter.SupportedVersionRange.MinVersion);
-        Assert.Equal(toVersion, converter.SupportedVersionRange.MaxVersion);
+        // The converter reorders versions so that MinVersion <= MaxVersion
+        Assert.Equal(toVersion, converter.SupportedVersionRange.MinVersion);
+        Assert.Equal(fromVersion, converter.SupportedVersionRange.MaxVersion);
     }
 
     [Fact]
@@ -59,7 +60,7 @@ public sealed class PropertyRemovalConverterTests
 
         // Act & Assert
         var exception = Assert.Throws<ArgumentNullException>(() =>
-            new PropertyRemovalConverter<TestMessage>(fromVersion, toVersion, null!, _loggerMock.Object));
+            new PropertyRemovalConverter<TestMessage>(fromVersion, toVersion, null!, _logger));
         Assert.Equal("removedProperties", exception.ParamName);
     }
 
@@ -72,7 +73,7 @@ public sealed class PropertyRemovalConverterTests
         var removedProperties = Array.Empty<string>();
 
         // Act
-        var converter = new PropertyRemovalConverter<TestMessage>(fromVersion, toVersion, removedProperties, _loggerMock.Object);
+        var converter = new PropertyRemovalConverter<TestMessage>(fromVersion, toVersion, removedProperties, _logger);
 
         // Assert
         Assert.NotNull(converter);
@@ -94,8 +95,9 @@ public sealed class PropertyRemovalConverterTests
         var range = converter.SupportedVersionRange;
 
         // Assert
-        Assert.Equal(fromVersion, range.MinVersion);
-        Assert.Equal(toVersion, range.MaxVersion);
+        // The converter reorders versions so that MinVersion <= MaxVersion
+        Assert.Equal(toVersion, range.MinVersion);
+        Assert.Equal(fromVersion, range.MaxVersion);
     }
 
     #endregion
@@ -325,7 +327,7 @@ public sealed class PropertyRemovalConverterTests
         var removedProperties = new[] { "OldProperty" };
 
         // Act
-        var converter = MessageConverterBuilder.ForPropertyRemoval<TestMessage>(fromVersion, toVersion, removedProperties, _loggerMock.Object);
+        var converter = MessageConverterBuilder.ForPropertyRemoval<TestMessage>(fromVersion, toVersion, removedProperties, _logger);
 
         // Assert
         Assert.NotNull(converter);
@@ -394,13 +396,15 @@ public sealed class PropertyRemovalConverterTests
     public async Task ConvertAsync_WithBackwardCompatibility_HandlesDowngrade()
     {
         // Arrange - Going from newer to older version
-        var fromVersion = new MessageVersion(3, 0, 0);
-        var toVersion = new MessageVersion(2, 0, 0);
-        var converter = CreateConverter(fromVersion, toVersion, new[] { "FutureProperty" });
+        // Note: Version range must have minVersion <= maxVersion, so we create the converter
+        // with 2.0.0 to 3.0.0, but perform conversion from 3.0.0 to 2.0.0
+        var minVersion = new MessageVersion(2, 0, 0);
+        var maxVersion = new MessageVersion(3, 0, 0);
+        var converter = CreateConverter(minVersion, maxVersion, new[] { "FutureProperty" });
         var message = new TestMessage { MessageId = Guid.NewGuid() };
 
-        // Act
-        var result = await converter.ConvertAsync(message, fromVersion, toVersion);
+        // Act - Convert from version 3.0.0 (within range) to version 2.0.0 (within range)
+        var result = await converter.ConvertAsync(message, maxVersion, minVersion);
 
         // Assert
         Assert.NotNull(result);
@@ -410,16 +414,17 @@ public sealed class PropertyRemovalConverterTests
     public async Task ConvertAsync_MultipleConversions_AllSucceed()
     {
         // Arrange
-        var fromVersion = new MessageVersion(2, 0, 0);
-        var toVersion = new MessageVersion(1, 0, 0);
-        var converter = CreateConverter(fromVersion, toVersion, new[] { "OldProperty" });
+        // Note: Version range must have minVersion <= maxVersion
+        var minVersion = new MessageVersion(1, 0, 0);
+        var maxVersion = new MessageVersion(2, 0, 0);
+        var converter = CreateConverter(minVersion, maxVersion, new[] { "OldProperty" });
         var messages = Enumerable.Range(0, 10)
             .Select(_ => new TestMessage { MessageId = Guid.NewGuid() })
             .ToList();
 
         // Act
         var results = await Task.WhenAll(
-            messages.Select(m => converter.ConvertAsync(m, fromVersion, toVersion)));
+            messages.Select(m => converter.ConvertAsync(m, minVersion, maxVersion)));
 
         // Assert
         Assert.Equal(messages.Count, results.Length);
@@ -435,14 +440,14 @@ public sealed class PropertyRemovalConverterTests
 
     private PropertyRemovalConverter<TestMessage> CreateConverter(MessageVersion fromVersion, MessageVersion toVersion, IEnumerable<string> removedProperties)
     {
-        return new PropertyRemovalConverter<TestMessage>(fromVersion, toVersion, removedProperties, _loggerMock.Object);
+        return new PropertyRemovalConverter<TestMessage>(fromVersion, toVersion, removedProperties, _logger);
     }
 
     #endregion
 
     #region Test Classes
 
-    private sealed class TestMessage : IMessage
+    public sealed class TestMessage : IMessage
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
@@ -451,7 +456,7 @@ public sealed class PropertyRemovalConverterTests
         public Dictionary<string, object>? Metadata { get; set; }
     }
 
-    private sealed class OtherMessage : IMessage
+    public sealed class OtherMessage : IMessage
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;

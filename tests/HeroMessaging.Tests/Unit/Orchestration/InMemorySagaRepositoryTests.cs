@@ -699,7 +699,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
 
         #region Test Helper Classes
 
-        private class TestSaga : ISaga
+        public class TestSaga : ISaga
         {
             public Guid CorrelationId { get; set; }
             public string CurrentState { get; set; } = "Initial";

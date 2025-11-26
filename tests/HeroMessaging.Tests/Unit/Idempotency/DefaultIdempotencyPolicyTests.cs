@@ -367,7 +367,7 @@ public sealed class DefaultIdempotencyPolicyTests
 
     #region Test Helper Classes
 
-    private class CustomTestException : Exception
+    public class CustomTestException : Exception
     {
         public CustomTestException(string message) : base(message) { }
     }

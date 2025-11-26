@@ -2,7 +2,7 @@ using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Versioning;
 using HeroMessaging.Versioning;
 using Microsoft.Extensions.Logging;
-using Moq;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace HeroMessaging.Tests.Unit.Versioning;
@@ -10,11 +10,11 @@ namespace HeroMessaging.Tests.Unit.Versioning;
 [Trait("Category", "Unit")]
 public sealed class SimplePassThroughConverterTests
 {
-    private readonly Mock<ILogger<SimplePassThroughConverter<TestMessage>>> _loggerMock;
+    private readonly ILogger<SimplePassThroughConverter<TestMessage>> _logger;
 
     public SimplePassThroughConverterTests()
     {
-        _loggerMock = new Mock<ILogger<SimplePassThroughConverter<TestMessage>>>();
+        _logger = NullLogger<SimplePassThroughConverter<TestMessage>>.Instance;
     }
 
     #region Constructor Tests
@@ -27,7 +27,7 @@ public sealed class SimplePassThroughConverterTests
         var toVersion = new MessageVersion(1, 1, 0);
 
         // Act
-        var converter = new SimplePassThroughConverter<TestMessage>(fromVersion, toVersion, _loggerMock.Object);
+        var converter = new SimplePassThroughConverter<TestMessage>(fromVersion, toVersion, _logger);
 
         // Assert
         Assert.NotNull(converter);
@@ -55,7 +55,7 @@ public sealed class SimplePassThroughConverterTests
         var version = new MessageVersion(1, 0, 0);
 
         // Act
-        var converter = new SimplePassThroughConverter<TestMessage>(version, version, _loggerMock.Object);
+        var converter = new SimplePassThroughConverter<TestMessage>(version, version, _logger);
 
         // Assert
         Assert.NotNull(converter);
@@ -348,7 +348,7 @@ public sealed class SimplePassThroughConverterTests
         var toVersion = new MessageVersion(1, 1, 0);
 
         // Act
-        var converter = MessageConverterBuilder.ForPassThrough<TestMessage>(fromVersion, toVersion, _loggerMock.Object);
+        var converter = MessageConverterBuilder.ForPassThrough<TestMessage>(fromVersion, toVersion, _logger);
 
         // Assert
         Assert.NotNull(converter);
@@ -483,13 +483,15 @@ public sealed class SimplePassThroughConverterTests
     public async Task ConvertAsync_WithBackwardCompatibility_WorksCorrectly()
     {
         // Arrange - Should work in both directions for compatible versions
-        var fromVersion = new MessageVersion(1, 1, 0);
-        var toVersion = new MessageVersion(1, 0, 0);
-        var converter = CreateConverter(fromVersion, toVersion);
+        // Note: Version range must have minVersion <= maxVersion, so we create the converter
+        // with 1.0.0 to 1.1.0, but perform conversion from 1.1.0 to 1.0.0 (within range)
+        var minVersion = new MessageVersion(1, 0, 0);
+        var maxVersion = new MessageVersion(1, 1, 0);
+        var converter = CreateConverter(minVersion, maxVersion);
         var message = new TestMessage { MessageId = Guid.NewGuid() };
 
-        // Act
-        var result = await converter.ConvertAsync(message, fromVersion, toVersion);
+        // Act - Convert from version 1.1.0 (within range) to version 1.0.0 (within range)
+        var result = await converter.ConvertAsync(message, maxVersion, minVersion);
 
         // Assert
         Assert.Same(message, result);
@@ -528,14 +530,14 @@ public sealed class SimplePassThroughConverterTests
 
     private SimplePassThroughConverter<TestMessage> CreateConverter(MessageVersion fromVersion, MessageVersion toVersion)
     {
-        return new SimplePassThroughConverter<TestMessage>(fromVersion, toVersion, _loggerMock.Object);
+        return new SimplePassThroughConverter<TestMessage>(fromVersion, toVersion, _logger);
     }
 
     #endregion
 
     #region Test Classes
 
-    private sealed class TestMessage : IMessage
+    public sealed class TestMessage : IMessage
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
@@ -544,7 +546,7 @@ public sealed class SimplePassThroughConverterTests
         public Dictionary<string, object>? Metadata { get; set; }
     }
 
-    private sealed class OtherMessage : IMessage
+    public sealed class OtherMessage : IMessage
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;

@@ -34,7 +34,13 @@ public sealed class DefaultJsonSerializer : IJsonSerializer
 #else
         var bufferWriter = new ArrayBufferWriter<byte>();
 
-        using (var writer = new Utf8JsonWriter(bufferWriter))
+        var writerOptions = new JsonWriterOptions
+        {
+            Indented = options?.WriteIndented ?? false,
+            Encoder = options?.Encoder
+        };
+
+        using (var writer = new Utf8JsonWriter(bufferWriter, writerOptions))
         {
             JsonSerializer.Serialize(writer, value, value.GetType(), options);
         }
@@ -57,7 +63,13 @@ public sealed class DefaultJsonSerializer : IJsonSerializer
 #else
         var bufferWriter = new ArrayBufferWriter<byte>();
 
-        using (var writer = new Utf8JsonWriter(bufferWriter))
+        var writerOptions = new JsonWriterOptions
+        {
+            Indented = options?.WriteIndented ?? false,
+            Encoder = options?.Encoder
+        };
+
+        using (var writer = new Utf8JsonWriter(bufferWriter, writerOptions))
         {
             JsonSerializer.Serialize(writer, value, options);
         }
@@ -80,7 +92,13 @@ public sealed class DefaultJsonSerializer : IJsonSerializer
 #else
         var bufferWriter = new ArrayBufferWriter<byte>();
 
-        using (var writer = new Utf8JsonWriter(bufferWriter))
+        var writerOptions = new JsonWriterOptions
+        {
+            Indented = options?.WriteIndented ?? false,
+            Encoder = options?.Encoder
+        };
+
+        using (var writer = new Utf8JsonWriter(bufferWriter, writerOptions))
         {
             JsonSerializer.Serialize(writer, value, type, options);
         }
@@ -99,7 +117,13 @@ public sealed class DefaultJsonSerializer : IJsonSerializer
 #if !NETSTANDARD2_0
     public void SerializeToBuffer<T>(T value, ArrayBufferWriter<byte> buffer, JsonSerializerOptions? options = null)
     {
-        using var writer = new Utf8JsonWriter(buffer);
+        var writerOptions = new JsonWriterOptions
+        {
+            Indented = options?.WriteIndented ?? false,
+            Encoder = options?.Encoder
+        };
+
+        using var writer = new Utf8JsonWriter(buffer, writerOptions);
         JsonSerializer.Serialize(writer, value, options);
     }
 #endif
@@ -189,7 +213,13 @@ public sealed class DefaultJsonSerializer : IJsonSerializer
 #else
         var bufferWriter = new ArrayBufferWriter<byte>();
 
-        using (var writer = new Utf8JsonWriter(bufferWriter))
+        var writerOptions = new JsonWriterOptions
+        {
+            Indented = options?.WriteIndented ?? false,
+            Encoder = options?.Encoder
+        };
+
+        using (var writer = new Utf8JsonWriter(bufferWriter, writerOptions))
         {
             JsonSerializer.Serialize(writer, value, options);
         }

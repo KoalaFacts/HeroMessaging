@@ -10,7 +10,7 @@ namespace HeroMessaging.Versioning;
 /// </summary>
 public class MessageConverterRegistry(ILogger<MessageConverterRegistry> logger) : IMessageConverterRegistry
 {
-    private readonly ILogger<MessageConverterRegistry> _logger = logger;
+    private readonly ILogger<MessageConverterRegistry> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     private readonly ConcurrentDictionary<Type, List<IMessageConverter>> _converters = new();
     private readonly ConcurrentDictionary<ConversionKey, MessageConversionPath?> _pathCache = new();
 

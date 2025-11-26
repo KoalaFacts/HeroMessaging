@@ -484,15 +484,17 @@ public sealed class MessageConverterRegistryTests
 
     private static TestMessageConverter CreateTestConverter(MessageVersion fromVersion, MessageVersion toVersion)
     {
-        var loggerMock = new Mock<ILogger<TestMessageConverter>>();
-        return new TestMessageConverter(fromVersion, toVersion, loggerMock.Object);
+        // Use NullLogger since TestMessageConverter is a private nested class and Moq
+        // cannot create a proxy for ILogger<TestMessageConverter> when the type is not accessible
+        return new TestMessageConverter(fromVersion, toVersion,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<TestMessageConverter>.Instance);
     }
 
     #endregion
 
     #region Test Classes
 
-    private sealed class TestMessage : IMessage
+    public sealed class TestMessage : IMessage
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
@@ -501,7 +503,7 @@ public sealed class MessageConverterRegistryTests
         public Dictionary<string, object>? Metadata { get; set; }
     }
 
-    private sealed class TestMessageConverter : MessageConverterBase<TestMessage>
+    public sealed class TestMessageConverter : MessageConverterBase<TestMessage>
     {
         private readonly MessageVersionRange _versionRange;
         private readonly ILogger<TestMessageConverter> _logger;

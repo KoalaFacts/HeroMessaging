@@ -420,7 +420,7 @@ public sealed class MessageTypeValidatorTests
 
     #region Test Helper Classes
 
-    private class TestMessage : IMessage
+    public class TestMessage : IMessage
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
@@ -429,7 +429,7 @@ public sealed class MessageTypeValidatorTests
         public Dictionary<string, object>? Metadata { get; set; }
     }
 
-    private class TestCommand : ICommand
+    public class TestCommand : ICommand
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
@@ -438,7 +438,7 @@ public sealed class MessageTypeValidatorTests
         public Dictionary<string, object>? Metadata { get; set; }
     }
 
-    private class TestEvent : IEvent
+    public class TestEvent : IEvent
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
@@ -447,7 +447,7 @@ public sealed class MessageTypeValidatorTests
         public Dictionary<string, object>? Metadata { get; set; }
     }
 
-    private class TestCommandEvent : ICommand, IEvent
+    public class TestCommandEvent : ICommand, IEvent
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
@@ -456,15 +456,15 @@ public sealed class MessageTypeValidatorTests
         public Dictionary<string, object>? Metadata { get; set; }
     }
 
-    private class DerivedTestCommand : TestCommand
+    public class DerivedTestCommand : TestCommand
     {
     }
 
-    private interface ICustomMarker : IMessage
+    public interface ICustomMarker : IMessage
     {
     }
 
-    private class CustomMarkerMessage : ICustomMarker
+    public class CustomMarkerMessage : ICustomMarker
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;

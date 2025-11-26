@@ -17,7 +17,7 @@ public class RateLimitingDecoratorTests
 {
     #region Test Helpers
 
-    private class TestMessage : IMessage
+    public class TestMessage : IMessage
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
@@ -26,7 +26,7 @@ public class RateLimitingDecoratorTests
         public Dictionary<string, object>? Metadata { get; set; } = new();
     }
 
-    private class MockMessageProcessor : IMessageProcessor
+    public class MockMessageProcessor : IMessageProcessor
     {
         public int CallCount { get; private set; }
         public List<IMessage> ProcessedMessages { get; } = new();

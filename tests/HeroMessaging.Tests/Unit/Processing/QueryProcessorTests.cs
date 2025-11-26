@@ -390,7 +390,7 @@ public sealed class QueryProcessorTests : IDisposable
 
     #region Test Helper Classes
 
-    private class TestQuery : IQuery<string>
+    public class TestQuery : IQuery<string>
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
@@ -399,7 +399,7 @@ public sealed class QueryProcessorTests : IDisposable
         public Dictionary<string, object>? Metadata { get; set; } = new();
     }
 
-    private class TestQueryComplex : IQuery<TestQueryResult>
+    public class TestQueryComplex : IQuery<TestQueryResult>
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
@@ -408,7 +408,7 @@ public sealed class QueryProcessorTests : IDisposable
         public Dictionary<string, object>? Metadata { get; set; } = new();
     }
 
-    private class TestQueryResult
+    public class TestQueryResult
     {
         public int Id { get; set; }
         public string Name { get; set; } = string.Empty;

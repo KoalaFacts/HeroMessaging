@@ -58,7 +58,7 @@ public sealed class InMemoryIdempotencyStore : IIdempotencyStore
         if (_cache.TryGetValue(idempotencyKey, out var response))
         {
             // Check if expired
-            var now = _timeProvider.GetUtcNow().UtcDateTime;
+            var now = _timeProvider.GetUtcNow();
             if (now >= response.ExpiresAt)
             {
                 // Entry has expired, remove it and return null
@@ -84,7 +84,7 @@ public sealed class InMemoryIdempotencyStore : IIdempotencyStore
         if (string.IsNullOrEmpty(idempotencyKey))
             throw new ArgumentException("Idempotency key cannot be empty.", nameof(idempotencyKey));
 
-        var now = _timeProvider.GetUtcNow().UtcDateTime;
+        var now = _timeProvider.GetUtcNow();
         var response = new IdempotencyResponse
         {
             IdempotencyKey = idempotencyKey,
@@ -112,7 +112,7 @@ public sealed class InMemoryIdempotencyStore : IIdempotencyStore
         if (exception == null)
             throw new ArgumentNullException(nameof(exception));
 
-        var now = _timeProvider.GetUtcNow().UtcDateTime;
+        var now = _timeProvider.GetUtcNow();
         var response = new IdempotencyResponse
         {
             IdempotencyKey = idempotencyKey,
@@ -141,7 +141,7 @@ public sealed class InMemoryIdempotencyStore : IIdempotencyStore
         if (_cache.TryGetValue(idempotencyKey, out var response))
         {
             // Check if expired
-            var now = _timeProvider.GetUtcNow().UtcDateTime;
+            var now = _timeProvider.GetUtcNow();
             if (now >= response.ExpiresAt)
             {
                 // Entry has expired, remove it and return false
@@ -158,7 +158,7 @@ public sealed class InMemoryIdempotencyStore : IIdempotencyStore
     /// <inheritdoc />
     public ValueTask<int> CleanupExpiredAsync(CancellationToken cancellationToken = default)
     {
-        var now = _timeProvider.GetUtcNow().UtcDateTime;
+        var now = _timeProvider.GetUtcNow();
         var expiredKeys = _cache
             .Where(kvp => now >= kvp.Value.ExpiresAt)
             .Select(kvp => kvp.Key)

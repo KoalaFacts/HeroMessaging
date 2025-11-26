@@ -664,7 +664,7 @@ public sealed class HeroMessagingBuilderTests
 
     #region Test Helper Classes
 
-    private class TestMessageStorage : IMessageStorage
+    public class TestMessageStorage : IMessageStorage
     {
         public Task<string> StoreAsync(IMessage message, MessageStorageOptions? options = null, CancellationToken cancellationToken = default)
             => Task.FromResult(Guid.NewGuid().ToString());
@@ -706,7 +706,7 @@ public sealed class HeroMessagingBuilderTests
             => Task.FromResult<IStorageTransaction>(Mock.Of<IStorageTransaction>());
     }
 
-    private class TestPlugin : IMessagingPlugin
+    public class TestPlugin : IMessagingPlugin
     {
         public bool WasConfigured { get; private set; }
 

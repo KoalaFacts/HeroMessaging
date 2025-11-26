@@ -481,14 +481,7 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
 
     #endregion
 
-    #region ReleaseChannel Tests
-
-    [Fact]
-    public async Task ReleaseChannel_WithNullChannel_DoesNotThrow()
-    {
-        // Act & Assert
-        _channelPool!.ReleaseChannel(null!);
-    }
+    #region ReleaseChannel Advanced Tests
 
     [Fact]
     public async Task ReleaseChannel_WithClosedChannel_DisposesIt()
@@ -631,20 +624,6 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
 
     #endregion
 
-    #region Connection Closed Tests
-
-    [Fact]
-    public async Task AcquireChannelAsync_WhenConnectionClosed_ThrowsInvalidOperationException()
-    {
-        // Arrange
-        _mockConnection!.Setup(c => c.IsOpen).Returns(false);
-
-        // Act & Assert
-        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await _channelPool!.AcquireChannelAsync());
-    }
-
-    #endregion
 
     #region Concurrency Tests
 

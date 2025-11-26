@@ -126,7 +126,7 @@ public sealed class CorrelationContextDecoratorTests
         var context = new ProcessingContext();
 
         _innerMock
-            .Setup(p => p.ProcessAsync(message, context, It.IsAny<CancellationToken>()))
+            .Setup(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Test exception"));
 
         // Act & Assert
@@ -464,7 +464,7 @@ public sealed class CorrelationContextDecoratorTests
 
     #region Test Helper Classes
 
-    private class TestMessage : IMessage
+    public class TestMessage : IMessage
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;

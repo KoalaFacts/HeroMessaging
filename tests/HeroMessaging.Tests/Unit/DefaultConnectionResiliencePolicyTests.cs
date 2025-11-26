@@ -472,7 +472,7 @@ public class DefaultConnectionResiliencePolicyTests
     #endregion
 
     // Test helper class to simulate DbException
-    private class TestDbException : DbException
+    public class TestDbException : DbException
     {
         private readonly int _errorCode;
         private readonly string _message;

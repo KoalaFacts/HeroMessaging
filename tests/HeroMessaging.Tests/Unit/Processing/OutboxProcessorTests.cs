@@ -568,7 +568,7 @@ public sealed class OutboxProcessorTests : IDisposable
 
     #region Test Helper Classes
 
-    private class TestMessage : IMessage
+    public class TestMessage : IMessage
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
@@ -577,7 +577,7 @@ public sealed class OutboxProcessorTests : IDisposable
         public Dictionary<string, object>? Metadata { get; set; } = new();
     }
 
-    private class TestCommand : ICommand
+    public class TestCommand : ICommand
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
@@ -586,7 +586,7 @@ public sealed class OutboxProcessorTests : IDisposable
         public Dictionary<string, object>? Metadata { get; set; } = new();
     }
 
-    private class TestEvent : IEvent
+    public class TestEvent : IEvent
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;

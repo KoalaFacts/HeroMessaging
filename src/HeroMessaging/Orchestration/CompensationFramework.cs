@@ -141,16 +141,16 @@ public class DelegateCompensatingAction : ICompensatingAction
     }
 
     public DelegateCompensatingAction(string actionName, Func<Task> compensateFunc)
-        : this(actionName, _ => compensateFunc())
+        : this(actionName, compensateFunc != null ? _ => compensateFunc() : throw new ArgumentNullException(nameof(compensateFunc)))
     {
     }
 
     public DelegateCompensatingAction(string actionName, Action compensateAction)
-        : this(actionName, _ =>
+        : this(actionName, compensateAction != null ? _ =>
         {
             compensateAction();
             return Task.CompletedTask;
-        })
+        } : throw new ArgumentNullException(nameof(compensateAction)))
     {
     }
 

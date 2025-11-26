@@ -334,7 +334,15 @@ public sealed class InMemoryIdempotencyStoreTests
         var timeProvider = new FakeTimeProvider();
         var store = new InMemoryIdempotencyStore(timeProvider);
         var key = "test-key";
-        var exception = new ArgumentException("Invalid argument");
+        Exception exception;
+        try
+        {
+            throw new ArgumentException("Invalid argument");
+        }
+        catch (ArgumentException ex)
+        {
+            exception = ex;
+        }
         var ttl = TimeSpan.FromMinutes(30);
 
         // Act

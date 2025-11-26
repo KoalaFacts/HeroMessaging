@@ -404,7 +404,7 @@ public sealed class MessageVersionResolverTests
     #region Test Classes
 
     [MessageVersion(2, 1, 3)]
-    private sealed class MessageWithAttribute : IMessage
+    public sealed class MessageWithAttribute : IMessage
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
@@ -413,7 +413,7 @@ public sealed class MessageVersionResolverTests
         public Dictionary<string, object>? Metadata { get; set; }
     }
 
-    private sealed class PlainMessage : IMessage
+    public sealed class PlainMessage : IMessage
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
@@ -422,7 +422,7 @@ public sealed class MessageVersionResolverTests
         public Dictionary<string, object>? Metadata { get; set; }
     }
 
-    private sealed class VersionedTestMessage : IVersionedMessage
+    public sealed class VersionedTestMessage : IVersionedMessage
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
@@ -433,7 +433,7 @@ public sealed class MessageVersionResolverTests
         public string MessageType => nameof(VersionedTestMessage);
     }
 
-    private sealed class UncreatableVersionedMessage : IVersionedMessage
+    public sealed class UncreatableVersionedMessage : IVersionedMessage
     {
         // Constructor that throws to simulate uncreatable type
         public UncreatableVersionedMessage()
@@ -451,7 +451,7 @@ public sealed class MessageVersionResolverTests
     }
 
     [MessageVersion(2, 0, 0)]
-    private sealed class MessageWithProperties : IMessage
+    public sealed class MessageWithProperties : IMessage
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;

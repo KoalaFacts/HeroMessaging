@@ -14,8 +14,11 @@ public class PropertyAdditionConverter<TMessage>(
     ILogger<PropertyAdditionConverter<TMessage>> logger) : MessageConverterBase<TMessage>
     where TMessage : class, IMessage
 {
-    private readonly ILogger<PropertyAdditionConverter<TMessage>> _logger = logger;
-    private readonly MessageVersionRange _versionRange = new MessageVersionRange(fromVersion, toVersion);
+    private readonly ILogger<PropertyAdditionConverter<TMessage>> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    // MessageVersionRange requires minVersion <= maxVersion, so order appropriately
+    private readonly MessageVersionRange _versionRange = fromVersion.CompareTo(toVersion) <= 0
+        ? new MessageVersionRange(fromVersion, toVersion)
+        : new MessageVersionRange(toVersion, fromVersion);
 
     public override MessageVersionRange SupportedVersionRange => _versionRange;
 
@@ -47,9 +50,12 @@ public class PropertyRemovalConverter<TMessage>(
     ILogger<PropertyRemovalConverter<TMessage>> logger) : MessageConverterBase<TMessage>
     where TMessage : class, IMessage
 {
-    private readonly ILogger<PropertyRemovalConverter<TMessage>> _logger = logger;
-    private readonly MessageVersionRange _versionRange = new MessageVersionRange(fromVersion, toVersion);
-    private readonly HashSet<string> _removedProperties = new HashSet<string>(removedProperties);
+    private readonly ILogger<PropertyRemovalConverter<TMessage>> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    // MessageVersionRange requires minVersion <= maxVersion, so order appropriately
+    private readonly MessageVersionRange _versionRange = fromVersion.CompareTo(toVersion) <= 0
+        ? new MessageVersionRange(fromVersion, toVersion)
+        : new MessageVersionRange(toVersion, fromVersion);
+    private readonly HashSet<string> _removedProperties = new HashSet<string>(removedProperties ?? throw new ArgumentNullException(nameof(removedProperties)));
 
     public override MessageVersionRange SupportedVersionRange => _versionRange;
 
@@ -87,9 +93,12 @@ public class PropertyMappingConverter<TMessage>(
     ILogger<PropertyMappingConverter<TMessage>> logger) : MessageConverterBase<TMessage>
     where TMessage : class, IMessage
 {
-    private readonly ILogger<PropertyMappingConverter<TMessage>> _logger = logger;
-    private readonly MessageVersionRange _versionRange = new MessageVersionRange(fromVersion, toVersion);
-    private readonly IReadOnlyDictionary<string, string> _propertyMappings = propertyMappings;
+    private readonly ILogger<PropertyMappingConverter<TMessage>> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    // MessageVersionRange requires minVersion <= maxVersion, so order appropriately
+    private readonly MessageVersionRange _versionRange = fromVersion.CompareTo(toVersion) <= 0
+        ? new MessageVersionRange(fromVersion, toVersion)
+        : new MessageVersionRange(toVersion, fromVersion);
+    private readonly IReadOnlyDictionary<string, string> _propertyMappings = propertyMappings ?? throw new ArgumentNullException(nameof(propertyMappings));
 
     public override MessageVersionRange SupportedVersionRange => _versionRange;
 
@@ -130,7 +139,10 @@ public class TransformationConverter<TMessage>(
     where TMessage : class, IMessage
 {
     private readonly ILogger<TransformationConverter<TMessage>> _logger = logger;
-    private readonly MessageVersionRange _versionRange = new MessageVersionRange(fromVersion, toVersion);
+    // MessageVersionRange requires minVersion <= maxVersion, so order appropriately
+    private readonly MessageVersionRange _versionRange = fromVersion.CompareTo(toVersion) <= 0
+        ? new MessageVersionRange(fromVersion, toVersion)
+        : new MessageVersionRange(toVersion, fromVersion);
     private readonly IReadOnlyDictionary<string, Func<object?, object?>> _transformations = transformations;
 
     public override MessageVersionRange SupportedVersionRange => _versionRange;
@@ -256,8 +268,11 @@ public class SimplePassThroughConverter<TMessage>(
     ILogger<SimplePassThroughConverter<TMessage>> logger) : MessageConverterBase<TMessage>
     where TMessage : class, IMessage
 {
-    private readonly ILogger<SimplePassThroughConverter<TMessage>> _logger = logger;
-    private readonly MessageVersionRange _versionRange = new MessageVersionRange(fromVersion, toVersion);
+    private readonly ILogger<SimplePassThroughConverter<TMessage>> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    // MessageVersionRange requires minVersion <= maxVersion, so order appropriately
+    private readonly MessageVersionRange _versionRange = fromVersion.CompareTo(toVersion) <= 0
+        ? new MessageVersionRange(fromVersion, toVersion)
+        : new MessageVersionRange(toVersion, fromVersion);
 
     public override MessageVersionRange SupportedVersionRange => _versionRange;
 

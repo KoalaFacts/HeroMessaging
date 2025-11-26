@@ -29,7 +29,7 @@ public interface IVersionedMessage<TResponse> : IVersionedMessage, IMessage<TRes
 /// <summary>
 /// Represents a message version using semantic versioning
 /// </summary>
-public readonly record struct MessageVersion
+public readonly record struct MessageVersion : IComparable<MessageVersion>, IComparable
 {
     public int Major { get; }
     public int Minor { get; }
@@ -132,6 +132,13 @@ public readonly record struct MessageVersion
         if (minorComparison != 0) return minorComparison;
 
         return Patch.CompareTo(other.Patch);
+    }
+
+    int IComparable.CompareTo(object? obj)
+    {
+        if (obj is null) return 1;
+        if (obj is MessageVersion other) return CompareTo(other);
+        throw new ArgumentException($"Object must be of type {nameof(MessageVersion)}", nameof(obj));
     }
 }
 

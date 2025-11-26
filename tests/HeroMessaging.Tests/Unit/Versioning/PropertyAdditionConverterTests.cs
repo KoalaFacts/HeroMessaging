@@ -2,7 +2,7 @@ using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Versioning;
 using HeroMessaging.Versioning;
 using Microsoft.Extensions.Logging;
-using Moq;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace HeroMessaging.Tests.Unit.Versioning;
@@ -10,11 +10,11 @@ namespace HeroMessaging.Tests.Unit.Versioning;
 [Trait("Category", "Unit")]
 public sealed class PropertyAdditionConverterTests
 {
-    private readonly Mock<ILogger<PropertyAdditionConverter<TestMessage>>> _loggerMock;
+    private readonly ILogger<PropertyAdditionConverter<TestMessage>> _logger;
 
     public PropertyAdditionConverterTests()
     {
-        _loggerMock = new Mock<ILogger<PropertyAdditionConverter<TestMessage>>>();
+        _logger = NullLogger<PropertyAdditionConverter<TestMessage>>.Instance;
     }
 
     #region Constructor Tests
@@ -27,7 +27,7 @@ public sealed class PropertyAdditionConverterTests
         var toVersion = new MessageVersion(2, 0, 0);
 
         // Act
-        var converter = new PropertyAdditionConverter<TestMessage>(fromVersion, toVersion, _loggerMock.Object);
+        var converter = new PropertyAdditionConverter<TestMessage>(fromVersion, toVersion, _logger);
 
         // Assert
         Assert.NotNull(converter);
@@ -315,7 +315,7 @@ public sealed class PropertyAdditionConverterTests
         var toVersion = new MessageVersion(2, 0, 0);
 
         // Act
-        var converter = MessageConverterBuilder.ForPropertyAddition<TestMessage>(fromVersion, toVersion, _loggerMock.Object);
+        var converter = MessageConverterBuilder.ForPropertyAddition<TestMessage>(fromVersion, toVersion, _logger);
 
         // Assert
         Assert.NotNull(converter);
@@ -386,14 +386,14 @@ public sealed class PropertyAdditionConverterTests
 
     private PropertyAdditionConverter<TestMessage> CreateConverter(MessageVersion fromVersion, MessageVersion toVersion)
     {
-        return new PropertyAdditionConverter<TestMessage>(fromVersion, toVersion, _loggerMock.Object);
+        return new PropertyAdditionConverter<TestMessage>(fromVersion, toVersion, _logger);
     }
 
     #endregion
 
     #region Test Classes
 
-    private sealed class TestMessage : IMessage
+    public sealed class TestMessage : IMessage
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
@@ -402,7 +402,7 @@ public sealed class PropertyAdditionConverterTests
         public Dictionary<string, object>? Metadata { get; set; }
     }
 
-    private sealed class OtherMessage : IMessage
+    public sealed class OtherMessage : IMessage
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;

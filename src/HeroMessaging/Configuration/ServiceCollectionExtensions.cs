@@ -19,6 +19,7 @@ public static class HeroMessagingServiceCollectionExtensions
     /// <returns>The HeroMessaging builder for fluent configuration</returns>
     public static IHeroMessagingBuilder AddHeroMessaging(this IServiceCollection services)
     {
+        if (services == null) throw new ArgumentNullException(nameof(services));
         return new HeroMessagingBuilder(services);
     }
 
@@ -32,6 +33,8 @@ public static class HeroMessagingServiceCollectionExtensions
         this IServiceCollection services,
         Action<IHeroMessagingBuilder> configure)
     {
+        if (services == null) throw new ArgumentNullException(nameof(services));
+        if (configure == null) throw new ArgumentNullException(nameof(configure));
         var builder = new HeroMessagingBuilder(services);
         configure(builder);
         builder.Build();
@@ -45,6 +48,7 @@ public static class HeroMessagingServiceCollectionExtensions
         this IServiceCollection services,
         params IEnumerable<Assembly> assemblies)
     {
+        if (assemblies == null) throw new ArgumentNullException(nameof(assemblies));
         return services.AddHeroMessaging(builder => builder
             .Development()
             .UseInMemoryStorage()
@@ -91,6 +95,8 @@ public static class HeroMessagingServiceCollectionExtensions
         Action<IHeroMessagingBuilder> configure,
         params IEnumerable<Assembly> assemblies)
     {
+        if (services == null) throw new ArgumentNullException(nameof(services));
+        if (configure == null) throw new ArgumentNullException(nameof(configure));
         return services.AddHeroMessaging(builder =>
         {
             builder.ScanAssemblies(assemblies);

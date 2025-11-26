@@ -487,7 +487,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
 
         #region Test Helper Classes
 
-        private class TestSaga : ISaga
+        public class TestSaga : ISaga
         {
             public Guid CorrelationId { get; set; }
             public string CurrentState { get; set; } = "Initial";
@@ -497,7 +497,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             public int Version { get; set; }
         }
 
-        private class OrderStartedEvent : IEvent, IMessage
+        public class OrderStartedEvent : IEvent, IMessage
         {
             public Guid MessageId { get; set; } = Guid.NewGuid();
             public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
@@ -506,7 +506,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             public Dictionary<string, object>? Metadata { get; set; }
         }
 
-        private class PaymentCompletedEvent : IEvent, IMessage
+        public class PaymentCompletedEvent : IEvent, IMessage
         {
             public Guid MessageId { get; set; } = Guid.NewGuid();
             public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
@@ -515,7 +515,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             public Dictionary<string, object>? Metadata { get; set; }
         }
 
-        private class EventWithoutCorrelation : IEvent, IMessage
+        public class EventWithoutCorrelation : IEvent, IMessage
         {
             public Guid MessageId { get; set; } = Guid.NewGuid();
             public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
@@ -524,7 +524,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             public Dictionary<string, object>? Metadata { get; set; }
         }
 
-        private class EventWithCorrelationProperty : IEvent
+        public class EventWithCorrelationProperty : IEvent
         {
             public Guid MessageId { get; set; } = Guid.NewGuid();
             public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;

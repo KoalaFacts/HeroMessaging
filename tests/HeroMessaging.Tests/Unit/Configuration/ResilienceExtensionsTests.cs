@@ -20,6 +20,12 @@ public class ResilienceExtensionsTests
         _services = new ServiceCollection();
         _services.AddLogging();
         _services.AddSingleton(TimeProvider.System);
+        // Register mock storage services - required by WithConnectionResilience decorators
+        _services.AddSingleton(new Mock<IUnitOfWorkFactory>().Object);
+        _services.AddSingleton(new Mock<IMessageStorage>().Object);
+        _services.AddSingleton(new Mock<IOutboxStorage>().Object);
+        _services.AddSingleton(new Mock<IInboxStorage>().Object);
+        _services.AddSingleton(new Mock<IQueueStorage>().Object);
         _builder = new HeroMessagingBuilder(_services);
     }
 
@@ -448,7 +454,7 @@ public class ResilienceExtensionsTests
 
     #region Helper Classes
 
-    private class CustomTestPolicy : IConnectionResiliencePolicy
+    public class CustomTestPolicy : IConnectionResiliencePolicy
     {
         public Task ExecuteAsync(Func<Task> operation, string operationName, CancellationToken cancellationToken = default)
         {

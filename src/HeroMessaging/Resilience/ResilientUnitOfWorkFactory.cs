@@ -14,7 +14,7 @@ public class ResilientUnitOfWorkFactory(
 {
     private readonly IUnitOfWorkFactory _inner = inner ?? throw new ArgumentNullException(nameof(inner));
     private readonly IConnectionResiliencePolicy _resiliencePolicy = resiliencePolicy ?? throw new ArgumentNullException(nameof(resiliencePolicy));
-    private readonly ILogger<ResilientUnitOfWorkFactory> _logger = logger;
+    private readonly ILogger<ResilientUnitOfWorkFactory> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
     public async Task<IUnitOfWork> CreateAsync(CancellationToken cancellationToken = default)
     {
@@ -53,7 +53,7 @@ public class ResilientUnitOfWork(
 {
     private readonly IUnitOfWork _inner = inner ?? throw new ArgumentNullException(nameof(inner));
     private readonly IConnectionResiliencePolicy _resiliencePolicy = resiliencePolicy ?? throw new ArgumentNullException(nameof(resiliencePolicy));
-    private readonly ILogger _logger = logger;
+    private readonly ILogger _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
     public IsolationLevel IsolationLevel => _inner.IsolationLevel;
     public bool IsTransactionActive => _inner.IsTransactionActive;

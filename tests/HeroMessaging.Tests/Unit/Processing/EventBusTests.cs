@@ -482,7 +482,7 @@ public sealed class EventBusTests : IDisposable
 
     #region Test Helper Classes
 
-    private class TestEvent : IEvent
+    public class TestEvent : IEvent
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
@@ -491,7 +491,7 @@ public sealed class EventBusTests : IDisposable
         public Dictionary<string, object>? Metadata { get; set; } = new();
     }
 
-    private class AnotherTestEvent : IEvent
+    public class AnotherTestEvent : IEvent
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;

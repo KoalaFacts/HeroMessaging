@@ -333,7 +333,7 @@ public sealed class TransactionCommandProcessorDecoratorTests
 
     #region Test Helper Classes
 
-    private class TestVoidCommand : ICommand
+    public class TestVoidCommand : ICommand
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
@@ -342,7 +342,7 @@ public sealed class TransactionCommandProcessorDecoratorTests
         public Dictionary<string, object>? Metadata { get; set; }
     }
 
-    private class TestCommandWithResponse : ICommand<TestResponse>
+    public class TestCommandWithResponse : ICommand<TestResponse>
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
@@ -351,7 +351,7 @@ public sealed class TransactionCommandProcessorDecoratorTests
         public Dictionary<string, object>? Metadata { get; set; }
     }
 
-    private class TestResponse
+    public class TestResponse
     {
         public int Value { get; set; }
     }
@@ -596,7 +596,7 @@ public sealed class TransactionQueryProcessorDecoratorTests
 
     #region Test Helper Classes
 
-    private class TestQuery : IQuery<TestQueryResponse>
+    public class TestQuery : IQuery<TestQueryResponse>
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
@@ -605,7 +605,7 @@ public sealed class TransactionQueryProcessorDecoratorTests
         public Dictionary<string, object>? Metadata { get; set; }
     }
 
-    private class TestQueryResponse
+    public class TestQueryResponse
     {
         public string? Data { get; set; }
     }

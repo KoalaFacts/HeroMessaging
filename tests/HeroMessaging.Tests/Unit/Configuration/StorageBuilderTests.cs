@@ -583,7 +583,7 @@ public sealed class StorageBuilderTests
 
     #region Test Helper Classes
 
-    private class TestMessageStorage : IMessageStorage
+    public class TestMessageStorage : IMessageStorage
     {
         public Task<string> StoreAsync(IMessage message, MessageStorageOptions? options = null, CancellationToken cancellationToken = default)
             => Task.FromResult(Guid.NewGuid().ToString());
@@ -625,7 +625,7 @@ public sealed class StorageBuilderTests
             => Task.FromResult<IStorageTransaction>(Mock.Of<IStorageTransaction>());
     }
 
-    private class TestOutboxStorage : IOutboxStorage
+    public class TestOutboxStorage : IOutboxStorage
     {
         public Task<OutboxEntry> AddAsync(IMessage message, Abstractions.OutboxOptions options, CancellationToken cancellationToken = default)
             => Task.FromResult(new OutboxEntry { Message = message, Options = options });
@@ -652,7 +652,7 @@ public sealed class StorageBuilderTests
             => Task.FromResult(Enumerable.Empty<OutboxEntry>());
     }
 
-    private class TestInboxStorage : IInboxStorage
+    public class TestInboxStorage : IInboxStorage
     {
         public Task<InboxEntry?> AddAsync(IMessage message, InboxOptions options, CancellationToken cancellationToken = default)
             => Task.FromResult<InboxEntry?>(new InboxEntry { Message = message, Options = options });
@@ -682,7 +682,7 @@ public sealed class StorageBuilderTests
             => Task.CompletedTask;
     }
 
-    private class TestQueueStorage : IQueueStorage
+    public class TestQueueStorage : IQueueStorage
     {
         public Task<QueueEntry> EnqueueAsync(string queueName, IMessage message, EnqueueOptions? options = null, CancellationToken cancellationToken = default)
             => Task.FromResult(new QueueEntry { Message = message });

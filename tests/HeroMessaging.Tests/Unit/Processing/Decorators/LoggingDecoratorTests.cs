@@ -340,6 +340,9 @@ public sealed class LoggingDecoratorTests
         await decorator.ProcessAsync(message, context);
 
         // Assert
+        // Note: When logLevel is Debug, there will be 2 calls: start logging + success logging
+        // For other log levels, there will be 1 call at specified level + 1 at Debug
+        var expectedCalls = logLevel == LogLevel.Debug ? Times.Exactly(2) : Times.Once();
         _loggerMock.Verify(
             x => x.Log(
                 logLevel,
@@ -347,7 +350,7 @@ public sealed class LoggingDecoratorTests
                 It.Is<It.IsAnyType>((o, t) => true),
                 It.IsAny<Exception>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-            Times.Once);
+            expectedCalls);
     }
 
     #endregion
@@ -503,7 +506,7 @@ public sealed class LoggingDecoratorTests
 
     #region Test Helper Classes
 
-    private class TestMessage : IMessage
+    public class TestMessage : IMessage
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;

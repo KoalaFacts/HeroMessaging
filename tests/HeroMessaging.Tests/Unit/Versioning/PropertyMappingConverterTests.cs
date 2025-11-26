@@ -2,7 +2,7 @@ using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Versioning;
 using HeroMessaging.Versioning;
 using Microsoft.Extensions.Logging;
-using Moq;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace HeroMessaging.Tests.Unit.Versioning;
@@ -10,11 +10,11 @@ namespace HeroMessaging.Tests.Unit.Versioning;
 [Trait("Category", "Unit")]
 public sealed class PropertyMappingConverterTests
 {
-    private readonly Mock<ILogger<PropertyMappingConverter<TestMessage>>> _loggerMock;
+    private readonly ILogger<PropertyMappingConverter<TestMessage>> _logger;
 
     public PropertyMappingConverterTests()
     {
-        _loggerMock = new Mock<ILogger<PropertyMappingConverter<TestMessage>>>();
+        _logger = NullLogger<PropertyMappingConverter<TestMessage>>.Instance;
     }
 
     #region Constructor Tests
@@ -28,7 +28,7 @@ public sealed class PropertyMappingConverterTests
         var propertyMappings = new Dictionary<string, string> { { "OldName", "NewName" } };
 
         // Act
-        var converter = new PropertyMappingConverter<TestMessage>(fromVersion, toVersion, propertyMappings, _loggerMock.Object);
+        var converter = new PropertyMappingConverter<TestMessage>(fromVersion, toVersion, propertyMappings, _logger);
 
         // Assert
         Assert.NotNull(converter);
@@ -59,7 +59,7 @@ public sealed class PropertyMappingConverterTests
 
         // Act & Assert
         var exception = Assert.Throws<ArgumentNullException>(() =>
-            new PropertyMappingConverter<TestMessage>(fromVersion, toVersion, null!, _loggerMock.Object));
+            new PropertyMappingConverter<TestMessage>(fromVersion, toVersion, null!, _logger));
         Assert.Equal("propertyMappings", exception.ParamName);
     }
 
@@ -72,7 +72,7 @@ public sealed class PropertyMappingConverterTests
         var propertyMappings = new Dictionary<string, string>();
 
         // Act
-        var converter = new PropertyMappingConverter<TestMessage>(fromVersion, toVersion, propertyMappings, _loggerMock.Object);
+        var converter = new PropertyMappingConverter<TestMessage>(fromVersion, toVersion, propertyMappings, _logger);
 
         // Assert
         Assert.NotNull(converter);
@@ -343,7 +343,7 @@ public sealed class PropertyMappingConverterTests
         var propertyMappings = new Dictionary<string, string> { { "OldName", "NewName" } };
 
         // Act
-        var converter = MessageConverterBuilder.ForPropertyMapping<TestMessage>(fromVersion, toVersion, propertyMappings, _loggerMock.Object);
+        var converter = MessageConverterBuilder.ForPropertyMapping<TestMessage>(fromVersion, toVersion, propertyMappings, _logger);
 
         // Assert
         Assert.NotNull(converter);
@@ -499,14 +499,16 @@ public sealed class PropertyMappingConverterTests
     public async Task ConvertAsync_BackwardMapping_ProcessesMessage()
     {
         // Arrange - Converting from new to old (requires inverse mapping)
-        var fromVersion = new MessageVersion(2, 0, 0);
-        var toVersion = new MessageVersion(1, 0, 0);
+        // Note: Version range must have minVersion <= maxVersion, so for backward compatibility
+        // the converter is created with 1.0.0 to 2.0.0, but conversion can happen in either direction
+        var minVersion = new MessageVersion(1, 0, 0);
+        var maxVersion = new MessageVersion(2, 0, 0);
         var propertyMappings = new Dictionary<string, string> { { "NewPropertyName", "OldPropertyName" } };
-        var converter = CreateConverter(fromVersion, toVersion, propertyMappings);
+        var converter = CreateConverter(minVersion, maxVersion, propertyMappings);
         var message = new TestMessage { MessageId = Guid.NewGuid() };
 
-        // Act
-        var result = await converter.ConvertAsync(message, fromVersion, toVersion);
+        // Act - Convert from version 2.0.0 (within range) to version 1.0.0 (within range)
+        var result = await converter.ConvertAsync(message, maxVersion, minVersion);
 
         // Assert
         Assert.NotNull(result);
@@ -518,14 +520,14 @@ public sealed class PropertyMappingConverterTests
 
     private PropertyMappingConverter<TestMessage> CreateConverter(MessageVersion fromVersion, MessageVersion toVersion, IReadOnlyDictionary<string, string> propertyMappings)
     {
-        return new PropertyMappingConverter<TestMessage>(fromVersion, toVersion, propertyMappings, _loggerMock.Object);
+        return new PropertyMappingConverter<TestMessage>(fromVersion, toVersion, propertyMappings, _logger);
     }
 
     #endregion
 
     #region Test Classes
 
-    private sealed class TestMessage : IMessage
+    public sealed class TestMessage : IMessage
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
@@ -534,7 +536,7 @@ public sealed class PropertyMappingConverterTests
         public Dictionary<string, object>? Metadata { get; set; }
     }
 
-    private sealed class OtherMessage : IMessage
+    public sealed class OtherMessage : IMessage
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;

@@ -608,7 +608,7 @@ public sealed class RequiredFieldsValidatorTests
 
     #region Test Helper Classes
 
-    private class TestMessage : IMessage
+    public class TestMessage : IMessage
     {
         public Guid MessageId { get; set; }
         public DateTimeOffset Timestamp { get; set; }
@@ -617,7 +617,7 @@ public sealed class RequiredFieldsValidatorTests
         public Dictionary<string, object>? Metadata { get; set; }
     }
 
-    private class MessageWithRequiredFields : IMessage
+    public class MessageWithRequiredFields : IMessage
     {
         public Guid MessageId { get; set; }
         public DateTimeOffset Timestamp { get; set; }
@@ -629,7 +629,7 @@ public sealed class RequiredFieldsValidatorTests
         public string? RequiredField { get; set; }
     }
 
-    private class MessageWithMultipleRequiredFields : IMessage
+    public class MessageWithMultipleRequiredFields : IMessage
     {
         public Guid MessageId { get; set; }
         public DateTimeOffset Timestamp { get; set; }
@@ -647,7 +647,7 @@ public sealed class RequiredFieldsValidatorTests
         public string? RequiredField3 { get; set; }
     }
 
-    private class MessageWithOptionalFields : IMessage
+    public class MessageWithOptionalFields : IMessage
     {
         public Guid MessageId { get; set; }
         public DateTimeOffset Timestamp { get; set; }
@@ -658,7 +658,7 @@ public sealed class RequiredFieldsValidatorTests
         public string? OptionalField { get; set; }
     }
 
-    private class MessageWithNonStringRequiredField : IMessage
+    public class MessageWithNonStringRequiredField : IMessage
     {
         public Guid MessageId { get; set; }
         public DateTimeOffset Timestamp { get; set; }
@@ -736,7 +736,7 @@ public sealed class RequiredAttributeTests
 
     #region Test Helper Classes
 
-    private class TestMessageWithAttribute : IMessage
+    public class TestMessageWithAttribute : IMessage
     {
         public Guid MessageId { get; set; }
         public DateTimeOffset Timestamp { get; set; }

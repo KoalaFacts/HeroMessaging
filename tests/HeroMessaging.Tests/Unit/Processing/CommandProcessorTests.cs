@@ -419,7 +419,7 @@ public sealed class CommandProcessorTests : IDisposable
 
     #region Test Helper Classes
 
-    private class TestCommand : ICommand
+    public class TestCommand : ICommand
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
@@ -428,7 +428,7 @@ public sealed class CommandProcessorTests : IDisposable
         public Dictionary<string, object>? Metadata { get; set; } = new();
     }
 
-    private class TestCommandWithResponse : ICommand<string>
+    public class TestCommandWithResponse : ICommand<string>
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;

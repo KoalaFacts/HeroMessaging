@@ -353,7 +353,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             // Act & Assert
             var ex = Assert.Throws<ArgumentNullException>(() =>
                 new DelegateCompensatingAction("Action", (Action)null!));
-            Assert.Equal("compensateFunc", ex.ParamName);
+            Assert.Equal("compensateAction", ex.ParamName);
         }
 
         [Fact]
