@@ -129,14 +129,8 @@ public class CircuitBreakerDecoratorTests
         };
         var sut = new CircuitBreakerDecorator(_mockInner.Object, _mockLogger.Object, _timeProvider, options);
 
-        // Act - Generate 6 failures and 4 successes (60% failure rate)
-        for (int i = 0; i < 6; i++)
-        {
-            _mockInner.Setup(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(ProcessingResult.Failed(new Exception("Failure"), "Failed"));
-            await sut.ProcessAsync(_testMessage, _context);
-        }
-
+        // Act - Generate 4 successes first, then 6 failures (60% failure rate)
+        // Circuit only opens on RecordFailure(), so failures must come last
         for (int i = 0; i < 4; i++)
         {
             _mockInner.Setup(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
@@ -144,6 +138,14 @@ public class CircuitBreakerDecoratorTests
             await sut.ProcessAsync(_testMessage, _context);
         }
 
+        for (int i = 0; i < 6; i++)
+        {
+            _mockInner.Setup(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(ProcessingResult.Failed(new Exception("Failure"), "Failed"));
+            await sut.ProcessAsync(_testMessage, _context);
+        }
+
+        // Circuit should now be open (6/10 = 60% > 50% threshold)
         var result = await sut.ProcessAsync(_testMessage, _context);
 
         // Assert - Circuit should be open

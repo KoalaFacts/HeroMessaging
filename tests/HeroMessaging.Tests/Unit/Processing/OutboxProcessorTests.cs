@@ -498,12 +498,12 @@ public sealed class OutboxProcessorTests : IDisposable
     [Fact]
     public async Task ProcessWorkItem_OnFailure_LogsError()
     {
-        // Arrange
-        var message = new TestMessage();
+        // Arrange - Use TestEvent (IEvent) so the switch statement matches and calls PublishAsync
+        var eventMessage = new TestEvent();
         var entry = new OutboxEntry
         {
             Id = "entry-1",
-            Message = message,
+            Message = eventMessage,
             Status = OutboxStatus.Pending,
             Options = new OutboxOptions { MaxRetries = 0 }
         };
@@ -533,7 +533,7 @@ public sealed class OutboxProcessorTests : IDisposable
 
         // Act
         await processorWithFailure.StartAsync();
-        await Task.Delay(300); // Wait for processing
+        await Task.Delay(500); // Wait for processing (increased for reliability)
 
         // Cleanup
         await processorWithFailure.StopAsync();

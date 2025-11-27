@@ -60,6 +60,9 @@ public class SagaOrchestrator<TSaga> where TSaga : class, ISaga, new()
 
             _logger.LogInformation("Creating new saga {SagaType} with correlation {CorrelationId}",
                 typeof(TSaga).Name, correlationId);
+
+            // Save the new saga in its initial state first
+            await _repository.SaveAsync(saga, cancellationToken);
         }
 
         // Find matching transition
@@ -104,13 +107,15 @@ public class SagaOrchestrator<TSaga> where TSaga : class, ISaga, new()
                 correlationId, oldState, saga.CurrentState);
         }
 
-        // Persist saga (UpdateAsync increments version internally)
-        if (isNew)
+        // Update saga after processing the event
+        // (We already saved new sagas in their initial state above)
+        if (!isNew)
         {
-            await _repository.SaveAsync(saga, cancellationToken);
+            await _repository.UpdateAsync(saga, cancellationToken);
         }
-        else
+        else if (transition != null)
         {
+            // If this was a new saga and we processed a transition, update it
             await _repository.UpdateAsync(saga, cancellationToken);
         }
 

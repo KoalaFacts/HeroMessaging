@@ -18,14 +18,17 @@ public class ObservabilityBuilder : IObservabilityBuilder
     public IObservabilityBuilder AddHealthChecks(Action<object>? configure = null)
     {
         // Health checks would be registered by the plugin when available
+        var options = new object();
 
-        // If configure action is provided, it would be passed to the health checks builder
-        // when the actual health checks plugin is installed
+        // If configure action is provided, invoke it immediately for consistency
+        // with other builder methods, and store for later use by plugins
+        configure?.Invoke(options);
+
         if (configure != null)
         {
-            _services.Configure<HealthCheckOptions>(options =>
+            _services.Configure<HealthCheckOptions>(o =>
             {
-                options.ConfigureAction = configure;
+                o.ConfigureAction = configure;
             });
         }
 

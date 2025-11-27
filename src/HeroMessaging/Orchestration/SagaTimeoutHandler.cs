@@ -39,8 +39,8 @@ public class SagaTimeoutHandler<TSaga> : BackgroundService
         {
             try
             {
-                await Task.Delay(_options.CheckInterval, stoppingToken);
                 await CheckForTimedOutSagas(stoppingToken);
+                await Task.Delay(_options.CheckInterval, stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {

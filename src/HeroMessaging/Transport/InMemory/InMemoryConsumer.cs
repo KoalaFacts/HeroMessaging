@@ -240,15 +240,26 @@ internal class InMemoryConsumer : ITransportConsumer
             _instrumentation.RecordError(activity, ex);
             _instrumentation.RecordOperation(_transport.Name, "receive", "failure");
 
-            // Retry logic
+            // Retry logic - schedule retry asynchronously to avoid blocking other messages
             var retryCount = envelope.DeliveryCount;
             if (retryCount < _options.MessageRetryPolicy.MaxAttempts)
             {
                 var delay = _options.MessageRetryPolicy.CalculateDelay(retryCount + 1);
-                await Task.Delay(delay, cancellationToken);
-
                 var retryEnvelope = envelope with { DeliveryCount = retryCount + 1 };
-                await DeliverMessageAsync(retryEnvelope, cancellationToken);
+
+                // Schedule retry asynchronously without blocking the processing loop
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await Task.Delay(delay, cancellationToken);
+                        await DeliverMessageAsync(retryEnvelope, cancellationToken);
+                    }
+                    catch
+                    {
+                        // Ignore retry scheduling errors
+                    }
+                }, cancellationToken);
             }
             else
             {

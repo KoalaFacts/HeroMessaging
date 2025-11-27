@@ -26,6 +26,9 @@ public class CircuitBreakerRetryPolicy(
         if (attemptNumber >= MaxRetries) return false;
         if (exception == null) return false;
 
+        // Special case: threshold <= 0 means circuit breaker is disabled
+        if (_failureThreshold <= 0) return true;
+
         var circuitKey = GetCircuitKey(exception);
         var state = _circuits.GetOrAdd(circuitKey, _ => new CircuitState(_timeProvider));
 
@@ -34,8 +37,10 @@ public class CircuitBreakerRetryPolicy(
         {
             if (_timeProvider.GetUtcNow() - state.OpenedAt > _openCircuitDuration)
             {
-                // Try to close the circuit
+                // Try to close the circuit (half-open state)
                 state.Reset();
+                // Allow this retry attempt without recording failure (testing the circuit)
+                return true;
             }
             else
             {

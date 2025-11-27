@@ -6,6 +6,33 @@ using Microsoft.Extensions.Logging;
 
 namespace HeroMessaging.Resilience;
 
+#if !NET8_0_OR_GREATER
+// Extension method to provide Task.Delay with TimeProvider for earlier .NET versions
+internal static class TimeProviderDelayExtensions
+{
+    public static Task Delay(this TimeProvider timeProvider, TimeSpan delay, CancellationToken cancellationToken)
+    {
+        if (timeProvider == TimeProvider.System)
+        {
+            return Task.Delay(delay, cancellationToken);
+        }
+
+        // For FakeTimeProvider and custom implementations
+        // Use a TaskCompletionSource with a timer based on the TimeProvider
+        var tcs = new TaskCompletionSource<bool>();
+        var timer = timeProvider.CreateTimer(_ => tcs.TrySetResult(true), null, delay, Timeout.InfiniteTimeSpan);
+
+        cancellationToken.Register(() =>
+        {
+            timer.Dispose();
+            tcs.TrySetCanceled(cancellationToken);
+        });
+
+        return tcs.Task;
+    }
+}
+#endif
+
 /// <summary>
 /// Decorator that adds connection resilience to UnitOfWork operations
 /// Handles transient database connection failures with retry and circuit breaker patterns
@@ -164,16 +191,19 @@ public class DefaultConnectionResiliencePolicy(
                 _logger.LogWarning(ex, "Transient error in operation {OperationName}. Retry {RetryCount}/{MaxRetries} after {DelayMs}ms",
                     operationName, retryCount, maxRetries, delay.TotalMilliseconds);
 
-                // Record failure in circuit breaker
-                _circuitBreaker.RecordFailure();
-
-                await Task.Delay(delay, cancellationToken);
+                // Use TimeProvider for testable delays
+#if NET8_0_OR_GREATER
+                await Task.Delay(delay, _timeProvider, cancellationToken);
+#else
+                await _timeProvider.Delay(delay, cancellationToken);
+#endif
             }
             catch (Exception ex)
             {
                 // Non-transient exception or max retries exceeded
                 var operationDuration = _timeProvider.GetUtcNow() - operationStartTime;
 
+                // Record circuit breaker failure only once per operation, not per retry
                 _circuitBreaker.RecordFailure();
                 _healthMonitor?.RecordFailure(operationName, ex, operationDuration);
 
@@ -263,13 +293,27 @@ internal class ConnectionCircuitBreaker(CircuitBreakerOptions options, ILogger l
 
         lock (_lock)
         {
-            return _state switch
+            switch (_state)
             {
-                ConnectionCircuitState.Closed => true,
-                ConnectionCircuitState.Open => _timeProvider.GetUtcNow() - _lastFailureTime >= _options.BreakDuration,
-                ConnectionCircuitState.HalfOpen => true,
-                _ => false
-            };
+                case ConnectionCircuitState.Closed:
+                    return true;
+
+                case ConnectionCircuitState.Open:
+                    if (_timeProvider.GetUtcNow() - _lastFailureTime >= _options.BreakDuration)
+                    {
+                        // Transition to half-open to allow retry
+                        _state = ConnectionCircuitState.HalfOpen;
+                        _logger.LogInformation("Circuit breaker transitioning to half-open state");
+                        return true;
+                    }
+                    return false;
+
+                case ConnectionCircuitState.HalfOpen:
+                    return true;
+
+                default:
+                    return false;
+            }
         }
     }
 

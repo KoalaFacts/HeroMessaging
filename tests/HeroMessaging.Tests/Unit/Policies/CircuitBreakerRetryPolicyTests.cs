@@ -110,10 +110,10 @@ public class CircuitBreakerRetryPolicyTests
     {
         // Arrange
         var timeProvider = new FakeTimeProvider();
-        var policy = new CircuitBreakerRetryPolicy(timeProvider, maxRetries: 3, failureThreshold: 5);
+        var policy = new CircuitBreakerRetryPolicy(timeProvider, maxRetries: 10, failureThreshold: 5);
         var exception = new InvalidOperationException("Test error");
 
-        // Act & Assert - First 4 attempts should succeed
+        // Act & Assert - First 4 attempts should succeed (within threshold of 5)
         for (int i = 0; i < 4; i++)
         {
             var result = policy.ShouldRetry(exception, attemptNumber: i);

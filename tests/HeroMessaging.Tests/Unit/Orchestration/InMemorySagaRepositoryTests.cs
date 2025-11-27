@@ -655,7 +655,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
         }
 
         [Fact]
-        public async Task ConcurrentUpdates_WithSameCorrelationId_SomeSucceedSomeFail()
+        public async Task ConcurrentUpdates_WithSameCorrelationId_AllSucceedWithLocking()
         {
             // Arrange
             var repository = new InMemorySagaRepository<TestSaga>(_timeProvider);
@@ -667,6 +667,9 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             var failureCount = 0;
 
             // Act - Try concurrent updates
+            // Note: With in-memory storage using shared references, concurrent updates
+            // are serialized by the internal lock and all succeed because they share
+            // the same saga reference (version always matches).
             for (int i = 0; i < 10; i++)
             {
                 tasks.Add(Task.Run(async () =>
@@ -689,10 +692,44 @@ namespace HeroMessaging.Tests.Unit.Orchestration
 
             await Task.WhenAll(tasks);
 
-            // Assert - Some should succeed, some should fail due to concurrency
-            Assert.True(successCount > 0);
-            Assert.True(failureCount > 0);
+            // Assert - All updates should succeed with in-memory shared reference model
+            // Each concurrent update is serialized and version stays in sync
+            Assert.Equal(10, successCount);
+            Assert.Equal(0, failureCount);
             Assert.Equal(10, successCount + failureCount);
+
+            // Version should be incremented 10 times (once per update)
+            var finalSaga = await repository.FindAsync(saga.CorrelationId);
+            Assert.NotNull(finalSaga);
+            Assert.Equal(10, finalSaga!.Version);
+        }
+
+        [Fact]
+        public async Task ConcurrentUpdates_WithStaleVersion_ThrowsSagaConcurrencyException()
+        {
+            // Arrange
+            var repository = new InMemorySagaRepository<TestSaga>(_timeProvider);
+            var saga = new TestSaga { CorrelationId = Guid.NewGuid() };
+            await repository.SaveAsync(saga);
+
+            // Get initial reference and capture version
+            var staleSaga = await repository.FindAsync(saga.CorrelationId);
+            Assert.NotNull(staleSaga);
+
+            // Update the saga to increment version
+            await repository.UpdateAsync(staleSaga!);
+
+            // Create a new saga instance with the OLD version to simulate stale read
+            var staleSagaCopy = new TestSaga
+            {
+                CorrelationId = saga.CorrelationId,
+                CurrentState = staleSaga.CurrentState,
+                Version = 0 // Old version before the update
+            };
+
+            // Act & Assert - Trying to update with stale version should fail
+            await Assert.ThrowsAsync<SagaConcurrencyException>(
+                () => repository.UpdateAsync(staleSagaCopy));
         }
 
         #endregion

@@ -129,7 +129,7 @@ public class MessageVersionResolverTests
 
         // Assert
         Assert.Equal(messageType, versionInfo.MessageType);
-        Assert.Equal(new MessageVersion(1, 5, 0), versionInfo.Version);
+        Assert.Equal(new MessageVersion(2, 0, 0), versionInfo.Version);
         Assert.NotEmpty(versionInfo.Properties);
         Assert.Contains(versionInfo.Properties, p => p.Name == "NewProperty");
     }
@@ -146,7 +146,7 @@ public class MessageVersionResolverTests
 
         // Assert
         Assert.NotNull(newProperty);
-        Assert.Equal(new MessageVersion(1, 5, 0), newProperty.AddedInVersion);
+        Assert.Equal(new MessageVersion(2, 0, 0), newProperty.AddedInVersion);
     }
 
     [Fact]
@@ -219,11 +219,13 @@ public class MessageVersionResolverTests
     public void ValidateMessage_WithPropertyAddedAfterTargetVersion_ReturnsError()
     {
         // Arrange
-        var message = new MessageWithProperties
+        // MessageWithPropertiesV2_1 has version 2.1.0 with NewProperty added in 2.1.0
+        // Using target 2.0.0 (compatible major, but before property was added) should fail
+        var message = new MessageWithPropertiesV2_1
         {
             NewProperty = "Has value"
         };
-        var targetVersion = new MessageVersion(1, 4, 0); // Before NewProperty was added
+        var targetVersion = new MessageVersion(2, 0, 0); // Before NewProperty was added in 2.1.0
 
         // Act
         var result = _sut.ValidateMessage(message, targetVersion);
@@ -259,7 +261,7 @@ public class MessageVersionResolverTests
     {
         // Arrange
         var message = new MessageWithProperties(); // All properties at default
-        var targetVersion = new MessageVersion(1, 0, 0);
+        var targetVersion = new MessageVersion(2, 0, 0); // Same major version as message
 
         // Act
         var result = _sut.ValidateMessage(message, targetVersion);
@@ -439,7 +441,7 @@ public class MessageVersionResolverTests
         public Dictionary<string, object>? Metadata { get; set; }
     }
 
-    [MessageVersion(1, 5, 0)]
+    [MessageVersion(2, 0, 0)]
     public class MessageWithProperties : IMessage
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
@@ -448,13 +450,29 @@ public class MessageVersionResolverTests
         public string? CausationId { get; set; }
         public Dictionary<string, object>? Metadata { get; set; }
 
-        [AddedInVersion(1, 5, 0)]
+        [AddedInVersion(2, 0, 0)]
         public string? NewProperty { get; set; }
 
         [DeprecatedInVersion(2, 0, 0, Reason = "Use NewProperty instead", ReplacedBy = "NewProperty")]
         public string? OldProperty { get; set; }
 
         public string? RegularProperty { get; set; }
+    }
+
+    /// <summary>
+    /// A message with version 2.1.0 used to test property added after target version scenario
+    /// </summary>
+    [MessageVersion(2, 1, 0)]
+    public class MessageWithPropertiesV2_1 : IMessage
+    {
+        public Guid MessageId { get; set; } = Guid.NewGuid();
+        public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
+        public string? CorrelationId { get; set; }
+        public string? CausationId { get; set; }
+        public Dictionary<string, object>? Metadata { get; set; }
+
+        [AddedInVersion(2, 1, 0)]
+        public string? NewProperty { get; set; }
     }
 
     #endregion

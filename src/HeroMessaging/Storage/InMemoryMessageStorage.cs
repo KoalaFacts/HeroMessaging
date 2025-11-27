@@ -36,7 +36,8 @@ public class InMemoryMessageStorage : IMessageStorage
     {
         if (_messages.TryGetValue(messageId, out var stored))
         {
-            if (stored.ExpiresAt.HasValue && stored.ExpiresAt < _timeProvider.GetUtcNow())
+            // At or past expiry time, message is considered expired
+            if (stored.ExpiresAt.HasValue && stored.ExpiresAt <= _timeProvider.GetUtcNow())
             {
                 _messages.TryRemove(messageId, out _);
                 return Task.FromResult<T?>(default);
@@ -152,7 +153,17 @@ public class InMemoryMessageStorage : IMessageStorage
 
     Task IMessageStorage.StoreAsync(IMessage message, IStorageTransaction? transaction, CancellationToken cancellationToken)
     {
-        return StoreAsync(message, null, cancellationToken).ContinueWith(_ => Task.CompletedTask, cancellationToken);
+        // Store using the message's own MessageId
+        var now = _timeProvider.GetUtcNow();
+        var stored = new StoredMessage
+        {
+            Id = message.MessageId.ToString(),
+            Message = message,
+            StoredAt = now,
+            ExpiresAt = null
+        };
+        _messages[stored.Id] = stored;
+        return Task.CompletedTask;
     }
 
     Task<IMessage?> IMessageStorage.RetrieveAsync(Guid messageId, IStorageTransaction? transaction, CancellationToken cancellationToken)

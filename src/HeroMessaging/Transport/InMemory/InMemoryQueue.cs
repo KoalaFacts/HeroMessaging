@@ -23,6 +23,8 @@ internal class InMemoryQueue : IDisposable, IAsyncDisposable
     private int _consumerIndex;
     private long _messageCount;
     private long _depth;
+    private readonly int _maxQueueLength;
+    private readonly bool _dropWhenFull;
 
     // Performance optimization: Cache consumer array to avoid allocation on every message
     private InMemoryConsumer[] _consumerCache = Array.Empty<InMemoryConsumer>();
@@ -33,6 +35,9 @@ internal class InMemoryQueue : IDisposable, IAsyncDisposable
 
     public InMemoryQueue(int maxQueueLength, bool dropWhenFull)
     {
+        _maxQueueLength = maxQueueLength;
+        _dropWhenFull = dropWhenFull;
+
         // IMPORTANT: When dropWhenFull=false, the channel uses BoundedChannelFullMode.Wait
         // This means EnqueueAsync will WAIT INDEFINITELY for space when the queue is full
         // Callers should use CancellationToken timeout to prevent indefinite blocking
@@ -52,7 +57,25 @@ internal class InMemoryQueue : IDisposable, IAsyncDisposable
         {
             await _channel.Writer.WriteAsync(envelope, cancellationToken);
             Interlocked.Increment(ref _messageCount);
-            Interlocked.Increment(ref _depth);
+
+            // In DropOldest mode, depth should never exceed maxQueueLength
+            // because the channel drops the oldest message when full
+            if (_dropWhenFull)
+            {
+                // Use a compare-exchange loop to ensure depth doesn't exceed max
+                long currentDepth;
+                long newDepth;
+                do
+                {
+                    currentDepth = Interlocked.Read(ref _depth);
+                    newDepth = Math.Min(currentDepth + 1, _maxQueueLength);
+                } while (Interlocked.CompareExchange(ref _depth, newDepth, currentDepth) != currentDepth);
+            }
+            else
+            {
+                Interlocked.Increment(ref _depth);
+            }
+
             return true;
         }
         catch (ChannelClosedException)

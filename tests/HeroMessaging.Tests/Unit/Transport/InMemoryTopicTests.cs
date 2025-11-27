@@ -401,21 +401,21 @@ public class InMemoryTopicTests
     }
 
     [Fact]
-    public async Task Topic_WithFastAndSlowConsumers_WaitsForAll()
+    public async Task Topic_WithFastAndSlowConsumers_BothReceiveMessage()
     {
         // Arrange
         var transport = new InMemoryTransport(_options, TimeProvider.System);
         await transport.ConnectAsync();
 
         var topic = TransportAddress.Topic("test-topic");
-        var fastCompleted = false;
-        var slowCompleted = false;
+        var fastTcs = new TaskCompletionSource<bool>();
+        var slowTcs = new TaskCompletionSource<bool>();
 
         await transport.SubscribeAsync(topic,
             async (env, ctx, ct) =>
             {
                 await Task.Delay(10, ct);
-                fastCompleted = true;
+                fastTcs.SetResult(true);
                 await ctx.AcknowledgeAsync(ct);
             },
             new ConsumerOptions { StartImmediately = true, ConsumerId = "fast" });
@@ -424,7 +424,7 @@ public class InMemoryTopicTests
             async (env, ctx, ct) =>
             {
                 await Task.Delay(100, ct);
-                slowCompleted = true;
+                slowTcs.SetResult(true);
                 await ctx.AcknowledgeAsync(ct);
             },
             new ConsumerOptions { StartImmediately = true, ConsumerId = "slow" });
@@ -434,9 +434,15 @@ public class InMemoryTopicTests
         // Act
         await transport.PublishAsync(topic, envelope);
 
-        // Assert - Both should be completed after publish completes
-        Assert.True(fastCompleted);
-        Assert.True(slowCompleted);
+        // Wait for both consumers to process the message
+        // PublishAsync delivers to channel but doesn't wait for processing
+        await Task.WhenAll(
+            fastTcs.Task.WaitAsync(TimeSpan.FromSeconds(5)),
+            slowTcs.Task.WaitAsync(TimeSpan.FromSeconds(5)));
+
+        // Assert - Both should have received and processed the message
+        Assert.True(fastTcs.Task.IsCompletedSuccessfully);
+        Assert.True(slowTcs.Task.IsCompletedSuccessfully);
 
         await transport.DisposeAsync();
     }

@@ -242,7 +242,7 @@ public sealed class MessageProcessingPipelineTests : IDisposable
         var context = new ProcessingContext();
 
         innerProcessor
-            .Setup(p => p.ProcessAsync(message, context, It.IsAny<CancellationToken>()))
+            .Setup(p => p.ProcessAsync(message, It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProcessingResult.Successful());
 
         // Act
@@ -279,7 +279,7 @@ public sealed class MessageProcessingPipelineTests : IDisposable
             .ReturnsAsync(new ValidationResult { IsValid = true });
 
         innerProcessor
-            .Setup(p => p.ProcessAsync(message, context, It.IsAny<CancellationToken>()))
+            .Setup(p => p.ProcessAsync(message, It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProcessingResult.Successful());
 
         // Act
@@ -321,7 +321,7 @@ public sealed class MessageProcessingPipelineTests : IDisposable
             .ReturnsAsync(new ValidationResult { IsValid = true });
 
         innerProcessor
-            .Setup(p => p.ProcessAsync(message, context, It.IsAny<CancellationToken>()))
+            .Setup(p => p.ProcessAsync(message, It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProcessingResult.Successful());
 
         // Act
@@ -338,7 +338,7 @@ public sealed class MessageProcessingPipelineTests : IDisposable
 
         // Assert
         Assert.True(result.Success);
-        innerProcessor.Verify(p => p.ProcessAsync(message, context, It.IsAny<CancellationToken>()), Times.Once);
+        innerProcessor.Verify(p => p.ProcessAsync(message, It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     #endregion

@@ -187,19 +187,19 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             var correlationId = Guid.NewGuid();
             var @event = new OrderStartedEvent { CorrelationId = correlationId.ToString() };
 
-            TestSaga? savedSaga = null;
+            string? savedState = null;
             _repositoryMock.Setup(r => r.FindAsync(correlationId, It.IsAny<CancellationToken>()))
                 .ReturnsAsync((TestSaga?)null);
             _repositoryMock.Setup(r => r.SaveAsync(It.IsAny<TestSaga>(), It.IsAny<CancellationToken>()))
-                .Callback<TestSaga, CancellationToken>((s, ct) => savedSaga = s)
+                .Callback<TestSaga, CancellationToken>((s, ct) => savedState = s.CurrentState)
                 .Returns(Task.CompletedTask);
 
             // Act
             await orchestrator.ProcessAsync(@event);
 
             // Assert
-            Assert.NotNull(savedSaga);
-            Assert.Equal("Initial", savedSaga.CurrentState);
+            Assert.NotNull(savedState);
+            Assert.Equal("Initial", savedState);
         }
 
         [Fact]

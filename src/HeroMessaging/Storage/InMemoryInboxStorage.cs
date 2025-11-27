@@ -45,8 +45,9 @@ public class InMemoryInboxStorage : IInboxStorage
         {
             if (window.HasValue)
             {
+                // Entry is duplicate if received AFTER (not at) the cutoff time
                 var cutoff = _timeProvider.GetUtcNow().Subtract(window.Value);
-                return Task.FromResult(entry.ReceivedAt >= cutoff);
+                return Task.FromResult(entry.ReceivedAt > cutoff);
             }
 
             return Task.FromResult(true);

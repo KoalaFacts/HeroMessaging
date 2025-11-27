@@ -15,6 +15,11 @@ public class InMemorySagaRepository<TSaga> : ISagaRepository<TSaga>
     private readonly ConcurrentDictionary<Guid, TSaga> _sagas = new();
     private readonly ConcurrentDictionary<Guid, int> _versions = new();
     private readonly TimeProvider _timeProvider;
+#if NET9_0_OR_GREATER
+    private readonly Lock _updateLock = new();
+#else
+    private readonly object _updateLock = new();
+#endif
 
     /// <summary>
     /// Constructor with required TimeProvider for testability
@@ -95,35 +100,38 @@ public class InMemorySagaRepository<TSaga> : ISagaRepository<TSaga>
         if (saga == null)
             throw new ArgumentNullException(nameof(saga));
 
-        if (!_sagas.ContainsKey(saga.CorrelationId))
+        lock (_updateLock)
         {
-            throw new InvalidOperationException(
-                $"Saga with correlation ID {saga.CorrelationId} not found. Use SaveAsync to create new sagas.");
+            if (!_sagas.ContainsKey(saga.CorrelationId))
+            {
+                throw new InvalidOperationException(
+                    $"Saga with correlation ID {saga.CorrelationId} not found. Use SaveAsync to create new sagas.");
+            }
+
+            // Optimistic concurrency check using tracked version
+            if (!_versions.TryGetValue(saga.CorrelationId, out var expectedVersion))
+            {
+                throw new InvalidOperationException($"Version tracking lost for saga {saga.CorrelationId}");
+            }
+
+            if (saga.Version != expectedVersion)
+            {
+                throw new SagaConcurrencyException(
+                    saga.CorrelationId,
+                    expectedVersion: expectedVersion,
+                    actualVersion: saga.Version);
+            }
+
+            // Increment version and update timestamp for this update
+            saga.Version++;
+            saga.UpdatedAt = _timeProvider.GetUtcNow();
+
+            // Update both saga and tracked version
+            _sagas[saga.CorrelationId] = saga;
+            _versions[saga.CorrelationId] = saga.Version;
+
+            return Task.CompletedTask;
         }
-
-        // Optimistic concurrency check using tracked version
-        if (!_versions.TryGetValue(saga.CorrelationId, out var expectedVersion))
-        {
-            throw new InvalidOperationException($"Version tracking lost for saga {saga.CorrelationId}");
-        }
-
-        if (saga.Version != expectedVersion)
-        {
-            throw new SagaConcurrencyException(
-                saga.CorrelationId,
-                expectedVersion: expectedVersion,
-                actualVersion: saga.Version);
-        }
-
-        // Increment version and update timestamp for this update
-        saga.Version++;
-        saga.UpdatedAt = _timeProvider.GetUtcNow();
-
-        // Update both saga and tracked version
-        _sagas[saga.CorrelationId] = saga;
-        _versions[saga.CorrelationId] = saga.Version;
-
-        return Task.CompletedTask;
     }
 
     /// <summary>

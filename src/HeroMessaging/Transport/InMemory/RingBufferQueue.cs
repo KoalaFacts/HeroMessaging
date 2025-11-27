@@ -118,28 +118,43 @@ internal class RingBufferQueue : IDisposable, IAsyncDisposable
 
         lock (_consumerLock)
         {
-            // Create event handler for this consumer
-            var handler = new ConsumerEventHandler(consumer, this);
+            // Add consumer to list
+            _consumers.Add(new ConsumerProcessor(consumer, null!));
 
-            // Create sequence barrier
-            var barrier = _ringBuffer.NewBarrier();
-
-            // Create event processor
-            var processor = new BatchEventProcessor<MessageEvent>(
-                _ringBuffer,
-                barrier,
-                handler);
-
-            // Add as gating sequence for backpressure
-            _ringBuffer.AddGatingSequence(processor.Sequence);
-
-            // Track consumer processor
-            var consumerProcessor = new ConsumerProcessor(consumer, processor);
-            _consumers.Add(consumerProcessor);
-
-            // Start processing
-            processor.Start();
+            // If this is the first consumer, start the shared event processor
+            if (_consumers.Count == 1)
+            {
+                StartSharedProcessor();
+            }
         }
+    }
+
+    private void StartSharedProcessor()
+    {
+        // Create shared event handler that distributes to all consumers in round-robin
+        var handler = new RoundRobinEventHandler(this);
+
+        // Create sequence barrier
+        var barrier = _ringBuffer.NewBarrier();
+
+        // Create single shared event processor for all consumers (work-stealing pattern)
+        var processor = new BatchEventProcessor<MessageEvent>(
+            _ringBuffer,
+            barrier,
+            handler);
+
+        // Add as gating sequence for backpressure
+        _ringBuffer.AddGatingSequence(processor.Sequence);
+
+        // Store processor in first consumer entry (we only need one)
+        if (_consumers.Count > 0)
+        {
+            var firstConsumer = _consumers[0];
+            _consumers[0] = new ConsumerProcessor(firstConsumer.Consumer, processor);
+        }
+
+        // Start processing
+        processor.Start();
     }
 
     public void RemoveConsumer(InMemoryConsumer consumer)
@@ -152,29 +167,29 @@ internal class RingBufferQueue : IDisposable, IAsyncDisposable
             var consumerProcessor = _consumers.FirstOrDefault(cp => cp.Consumer == consumer);
             if (consumerProcessor != null)
             {
-                // Remove gating sequence
-                _ringBuffer.RemoveGatingSequence(consumerProcessor.Processor.Sequence);
-
-                // Stop and dispose processor
-                consumerProcessor.Dispose();
-
                 // Remove from list
                 _consumers.Remove(consumerProcessor);
+
+                // If no consumers left, stop the processor
+                if (_consumers.Count == 0 && consumerProcessor.Processor != null)
+                {
+                    _ringBuffer.RemoveGatingSequence(consumerProcessor.Processor.Sequence);
+                    consumerProcessor.Dispose();
+                }
             }
         }
     }
 
     /// <summary>
-    /// Event handler that delivers messages to the consumer
+    /// Event handler that delivers messages in round-robin fashion to all consumers
     /// </summary>
-    private class ConsumerEventHandler : IEventHandler<MessageEvent>
+    private class RoundRobinEventHandler : IEventHandler<MessageEvent>
     {
-        private readonly InMemoryConsumer _consumer;
         private readonly RingBufferQueue _queue;
+        private int _consumerIndex;
 
-        public ConsumerEventHandler(InMemoryConsumer consumer, RingBufferQueue queue)
+        public RoundRobinEventHandler(RingBufferQueue queue)
         {
-            _consumer = consumer ?? throw new ArgumentNullException(nameof(consumer));
             _queue = queue ?? throw new ArgumentNullException(nameof(queue));
         }
 
@@ -184,9 +199,25 @@ internal class RingBufferQueue : IDisposable, IAsyncDisposable
             {
                 try
                 {
-                    // Deliver message to consumer (synchronous to avoid allocation)
-                    // The consumer has its own async processing pipeline
-                    _consumer.DeliverMessageAsync(evt.Envelope.Value, default).GetAwaiter().GetResult();
+                    // Get current consumers list (thread-safe copy)
+                    InMemoryConsumer[]? consumers = null;
+                    lock (_queue._consumerLock)
+                    {
+                        if (_queue._consumers.Count > 0)
+                        {
+                            consumers = _queue._consumers.Select(cp => cp.Consumer).ToArray();
+                        }
+                    }
+
+                    if (consumers != null && consumers.Length > 0)
+                    {
+                        // Round-robin distribution
+                        var index = unchecked((uint)Interlocked.Increment(ref _consumerIndex));
+                        var consumer = consumers[index % (uint)consumers.Length];
+
+                        // Deliver message to selected consumer
+                        consumer.DeliverMessageAsync(evt.Envelope.Value, default).GetAwaiter().GetResult();
+                    }
 
                     // Decrement depth counter
                     Interlocked.Decrement(ref _queue._depth);
@@ -235,10 +266,15 @@ internal class RingBufferQueue : IDisposable, IAsyncDisposable
 
         lock (_consumerLock)
         {
-            // Stop all processors
-            foreach (var consumerProcessor in _consumers)
+            // Stop the shared processor (stored in first consumer if any)
+            if (_consumers.Count > 0)
             {
-                consumerProcessor.Dispose();
+                var firstProcessor = _consumers[0];
+                if (firstProcessor.Processor != null)
+                {
+                    _ringBuffer.RemoveGatingSequence(firstProcessor.Processor.Sequence);
+                    firstProcessor.Dispose();
+                }
             }
             _consumers.Clear();
         }

@@ -59,6 +59,13 @@ public class EventBus : IEventBus, IProcessor
 
     public async Task Publish(IEvent @event, CancellationToken cancellationToken = default)
     {
+        // Return early if already cancelled - graceful handling
+        if (cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogDebug("Publish cancelled before processing");
+            return;
+        }
+
         var eventType = @event.GetType();
         var handlerType = typeof(IEventHandler<>).MakeGenericType(eventType);
         var handlers = _serviceProvider.GetServices(handlerType).ToList();

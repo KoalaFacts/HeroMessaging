@@ -128,13 +128,17 @@ public class RetryDecoratorTests
         // Arrange
         var sut = new RetryDecorator(_mockInner.Object, _mockLogger.Object, _mockRetryPolicy.Object);
         var exception = new TimeoutException("Timeout");
+        var callCount = 0;
 
         _mockInner.Setup(i => i.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(exception);
-        _mockRetryPolicy.Setup(p => p.ShouldRetry(exception, It.IsAny<int>())).Returns(true);
+
+        // ShouldRetry returns true for first 3 attempts, then false to stop retrying
+        _mockRetryPolicy.Setup(p => p.ShouldRetry(exception, It.IsAny<int>()))
+            .Returns(() => callCount++ < 3);
         _mockRetryPolicy.Setup(p => p.GetRetryDelay(It.IsAny<int>())).Returns(TimeSpan.FromMilliseconds(10));
 
-        // Act & Assert
+        // Act & Assert - Exception is re-thrown when ShouldRetry returns false
         await Assert.ThrowsAsync<TimeoutException>(async () => await sut.ProcessAsync(_testMessage, _context));
         _mockInner.Verify(i => i.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()), Times.Exactly(4));
     }

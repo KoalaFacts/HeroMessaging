@@ -9,6 +9,11 @@ public class InMemoryQueueStorage : IQueueStorage
 {
     private readonly ConcurrentDictionary<string, Queue> _queues = new();
     private readonly TimeProvider _timeProvider;
+#if NET9_0_OR_GREATER
+    private readonly Lock _dequeueLock = new();
+#else
+    private readonly object _dequeueLock = new();
+#endif
 
     public InMemoryQueueStorage(TimeProvider timeProvider)
     {
@@ -42,20 +47,23 @@ public class InMemoryQueueStorage : IQueueStorage
             return Task.FromResult<QueueEntry?>(null);
         }
 
-        var now = _timeProvider.GetUtcNow();
-        var entry = queue.Entries.Values
-            .Where(e => e.VisibleAt <= now && e.DequeueCount < (queue.Options?.MaxDequeueCount ?? 10))
-            .OrderByDescending(e => e.Options.Priority)
-            .ThenBy(e => e.EnqueuedAt)
-            .FirstOrDefault();
-
-        if (entry != null)
+        lock (_dequeueLock)
         {
-            entry.DequeueCount++;
-            entry.VisibleAt = now.Add(queue.Options?.VisibilityTimeout ?? TimeSpan.FromMinutes(1));
-        }
+            var now = _timeProvider.GetUtcNow();
+            var entry = queue.Entries.Values
+                .Where(e => e.VisibleAt <= now && e.DequeueCount < (queue.Options?.MaxDequeueCount ?? 10))
+                .OrderByDescending(e => e.Options.Priority)
+                .ThenBy(e => e.EnqueuedAt)
+                .FirstOrDefault();
 
-        return Task.FromResult(entry);
+            if (entry != null)
+            {
+                entry.DequeueCount++;
+                entry.VisibleAt = now.Add(queue.Options?.VisibilityTimeout ?? TimeSpan.FromMinutes(1));
+            }
+
+            return Task.FromResult(entry);
+        }
     }
 
     public Task<IEnumerable<QueueEntry>> PeekAsync(string queueName, int count = 1, CancellationToken cancellationToken = default)

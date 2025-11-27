@@ -129,8 +129,23 @@ public sealed class BatchEventProcessor<T> : IEventProcessor where T : class
     {
         Stop();
 
-        // Wait for processing task to complete
-        _processingTask?.Wait(TimeSpan.FromSeconds(5));
+        // Wait for processing task to complete, handling cancellation gracefully
+        try
+        {
+            _processingTask?.Wait(TimeSpan.FromSeconds(5));
+        }
+        catch (AggregateException ex) when (ex.InnerExceptions.All(e => e is TaskCanceledException or OperationCanceledException))
+        {
+            // Expected during shutdown - ignore cancellation exceptions
+        }
+        catch (TaskCanceledException)
+        {
+            // Expected during shutdown
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected during shutdown
+        }
 
         _cts.Dispose();
     }

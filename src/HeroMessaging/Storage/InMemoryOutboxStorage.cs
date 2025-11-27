@@ -64,7 +64,7 @@ public class InMemoryOutboxStorage : IOutboxStorage
         }
 
         pending = pending
-            .OrderBy(e => e.Options.Priority)
+            .OrderByDescending(e => e.Options.Priority)
             .ThenBy(e => e.CreatedAt)
             .Take(query.Limit);
 
@@ -76,7 +76,7 @@ public class InMemoryOutboxStorage : IOutboxStorage
         var pending = _entries.Values
             .Where(e => e.Status == OutboxStatus.Pending &&
                        (e.NextRetryAt == null || e.NextRetryAt <= _timeProvider.GetUtcNow()))
-            .OrderBy(e => e.Options.Priority)
+            .OrderByDescending(e => e.Options.Priority)
             .ThenBy(e => e.CreatedAt)
             .Take(limit);
 
