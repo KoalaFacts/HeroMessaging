@@ -68,9 +68,9 @@ public sealed class SecurityBuilderExtensionsTests
         // Arrange
         var services = new ServiceCollection();
 
-        // Act & Assert
+        // Act & Assert - explicitly cast to byte[] to call correct overload
         var exception = Assert.Throws<ArgumentNullException>(
-            () => services.AddAesGcmEncryption(null!));
+            () => services.AddAesGcmEncryption((byte[])null!));
         Assert.Equal("key", exception.ParamName);
     }
 
@@ -174,9 +174,9 @@ public sealed class SecurityBuilderExtensionsTests
         // Arrange
         var services = new ServiceCollection();
 
-        // Act & Assert
+        // Act & Assert - explicitly cast to byte[] to call correct overload
         var exception = Assert.Throws<ArgumentNullException>(
-            () => services.AddHmacSha256Signing(null!));
+            () => services.AddHmacSha256Signing((byte[])null!));
         Assert.Equal("key", exception.ParamName);
     }
 

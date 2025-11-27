@@ -16,7 +16,7 @@ public sealed class InMemoryScheduledMessageStorageTests
 
     public InMemoryScheduledMessageStorageTests()
     {
-        _storage = new InMemoryScheduledMessageStorage();
+        _storage = new InMemoryScheduledMessageStorage(TimeProvider.System);
     }
 
     #region AddAsync Tests

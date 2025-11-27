@@ -37,14 +37,11 @@ public sealed record SecurityContext
     /// </summary>
     public DateTimeOffset Timestamp { get; init; }
 
-    public SecurityContext() : this((TimeProvider?)null)
+    public SecurityContext(TimeProvider timeProvider)
     {
-    }
-
-    public SecurityContext(TimeProvider? timeProvider)
-    {
+        if (timeProvider == null) throw new ArgumentNullException(nameof(timeProvider));
         Metadata = new Dictionary<string, object>();
-        Timestamp = (timeProvider ?? TimeProvider.System).GetUtcNow();
+        Timestamp = timeProvider.GetUtcNow();
     }
 
     /// <summary>

@@ -38,13 +38,13 @@ public sealed class StorageBackedScheduler : IMessageScheduler, IAsyncDisposable
         IMessageDeliveryHandler deliveryHandler,
         StorageBackedSchedulerOptions options,
         ILogger<StorageBackedScheduler> logger,
-        TimeProvider? timeProvider = null)
+        TimeProvider timeProvider)
     {
         _storage = storage ?? throw new ArgumentNullException(nameof(storage));
         _deliveryHandler = deliveryHandler ?? throw new ArgumentNullException(nameof(deliveryHandler));
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _timeProvider = timeProvider ?? TimeProvider.System;
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
         _deliveryChannel = Channel.CreateBounded<ScheduledMessage>(new BoundedChannelOptions(options.BatchSize * 2)
         {

@@ -21,9 +21,9 @@ public sealed class HmacSha256MessageSigner : IMessageSigner
     /// Creates a new HMAC-SHA256 signer with the specified key
     /// </summary>
     /// <param name="key">The signing key (recommended: 256 bits)</param>
+    /// <param name="timeProvider">Time provider for timestamps</param>
     /// <param name="keyId">Optional key identifier for key rotation</param>
-    /// <param name="timeProvider">Optional time provider for timestamps</param>
-    public HmacSha256MessageSigner(byte[] key, string? keyId = null, TimeProvider? timeProvider = null)
+    public HmacSha256MessageSigner(byte[] key, TimeProvider timeProvider, string? keyId = null)
     {
         if (key == null)
             throw new ArgumentNullException(nameof(key));
@@ -33,21 +33,22 @@ public sealed class HmacSha256MessageSigner : IMessageSigner
 
         _key = new byte[key.Length];
         Array.Copy(key, _key, key.Length);
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         _keyId = keyId;
-        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     /// <summary>
     /// Creates a new HMAC-SHA256 signer by generating a random key
     /// </summary>
-    public static HmacSha256MessageSigner CreateWithRandomKey(string? keyId = null)
+    public static HmacSha256MessageSigner CreateWithRandomKey(TimeProvider timeProvider, string? keyId = null)
     {
+        if (timeProvider == null) throw new ArgumentNullException(nameof(timeProvider));
         var key = new byte[KeySize];
         using (var rng = RandomNumberGenerator.Create())
         {
             rng.GetBytes(key);
         }
-        return new HmacSha256MessageSigner(key, keyId);
+        return new HmacSha256MessageSigner(key, timeProvider, keyId);
     }
 
     public Task<MessageSignature> SignAsync(

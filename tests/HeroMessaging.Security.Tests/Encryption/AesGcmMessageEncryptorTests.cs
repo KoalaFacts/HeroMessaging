@@ -113,7 +113,7 @@ public sealed class AesGcmMessageEncryptorTests
         var key = GenerateRandomKey();
         var plaintext = GenerateRandomData(100);
         var encryptor = new AesGcmMessageEncryptor(key, "test-key");
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act
         var result = await encryptor.EncryptAsync(plaintext, context);
@@ -138,7 +138,7 @@ public sealed class AesGcmMessageEncryptorTests
         // Arrange
         var key = GenerateRandomKey();
         var encryptor = new AesGcmMessageEncryptor(key);
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<ArgumentNullException>(
@@ -154,7 +154,7 @@ public sealed class AesGcmMessageEncryptorTests
         var key = GenerateRandomKey();
         var plaintext = Array.Empty<byte>();
         var encryptor = new AesGcmMessageEncryptor(key);
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act
         var result = await encryptor.EncryptAsync(plaintext, context);
@@ -173,7 +173,7 @@ public sealed class AesGcmMessageEncryptorTests
         var key = GenerateRandomKey();
         var originalPlaintext = GenerateRandomData(100);
         var encryptor = new AesGcmMessageEncryptor(key);
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act
         var encrypted = await encryptor.EncryptAsync(originalPlaintext, context);
@@ -190,7 +190,7 @@ public sealed class AesGcmMessageEncryptorTests
         // Arrange
         var key = GenerateRandomKey();
         var encryptor = new AesGcmMessageEncryptor(key);
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<ArgumentNullException>(
@@ -205,7 +205,7 @@ public sealed class AesGcmMessageEncryptorTests
         // Arrange
         var key = GenerateRandomKey();
         var encryptor = new AesGcmMessageEncryptor(key);
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
         var encryptedData = new EncryptedData(
             new byte[16],
             new byte[12],
@@ -226,7 +226,7 @@ public sealed class AesGcmMessageEncryptorTests
         // Arrange
         var key = GenerateRandomKey();
         var encryptor = new AesGcmMessageEncryptor(key);
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
         var encryptedData = new EncryptedData(
             new byte[16],
             new byte[12],
@@ -248,7 +248,7 @@ public sealed class AesGcmMessageEncryptorTests
         var key = GenerateRandomKey();
         var plaintext = GenerateRandomData(100);
         var encryptor = new AesGcmMessageEncryptor(key);
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         var encrypted = await encryptor.EncryptAsync(plaintext, context);
 
@@ -269,7 +269,7 @@ public sealed class AesGcmMessageEncryptorTests
         var key = GenerateRandomKey();
         var plaintext = GenerateRandomData(100);
         var encryptor = new AesGcmMessageEncryptor(key);
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         var encrypted = await encryptor.EncryptAsync(plaintext, context);
 
@@ -297,7 +297,7 @@ public sealed class AesGcmMessageEncryptorTests
         var iv = new byte[12];
         var tag = new byte[16];
         var encryptor = new AesGcmMessageEncryptor(key);
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act
         var bytesWritten = encryptor.Encrypt(plaintext, ciphertext, iv, tag, context);
@@ -319,7 +319,7 @@ public sealed class AesGcmMessageEncryptorTests
         var iv = new byte[12];
         var tag = new byte[16];
         var encryptor = new AesGcmMessageEncryptor(key);
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act & Assert
         var ex = Assert.Throws<ArgumentException>(
@@ -338,7 +338,7 @@ public sealed class AesGcmMessageEncryptorTests
         var iv = new byte[8]; // Too small (need 12)
         var tag = new byte[16];
         var encryptor = new AesGcmMessageEncryptor(key);
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act & Assert
         var ex = Assert.Throws<ArgumentException>(
@@ -357,7 +357,7 @@ public sealed class AesGcmMessageEncryptorTests
         var iv = new byte[12];
         var tag = new byte[8]; // Too small (need 16)
         var encryptor = new AesGcmMessageEncryptor(key);
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act & Assert
         var ex = Assert.Throws<ArgumentException>(
@@ -373,7 +373,7 @@ public sealed class AesGcmMessageEncryptorTests
         var key = GenerateRandomKey();
         var originalPlaintext = GenerateRandomData(100);
         var encryptor = new AesGcmMessageEncryptor(key);
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         // Encrypt first
         var ciphertext = new byte[originalPlaintext.Length];
@@ -398,7 +398,7 @@ public sealed class AesGcmMessageEncryptorTests
         var key = GenerateRandomKey();
         var plaintext = GenerateRandomData(100);
         var encryptor = new AesGcmMessageEncryptor(key);
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         var ciphertext = new byte[plaintext.Length];
         var iv = new byte[12];
@@ -421,7 +421,7 @@ public sealed class AesGcmMessageEncryptorTests
         var key = GenerateRandomKey();
         var plaintext = GenerateRandomData(100);
         var encryptor = new AesGcmMessageEncryptor(key);
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         var ciphertext = new byte[plaintext.Length];
         var iv = new byte[12];
@@ -450,7 +450,7 @@ public sealed class AesGcmMessageEncryptorTests
         var iv = new byte[12];
         var tag = new byte[16];
         var encryptor = new AesGcmMessageEncryptor(key);
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act
         var success = encryptor.TryEncrypt(plaintext, ciphertext, iv, tag, context, out var bytesWritten);
@@ -471,7 +471,7 @@ public sealed class AesGcmMessageEncryptorTests
         var iv = new byte[12];
         var tag = new byte[16];
         var encryptor = new AesGcmMessageEncryptor(key);
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act
         var success = encryptor.TryEncrypt(plaintext, ciphertext, iv, tag, context, out var bytesWritten);
@@ -489,7 +489,7 @@ public sealed class AesGcmMessageEncryptorTests
         var key = GenerateRandomKey();
         var originalPlaintext = GenerateRandomData(100);
         var encryptor = new AesGcmMessageEncryptor(key);
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         var ciphertext = new byte[originalPlaintext.Length];
         var iv = new byte[12];
@@ -515,7 +515,7 @@ public sealed class AesGcmMessageEncryptorTests
         var key = GenerateRandomKey();
         var plaintext = GenerateRandomData(100);
         var encryptor = new AesGcmMessageEncryptor(key);
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         var ciphertext = new byte[plaintext.Length];
         var iv = new byte[12];
@@ -548,7 +548,7 @@ public sealed class AesGcmMessageEncryptorTests
         var key = GenerateRandomKey();
         var plaintext = GenerateRandomData(dataSize);
         var encryptor = new AesGcmMessageEncryptor(key);
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act
         var encrypted = await encryptor.EncryptAsync(plaintext, context);
@@ -566,7 +566,7 @@ public sealed class AesGcmMessageEncryptorTests
         var key = GenerateRandomKey();
         var plaintext = GenerateRandomData(100);
         var encryptor = new AesGcmMessageEncryptor(key);
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act
         var result1 = await encryptor.EncryptAsync(plaintext, context);
@@ -592,7 +592,7 @@ public sealed class AesGcmMessageEncryptorTests
 
         var encryptor1 = new AesGcmMessageEncryptor(key1);
         var encryptor2 = new AesGcmMessageEncryptor(key2);
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         var ciphertext = new byte[plaintext.Length];
         var iv = new byte[12];

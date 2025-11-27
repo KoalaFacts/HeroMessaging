@@ -21,12 +21,12 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
         IInboxStorage inboxStorage,
         IServiceProvider serviceProvider,
         ILogger<InboxProcessor> logger,
-        TimeProvider? timeProvider = null)
+        TimeProvider timeProvider)
         : base(logger, timeProvider, maxDegreeOfParallelism: 1, boundedCapacity: 100, ensureOrdered: true)
     {
         _inboxStorage = inboxStorage;
         _serviceProvider = serviceProvider;
-        _timeProvider = timeProvider ?? TimeProvider.System;
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
 
     public async Task<bool> ProcessIncoming(IMessage message, InboxOptions? options = null, CancellationToken cancellationToken = default)

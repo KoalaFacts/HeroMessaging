@@ -15,10 +15,10 @@ public sealed class InMemoryScheduledMessageStorage : IScheduledMessageStorage
     private readonly ConcurrentDictionary<Guid, ScheduledMessageEntry> _storage;
     private readonly TimeProvider _timeProvider;
 
-    public InMemoryScheduledMessageStorage(TimeProvider? timeProvider = null)
+    public InMemoryScheduledMessageStorage(TimeProvider timeProvider)
     {
         _storage = new ConcurrentDictionary<Guid, ScheduledMessageEntry>();
-        _timeProvider = timeProvider ?? TimeProvider.System;
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
 
     public Task<ScheduledMessageEntry> AddAsync(ScheduledMessage message, CancellationToken cancellationToken = default)

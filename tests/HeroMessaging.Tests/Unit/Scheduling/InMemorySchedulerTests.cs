@@ -18,7 +18,7 @@ public class InMemorySchedulerTests : IAsyncLifetime
     public ValueTask InitializeAsync()
     {
         _deliveryHandler = new TestMessageDeliveryHandler();
-        _scheduler = new InMemoryScheduler(_deliveryHandler);
+        _scheduler = new InMemoryScheduler(_deliveryHandler, TimeProvider.System);
         return ValueTask.CompletedTask;
     }
 

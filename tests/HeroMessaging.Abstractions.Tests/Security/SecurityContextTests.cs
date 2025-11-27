@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using HeroMessaging.Abstractions.Security;
+using Microsoft.Extensions.Time.Testing;
 
 namespace HeroMessaging.Abstractions.Tests.Security;
 
@@ -10,7 +11,7 @@ public class SecurityContextTests
     public void Constructor_InitializesDefaults()
     {
         // Arrange & Act
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         // Assert
         Assert.Null(context.Principal);
@@ -26,15 +27,13 @@ public class SecurityContextTests
     public void Timestamp_IsSetToUtcTime()
     {
         // Arrange
-        var before = DateTimeOffset.UtcNow;
+        var fakeTime = new FakeTimeProvider(new DateTimeOffset(2024, 1, 15, 12, 0, 0, TimeSpan.Zero));
 
         // Act
-        var context = new SecurityContext();
+        var context = new SecurityContext(fakeTime);
 
         // Assert
-        var after = DateTimeOffset.UtcNow;
-        Assert.True(context.Timestamp >= before);
-        Assert.True(context.Timestamp <= after);
+        Assert.Equal(fakeTime.GetUtcNow(), context.Timestamp);
     }
 
     [Fact]
@@ -45,7 +44,7 @@ public class SecurityContextTests
         var principal = new ClaimsPrincipal(identity);
 
         // Act
-        var context = new SecurityContext { Principal = principal };
+        var context = new SecurityContext(TimeProvider.System) { Principal = principal };
 
         // Assert
         Assert.Same(principal, context.Principal);
@@ -55,7 +54,7 @@ public class SecurityContextTests
     public void MessageId_CanBeSet()
     {
         // Arrange & Act
-        var context = new SecurityContext { MessageId = "msg-123" };
+        var context = new SecurityContext(TimeProvider.System) { MessageId = "msg-123" };
 
         // Assert
         Assert.Equal("msg-123", context.MessageId);
@@ -65,7 +64,7 @@ public class SecurityContextTests
     public void MessageType_CanBeSet()
     {
         // Arrange & Act
-        var context = new SecurityContext { MessageType = "MyCommand" };
+        var context = new SecurityContext(TimeProvider.System) { MessageType = "MyCommand" };
 
         // Assert
         Assert.Equal("MyCommand", context.MessageType);
@@ -75,7 +74,7 @@ public class SecurityContextTests
     public void CorrelationId_CanBeSet()
     {
         // Arrange & Act
-        var context = new SecurityContext { CorrelationId = "corr-456" };
+        var context = new SecurityContext(TimeProvider.System) { CorrelationId = "corr-456" };
 
         // Assert
         Assert.Equal("corr-456", context.CorrelationId);
@@ -92,7 +91,7 @@ public class SecurityContextTests
         };
 
         // Act
-        var context = new SecurityContext { Metadata = metadata };
+        var context = new SecurityContext(TimeProvider.System) { Metadata = metadata };
 
         // Assert
         Assert.Equal(2, context.Metadata.Count);
@@ -104,7 +103,7 @@ public class SecurityContextTests
     public void IsAuthenticated_WithNullPrincipal_ReturnsFalse()
     {
         // Arrange
-        var context = new SecurityContext { Principal = null };
+        var context = new SecurityContext(TimeProvider.System) { Principal = null };
 
         // Act
         var result = context.IsAuthenticated;
@@ -119,7 +118,7 @@ public class SecurityContextTests
         // Arrange
         var identity = new ClaimsIdentity(); // Not authenticated
         var principal = new ClaimsPrincipal(identity);
-        var context = new SecurityContext { Principal = principal };
+        var context = new SecurityContext(TimeProvider.System) { Principal = principal };
 
         // Act
         var result = context.IsAuthenticated;
@@ -134,7 +133,7 @@ public class SecurityContextTests
         // Arrange
         var identity = new ClaimsIdentity("TestAuth");
         var principal = new ClaimsPrincipal(identity);
-        var context = new SecurityContext { Principal = principal };
+        var context = new SecurityContext(TimeProvider.System) { Principal = principal };
 
         // Act
         var result = context.IsAuthenticated;
@@ -147,7 +146,7 @@ public class SecurityContextTests
     public void PrincipalName_WithNullPrincipal_ReturnsNull()
     {
         // Arrange
-        var context = new SecurityContext { Principal = null };
+        var context = new SecurityContext(TimeProvider.System) { Principal = null };
 
         // Act
         var name = context.PrincipalName;
@@ -163,7 +162,7 @@ public class SecurityContextTests
         var identity = new ClaimsIdentity("TestAuth");
         identity.AddClaim(new Claim(ClaimTypes.Name, "TestUser"));
         var principal = new ClaimsPrincipal(identity);
-        var context = new SecurityContext { Principal = principal };
+        var context = new SecurityContext(TimeProvider.System) { Principal = principal };
 
         // Act
         var name = context.PrincipalName;
@@ -176,7 +175,7 @@ public class SecurityContextTests
     public void HasClaim_WithNullPrincipal_ReturnsFalse()
     {
         // Arrange
-        var context = new SecurityContext { Principal = null };
+        var context = new SecurityContext(TimeProvider.System) { Principal = null };
 
         // Act
         var result = context.HasClaim(ClaimTypes.Role);
@@ -192,7 +191,7 @@ public class SecurityContextTests
         var identity = new ClaimsIdentity("TestAuth");
         identity.AddClaim(new Claim(ClaimTypes.Role, "Admin"));
         var principal = new ClaimsPrincipal(identity);
-        var context = new SecurityContext { Principal = principal };
+        var context = new SecurityContext(TimeProvider.System) { Principal = principal };
 
         // Act
         var result = context.HasClaim(ClaimTypes.Role);
@@ -207,7 +206,7 @@ public class SecurityContextTests
         // Arrange
         var identity = new ClaimsIdentity("TestAuth");
         var principal = new ClaimsPrincipal(identity);
-        var context = new SecurityContext { Principal = principal };
+        var context = new SecurityContext(TimeProvider.System) { Principal = principal };
 
         // Act
         var result = context.HasClaim(ClaimTypes.Role);
@@ -223,7 +222,7 @@ public class SecurityContextTests
         var identity = new ClaimsIdentity("TestAuth");
         identity.AddClaim(new Claim(ClaimTypes.Role, "Admin"));
         var principal = new ClaimsPrincipal(identity);
-        var context = new SecurityContext { Principal = principal };
+        var context = new SecurityContext(TimeProvider.System) { Principal = principal };
 
         // Act
         var hasAdmin = context.HasClaim(ClaimTypes.Role, "Admin");
@@ -238,7 +237,7 @@ public class SecurityContextTests
     public void GetClaims_WithNullPrincipal_ReturnsEmpty()
     {
         // Arrange
-        var context = new SecurityContext { Principal = null };
+        var context = new SecurityContext(TimeProvider.System) { Principal = null };
 
         // Act
         var claims = context.GetClaims(ClaimTypes.Role);
@@ -256,7 +255,7 @@ public class SecurityContextTests
         identity.AddClaim(new Claim(ClaimTypes.Role, "User"));
         identity.AddClaim(new Claim(ClaimTypes.Role, "Developer"));
         var principal = new ClaimsPrincipal(identity);
-        var context = new SecurityContext { Principal = principal };
+        var context = new SecurityContext(TimeProvider.System) { Principal = principal };
 
         // Act
         var roles = context.GetClaims(ClaimTypes.Role).ToList();
@@ -274,7 +273,7 @@ public class SecurityContextTests
         // Arrange
         var identity = new ClaimsIdentity("TestAuth");
         var principal = new ClaimsPrincipal(identity);
-        var context = new SecurityContext { Principal = principal };
+        var context = new SecurityContext(TimeProvider.System) { Principal = principal };
 
         // Act
         var claims = context.GetClaims("NonExistingType");
@@ -290,14 +289,14 @@ public class SecurityContextTests
         var principal = new ClaimsPrincipal(new ClaimsIdentity("TestAuth"));
         var timestamp = DateTimeOffset.UtcNow;
 
-        var context1 = new SecurityContext
+        var context1 = new SecurityContext(TimeProvider.System)
         {
             Principal = principal,
             MessageId = "msg-123",
             Timestamp = timestamp
         };
 
-        var context2 = new SecurityContext
+        var context2 = new SecurityContext(TimeProvider.System)
         {
             Principal = principal,
             MessageId = "msg-123",
@@ -312,7 +311,7 @@ public class SecurityContextTests
     public void WithExpression_CreatesNewInstance()
     {
         // Arrange
-        var original = new SecurityContext { MessageId = "original" };
+        var original = new SecurityContext(TimeProvider.System) { MessageId = "original" };
 
         // Act
         var modified = original with { MessageId = "modified" };
@@ -338,7 +337,7 @@ public class SecurityContextTests
         };
 
         // Act
-        var context = new SecurityContext
+        var context = new SecurityContext(TimeProvider.System)
         {
             Principal = principal,
             MessageId = "msg-123",
@@ -372,7 +371,7 @@ public class SecurityContextTests
         };
 
         // Act
-        var context = new SecurityContext { Metadata = metadata };
+        var context = new SecurityContext(TimeProvider.System) { Metadata = metadata };
 
         // Assert
         Assert.Equal(5, context.Metadata.Count);
@@ -392,12 +391,33 @@ public class SecurityContextTests
         var identity2 = new ClaimsIdentity("TestAuth2");
         identity2.AddClaim(new Claim(ClaimTypes.Name, "User2"));
         var principal = new ClaimsPrincipal(new[] { identity1, identity2 });
-        var context = new SecurityContext { Principal = principal };
+        var context = new SecurityContext(TimeProvider.System) { Principal = principal };
 
         // Act
         var name = context.PrincipalName;
 
         // Assert
         Assert.Equal("User1", name);
+    }
+
+    [Fact]
+    public void Constructor_WithFakeTimeProvider_UsesProvidedTime()
+    {
+        // Arrange
+        var fixedTime = new DateTimeOffset(2024, 6, 15, 10, 30, 0, TimeSpan.Zero);
+        var fakeTimeProvider = new FakeTimeProvider(fixedTime);
+
+        // Act
+        var context = new SecurityContext(fakeTimeProvider);
+
+        // Assert
+        Assert.Equal(fixedTime, context.Timestamp);
+    }
+
+    [Fact]
+    public void Constructor_WithNullTimeProvider_ThrowsArgumentNullException()
+    {
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() => new SecurityContext(null!));
     }
 }

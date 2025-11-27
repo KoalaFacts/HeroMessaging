@@ -32,10 +32,10 @@ public sealed class InMemoryScheduler : IMessageScheduler, IDisposable
 #endif
     private bool _disposed;
 
-    public InMemoryScheduler(IMessageDeliveryHandler deliveryHandler, TimeProvider? timeProvider = null)
+    public InMemoryScheduler(IMessageDeliveryHandler deliveryHandler, TimeProvider timeProvider)
     {
         _deliveryHandler = deliveryHandler ?? throw new ArgumentNullException(nameof(deliveryHandler));
-        _timeProvider = timeProvider ?? TimeProvider.System;
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         _scheduledMessages = new ConcurrentDictionary<Guid, ScheduledEntry>();
     }
 

@@ -17,13 +17,13 @@ public abstract class PollingBackgroundServiceBase<TWorkItem>
 
     protected PollingBackgroundServiceBase(
         ILogger logger,
-        TimeProvider? timeProvider = null,
+        TimeProvider timeProvider,
         int maxDegreeOfParallelism = 1,
         int boundedCapacity = 100,
         bool ensureOrdered = false)
     {
         Logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        TimeProvider = timeProvider ?? TimeProvider.System;
+        TimeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
         _processingBlock = new ActionBlock<TWorkItem>(
             ProcessWorkItem,

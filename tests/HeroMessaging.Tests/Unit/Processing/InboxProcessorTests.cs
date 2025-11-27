@@ -39,7 +39,8 @@ public sealed class InboxProcessorTests : IDisposable
         return new InboxProcessor(
             _storageMock.Object,
             _serviceProvider,
-            _loggerMock.Object);
+            _loggerMock.Object,
+            TimeProvider.System);
     }
 
     #region ProcessIncoming - Success Cases

@@ -54,7 +54,7 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
     {
         // Act & Assert
         var exception = Assert.Throws<ArgumentNullException>(() =>
-            new StorageBackedScheduler(null!, _mockDeliveryHandler.Object, _options, _mockLogger.Object));
+            new StorageBackedScheduler(null!, _mockDeliveryHandler.Object, _options, _mockLogger.Object, TimeProvider.System));
 
         Assert.Equal("storage", exception.ParamName);
     }
@@ -64,7 +64,7 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
     {
         // Act & Assert
         var exception = Assert.Throws<ArgumentNullException>(() =>
-            new StorageBackedScheduler(_mockStorage.Object, null!, _options, _mockLogger.Object));
+            new StorageBackedScheduler(_mockStorage.Object, null!, _options, _mockLogger.Object, TimeProvider.System));
 
         Assert.Equal("deliveryHandler", exception.ParamName);
     }
@@ -74,7 +74,7 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
     {
         // Act & Assert
         var exception = Assert.Throws<ArgumentNullException>(() =>
-            new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, null!, _mockLogger.Object));
+            new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, null!, _mockLogger.Object, TimeProvider.System));
 
         Assert.Equal("options", exception.ParamName);
     }
@@ -84,16 +84,26 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
     {
         // Act & Assert
         var exception = Assert.Throws<ArgumentNullException>(() =>
-            new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, null!));
+            new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, null!, TimeProvider.System));
 
         Assert.Equal("logger", exception.ParamName);
+    }
+
+    [Fact]
+    public void Constructor_WithNullTimeProvider_ThrowsArgumentNullException()
+    {
+        // Act & Assert
+        var exception = Assert.Throws<ArgumentNullException>(() =>
+            new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, _mockLogger.Object, null!));
+
+        Assert.Equal("timeProvider", exception.ParamName);
     }
 
     [Fact]
     public void Constructor_WithValidParameters_CreatesInstance()
     {
         // Act
-        _sut = new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, _mockLogger.Object);
+        _sut = new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, _mockLogger.Object, TimeProvider.System);
 
         // Assert
         Assert.NotNull(_sut);
@@ -107,7 +117,7 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
     public async Task ScheduleAsync_WithDelay_SchedulesMessageForFutureDelivery()
     {
         // Arrange
-        _sut = new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, _mockLogger.Object);
+        _sut = new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, _mockLogger.Object, TimeProvider.System);
         var message = new Mock<IMessage>().Object;
         var delay = TimeSpan.FromMinutes(5);
         ScheduledMessage? capturedMessage = null;
@@ -134,7 +144,7 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
     public async Task ScheduleAsync_WithNullMessage_ThrowsArgumentNullException()
     {
         // Arrange
-        _sut = new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, _mockLogger.Object);
+        _sut = new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, _mockLogger.Object, TimeProvider.System);
         var delay = TimeSpan.FromMinutes(1);
 
         // Act & Assert
@@ -146,7 +156,7 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
     public async Task ScheduleAsync_WithNegativeDelay_ThrowsArgumentOutOfRangeException()
     {
         // Arrange
-        _sut = new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, _mockLogger.Object);
+        _sut = new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, _mockLogger.Object, TimeProvider.System);
         var message = new Mock<IMessage>().Object;
         var delay = TimeSpan.FromMinutes(-1);
 
@@ -162,7 +172,7 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
     public async Task ScheduleAsync_WithOptions_PassesOptionsToStorage()
     {
         // Arrange
-        _sut = new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, _mockLogger.Object);
+        _sut = new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, _mockLogger.Object, TimeProvider.System);
         var message = new Mock<IMessage>().Object;
         var delay = TimeSpan.FromMinutes(5);
         var schedulingOptions = new SchedulingOptions { Priority = 10, Destination = "test-queue" };
@@ -190,7 +200,7 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
     public async Task ScheduleAsync_WithDateTimeOffset_SchedulesMessageForSpecificTime()
     {
         // Arrange
-        _sut = new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, _mockLogger.Object);
+        _sut = new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, _mockLogger.Object, TimeProvider.System);
         var message = new Mock<IMessage>().Object;
         var deliverAt = DateTimeOffset.UtcNow.AddHours(1);
         ScheduledMessage? capturedMessage = null;
@@ -216,7 +226,7 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
     public async Task ScheduleAsync_WithPastDeliveryTime_ThrowsArgumentException()
     {
         // Arrange
-        _sut = new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, _mockLogger.Object);
+        _sut = new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, _mockLogger.Object, TimeProvider.System);
         var message = new Mock<IMessage>().Object;
         var deliverAt = DateTimeOffset.UtcNow.AddHours(-1);
 
@@ -232,7 +242,7 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
     public async Task ScheduleAsync_WhenStorageThrows_ReturnsFailedResult()
     {
         // Arrange
-        _sut = new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, _mockLogger.Object);
+        _sut = new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, _mockLogger.Object, TimeProvider.System);
         var message = new Mock<IMessage>().Object;
         var deliverAt = DateTimeOffset.UtcNow.AddMinutes(5);
 
@@ -255,7 +265,7 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
     public async Task CancelScheduledAsync_WithValidScheduleId_ReturnsTrueWhenCancelled()
     {
         // Arrange
-        _sut = new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, _mockLogger.Object);
+        _sut = new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, _mockLogger.Object, TimeProvider.System);
         var scheduleId = Guid.NewGuid();
 
         _mockStorage.Setup(x => x.CancelAsync(scheduleId, It.IsAny<CancellationToken>()))
@@ -273,7 +283,7 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
     public async Task CancelScheduledAsync_WithNonExistentScheduleId_ReturnsFalse()
     {
         // Arrange
-        _sut = new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, _mockLogger.Object);
+        _sut = new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, _mockLogger.Object, TimeProvider.System);
         var scheduleId = Guid.NewGuid();
 
         _mockStorage.Setup(x => x.CancelAsync(scheduleId, It.IsAny<CancellationToken>()))
@@ -290,7 +300,7 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
     public async Task CancelScheduledAsync_WhenStorageThrows_ReturnsFalse()
     {
         // Arrange
-        _sut = new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, _mockLogger.Object);
+        _sut = new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, _mockLogger.Object, TimeProvider.System);
         var scheduleId = Guid.NewGuid();
 
         _mockStorage.Setup(x => x.CancelAsync(scheduleId, It.IsAny<CancellationToken>()))
@@ -311,7 +321,7 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
     public async Task GetScheduledAsync_WithValidScheduleId_ReturnsMessageInfo()
     {
         // Arrange
-        _sut = new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, _mockLogger.Object);
+        _sut = new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, _mockLogger.Object, TimeProvider.System);
         var scheduleId = Guid.NewGuid();
         var message = new Mock<IMessage>();
         message.Setup(x => x.MessageId).Returns(Guid.NewGuid());
@@ -349,7 +359,7 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
     public async Task GetScheduledAsync_WithNonExistentScheduleId_ReturnsNull()
     {
         // Arrange
-        _sut = new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, _mockLogger.Object);
+        _sut = new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, _mockLogger.Object, TimeProvider.System);
         var scheduleId = Guid.NewGuid();
 
         _mockStorage.Setup(x => x.GetAsync(scheduleId, It.IsAny<CancellationToken>()))
@@ -366,7 +376,7 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
     public async Task GetScheduledAsync_WhenStorageThrows_ReturnsNull()
     {
         // Arrange
-        _sut = new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, _mockLogger.Object);
+        _sut = new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, _mockLogger.Object, TimeProvider.System);
         var scheduleId = Guid.NewGuid();
 
         _mockStorage.Setup(x => x.GetAsync(scheduleId, It.IsAny<CancellationToken>()))
@@ -387,7 +397,7 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
     public async Task GetPendingAsync_WithoutQuery_ReturnsPendingMessages()
     {
         // Arrange
-        _sut = new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, _mockLogger.Object);
+        _sut = new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, _mockLogger.Object, TimeProvider.System);
         var entries = new List<ScheduledMessageEntry>
         {
             CreateScheduledMessageEntry(Guid.NewGuid(), ScheduledMessageStatus.Pending),
@@ -409,7 +419,7 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
     public async Task GetPendingAsync_WithQuery_UsesProvidedQuery()
     {
         // Arrange
-        _sut = new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, _mockLogger.Object);
+        _sut = new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, _mockLogger.Object, TimeProvider.System);
         var query = new ScheduledMessageQuery { Status = ScheduledMessageStatus.Delivered };
         var entries = new List<ScheduledMessageEntry>();
 
@@ -428,7 +438,7 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
     public async Task GetPendingAsync_WhenStorageThrows_ReturnsEmptyList()
     {
         // Arrange
-        _sut = new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, _mockLogger.Object);
+        _sut = new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, _mockLogger.Object, TimeProvider.System);
 
         _mockStorage.Setup(x => x.QueryAsync(It.IsAny<ScheduledMessageQuery>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Storage error"));
@@ -448,7 +458,7 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
     public async Task GetPendingCountAsync_ReturnsCountFromStorage()
     {
         // Arrange
-        _sut = new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, _mockLogger.Object);
+        _sut = new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, _mockLogger.Object, TimeProvider.System);
         var expectedCount = 42L;
 
         _mockStorage.Setup(x => x.GetPendingCountAsync(It.IsAny<CancellationToken>()))
@@ -466,7 +476,7 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
     public async Task GetPendingCountAsync_WhenStorageThrows_ReturnsZero()
     {
         // Arrange
-        _sut = new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, _mockLogger.Object);
+        _sut = new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, _mockLogger.Object, TimeProvider.System);
 
         _mockStorage.Setup(x => x.GetPendingCountAsync(It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Storage error"));
@@ -486,7 +496,7 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
     public async Task DisposeAsync_StopsBackgroundWorkers()
     {
         // Arrange
-        _sut = new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, _mockLogger.Object);
+        _sut = new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, _mockLogger.Object, TimeProvider.System);
 
         // Act
         await _sut.DisposeAsync();
@@ -499,7 +509,7 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
     public async Task DisposeAsync_MultipleTimes_CompletesWithoutError()
     {
         // Arrange
-        _sut = new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, _mockLogger.Object);
+        _sut = new StorageBackedScheduler(_mockStorage.Object, _mockDeliveryHandler.Object, _options, _mockLogger.Object, TimeProvider.System);
 
         // Act
         await _sut.DisposeAsync();

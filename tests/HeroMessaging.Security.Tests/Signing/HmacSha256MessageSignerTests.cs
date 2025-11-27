@@ -41,7 +41,7 @@ public sealed class HmacSha256MessageSignerTests
         var keyId = "test-key-1";
 
         // Act
-        var signer = new HmacSha256MessageSigner(key, keyId);
+        var signer = new HmacSha256MessageSigner(key, TimeProvider.System, keyId);
 
         // Assert
         Assert.NotNull(signer);
@@ -54,7 +54,7 @@ public sealed class HmacSha256MessageSignerTests
     public void Constructor_WithNullKey_ThrowsArgumentNullException()
     {
         // Act & Assert
-        var ex = Assert.Throws<ArgumentNullException>(() => new HmacSha256MessageSigner(null!));
+        var ex = Assert.Throws<ArgumentNullException>(() => new HmacSha256MessageSigner(null!, TimeProvider.System));
         Assert.Equal("key", ex.ParamName);
     }
 
@@ -66,7 +66,7 @@ public sealed class HmacSha256MessageSignerTests
         var smallKey = new byte[8]; // Less than 128 bits (16 bytes)
 
         // Act & Assert
-        var ex = Assert.Throws<ArgumentException>(() => new HmacSha256MessageSigner(smallKey));
+        var ex = Assert.Throws<ArgumentException>(() => new HmacSha256MessageSigner(smallKey, TimeProvider.System));
         Assert.Contains("Key must be at least 128 bits", ex.Message);
         Assert.Equal("key", ex.ParamName);
     }
@@ -83,7 +83,7 @@ public sealed class HmacSha256MessageSignerTests
         }
 
         // Act
-        var signer = new HmacSha256MessageSigner(minimumKey);
+        var signer = new HmacSha256MessageSigner(minimumKey, TimeProvider.System);
 
         // Assert
         Assert.NotNull(signer);
@@ -91,10 +91,22 @@ public sealed class HmacSha256MessageSignerTests
 
     [Fact]
     [Trait("Category", "Unit")]
+    public void Constructor_WithNullTimeProvider_ThrowsArgumentNullException()
+    {
+        // Arrange
+        var key = GenerateRandomKey();
+
+        // Act & Assert
+        var ex = Assert.Throws<ArgumentNullException>(() => new HmacSha256MessageSigner(key, null!));
+        Assert.Equal("timeProvider", ex.ParamName);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
     public void CreateWithRandomKey_Succeeds()
     {
         // Act
-        var signer = HmacSha256MessageSigner.CreateWithRandomKey();
+        var signer = HmacSha256MessageSigner.CreateWithRandomKey(TimeProvider.System);
 
         // Assert
         Assert.NotNull(signer);
@@ -107,11 +119,20 @@ public sealed class HmacSha256MessageSignerTests
     public void CreateWithRandomKey_WithKeyId_Succeeds()
     {
         // Act
-        var signer = HmacSha256MessageSigner.CreateWithRandomKey("key-123");
+        var signer = HmacSha256MessageSigner.CreateWithRandomKey(TimeProvider.System, "key-123");
 
         // Assert
         Assert.NotNull(signer);
         Assert.Equal("HMAC-SHA256", signer.Algorithm);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public void CreateWithRandomKey_WithNullTimeProvider_ThrowsArgumentNullException()
+    {
+        // Act & Assert
+        var ex = Assert.Throws<ArgumentNullException>(() => HmacSha256MessageSigner.CreateWithRandomKey(null!));
+        Assert.Equal("timeProvider", ex.ParamName);
     }
 
     #endregion
@@ -125,8 +146,8 @@ public sealed class HmacSha256MessageSignerTests
         // Arrange
         var key = GenerateRandomKey();
         var data = GenerateRandomData(100);
-        var signer = new HmacSha256MessageSigner(key, "test-key");
-        var context = new SecurityContext();
+        var signer = new HmacSha256MessageSigner(key, TimeProvider.System, "test-key");
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act
         var signature = await signer.SignAsync(data, context);
@@ -146,8 +167,8 @@ public sealed class HmacSha256MessageSignerTests
     {
         // Arrange
         var key = GenerateRandomKey();
-        var signer = new HmacSha256MessageSigner(key);
-        var context = new SecurityContext();
+        var signer = new HmacSha256MessageSigner(key, TimeProvider.System);
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<ArgumentNullException>(
@@ -162,8 +183,8 @@ public sealed class HmacSha256MessageSignerTests
         // Arrange
         var key = GenerateRandomKey();
         var data = Array.Empty<byte>();
-        var signer = new HmacSha256MessageSigner(key);
-        var context = new SecurityContext();
+        var signer = new HmacSha256MessageSigner(key, TimeProvider.System);
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act
         var signature = await signer.SignAsync(data, context);
@@ -180,8 +201,8 @@ public sealed class HmacSha256MessageSignerTests
         // Arrange
         var key = GenerateRandomKey();
         var data = GenerateRandomData(100);
-        var signer = new HmacSha256MessageSigner(key);
-        var context = new SecurityContext();
+        var signer = new HmacSha256MessageSigner(key, TimeProvider.System);
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act
         var signature = await signer.SignAsync(data, context);
@@ -198,8 +219,8 @@ public sealed class HmacSha256MessageSignerTests
         // Arrange
         var key = GenerateRandomKey();
         var data = GenerateRandomData(100);
-        var signer = new HmacSha256MessageSigner(key);
-        var context = new SecurityContext();
+        var signer = new HmacSha256MessageSigner(key, TimeProvider.System);
+        var context = new SecurityContext(TimeProvider.System);
         var signature = await signer.SignAsync(data, context);
 
         // Act & Assert
@@ -215,8 +236,8 @@ public sealed class HmacSha256MessageSignerTests
         // Arrange
         var key = GenerateRandomKey();
         var data = GenerateRandomData(100);
-        var signer = new HmacSha256MessageSigner(key);
-        var context = new SecurityContext();
+        var signer = new HmacSha256MessageSigner(key, TimeProvider.System);
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<ArgumentNullException>(
@@ -231,8 +252,8 @@ public sealed class HmacSha256MessageSignerTests
         // Arrange
         var key = GenerateRandomKey();
         var data = GenerateRandomData(100);
-        var signer = new HmacSha256MessageSigner(key);
-        var context = new SecurityContext();
+        var signer = new HmacSha256MessageSigner(key, TimeProvider.System);
+        var context = new SecurityContext(TimeProvider.System);
         var invalidSignature = new MessageSignature(new byte[32], "HMAC-SHA512"); // Wrong algorithm
 
         // Act & Assert
@@ -248,8 +269,8 @@ public sealed class HmacSha256MessageSignerTests
         // Arrange
         var key = GenerateRandomKey();
         var data = GenerateRandomData(100);
-        var signer = new HmacSha256MessageSigner(key);
-        var context = new SecurityContext();
+        var signer = new HmacSha256MessageSigner(key, TimeProvider.System);
+        var context = new SecurityContext(TimeProvider.System);
 
         var signature = await signer.SignAsync(data, context);
 
@@ -270,8 +291,8 @@ public sealed class HmacSha256MessageSignerTests
         // Arrange
         var key = GenerateRandomKey();
         var data = GenerateRandomData(100);
-        var signer = new HmacSha256MessageSigner(key);
-        var context = new SecurityContext();
+        var signer = new HmacSha256MessageSigner(key, TimeProvider.System);
+        var context = new SecurityContext(TimeProvider.System);
 
         var signature = await signer.SignAsync(data, context);
 
@@ -297,8 +318,8 @@ public sealed class HmacSha256MessageSignerTests
         var key = GenerateRandomKey();
         var data = GenerateRandomData(100);
         var signature = new byte[32];
-        var signer = new HmacSha256MessageSigner(key);
-        var context = new SecurityContext();
+        var signer = new HmacSha256MessageSigner(key, TimeProvider.System);
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act
         var bytesWritten = signer.Sign(data, signature, context);
@@ -316,8 +337,8 @@ public sealed class HmacSha256MessageSignerTests
         var key = GenerateRandomKey();
         var data = GenerateRandomData(100);
         var tooSmallBuffer = new byte[16];
-        var signer = new HmacSha256MessageSigner(key);
-        var context = new SecurityContext();
+        var signer = new HmacSha256MessageSigner(key, TimeProvider.System);
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act & Assert
         var ex = Assert.Throws<ArgumentException>(
@@ -333,8 +354,8 @@ public sealed class HmacSha256MessageSignerTests
         var key = GenerateRandomKey();
         var data = ReadOnlySpan<byte>.Empty;
         var signature = new byte[32];
-        var signer = new HmacSha256MessageSigner(key);
-        var context = new SecurityContext();
+        var signer = new HmacSha256MessageSigner(key, TimeProvider.System);
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act
         var bytesWritten = signer.Sign(data, signature, context);
@@ -351,8 +372,8 @@ public sealed class HmacSha256MessageSignerTests
         var key = GenerateRandomKey();
         var data = GenerateRandomData(100);
         var signatureBuffer = new byte[32];
-        var signer = new HmacSha256MessageSigner(key);
-        var context = new SecurityContext();
+        var signer = new HmacSha256MessageSigner(key, TimeProvider.System);
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act
         signer.Sign(data, signatureBuffer, context);
@@ -370,8 +391,8 @@ public sealed class HmacSha256MessageSignerTests
         var key = GenerateRandomKey();
         var data = GenerateRandomData(100);
         var signatureBuffer = new byte[32];
-        var signer = new HmacSha256MessageSigner(key);
-        var context = new SecurityContext();
+        var signer = new HmacSha256MessageSigner(key, TimeProvider.System);
+        var context = new SecurityContext(TimeProvider.System);
 
         signer.Sign(data, signatureBuffer, context);
 
@@ -393,8 +414,8 @@ public sealed class HmacSha256MessageSignerTests
         var key = GenerateRandomKey();
         var data = GenerateRandomData(100);
         var signatureBuffer = new byte[32];
-        var signer = new HmacSha256MessageSigner(key);
-        var context = new SecurityContext();
+        var signer = new HmacSha256MessageSigner(key, TimeProvider.System);
+        var context = new SecurityContext(TimeProvider.System);
 
         signer.Sign(data, signatureBuffer, context);
 
@@ -416,8 +437,8 @@ public sealed class HmacSha256MessageSignerTests
         var key = GenerateRandomKey();
         var data = GenerateRandomData(100);
         var wrongSizeSignature = new byte[16];
-        var signer = new HmacSha256MessageSigner(key);
-        var context = new SecurityContext();
+        var signer = new HmacSha256MessageSigner(key, TimeProvider.System);
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act
         var isValid = signer.Verify(data, wrongSizeSignature, context);
@@ -434,8 +455,8 @@ public sealed class HmacSha256MessageSignerTests
         var key = GenerateRandomKey();
         var data = GenerateRandomData(100);
         var signature = new byte[32];
-        var signer = new HmacSha256MessageSigner(key);
-        var context = new SecurityContext();
+        var signer = new HmacSha256MessageSigner(key, TimeProvider.System);
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act
         var success = signer.TrySign(data, signature, context, out var bytesWritten);
@@ -453,8 +474,8 @@ public sealed class HmacSha256MessageSignerTests
         var key = GenerateRandomKey();
         var data = GenerateRandomData(100);
         var tooSmallBuffer = new byte[16];
-        var signer = new HmacSha256MessageSigner(key);
-        var context = new SecurityContext();
+        var signer = new HmacSha256MessageSigner(key, TimeProvider.System);
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act
         var success = signer.TrySign(data, tooSmallBuffer, context, out var bytesWritten);
@@ -478,8 +499,8 @@ public sealed class HmacSha256MessageSignerTests
         // Arrange
         var key = GenerateRandomKey();
         var data = GenerateRandomData(dataSize);
-        var signer = new HmacSha256MessageSigner(key);
-        var context = new SecurityContext();
+        var signer = new HmacSha256MessageSigner(key, TimeProvider.System);
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act
         var signature = await signer.SignAsync(data, context);
@@ -496,8 +517,8 @@ public sealed class HmacSha256MessageSignerTests
         // Arrange
         var key = GenerateRandomKey();
         var data = GenerateRandomData(100);
-        var signer = new HmacSha256MessageSigner(key);
-        var context = new SecurityContext();
+        var signer = new HmacSha256MessageSigner(key, TimeProvider.System);
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act
         var signature1 = await signer.SignAsync(data, context);
@@ -517,9 +538,9 @@ public sealed class HmacSha256MessageSignerTests
         var key2 = GenerateRandomKey();
         var data = GenerateRandomData(100);
 
-        var signer1 = new HmacSha256MessageSigner(key1);
-        var signer2 = new HmacSha256MessageSigner(key2);
-        var context = new SecurityContext();
+        var signer1 = new HmacSha256MessageSigner(key1, TimeProvider.System);
+        var signer2 = new HmacSha256MessageSigner(key2, TimeProvider.System);
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act
         var signature1 = await signer1.SignAsync(data, context);
@@ -538,9 +559,9 @@ public sealed class HmacSha256MessageSignerTests
         var key2 = GenerateRandomKey();
         var data = GenerateRandomData(100);
 
-        var signer1 = new HmacSha256MessageSigner(key1);
-        var signer2 = new HmacSha256MessageSigner(key2);
-        var context = new SecurityContext();
+        var signer1 = new HmacSha256MessageSigner(key1, TimeProvider.System);
+        var signer2 = new HmacSha256MessageSigner(key2, TimeProvider.System);
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act
         var signature = await signer1.SignAsync(data, context);
@@ -558,8 +579,8 @@ public sealed class HmacSha256MessageSignerTests
         var key = GenerateRandomKey();
         var largeData = GenerateRandomData(1000000); // 1 MB
         var signature = new byte[32];
-        var signer = new HmacSha256MessageSigner(key);
-        var context = new SecurityContext();
+        var signer = new HmacSha256MessageSigner(key, TimeProvider.System);
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act
         var bytesWritten = signer.Sign(largeData, signature, context);
@@ -574,7 +595,7 @@ public sealed class HmacSha256MessageSignerTests
     {
         // Arrange
         var key = GenerateRandomKey();
-        var signer = new HmacSha256MessageSigner(key);
+        var signer = new HmacSha256MessageSigner(key, TimeProvider.System);
 
         // Act
         var algorithm = signer.Algorithm;
@@ -589,7 +610,7 @@ public sealed class HmacSha256MessageSignerTests
     {
         // Arrange
         var key = GenerateRandomKey();
-        var signer = new HmacSha256MessageSigner(key);
+        var signer = new HmacSha256MessageSigner(key, TimeProvider.System);
 
         // Act
         var signatureSize = signer.SignatureSize;
@@ -606,8 +627,8 @@ public sealed class HmacSha256MessageSignerTests
         var key = GenerateRandomKey();
         var data = GenerateRandomData(100);
         var largerBuffer = new byte[64]; // Larger than needed
-        var signer = new HmacSha256MessageSigner(key);
-        var context = new SecurityContext();
+        var signer = new HmacSha256MessageSigner(key, TimeProvider.System);
+        var context = new SecurityContext(TimeProvider.System);
 
         // Sign into first 32 bytes
         signer.Sign(data, largerBuffer.AsSpan(0, 32), context);
@@ -626,8 +647,8 @@ public sealed class HmacSha256MessageSignerTests
         // Arrange
         var key = GenerateRandomKey();
         var data = GenerateRandomData(100);
-        var signer = new HmacSha256MessageSigner(key);
-        var context = new SecurityContext();
+        var signer = new HmacSha256MessageSigner(key, TimeProvider.System);
+        var context = new SecurityContext(TimeProvider.System);
         var beforeTime = DateTimeOffset.UtcNow;
 
         // Act

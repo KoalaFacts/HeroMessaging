@@ -63,7 +63,10 @@ public static class SecurityBuilderExtensions
             throw new ArgumentNullException(nameof(key));
 
         services.AddSingleton<IMessageSigner>(sp =>
-            new HmacSha256MessageSigner(key, keyId));
+        {
+            var timeProvider = sp.GetService<TimeProvider>() ?? TimeProvider.System;
+            return new HmacSha256MessageSigner(key, timeProvider, keyId);
+        });
 
         return services;
     }
@@ -79,7 +82,10 @@ public static class SecurityBuilderExtensions
             throw new ArgumentNullException(nameof(services));
 
         services.AddSingleton<IMessageSigner>(sp =>
-            HmacSha256MessageSigner.CreateWithRandomKey(keyId));
+        {
+            var timeProvider = sp.GetService<TimeProvider>() ?? TimeProvider.System;
+            return HmacSha256MessageSigner.CreateWithRandomKey(timeProvider, keyId);
+        });
 
         return services;
     }

@@ -39,7 +39,8 @@ public static class ExtensionsToScheduling
         services.TryAddSingleton<IMessageScheduler>(sp =>
         {
             var deliveryHandler = sp.GetRequiredService<IMessageDeliveryHandler>();
-            return new InMemoryScheduler(deliveryHandler);
+            var timeProvider = sp.GetService<TimeProvider>() ?? TimeProvider.System;
+            return new InMemoryScheduler(deliveryHandler, timeProvider);
         });
 
         // Allow custom configuration
@@ -60,7 +61,8 @@ public static class ExtensionsToScheduling
         builder.Services.AddSingleton<IMessageScheduler>(sp =>
         {
             var deliveryHandler = sp.GetRequiredService<IMessageDeliveryHandler>();
-            return new InMemoryScheduler(deliveryHandler);
+            var timeProvider = sp.GetService<TimeProvider>() ?? TimeProvider.System;
+            return new InMemoryScheduler(deliveryHandler, timeProvider);
         });
 
         return builder;

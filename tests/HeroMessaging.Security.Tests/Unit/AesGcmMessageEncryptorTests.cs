@@ -90,7 +90,7 @@ public sealed class AesGcmMessageEncryptorTests
         // Arrange
         var encryptor = AesGcmMessageEncryptor.CreateWithRandomKey();
         var plaintext = System.Text.Encoding.UTF8.GetBytes("Hello, World!");
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act
         var result = await encryptor.EncryptAsync(plaintext, context);
@@ -111,7 +111,7 @@ public sealed class AesGcmMessageEncryptorTests
         // Arrange
         var encryptor = AesGcmMessageEncryptor.CreateWithRandomKey();
         var plaintext = System.Text.Encoding.UTF8.GetBytes("Test message");
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act
         var result1 = await encryptor.EncryptAsync(plaintext, context);
@@ -128,7 +128,7 @@ public sealed class AesGcmMessageEncryptorTests
         // Arrange
         var encryptor = AesGcmMessageEncryptor.CreateWithRandomKey();
         var originalPlaintext = System.Text.Encoding.UTF8.GetBytes("Secret message");
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
         var encrypted = await encryptor.EncryptAsync(originalPlaintext, context);
 
         // Act
@@ -144,7 +144,7 @@ public sealed class AesGcmMessageEncryptorTests
         // Arrange
         var encryptor = AesGcmMessageEncryptor.CreateWithRandomKey();
         var plaintext = System.Text.Encoding.UTF8.GetBytes("Original message");
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
         var encrypted = await encryptor.EncryptAsync(plaintext, context);
 
         // Tamper with the ciphertext
@@ -172,7 +172,7 @@ public sealed class AesGcmMessageEncryptorTests
         var encryptor1 = AesGcmMessageEncryptor.CreateWithRandomKey();
         var encryptor2 = AesGcmMessageEncryptor.CreateWithRandomKey(); // Different key
         var plaintext = System.Text.Encoding.UTF8.GetBytes("Secret");
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
         var encrypted = await encryptor1.EncryptAsync(plaintext, context);
 
         // Act & Assert
@@ -186,7 +186,7 @@ public sealed class AesGcmMessageEncryptorTests
     {
         // Arrange
         var encryptor = AesGcmMessageEncryptor.CreateWithRandomKey();
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentNullException>(
@@ -199,7 +199,7 @@ public sealed class AesGcmMessageEncryptorTests
     {
         // Arrange
         var encryptor = AesGcmMessageEncryptor.CreateWithRandomKey();
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentNullException>(
@@ -219,7 +219,7 @@ public sealed class AesGcmMessageEncryptorTests
             "WRONG-ALGORITHM",
             new byte[16],
             null);
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<EncryptionException>(
@@ -238,7 +238,7 @@ public sealed class AesGcmMessageEncryptorTests
             "AES-256-GCM",
             null, // No auth tag
             null);
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<EncryptionException>(
@@ -261,7 +261,7 @@ public sealed class AesGcmMessageEncryptorTests
             using var rng = RandomNumberGenerator.Create();
             rng.GetBytes(plaintext);
         }
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act
         var encrypted = await encryptor.EncryptAsync(plaintext, context);

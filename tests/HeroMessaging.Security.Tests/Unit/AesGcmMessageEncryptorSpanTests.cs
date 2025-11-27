@@ -18,7 +18,7 @@ public sealed class AesGcmMessageEncryptorSpanTests
         var ciphertext = new byte[plaintext.Length];
         var iv = new byte[encryptor.IVSize];
         var tag = new byte[encryptor.TagSize];
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act
         var bytesWritten = encryptor.Encrypt(plaintext, ciphertext, iv, tag, context);
@@ -38,7 +38,7 @@ public sealed class AesGcmMessageEncryptorSpanTests
         var ciphertext = new byte[plaintext.Length - 1]; // Too small
         var iv = new byte[encryptor.IVSize];
         var tag = new byte[encryptor.TagSize];
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act & Assert
         var exception = Assert.Throws<ArgumentException>(
@@ -55,7 +55,7 @@ public sealed class AesGcmMessageEncryptorSpanTests
         var ciphertext = new byte[plaintext.Length];
         var iv = new byte[encryptor.IVSize - 1]; // Too small
         var tag = new byte[encryptor.TagSize];
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act & Assert
         var exception = Assert.Throws<ArgumentException>(
@@ -72,7 +72,7 @@ public sealed class AesGcmMessageEncryptorSpanTests
         var ciphertext = new byte[plaintext.Length];
         var iv = new byte[encryptor.IVSize];
         var tag = new byte[encryptor.TagSize - 1]; // Too small
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act & Assert
         var exception = Assert.Throws<ArgumentException>(
@@ -89,7 +89,7 @@ public sealed class AesGcmMessageEncryptorSpanTests
         var ciphertext = new byte[plaintext.Length];
         var iv = new byte[encryptor.IVSize];
         var tag = new byte[encryptor.TagSize];
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act
         var success = encryptor.TryEncrypt(plaintext, ciphertext, iv, tag, context, out var bytesWritten);
@@ -108,7 +108,7 @@ public sealed class AesGcmMessageEncryptorSpanTests
         var ciphertext = new byte[plaintext.Length - 1]; // Too small
         var iv = new byte[encryptor.IVSize];
         var tag = new byte[encryptor.TagSize];
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act
         var success = encryptor.TryEncrypt(plaintext, ciphertext, iv, tag, context, out var bytesWritten);
@@ -127,7 +127,7 @@ public sealed class AesGcmMessageEncryptorSpanTests
         var ciphertext = new byte[originalPlaintext.Length];
         var iv = new byte[encryptor.IVSize];
         var tag = new byte[encryptor.TagSize];
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         encryptor.Encrypt(originalPlaintext, ciphertext, iv, tag, context);
 
@@ -150,7 +150,7 @@ public sealed class AesGcmMessageEncryptorSpanTests
         var ciphertext = new byte[plaintext.Length];
         var iv = new byte[encryptor.IVSize];
         var tag = new byte[encryptor.TagSize];
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         encryptor.Encrypt(plaintext, ciphertext, iv, tag, context);
 
@@ -174,7 +174,7 @@ public sealed class AesGcmMessageEncryptorSpanTests
         var ciphertext = new byte[plaintext.Length];
         var iv = new byte[encryptor.IVSize];
         var tag = new byte[encryptor.TagSize];
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         encryptor.Encrypt(plaintext, ciphertext, iv, tag, context);
 
@@ -197,7 +197,7 @@ public sealed class AesGcmMessageEncryptorSpanTests
         var ciphertext = new byte[plaintext.Length];
         var iv = new byte[encryptor.IVSize];
         var tag = new byte[encryptor.TagSize];
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         encryptor.Encrypt(plaintext, ciphertext, iv, tag, context);
 
@@ -220,7 +220,7 @@ public sealed class AesGcmMessageEncryptorSpanTests
         var ciphertext = new byte[plaintext.Length];
         var iv = new byte[encryptor.IVSize];
         var tag = new byte[encryptor.TagSize];
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         encryptor.Encrypt(plaintext, ciphertext, iv, tag, context);
 
@@ -241,7 +241,7 @@ public sealed class AesGcmMessageEncryptorSpanTests
         var iv = new byte[encryptor.IVSize - 1]; // Too small
         var tag = new byte[encryptor.TagSize];
         var plaintext = new byte[16];
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act & Assert
         var exception = Assert.Throws<ArgumentException>(
@@ -258,7 +258,7 @@ public sealed class AesGcmMessageEncryptorSpanTests
         var iv = new byte[encryptor.IVSize];
         var tag = new byte[encryptor.TagSize - 1]; // Too small
         var plaintext = new byte[16];
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act & Assert
         var exception = Assert.Throws<ArgumentException>(
@@ -275,7 +275,7 @@ public sealed class AesGcmMessageEncryptorSpanTests
         var ciphertext = new byte[plaintext.Length];
         var iv = new byte[encryptor.IVSize];
         var tag = new byte[encryptor.TagSize];
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         encryptor.Encrypt(plaintext, ciphertext, iv, tag, context);
 
@@ -299,7 +299,7 @@ public sealed class AesGcmMessageEncryptorSpanTests
         var ciphertext = new byte[plaintext.Length];
         var iv = new byte[encryptor.IVSize];
         var tag = new byte[encryptor.TagSize];
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         encryptor.Encrypt(plaintext, ciphertext, iv, tag, context);
 
@@ -325,7 +325,7 @@ public sealed class AesGcmMessageEncryptorSpanTests
         var ciphertext = new byte[plaintext.Length];
         var iv = new byte[encryptor.IVSize];
         var tag = new byte[encryptor.TagSize];
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         encryptor.Encrypt(plaintext, ciphertext, iv, tag, context);
 
@@ -359,7 +359,7 @@ public sealed class AesGcmMessageEncryptorSpanTests
         var iv = new byte[encryptor.IVSize];
         var tag = new byte[encryptor.TagSize];
         var decrypted = new byte[size];
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act
         var encBytes = encryptor.Encrypt(plaintext, ciphertext, iv, tag, context);
@@ -383,7 +383,7 @@ public sealed class AesGcmMessageEncryptorSpanTests
         var ciphertext2 = new byte[plaintext.Length];
         var iv2 = new byte[encryptor.IVSize];
         var tag2 = new byte[encryptor.TagSize];
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act
         encryptor.Encrypt(plaintext, ciphertext1, iv1, tag1, context);
@@ -406,7 +406,7 @@ public sealed class AesGcmMessageEncryptorSpanTests
         var iv = new byte[encryptor1.IVSize];
         var tag = new byte[encryptor1.TagSize];
         var decrypted = new byte[plaintext.Length];
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         encryptor1.Encrypt(plaintext, ciphertext, iv, tag, context);
 
@@ -424,7 +424,7 @@ public sealed class AesGcmMessageEncryptorSpanTests
         var ciphertext = new byte[plaintext.Length + 100]; // Extra space
         var iv = new byte[encryptor.IVSize + 50]; // Extra space
         var tag = new byte[encryptor.TagSize + 20]; // Extra space
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
 
         // Act
         var bytesWritten = encryptor.Encrypt(plaintext, ciphertext, iv, tag, context);
@@ -442,7 +442,7 @@ public sealed class AesGcmMessageEncryptorSpanTests
     {
         // Arrange
         var encryptor = AesGcmMessageEncryptor.CreateWithRandomKey();
-        var context = new SecurityContext();
+        var context = new SecurityContext(TimeProvider.System);
         ReadOnlySpan<byte> plaintext = System.Text.Encoding.UTF8.GetBytes("Stack allocated");
 
         Span<byte> ciphertext = stackalloc byte[plaintext.Length];

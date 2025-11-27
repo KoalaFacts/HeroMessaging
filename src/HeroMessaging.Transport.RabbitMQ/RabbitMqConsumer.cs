@@ -49,8 +49,8 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
         ConsumerOptions options,
         RabbitMqTransport transport,
         ILogger<RabbitMqConsumer> logger,
-        ITransportInstrumentation? instrumentation = null,
-        TimeProvider? timeProvider = null)
+        TimeProvider timeProvider,
+        ITransportInstrumentation? instrumentation = null)
     {
         ConsumerId = consumerId ?? throw new ArgumentNullException(nameof(consumerId));
         if (string.IsNullOrEmpty(source.Name))
@@ -61,8 +61,8 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _transport = transport ?? throw new ArgumentNullException(nameof(transport));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         _instrumentation = instrumentation ?? NoOpTransportInstrumentation.Instance;
-        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     /// <summary>

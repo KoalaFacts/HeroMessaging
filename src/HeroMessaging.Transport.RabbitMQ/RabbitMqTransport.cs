@@ -314,6 +314,7 @@ public sealed class RabbitMqTransport : IMessageTransport
             options,
             this,
             _loggerFactory.CreateLogger<RabbitMqConsumer>(),
+            _timeProvider,
             _instrumentation);
 
         if (!_consumers.TryAdd(consumerId, consumer))
