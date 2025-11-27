@@ -13,10 +13,12 @@ namespace HeroMessaging.Scheduling;
 public sealed class InMemoryScheduledMessageStorage : IScheduledMessageStorage
 {
     private readonly ConcurrentDictionary<Guid, ScheduledMessageEntry> _storage;
+    private readonly TimeProvider _timeProvider;
 
-    public InMemoryScheduledMessageStorage()
+    public InMemoryScheduledMessageStorage(TimeProvider? timeProvider = null)
     {
         _storage = new ConcurrentDictionary<Guid, ScheduledMessageEntry>();
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     public Task<ScheduledMessageEntry> AddAsync(ScheduledMessage message, CancellationToken cancellationToken = default)
@@ -28,7 +30,7 @@ public sealed class InMemoryScheduledMessageStorage : IScheduledMessageStorage
             ScheduleId = message.ScheduleId,
             Message = message,
             Status = ScheduledMessageStatus.Pending,
-            LastUpdated = DateTimeOffset.UtcNow
+            LastUpdated = _timeProvider.GetUtcNow()
         };
 
         if (!_storage.TryAdd(message.ScheduleId, entry))
@@ -68,7 +70,7 @@ public sealed class InMemoryScheduledMessageStorage : IScheduledMessageStorage
             if (entry.Status == ScheduledMessageStatus.Pending)
             {
                 entry.Status = ScheduledMessageStatus.Cancelled;
-                entry.LastUpdated = DateTimeOffset.UtcNow;
+                entry.LastUpdated = _timeProvider.GetUtcNow();
                 return Task.FromResult(true);
             }
         }
@@ -81,8 +83,8 @@ public sealed class InMemoryScheduledMessageStorage : IScheduledMessageStorage
         if (_storage.TryGetValue(scheduleId, out var entry))
         {
             entry.Status = ScheduledMessageStatus.Delivered;
-            entry.DeliveredAt = DateTimeOffset.UtcNow;
-            entry.LastUpdated = DateTimeOffset.UtcNow;
+            entry.DeliveredAt = _timeProvider.GetUtcNow();
+            entry.LastUpdated = _timeProvider.GetUtcNow();
             return Task.FromResult(true);
         }
 
@@ -95,7 +97,7 @@ public sealed class InMemoryScheduledMessageStorage : IScheduledMessageStorage
         {
             entry.Status = ScheduledMessageStatus.Failed;
             entry.ErrorMessage = error;
-            entry.LastUpdated = DateTimeOffset.UtcNow;
+            entry.LastUpdated = _timeProvider.GetUtcNow();
             return Task.FromResult(true);
         }
 

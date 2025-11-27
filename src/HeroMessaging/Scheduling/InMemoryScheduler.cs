@@ -21,6 +21,7 @@ namespace HeroMessaging.Scheduling;
 public sealed class InMemoryScheduler : IMessageScheduler, IDisposable
 {
     private readonly IMessageDeliveryHandler _deliveryHandler;
+    private readonly TimeProvider _timeProvider;
     private readonly ConcurrentDictionary<Guid, ScheduledEntry> _scheduledMessages;
     private readonly ConcurrentBag<Task> _backgroundTasks = new();
     private readonly CancellationTokenSource _disposeCts = new();
@@ -31,9 +32,10 @@ public sealed class InMemoryScheduler : IMessageScheduler, IDisposable
 #endif
     private bool _disposed;
 
-    public InMemoryScheduler(IMessageDeliveryHandler deliveryHandler)
+    public InMemoryScheduler(IMessageDeliveryHandler deliveryHandler, TimeProvider? timeProvider = null)
     {
         _deliveryHandler = deliveryHandler ?? throw new ArgumentNullException(nameof(deliveryHandler));
+        _timeProvider = timeProvider ?? TimeProvider.System;
         _scheduledMessages = new ConcurrentDictionary<Guid, ScheduledEntry>();
     }
 
@@ -46,7 +48,7 @@ public sealed class InMemoryScheduler : IMessageScheduler, IDisposable
         if (message == null) throw new ArgumentNullException(nameof(message));
         if (delay < TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(delay), "Delay cannot be negative");
 
-        var now = DateTimeOffset.UtcNow;
+        var now = _timeProvider.GetUtcNow();
         var deliverAt = now.Add(delay);
         return ScheduleAsyncInternal(message, deliverAt, now, options, cancellationToken);
     }
@@ -59,7 +61,7 @@ public sealed class InMemoryScheduler : IMessageScheduler, IDisposable
     {
         if (message == null) throw new ArgumentNullException(nameof(message));
 
-        var now = DateTimeOffset.UtcNow;
+        var now = _timeProvider.GetUtcNow();
         // Allow a small tolerance (1 second) for timing issues, but reject significantly past times
         if (deliverAt < now.AddSeconds(-1)) throw new ArgumentException("Delivery time cannot be in the past", nameof(deliverAt));
 
@@ -248,7 +250,11 @@ public sealed class InMemoryScheduler : IMessageScheduler, IDisposable
                 {
                     try
                     {
+#if NET8_0_OR_GREATER
+                        await Task.Delay(TimeSpan.FromSeconds(60), _timeProvider, _disposeCts.Token);
+#else
                         await Task.Delay(TimeSpan.FromSeconds(60), _disposeCts.Token);
+#endif
                         _scheduledMessages.TryRemove(scheduleId, out _);
                     }
                     catch (OperationCanceledException)

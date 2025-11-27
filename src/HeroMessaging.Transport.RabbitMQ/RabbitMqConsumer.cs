@@ -20,6 +20,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
     private readonly RabbitMqTransport _transport;
     private readonly ILogger<RabbitMqConsumer> _logger;
     private readonly ITransportInstrumentation _instrumentation;
+    private readonly TimeProvider _timeProvider;
     private AsyncEventingBasicConsumer? _consumer;
     private string? _consumerTag;
     private bool _isActive;
@@ -48,7 +49,8 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
         ConsumerOptions options,
         RabbitMqTransport transport,
         ILogger<RabbitMqConsumer> logger,
-        ITransportInstrumentation? instrumentation = null)
+        ITransportInstrumentation? instrumentation = null,
+        TimeProvider? timeProvider = null)
     {
         ConsumerId = consumerId ?? throw new ArgumentNullException(nameof(consumerId));
         if (string.IsNullOrEmpty(source.Name))
@@ -60,6 +62,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
         _transport = transport ?? throw new ArgumentNullException(nameof(transport));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _instrumentation = instrumentation ?? NoOpTransportInstrumentation.Instance;
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     /// <summary>
@@ -212,7 +215,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
             {
                 TransportName = _transport.Name,
                 SourceAddress = Source,
-                ReceiveTimestamp = DateTimeOffset.UtcNow,
+                ReceiveTimestamp = _timeProvider.GetUtcNow(),
                 Properties = new Dictionary<string, object>
                 {
                     ["DeliveryTag"] = ea.DeliveryTag,

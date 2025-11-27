@@ -25,6 +25,7 @@ public sealed class StorageBackedScheduler : IMessageScheduler, IAsyncDisposable
     private readonly IMessageDeliveryHandler _deliveryHandler;
     private readonly StorageBackedSchedulerOptions _options;
     private readonly ILogger<StorageBackedScheduler> _logger;
+    private readonly TimeProvider _timeProvider;
     private readonly Channel<ScheduledMessage> _deliveryChannel;
     private readonly CancellationTokenSource _shutdownCts;
     private readonly Task _pollingTask;
@@ -36,12 +37,14 @@ public sealed class StorageBackedScheduler : IMessageScheduler, IAsyncDisposable
         IScheduledMessageStorage storage,
         IMessageDeliveryHandler deliveryHandler,
         StorageBackedSchedulerOptions options,
-        ILogger<StorageBackedScheduler> logger)
+        ILogger<StorageBackedScheduler> logger,
+        TimeProvider? timeProvider = null)
     {
         _storage = storage ?? throw new ArgumentNullException(nameof(storage));
         _deliveryHandler = deliveryHandler ?? throw new ArgumentNullException(nameof(deliveryHandler));
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _timeProvider = timeProvider ?? TimeProvider.System;
 
         _deliveryChannel = Channel.CreateBounded<ScheduledMessage>(new BoundedChannelOptions(options.BatchSize * 2)
         {
@@ -75,7 +78,7 @@ public sealed class StorageBackedScheduler : IMessageScheduler, IAsyncDisposable
         if (message == null) throw new ArgumentNullException(nameof(message));
         if (delay < TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(delay), "Delay cannot be negative");
 
-        var deliverAt = DateTimeOffset.UtcNow.Add(delay);
+        var deliverAt = _timeProvider.GetUtcNow().Add(delay);
         return await ScheduleAsync(message, deliverAt, options, cancellationToken);
     }
 
@@ -86,7 +89,7 @@ public sealed class StorageBackedScheduler : IMessageScheduler, IAsyncDisposable
         CancellationToken cancellationToken = default) where T : IMessage
     {
         if (message == null) throw new ArgumentNullException(nameof(message));
-        if (deliverAt < DateTimeOffset.UtcNow) throw new ArgumentException("Delivery time cannot be in the past", nameof(deliverAt));
+        if (deliverAt < _timeProvider.GetUtcNow()) throw new ArgumentException("Delivery time cannot be in the past", nameof(deliverAt));
 
         try
         {
@@ -97,7 +100,7 @@ public sealed class StorageBackedScheduler : IMessageScheduler, IAsyncDisposable
                 Message = message,
                 DeliverAt = deliverAt,
                 Options = options ?? new SchedulingOptions(),
-                ScheduledAt = DateTimeOffset.UtcNow
+                ScheduledAt = _timeProvider.GetUtcNow()
             };
 
             await _storage.AddAsync(scheduledMessage, cancellationToken);
@@ -190,10 +193,14 @@ public sealed class StorageBackedScheduler : IMessageScheduler, IAsyncDisposable
         {
             try
             {
+#if NET8_0_OR_GREATER
+                await Task.Delay(_options.PollingInterval, _timeProvider, cancellationToken);
+#else
                 await Task.Delay(_options.PollingInterval, cancellationToken);
+#endif
 
                 var dueMessages = await _storage.GetDueAsync(
-                    DateTimeOffset.UtcNow,
+                    _timeProvider.GetUtcNow(),
                     _options.BatchSize,
                     cancellationToken);
 
@@ -214,7 +221,11 @@ public sealed class StorageBackedScheduler : IMessageScheduler, IAsyncDisposable
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error in polling worker");
+#if NET8_0_OR_GREATER
+                await Task.Delay(TimeSpan.FromSeconds(5), _timeProvider, cancellationToken);
+#else
                 await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
+#endif
             }
         }
 
@@ -277,9 +288,13 @@ public sealed class StorageBackedScheduler : IMessageScheduler, IAsyncDisposable
         {
             try
             {
+#if NET8_0_OR_GREATER
+                await Task.Delay(_options.CleanupInterval, _timeProvider, cancellationToken);
+#else
                 await Task.Delay(_options.CleanupInterval, cancellationToken);
+#endif
 
-                var olderThan = DateTimeOffset.UtcNow.Subtract(_options.CleanupAge);
+                var olderThan = _timeProvider.GetUtcNow().Subtract(_options.CleanupAge);
                 var removed = await _storage.CleanupAsync(olderThan, cancellationToken);
 
                 if (removed > 0)

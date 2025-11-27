@@ -12,6 +12,7 @@ public sealed class HmacSha256MessageSigner : IMessageSigner
     private const int HashSize = 32; // SHA256 produces 32 bytes
     private readonly byte[] _key;
     private readonly string? _keyId;
+    private readonly TimeProvider _timeProvider;
 
     public string Algorithm => "HMAC-SHA256";
     public int SignatureSize => HashSize;
@@ -21,7 +22,8 @@ public sealed class HmacSha256MessageSigner : IMessageSigner
     /// </summary>
     /// <param name="key">The signing key (recommended: 256 bits)</param>
     /// <param name="keyId">Optional key identifier for key rotation</param>
-    public HmacSha256MessageSigner(byte[] key, string? keyId = null)
+    /// <param name="timeProvider">Optional time provider for timestamps</param>
+    public HmacSha256MessageSigner(byte[] key, string? keyId = null, TimeProvider? timeProvider = null)
     {
         if (key == null)
             throw new ArgumentNullException(nameof(key));
@@ -32,6 +34,7 @@ public sealed class HmacSha256MessageSigner : IMessageSigner
         _key = new byte[key.Length];
         Array.Copy(key, _key, key.Length);
         _keyId = keyId;
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     /// <summary>
@@ -64,7 +67,7 @@ public sealed class HmacSha256MessageSigner : IMessageSigner
                     signatureBytes,
                     Algorithm,
                     _keyId,
-                    DateTimeOffset.UtcNow);
+                    _timeProvider.GetUtcNow());
 
                 return Task.FromResult(signature);
             }

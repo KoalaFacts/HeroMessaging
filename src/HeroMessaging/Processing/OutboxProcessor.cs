@@ -21,7 +21,7 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxEntry>, IOutbo
         IServiceProvider serviceProvider,
         ILogger<OutboxProcessor> logger,
         TimeProvider timeProvider)
-        : base(logger, maxDegreeOfParallelism: Environment.ProcessorCount, boundedCapacity: 100)
+        : base(logger, timeProvider, maxDegreeOfParallelism: Environment.ProcessorCount, boundedCapacity: 100)
     {
         _outboxStorage = outboxStorage;
         _serviceProvider = serviceProvider;

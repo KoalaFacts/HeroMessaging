@@ -13,17 +13,20 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
 {
     private readonly IInboxStorage _inboxStorage;
     private readonly IServiceProvider _serviceProvider;
+    private readonly TimeProvider _timeProvider;
     private Task? _cleanupTask;
     private CancellationTokenSource? _cleanupCancellationTokenSource;
 
     public InboxProcessor(
         IInboxStorage inboxStorage,
         IServiceProvider serviceProvider,
-        ILogger<InboxProcessor> logger)
-        : base(logger, maxDegreeOfParallelism: 1, boundedCapacity: 100, ensureOrdered: true)
+        ILogger<InboxProcessor> logger,
+        TimeProvider? timeProvider = null)
+        : base(logger, timeProvider, maxDegreeOfParallelism: 1, boundedCapacity: 100, ensureOrdered: true)
     {
         _inboxStorage = inboxStorage;
         _serviceProvider = serviceProvider;
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     public async Task<bool> ProcessIncoming(IMessage message, InboxOptions? options = null, CancellationToken cancellationToken = default)
@@ -119,7 +122,11 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
             try
             {
                 // Clean up old processed entries every hour
+#if NET8_0_OR_GREATER
+                await Task.Delay(TimeSpan.FromHours(1), _timeProvider, cancellationToken);
+#else
                 await Task.Delay(TimeSpan.FromHours(1), cancellationToken);
+#endif
 
                 await _inboxStorage.CleanupOldEntriesAsync(TimeSpan.FromDays(7), cancellationToken);
 
