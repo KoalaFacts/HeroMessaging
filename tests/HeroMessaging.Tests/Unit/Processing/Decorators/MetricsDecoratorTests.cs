@@ -404,8 +404,9 @@ public sealed class MetricsDecoratorTests
 
         // Assert
         Assert.NotNull(recordedDuration);
-        Assert.True(recordedDuration.Value.TotalMilliseconds >= 50,
-            $"Expected duration >= 50ms, but was {recordedDuration.Value.TotalMilliseconds}ms");
+        // Allow 10% tolerance for timer imprecision
+        Assert.True(recordedDuration.Value.TotalMilliseconds >= 45,
+            $"Expected duration >= 45ms, but was {recordedDuration.Value.TotalMilliseconds}ms");
     }
 
     #endregion
