@@ -484,12 +484,12 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
     {
         // Arrange
         var provider = new PolicyAuthorizationProvider();
-        var policy1 = new AuthorizationPolicy("shared-name").RequireRole("admin");
-        var policy2 = new AuthorizationPolicy("shared-name").AllowAnonymous();
+        var policy1 = new AuthorizationPolicy("Test:Op").RequireRole("admin");
+        var policy2 = new AuthorizationPolicy("Test:Op").AllowAnonymous();
 
-        // Act
-        provider.AddPolicy("shared-name", policy1);
-        provider.AddPolicy("shared-name", policy2); // Overwrite
+        // Act - AddPolicy uses the name as the key, and AuthorizeAsync looks up by "MessageType:Operation"
+        provider.AddPolicy("Test:Op", policy1);
+        provider.AddPolicy("Test:Op", policy2); // Overwrite
 
         var unauthPrincipal = new ClaimsPrincipal();
         var result = provider.AuthorizeAsync(unauthPrincipal, "Test", "Op").Result;

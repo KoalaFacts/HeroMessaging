@@ -244,10 +244,11 @@ public sealed class AuthorizationPolicy
         if (_allowAnonymous)
             return AuthorizationResult.Success();
 
-        // Check authentication requirement
+        // Check authentication requirement (any identity being authenticated is sufficient)
         if (_requireAuthentication)
         {
-            if (principal?.Identity?.IsAuthenticated != true)
+            var isAnyAuthenticated = principal?.Identities?.Any(i => i.IsAuthenticated) == true;
+            if (!isAnyAuthenticated)
             {
                 return AuthorizationResult.Failure(
                     $"Policy '{_name}' requires an authenticated user",
@@ -255,10 +256,14 @@ public sealed class AuthorizationPolicy
             }
         }
 
-        // Check role requirements
+        // Check role requirements (case-insensitive)
         if (_requiredRoles.Count > 0)
         {
-            var hasRequiredRole = _requiredRoles.Any(role => principal.IsInRole(role));
+            var userRoles = principal.Claims
+                .Where(c => c.Type == System.Security.Claims.ClaimTypes.Role)
+                .Select(c => c.Value);
+            var hasRequiredRole = _requiredRoles.Any(required =>
+                userRoles.Any(userRole => string.Equals(userRole, required, StringComparison.OrdinalIgnoreCase)));
             if (!hasRequiredRole)
             {
                 return AuthorizationResult.InsufficientPermissions(
