@@ -24,7 +24,9 @@ public class DefaultConnectionResiliencePolicyTests
         _options = new ConnectionResilienceOptions
         {
             MaxRetries = 3,
-            BaseRetryDelay = TimeSpan.FromSeconds(1),
+            // Use zero delay for tests to avoid FakeTimeProvider Task.Delay blocking
+            // Tests that specifically need to verify delay timing should override this
+            BaseRetryDelay = TimeSpan.Zero,
             MaxRetryDelay = TimeSpan.FromSeconds(30),
             CircuitBreakerOptions = new CircuitBreakerOptions
             {
@@ -490,8 +492,9 @@ public class DefaultConnectionResiliencePolicyTests
         var options = new ConnectionResilienceOptions
         {
             MaxRetries = 10,
-            BaseRetryDelay = TimeSpan.FromSeconds(10),
-            MaxRetryDelay = TimeSpan.FromSeconds(5) // Max is less than base for testing
+            // Use zero delay with FakeTimeProvider to avoid Task.Delay blocking
+            BaseRetryDelay = TimeSpan.Zero,
+            MaxRetryDelay = TimeSpan.FromSeconds(5) // Max delay cap (not used when base is zero)
         };
         var policy = new DefaultConnectionResiliencePolicy(options, _mockLogger.Object, _timeProvider);
 

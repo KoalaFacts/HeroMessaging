@@ -11,8 +11,21 @@ using Xunit;
 namespace HeroMessaging.Tests.Unit;
 
 /// <summary>
-/// Unit tests for BatchDecorator
+/// Unit tests for BatchDecorator.
+/// Each test creates its own FakeTimeProvider and BatchDecorator instance.
+/// Tests must properly dispose the BatchDecorator to cancel background tasks.
 /// </summary>
+/// <remarks>
+/// <para>
+/// Tests use <see cref="BatchDecorator.CreateAsync"/> factory method which ensures the background
+/// loop is properly initialized before returning. This eliminates race conditions with FakeTimeProvider
+/// and allows tests to run in parallel safely.
+/// </para>
+/// <para>
+/// Tests use <see cref="BatchDecorator.WaitForBatchIterationAsync"/> for deterministic
+/// synchronization instead of timing-based delays.
+/// </para>
+/// </remarks>
 public class BatchDecoratorTests
 {
 
@@ -37,7 +50,8 @@ public class BatchDecoratorTests
         mockInnerProcessor.Setup(p => p.ProcessAsync(message, context, It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedResult);
 
-        await using var decorator = new BatchDecorator(mockInnerProcessor.Object, options, mockLogger.Object, timeProvider);
+        await using var decorator = await BatchDecorator.CreateAsync(
+            mockInnerProcessor.Object, options, mockLogger.Object, timeProvider, TestContext.Current.CancellationToken);
 
         // Act
         var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
@@ -59,7 +73,8 @@ public class BatchDecoratorTests
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentNullException>(async () =>
         {
-            await using var decorator = new BatchDecorator(mockInnerProcessor.Object, null!, mockLogger.Object, timeProvider);
+            await using var decorator = await BatchDecorator.CreateAsync(
+                mockInnerProcessor.Object, null!, mockLogger.Object, timeProvider);
         });
     }
 
@@ -75,7 +90,8 @@ public class BatchDecoratorTests
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentNullException>(async () =>
         {
-            await using var decorator = new BatchDecorator(mockInnerProcessor.Object, options, null!, timeProvider);
+            await using var decorator = await BatchDecorator.CreateAsync(
+                mockInnerProcessor.Object, options, null!, timeProvider);
         });
     }
 
@@ -97,7 +113,8 @@ public class BatchDecoratorTests
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentException>(async () =>
         {
-            await using var decorator = new BatchDecorator(mockInnerProcessor.Object, options, mockLogger.Object, timeProvider);
+            await using var decorator = await BatchDecorator.CreateAsync(
+                mockInnerProcessor.Object, options, mockLogger.Object, timeProvider);
         });
     }
 
@@ -115,7 +132,7 @@ public class BatchDecoratorTests
             Enabled = true,
             MaxBatchSize = 3,
             MinBatchSize = 2,
-            BatchTimeout = TimeSpan.FromSeconds(10)
+            BatchTimeout = TimeSpan.FromMilliseconds(1) // Minimal timeout for fast tests with FakeTimeProvider
         };
 
         var messages = new[]
@@ -134,10 +151,17 @@ public class BatchDecoratorTests
                 return ProcessingResult.Successful();
             });
 
-        await using var decorator = new BatchDecorator(mockInnerProcessor.Object, options, mockLogger.Object, timeProvider);
+        // CreateAsync ensures the background loop is initialized before returning
+        await using var decorator = await BatchDecorator.CreateAsync(
+            mockInnerProcessor.Object, options, mockLogger.Object, timeProvider, TestContext.Current.CancellationToken);
 
         // Act
         var tasks = messages.Select(m => decorator.ProcessAsync(m, new ProcessingContext("test"), TestContext.Current.CancellationToken).AsTask()).ToList();
+
+        // Advance time to trigger batch processing (loop is already initialized by CreateAsync)
+        timeProvider.Advance(TimeSpan.FromMilliseconds(5));
+        await decorator.WaitForBatchIterationAsync(TestContext.Current.CancellationToken);
+
         var results = await Task.WhenAll(tasks);
 
         // Assert - verify observable outcomes (results and counter)
@@ -159,7 +183,7 @@ public class BatchDecoratorTests
             Enabled = true,
             MaxBatchSize = 10,
             MinBatchSize = 5,
-            BatchTimeout = TimeSpan.FromMilliseconds(100)
+            BatchTimeout = TimeSpan.FromMilliseconds(1) // Minimal timeout for FakeTimeProvider
         };
 
         var message = TestMessageBuilder.CreateValidMessage();
@@ -167,13 +191,16 @@ public class BatchDecoratorTests
         mockInnerProcessor.Setup(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProcessingResult.Successful());
 
-        await using var decorator = new BatchDecorator(mockInnerProcessor.Object, options, mockLogger.Object, timeProvider);
+        // CreateAsync ensures the background loop is initialized before returning
+        await using var decorator = await BatchDecorator.CreateAsync(
+            mockInnerProcessor.Object, options, mockLogger.Object, timeProvider, TestContext.Current.CancellationToken);
 
         // Act
         var task = decorator.ProcessAsync(message, new ProcessingContext("test"), TestContext.Current.CancellationToken).AsTask();
 
-        // Wait for timeout to trigger processing
-        await Task.Delay(200);
+        // Advance time past the timeout, then wait for processing
+        timeProvider.Advance(TimeSpan.FromMilliseconds(150));
+        await decorator.WaitForBatchIterationAsync(TestContext.Current.CancellationToken);
         await task;
 
         // Assert
@@ -201,7 +228,8 @@ public class BatchDecoratorTests
         mockInnerProcessor.Setup(p => p.ProcessAsync(message, context, It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedResult);
 
-        await using var decorator = new BatchDecorator(mockInnerProcessor.Object, options, mockLogger.Object, timeProvider);
+        await using var decorator = await BatchDecorator.CreateAsync(
+            mockInnerProcessor.Object, options, mockLogger.Object, timeProvider, TestContext.Current.CancellationToken);
 
         // Act
         var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
@@ -233,7 +261,8 @@ public class BatchDecoratorTests
         mockInnerProcessor.Setup(p => p.ProcessAsync(message, context, It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedResult);
 
-        await using var decorator = new BatchDecorator(mockInnerProcessor.Object, options, mockLogger.Object, timeProvider);
+        await using var decorator = await BatchDecorator.CreateAsync(
+            mockInnerProcessor.Object, options, mockLogger.Object, timeProvider, TestContext.Current.CancellationToken);
 
         // Act
         var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
@@ -259,7 +288,7 @@ public class BatchDecoratorTests
             MaxBatchSize = 3,
             MinBatchSize = 2,
             ContinueOnFailure = true,
-            BatchTimeout = TimeSpan.FromSeconds(10)
+            BatchTimeout = TimeSpan.FromMilliseconds(1) // Minimal timeout for fast tests with FakeTimeProvider
         };
 
         var messages = new[]
@@ -289,10 +318,17 @@ public class BatchDecoratorTests
                 return ProcessingResult.Successful();
             });
 
-        await using var decorator = new BatchDecorator(mockInnerProcessor.Object, options, mockLogger.Object, timeProvider);
+        // CreateAsync ensures the background loop is initialized before returning
+        await using var decorator = await BatchDecorator.CreateAsync(
+            mockInnerProcessor.Object, options, mockLogger.Object, timeProvider, TestContext.Current.CancellationToken);
 
         // Act
         var tasks = messages.Select(m => decorator.ProcessAsync(m, new ProcessingContext("test"), TestContext.Current.CancellationToken).AsTask()).ToList();
+
+        // Advance time, then wait for batch processing
+        timeProvider.Advance(TimeSpan.FromMilliseconds(5));
+        await decorator.WaitForBatchIterationAsync(TestContext.Current.CancellationToken);
+
         var results = await Task.WhenAll(tasks);
 
         // Assert - verify observable outcomes
@@ -323,7 +359,8 @@ public class BatchDecoratorTests
         mockInnerProcessor.Setup(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new OperationCanceledException());
 
-        await using var decorator = new BatchDecorator(mockInnerProcessor.Object, options, mockLogger.Object, timeProvider);
+        await using var decorator = await BatchDecorator.CreateAsync(
+            mockInnerProcessor.Object, options, mockLogger.Object, timeProvider, TestContext.Current.CancellationToken);
 
         // Act & Assert
         await Assert.ThrowsAsync<OperationCanceledException>(() =>
@@ -343,7 +380,7 @@ public class BatchDecoratorTests
         {
             Enabled = true,
             MaxBatchSize = 100,
-            BatchTimeout = TimeSpan.FromSeconds(60) // Long timeout
+            BatchTimeout = TimeSpan.FromMilliseconds(1) // Use minimal timeout with FakeTimeProvider
         };
 
         var message = TestMessageBuilder.CreateValidMessage();
@@ -351,12 +388,18 @@ public class BatchDecoratorTests
         mockInnerProcessor.Setup(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProcessingResult.Successful());
 
-        var decorator = new BatchDecorator(mockInnerProcessor.Object, options, mockLogger.Object, timeProvider);
+        // CreateAsync ensures the background loop is initialized before returning
+        var decorator = await BatchDecorator.CreateAsync(
+            mockInnerProcessor.Object, options, mockLogger.Object, timeProvider, TestContext.Current.CancellationToken);
 
         // Act
         var task = decorator.ProcessAsync(message, new ProcessingContext("test"), TestContext.Current.CancellationToken).AsTask();
 
-        // Dispose before timeout
+        // Advance time past timeout, then wait for batch
+        timeProvider.Advance(TimeSpan.FromMilliseconds(5));
+        await decorator.WaitForBatchIterationAsync(TestContext.Current.CancellationToken);
+
+        // Dispose processes remaining messages
         await decorator.DisposeAsync();
 
         // Complete the task
@@ -382,7 +425,7 @@ public class BatchDecoratorTests
             MaxBatchSize = 4,
             MinBatchSize = 2,
             MaxDegreeOfParallelism = 4,
-            BatchTimeout = TimeSpan.FromSeconds(10)
+            BatchTimeout = TimeSpan.FromMilliseconds(1) // Minimal timeout for fast tests with FakeTimeProvider
         };
 
         var messages = Enumerable.Range(0, 4)
@@ -398,10 +441,17 @@ public class BatchDecoratorTests
                 return ProcessingResult.Successful();
             });
 
-        await using var decorator = new BatchDecorator(mockInnerProcessor.Object, options, mockLogger.Object, timeProvider);
+        // CreateAsync ensures the background loop is initialized before returning
+        await using var decorator = await BatchDecorator.CreateAsync(
+            mockInnerProcessor.Object, options, mockLogger.Object, timeProvider, TestContext.Current.CancellationToken);
 
         // Act
         var tasks = messages.Select(m => decorator.ProcessAsync(m, new ProcessingContext("test"), TestContext.Current.CancellationToken).AsTask()).ToList();
+
+        // Advance time, then wait for batch processing
+        timeProvider.Advance(TimeSpan.FromMilliseconds(5));
+        await decorator.WaitForBatchIterationAsync(TestContext.Current.CancellationToken);
+
         var results = await Task.WhenAll(tasks);
 
         // Assert - verify observable outcomes
@@ -424,7 +474,7 @@ public class BatchDecoratorTests
             MaxBatchSize = 2,
             MinBatchSize = 2,
             FallbackToIndividualProcessing = true,
-            BatchTimeout = TimeSpan.FromSeconds(10)
+            BatchTimeout = TimeSpan.FromMilliseconds(1) // Minimal timeout for fast tests with FakeTimeProvider
         };
 
         var messages = new[]
@@ -445,13 +495,21 @@ public class BatchDecoratorTests
                 return ProcessingResult.Successful();
             });
 
-        await using var decorator = new BatchDecorator(mockInnerProcessor.Object, options, mockLogger.Object, timeProvider);
+        // CreateAsync ensures the background loop is initialized before returning
+        await using var decorator = await BatchDecorator.CreateAsync(
+            mockInnerProcessor.Object, options, mockLogger.Object, timeProvider, TestContext.Current.CancellationToken);
 
         // Act
         var tasks = messages.Select(m => decorator.ProcessAsync(m, new ProcessingContext("test"), TestContext.Current.CancellationToken).AsTask()).ToList();
 
-        // Wait for processing with longer timeout to allow fallback
-        await Task.Delay(1000);
+        // Advance time past batch timeout to trigger processing
+        timeProvider.Advance(TimeSpan.FromMilliseconds(5));
+        await decorator.WaitForBatchIterationAsync(TestContext.Current.CancellationToken);
+
+        // Wait for next loop iteration and advance time again for cleanup
+        await decorator.WaitForLoopReadyAsync(TestContext.Current.CancellationToken);
+        timeProvider.Advance(TimeSpan.FromMilliseconds(5));
+        await decorator.WaitForBatchIterationAsync(TestContext.Current.CancellationToken);
 
         // Assert - Verify fallback was attempted
         mockInnerProcessor.Verify(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()), Times.AtLeast(2));
@@ -470,22 +528,24 @@ public class BatchDecoratorTests
         {
             Enabled = true,
             MaxBatchSize = 50,
-            BatchTimeout = TimeSpan.FromMilliseconds(200),
+            BatchTimeout = TimeSpan.FromMilliseconds(1), // Minimal timeout for FakeTimeProvider - avoids blocking
             MinBatchSize = 2
         };
 
-        // Act
-        await using var decorator = new BatchDecorator(mockInnerProcessor.Object, options, mockLogger.Object, timeProvider);
+        // Act - CreateAsync ensures the background loop is initialized before returning
+        await using var decorator = await BatchDecorator.CreateAsync(
+            mockInnerProcessor.Object, options, mockLogger.Object, timeProvider, TestContext.Current.CancellationToken);
 
-        // Wait a bit for background task to start
-        await Task.Delay(100);
+        // Advance time, then wait for batch iteration
+        timeProvider.Advance(TimeSpan.FromMilliseconds(5));
+        await decorator.WaitForBatchIterationAsync(TestContext.Current.CancellationToken);
 
-        // Assert
+        // Assert - Look for the "started" log message instead (factory logs "started" not "initialized")
         mockLogger.Verify(
             l => l.Log(
                 LogLevel.Information,
                 It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("BatchDecorator initialized")),
+                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("BatchDecorator started")),
                 null,
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);
@@ -506,7 +566,7 @@ public class BatchDecoratorTests
             MaxBatchSize = 3,
             MinBatchSize = 2,
             ContinueOnFailure = false, // Explicitly disable continuation on failure
-            BatchTimeout = TimeSpan.FromSeconds(10)
+            BatchTimeout = TimeSpan.FromMilliseconds(1) // Minimal timeout for fast tests with FakeTimeProvider
         };
 
         var messages = new[]
@@ -536,10 +596,17 @@ public class BatchDecoratorTests
                 return ProcessingResult.Successful();
             });
 
-        await using var decorator = new BatchDecorator(mockInnerProcessor.Object, options, mockLogger.Object, timeProvider);
+        // CreateAsync ensures the background loop is initialized before returning
+        await using var decorator = await BatchDecorator.CreateAsync(
+            mockInnerProcessor.Object, options, mockLogger.Object, timeProvider, TestContext.Current.CancellationToken);
 
         // Act
         var tasks = messages.Select(m => decorator.ProcessAsync(m, new ProcessingContext("test"), TestContext.Current.CancellationToken).AsTask()).ToList();
+
+        // Advance time, then wait for batch processing
+        timeProvider.Advance(TimeSpan.FromMilliseconds(5));
+        await decorator.WaitForBatchIterationAsync(TestContext.Current.CancellationToken);
+
         var results = await Task.WhenAll(tasks);
 
         // Assert - First message fails, processing should stop
@@ -562,7 +629,7 @@ public class BatchDecoratorTests
             Enabled = true,
             MaxBatchSize = 2,
             MinBatchSize = 2,
-            BatchTimeout = TimeSpan.FromSeconds(10)
+            BatchTimeout = TimeSpan.FromMilliseconds(1) // Minimal timeout for fast tests with FakeTimeProvider
         };
 
         var messages = new[]
@@ -575,10 +642,17 @@ public class BatchDecoratorTests
         mockInnerProcessor.Setup(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(exception);
 
-        await using var decorator = new BatchDecorator(mockInnerProcessor.Object, options, mockLogger.Object, timeProvider);
+        // CreateAsync ensures the background loop is initialized before returning
+        await using var decorator = await BatchDecorator.CreateAsync(
+            mockInnerProcessor.Object, options, mockLogger.Object, timeProvider, TestContext.Current.CancellationToken);
 
         // Act
         var tasks = messages.Select(m => decorator.ProcessAsync(m, new ProcessingContext("test"), TestContext.Current.CancellationToken).AsTask()).ToList();
+
+        // Advance time, then wait for batch processing
+        timeProvider.Advance(TimeSpan.FromMilliseconds(5));
+        await decorator.WaitForBatchIterationAsync(TestContext.Current.CancellationToken);
+
         var results = await Task.WhenAll(tasks);
 
         // Assert - Both messages should have failed with the exception
@@ -603,7 +677,7 @@ public class BatchDecoratorTests
             Enabled = true,
             MaxBatchSize = 10,
             MinBatchSize = 5,
-            BatchTimeout = TimeSpan.FromSeconds(60)
+            BatchTimeout = TimeSpan.FromMilliseconds(1) // Use minimal timeout with FakeTimeProvider
         };
 
         var message = TestMessageBuilder.CreateValidMessage();
@@ -612,11 +686,22 @@ public class BatchDecoratorTests
         mockInnerProcessor.Setup(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProcessingResult.Successful());
 
-        await using var decorator = new BatchDecorator(mockInnerProcessor.Object, options, mockLogger.Object, timeProvider);
+        // CreateAsync ensures the background loop is initialized before returning
+        await using var decorator = await BatchDecorator.CreateAsync(
+            mockInnerProcessor.Object, options, mockLogger.Object, timeProvider, TestContext.Current.CancellationToken);
 
         // Act - Queue a message then cancel immediately
         var task = decorator.ProcessAsync(message, new ProcessingContext("test"), cts.Token).AsTask();
+
+        // Advance time, then wait for batch processing
+        timeProvider.Advance(TimeSpan.FromMilliseconds(5));
+        await decorator.WaitForBatchIterationAsync(TestContext.Current.CancellationToken);
         cts.Cancel();
+
+        // Wait for next loop iteration and advance time again for cleanup
+        await decorator.WaitForLoopReadyAsync(TestContext.Current.CancellationToken);
+        timeProvider.Advance(TimeSpan.FromMilliseconds(5));
+        await decorator.WaitForBatchIterationAsync(TestContext.Current.CancellationToken);
 
         // Assert - The task should handle cancellation gracefully
         try

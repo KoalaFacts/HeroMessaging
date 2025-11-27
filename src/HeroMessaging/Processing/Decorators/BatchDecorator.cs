@@ -33,6 +33,10 @@ namespace HeroMessaging.Processing.Decorators;
 /// <item><description>RetryDecorator - Retry per message</description></item>
 /// <item><description>Handler Execution</description></item>
 /// </list>
+/// <para>
+/// <strong>Important</strong>: Use <see cref="CreateAsync"/> factory method to create instances.
+/// This ensures proper async initialization and avoids race conditions with FakeTimeProvider in tests.
+/// </para>
 /// </remarks>
 public sealed class BatchDecorator : MessageProcessorDecorator, IAsyncDisposable
 {
@@ -41,13 +45,72 @@ public sealed class BatchDecorator : MessageProcessorDecorator, IAsyncDisposable
     private readonly TimeProvider _timeProvider;
 
     private readonly ConcurrentQueue<BatchItem> _messageQueue = new();
-    private readonly AutoResetEvent _batchSignal = new(false);
+    private readonly SemaphoreSlim _batchSignal = new(0);
     private readonly CancellationTokenSource _disposalCts = new();
-    private readonly Task _batchProcessingTask;
+    private Task _batchProcessingTask = Task.CompletedTask;
 
     private int _queuedCount;
     private long _totalProcessed;
     private long _totalBatches;
+
+    // Test hook: signaled after each batch processing loop iteration completes
+    // Using SemaphoreSlim instead of TaskCompletionSource to properly handle producer-consumer pattern
+    // Each Release() increments count, each WaitAsync() decrements - no race condition
+    private readonly SemaphoreSlim _batchIterationCompleted = new(0);
+
+    // Test hook: signaled when the background loop is about to enter its wait state
+    // This allows tests to know when it's safe to advance FakeTimeProvider
+    // Using SemaphoreSlim for same reason - handles producer-consumer properly
+    private readonly SemaphoreSlim _loopReadyToWait = new(0);
+
+    // Signaled when the background loop has started and created its first delay
+    // Used by CreateAsync to ensure proper initialization before returning
+    // Uses TaskCompletionSource<bool> for netstandard2.0 compatibility (non-generic TCS not available)
+    private readonly TaskCompletionSource<bool> _loopInitialized = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    /// <summary>
+    /// Creates a new BatchDecorator with proper async initialization.
+    /// This is the recommended way to create a BatchDecorator as it ensures the background
+    /// loop is properly initialized before returning, avoiding race conditions with FakeTimeProvider.
+    /// </summary>
+    /// <param name="inner">The inner message processor to decorate.</param>
+    /// <param name="options">The batch processing configuration options.</param>
+    /// <param name="logger">The logger for diagnostic information.</param>
+    /// <param name="timeProvider">The time provider for timestamp management.</param>
+    /// <param name="cancellationToken">Cancellation token for the initialization.</param>
+    /// <returns>A fully initialized BatchDecorator instance.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when any required parameter is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when options validation fails.</exception>
+    public static async Task<BatchDecorator> CreateAsync(
+        IMessageProcessor inner,
+        BatchProcessingOptions options,
+        ILogger<BatchDecorator> logger,
+        TimeProvider? timeProvider = null,
+        CancellationToken cancellationToken = default)
+    {
+        var decorator = new BatchDecorator(inner, options, logger, timeProvider);
+
+        if (options.Enabled)
+        {
+            decorator.StartBackgroundLoop();
+
+            // Wait for the background loop to reach its first wait state
+            // This ensures the delay is created before the caller can advance FakeTimeProvider
+#if NET8_0_OR_GREATER
+            await decorator._loopInitialized.Task.WaitAsync(cancellationToken);
+#else
+            // For netstandard2.0: race with cancellation task
+            var cancellationTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using (cancellationToken.Register(() => cancellationTcs.TrySetCanceled(cancellationToken)))
+            {
+                await Task.WhenAny(decorator._loopInitialized.Task, cancellationTcs.Task);
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+#endif
+        }
+
+        return decorator;
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="BatchDecorator"/> class.
@@ -58,6 +121,12 @@ public sealed class BatchDecorator : MessageProcessorDecorator, IAsyncDisposable
     /// <param name="timeProvider">The time provider for timestamp management.</param>
     /// <exception cref="ArgumentNullException">Thrown when any parameter is null.</exception>
     /// <exception cref="ArgumentException">Thrown when options validation fails.</exception>
+    /// <remarks>
+    /// Consider using <see cref="CreateAsync"/> factory method for proper async initialization,
+    /// especially when using FakeTimeProvider in tests. The constructor does not start the
+    /// background loop automatically - call <see cref="StartBackgroundLoop"/> after construction
+    /// if using this constructor directly.
+    /// </remarks>
     public BatchDecorator(
         IMessageProcessor inner,
         BatchProcessingOptions options,
@@ -71,14 +140,85 @@ public sealed class BatchDecorator : MessageProcessorDecorator, IAsyncDisposable
 
         _options.Validate();
 
-        // Start background batch processing task
+        if (!_options.Enabled)
+        {
+            // Mark as initialized immediately for disabled mode
+            _loopInitialized.TrySetResult(true);
+            _logger.LogDebug("BatchDecorator initialized in disabled mode - messages will be processed immediately");
+        }
+    }
+
+    /// <summary>
+    /// Starts the background processing loop. Call this after construction if not using CreateAsync.
+    /// This method is idempotent - calling it multiple times has no effect after the first call.
+    /// </summary>
+    public void StartBackgroundLoop()
+    {
+        if (!_options.Enabled || _batchProcessingTask != Task.CompletedTask)
+            return;
+
         _batchProcessingTask = Task.Run(BatchProcessingLoopAsync, _disposalCts.Token);
 
         _logger.LogInformation(
-            "BatchDecorator initialized with MaxBatchSize={MaxBatchSize}, BatchTimeout={BatchTimeout}ms, MinBatchSize={MinBatchSize}",
+            "BatchDecorator started with MaxBatchSize={MaxBatchSize}, BatchTimeout={BatchTimeout}ms, MinBatchSize={MinBatchSize}",
             _options.MaxBatchSize,
             _options.BatchTimeout.TotalMilliseconds,
             _options.MinBatchSize);
+    }
+
+    /// <summary>
+    /// Waits for the background loop to be ready to wait (about to enter its delay).
+    /// Call this BEFORE advancing FakeTimeProvider to ensure the timer exists.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This is critical for deterministic testing with FakeTimeProvider:
+    /// 1. Call this method to ensure the loop is ready
+    /// 2. Then advance FakeTimeProvider time
+    /// 3. Then call WaitForBatchIterationAsync to wait for processing to complete
+    /// </para>
+    /// <para>
+    /// This method waits indefinitely for the signal (only cancellation token can abort).
+    /// This is intentional - no real-time timeout is used because it would be incompatible
+    /// with FakeTimeProvider-based testing. The background loop will signal when ready.
+    /// </para>
+    /// </remarks>
+    /// <param name="cancellationToken">Cancellation token to abort the wait.</param>
+    /// <returns>A task that completes when the loop is ready to wait.</returns>
+    public async Task WaitForLoopReadyAsync(CancellationToken cancellationToken = default)
+    {
+        if (!_options.Enabled)
+            return;
+
+        // Uses SemaphoreSlim for proper producer-consumer pattern
+        // Signal is released when loop enters wait state, consumed here
+        await _loopReadyToWait.WaitAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Waits for the next batch processing loop iteration to complete.
+    /// This is a test hook that enables deterministic testing with FakeTimeProvider.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Instead of using timing-based delays in tests, call this method after advancing
+    /// FakeTimeProvider to wait for the background loop to actually process the batch.
+    /// </para>
+    /// <para>
+    /// This method waits indefinitely for the signal (only cancellation token can abort).
+    /// This is intentional - no real-time timeout is used because it would be incompatible
+    /// with FakeTimeProvider-based testing. The background loop will signal after each iteration.
+    /// </para>
+    /// </remarks>
+    /// <param name="cancellationToken">Cancellation token to abort the wait.</param>
+    /// <returns>A task that completes when the next batch iteration finishes.</returns>
+    public async Task WaitForBatchIterationAsync(CancellationToken cancellationToken = default)
+    {
+        // Uses SemaphoreSlim for proper producer-consumer pattern
+        // Signal is released when iteration completes, consumed here
+        // This avoids the race condition with TaskCompletionSource where the TCS
+        // could be reset before the waiter gets a chance to observe it
+        await _batchIterationCompleted.WaitAsync(cancellationToken);
     }
 
     /// <inheritdoc />
@@ -109,7 +249,7 @@ public sealed class BatchDecorator : MessageProcessorDecorator, IAsyncDisposable
         // If we've reached max batch size, signal immediate processing
         if (count >= _options.MaxBatchSize)
         {
-            _batchSignal.Set();
+            _batchSignal.Release();
         }
 
         // Wait for result
@@ -118,6 +258,7 @@ public sealed class BatchDecorator : MessageProcessorDecorator, IAsyncDisposable
 
     /// <summary>
     /// Background loop that processes batches based on size and timeout
+    /// Uses TimeProvider for async waiting to enable deterministic testing
     /// </summary>
     private async Task BatchProcessingLoopAsync()
     {
@@ -127,13 +268,17 @@ public sealed class BatchDecorator : MessageProcessorDecorator, IAsyncDisposable
         {
             while (!_disposalCts.Token.IsCancellationRequested)
             {
-                // Wait for either batch to fill or timeout
-                _batchSignal.WaitOne(_options.BatchTimeout);
+                // Wait for either batch signal or timeout using TimeProvider
+                // This enables deterministic testing with FakeTimeProvider
+                // Note: Using SemaphoreSlim for signals eliminates the need for "Prepare*" calls
+                await WaitForBatchOrTimeoutAsync(_disposalCts.Token);
 
                 var queuedCount = Interlocked.Exchange(ref _queuedCount, 0);
 
                 if (queuedCount == 0)
                 {
+                    // Signal completion even for empty iterations so tests can synchronize
+                    SignalBatchIterationCompleted();
                     continue; // Timeout with no messages
                 }
 
@@ -149,11 +294,15 @@ public sealed class BatchDecorator : MessageProcessorDecorator, IAsyncDisposable
 
                 if (batch.Count == 0)
                 {
+                    SignalBatchIterationCompleted();
                     continue;
                 }
 
                 // Process batch
                 await ProcessBatchInternalAsync(batch);
+
+                // Signal that this batch iteration is complete (for test synchronization)
+                SignalBatchIterationCompleted();
             }
         }
         catch (OperationCanceledException) when (_disposalCts.Token.IsCancellationRequested)
@@ -166,6 +315,65 @@ public sealed class BatchDecorator : MessageProcessorDecorator, IAsyncDisposable
         }
 
         _logger.LogDebug("Batch processing loop stopped");
+    }
+
+    /// <summary>
+    /// Waits for either the batch signal or timeout using TimeProvider for testability
+    /// </summary>
+    private async Task WaitForBatchOrTimeoutAsync(CancellationToken cancellationToken)
+    {
+        // Early exit if already cancelled
+        cancellationToken.ThrowIfCancellationRequested();
+
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+        // Create timeout task using TimeProvider (enables FakeTimeProvider testing)
+#if NET8_0_OR_GREATER
+        var delayTask = Task.Delay(_options.BatchTimeout, _timeProvider, timeoutCts.Token);
+#else
+        var delayTask = _timeProvider.Delay(_options.BatchTimeout, timeoutCts.Token);
+#endif
+
+        // Create signal wait task
+        var signalTask = _batchSignal.WaitAsync(timeoutCts.Token);
+
+        // Create cancellation task that completes when original token is cancelled
+        // This ensures we exit promptly on cancellation even with FakeTimeProvider
+        var cancellationTask = Task.Delay(Timeout.Infinite, cancellationToken);
+
+        // Signal that we're about to wait - this allows tests to know when it's safe to advance FakeTimeProvider
+        SignalLoopReady();
+
+        // CRITICAL: Signal loop initialized RIGHT BEFORE await. This is what CreateAsync awaits.
+        // Must happen after all setup and right before await to ensure we're actually ready for time advances.
+        _loopInitialized.TrySetResult(true);
+
+        // Wait for whichever completes first (including cancellation)
+        await Task.WhenAny(signalTask, delayTask, cancellationTask);
+
+        // Cancel the other tasks (use Cancel() for netstandard2.0 compatibility)
+        timeoutCts.Cancel();
+
+        // Propagate cancellation - Task.WhenAny doesn't throw when inner tasks are cancelled
+        cancellationToken.ThrowIfCancellationRequested();
+    }
+
+    /// <summary>
+    /// Signals that the loop is ready to wait, for test synchronization with FakeTimeProvider.
+    /// Uses SemaphoreSlim.Release() which properly handles the producer-consumer pattern.
+    /// </summary>
+    private void SignalLoopReady()
+    {
+        _loopReadyToWait.Release();
+    }
+
+    /// <summary>
+    /// Signals that a batch processing iteration has completed, for test synchronization.
+    /// Uses SemaphoreSlim.Release() which properly handles the producer-consumer pattern.
+    /// </summary>
+    private void SignalBatchIterationCompleted()
+    {
+        _batchIterationCompleted.Release();
     }
 
     /// <summary>
@@ -197,8 +405,10 @@ public sealed class BatchDecorator : MessageProcessorDecorator, IAsyncDisposable
             if (_options.MaxDegreeOfParallelism == 1)
             {
                 // Sequential processing
-                foreach (var item in batch)
+                var stopIndex = -1;
+                for (var i = 0; i < batch.Count; i++)
                 {
+                    var item = batch[i];
                     await ProcessSingleMessageAsync(item);
 
                     if (!_options.ContinueOnFailure && item.CompletionSource.Task.IsCompleted)
@@ -209,7 +419,23 @@ public sealed class BatchDecorator : MessageProcessorDecorator, IAsyncDisposable
                             _logger.LogWarning(
                                 "Batch processing stopped at message {MessageId} due to failure",
                                 item.Message.MessageId);
+                            stopIndex = i;
                             break;
+                        }
+                    }
+                }
+
+                // If processing was stopped early, fail remaining items in the batch
+                if (stopIndex >= 0)
+                {
+                    for (var i = stopIndex + 1; i < batch.Count; i++)
+                    {
+                        var item = batch[i];
+                        if (!item.CompletionSource.Task.IsCompleted)
+                        {
+                            item.CompletionSource.TrySetResult(ProcessingResult.Failed(
+                                new OperationCanceledException("Batch processing stopped due to earlier failure"),
+                                "Batch processing stopped due to ContinueOnFailure=false"));
                         }
                     }
                 }
@@ -370,6 +596,8 @@ public sealed class BatchDecorator : MessageProcessorDecorator, IAsyncDisposable
         }
 
         _batchSignal.Dispose();
+        _batchIterationCompleted.Dispose();
+        _loopReadyToWait.Dispose();
         _disposalCts.Dispose();
 
         _logger.LogDebug("BatchDecorator disposed");

@@ -144,7 +144,22 @@ public class WhenConfigurator<TSaga, TEvent>
     /// </summary>
     public WhenConfigurator<TSaga, TEvent> Then(Func<StateContext<TSaga, TEvent>, Task> action)
     {
-        _transition.Action = action ?? throw new ArgumentNullException(nameof(action));
+        if (action == null) throw new ArgumentNullException(nameof(action));
+
+        // Compose with existing action instead of replacing
+        var existingAction = _transition.Action;
+        if (existingAction == null)
+        {
+            _transition.Action = action;
+        }
+        else
+        {
+            _transition.Action = async context =>
+            {
+                await existingAction(context);
+                await action(context);
+            };
+        }
         return this;
     }
 
@@ -154,12 +169,12 @@ public class WhenConfigurator<TSaga, TEvent>
     public WhenConfigurator<TSaga, TEvent> Then(Action<StateContext<TSaga, TEvent>> action)
     {
         if (action == null) throw new ArgumentNullException(nameof(action));
-        _transition.Action = context =>
+        // Delegate to async version which handles action composition
+        return Then(context =>
         {
             action(context);
             return Task.CompletedTask;
-        };
-        return this;
+        });
     }
 
     /// <summary>

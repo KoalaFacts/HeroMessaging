@@ -195,8 +195,8 @@ public class BatchProcessingBuilderTests
     [InlineData(1000)]
     public void WithMaxBatchSize_WithVariousValidValues_SetsCorrectly(int value)
     {
-        // Act
-        _builder.WithBatchProcessing(batch => batch.WithMaxBatchSize(value));
+        // Act - also set MinBatchSize=1 to ensure validation passes when MaxBatchSize is small
+        _builder.WithBatchProcessing(batch => batch.WithMaxBatchSize(value).WithMinBatchSize(1));
         _builder.Build();
         var provider = _services.BuildServiceProvider();
 
@@ -444,8 +444,8 @@ public class BatchProcessingBuilderTests
         _builder.Build();
         var provider = _services.BuildServiceProvider();
 
-        // Assert - validation happens when options are resolved
-        Assert.Throws<InvalidOperationException>(() => provider.GetRequiredService<BatchProcessingOptions>());
+        // Assert - validation happens when options are resolved (throws ArgumentException)
+        Assert.Throws<ArgumentException>(() => provider.GetRequiredService<BatchProcessingOptions>());
     }
 
     #endregion

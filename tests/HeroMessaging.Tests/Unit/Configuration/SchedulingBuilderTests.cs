@@ -1,8 +1,11 @@
 using HeroMessaging.Abstractions.Configuration;
+using HeroMessaging.Abstractions.Events;
+using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Abstractions.Scheduling;
 using HeroMessaging.Configuration;
 using HeroMessaging.Scheduling;
 using Microsoft.Extensions.DependencyInjection;
+using Moq;
 using Xunit;
 
 namespace HeroMessaging.Tests.Unit.Configuration;
@@ -20,6 +23,10 @@ public class SchedulingBuilderTests
     {
         _services = new ServiceCollection();
         _services.AddLogging();
+        // Add mock dependencies required by HeroMessagingService
+        _services.AddSingleton(Mock.Of<ICommandProcessor>());
+        _services.AddSingleton(Mock.Of<IQueryProcessor>());
+        _services.AddSingleton(Mock.Of<IEventBus>());
         _builder = new HeroMessagingBuilder(_services);
     }
 
