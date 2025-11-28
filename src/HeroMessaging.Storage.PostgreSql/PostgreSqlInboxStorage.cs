@@ -20,6 +20,8 @@ public class PostgreSqlInboxStorage : IInboxStorage
     private readonly string _tableName;
     private readonly TimeProvider _timeProvider;
     private readonly IJsonSerializer _jsonSerializer;
+    private readonly SemaphoreSlim _initLock = new(1, 1);
+    private bool _initialized;
 
     public PostgreSqlInboxStorage(
         PostgreSqlStorageOptions options,
@@ -38,11 +40,6 @@ public class PostgreSqlInboxStorage : IInboxStorage
         _connectionProvider = connectionProvider ?? new PostgreSqlConnectionProvider(options.ConnectionString ?? throw new ArgumentNullException(nameof(options), "ConnectionString cannot be null"));
         _jsonOptionsProvider = jsonOptionsProvider ?? new DefaultJsonOptionsProvider();
         _schemaInitializer = schemaInitializer ?? new PostgreSqlSchemaInitializer(_connectionProvider);
-
-        if (_options.AutoCreateTables)
-        {
-            InitializeDatabase().GetAwaiter().GetResult();
-        }
     }
 
     public PostgreSqlInboxStorage(
@@ -63,12 +60,29 @@ public class PostgreSqlInboxStorage : IInboxStorage
         _schemaInitializer = new PostgreSqlSchemaInitializer(_connectionProvider);
     }
 
+    private async Task EnsureInitializedAsync(CancellationToken cancellationToken = default)
+    {
+        if (_initialized || !_options.AutoCreateTables) return;
+
+        await _initLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (_initialized) return;
+            await InitializeDatabase().ConfigureAwait(false);
+            _initialized = true;
+        }
+        finally
+        {
+            _initLock.Release();
+        }
+    }
+
     private async Task InitializeDatabase()
     {
         // Create schema if needed
         if (!string.IsNullOrEmpty(_options.Schema))
         {
-            await _schemaInitializer.InitializeSchemaAsync(_options.Schema);
+            await _schemaInitializer.InitializeSchemaAsync(_options.Schema).ConfigureAwait(false);
         }
 
         // Create table
@@ -96,7 +110,8 @@ public class PostgreSqlInboxStorage : IInboxStorage
 
     public async Task<InboxEntry?> AddAsync(IMessage message, InboxOptions options, CancellationToken cancellationToken = default)
     {
-        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken).ConfigureAwait(false);
         var transaction = _connectionProvider.GetTransaction();
 
         try
@@ -151,7 +166,8 @@ public class PostgreSqlInboxStorage : IInboxStorage
 
     public async Task<bool> IsDuplicateAsync(string messageId, TimeSpan? window = null, CancellationToken cancellationToken = default)
     {
-        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken).ConfigureAwait(false);
         var transaction = _connectionProvider.GetTransaction();
 
         try
@@ -183,7 +199,8 @@ public class PostgreSqlInboxStorage : IInboxStorage
 
     public async Task<InboxEntry?> GetAsync(string messageId, CancellationToken cancellationToken = default)
     {
-        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken).ConfigureAwait(false);
         var transaction = _connectionProvider.GetTransaction();
 
         try
@@ -241,7 +258,8 @@ public class PostgreSqlInboxStorage : IInboxStorage
 
     public async Task<bool> MarkProcessedAsync(string messageId, CancellationToken cancellationToken = default)
     {
-        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken).ConfigureAwait(false);
         var transaction = _connectionProvider.GetTransaction();
 
         try
@@ -268,7 +286,8 @@ public class PostgreSqlInboxStorage : IInboxStorage
 
     public async Task<bool> MarkFailedAsync(string messageId, string error, CancellationToken cancellationToken = default)
     {
-        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken).ConfigureAwait(false);
         var transaction = _connectionProvider.GetTransaction();
 
         try
@@ -296,7 +315,8 @@ public class PostgreSqlInboxStorage : IInboxStorage
 
     public async Task<IEnumerable<InboxEntry>> GetPendingAsync(InboxQuery query, CancellationToken cancellationToken = default)
     {
-        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken).ConfigureAwait(false);
         var transaction = _connectionProvider.GetTransaction();
 
         try
@@ -396,7 +416,8 @@ public class PostgreSqlInboxStorage : IInboxStorage
 
     public async Task<long> GetUnprocessedCountAsync(CancellationToken cancellationToken = default)
     {
-        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken).ConfigureAwait(false);
         var transaction = _connectionProvider.GetTransaction();
 
         try
@@ -415,7 +436,8 @@ public class PostgreSqlInboxStorage : IInboxStorage
 
     public async Task CleanupOldEntriesAsync(TimeSpan olderThan, CancellationToken cancellationToken = default)
     {
-        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken).ConfigureAwait(false);
         var transaction = _connectionProvider.GetTransaction();
 
         try

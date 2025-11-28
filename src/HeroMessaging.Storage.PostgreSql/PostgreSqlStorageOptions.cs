@@ -56,7 +56,33 @@ public class PostgreSqlStorageOptions
     public int CommandTimeout { get; set; } = 30;
 
     /// <summary>
-    /// Gets the fully qualified table name
+    /// Validates that a PostgreSQL identifier (schema/table name) is safe to use in SQL statements.
+    /// Prevents SQL injection by rejecting unsafe characters.
     /// </summary>
-    public string GetFullTableName(string tableName) => $"{Schema}.{tableName}";
+    public static void ValidateSqlIdentifier(string? identifier, string paramName)
+    {
+        if (string.IsNullOrEmpty(identifier))
+            return;
+
+        // PostgreSQL identifiers must contain only letters, digits, and underscores
+        foreach (var c in identifier)
+        {
+            if (!char.IsLetterOrDigit(c) && c != '_')
+            {
+                throw new ArgumentException(
+                    $"Invalid SQL identifier '{identifier}'. Only letters, digits, and underscores are allowed.",
+                    paramName);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets the fully qualified table name after validating identifiers
+    /// </summary>
+    public string GetFullTableName(string tableName)
+    {
+        ValidateSqlIdentifier(Schema, nameof(Schema));
+        ValidateSqlIdentifier(tableName, nameof(tableName));
+        return $"{Schema}.{tableName}";
+    }
 }

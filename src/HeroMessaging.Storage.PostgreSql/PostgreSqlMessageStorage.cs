@@ -20,6 +20,8 @@ public class PostgreSqlMessageStorage : IMessageStorage
     private readonly TimeProvider _timeProvider;
     private readonly JsonSerializerOptions _jsonOptions;
     private readonly IJsonSerializer _jsonSerializer;
+    private readonly SemaphoreSlim _initLock = new(1, 1);
+    private bool _initialized;
 
     public PostgreSqlMessageStorage(PostgreSqlStorageOptions options, TimeProvider timeProvider, IJsonSerializer jsonSerializer)
     {
@@ -34,11 +36,6 @@ public class PostgreSqlMessageStorage : IMessageStorage
             PropertyNameCaseInsensitive = true,
             WriteIndented = false
         };
-
-        if (_options.AutoCreateTables)
-        {
-            InitializeDatabase().GetAwaiter().GetResult();
-        }
     }
 
     public PostgreSqlMessageStorage(NpgsqlConnection connection, NpgsqlTransaction? transaction, TimeProvider timeProvider, IJsonSerializer jsonSerializer)
@@ -75,6 +72,26 @@ public class PostgreSqlMessageStorage : IMessageStorage
     private NpgsqlTransaction? GetTransaction()
     {
         return _sharedTransaction;
+    }
+
+    /// <summary>
+    /// Ensures the database schema is initialized. Uses lazy initialization to avoid blocking constructor.
+    /// </summary>
+    private async Task EnsureInitializedAsync(CancellationToken cancellationToken = default)
+    {
+        if (_initialized || !_options.AutoCreateTables) return;
+
+        await _initLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (_initialized) return;
+            await InitializeDatabase().ConfigureAwait(false);
+            _initialized = true;
+        }
+        finally
+        {
+            _initLock.Release();
+        }
     }
 
     private async Task InitializeDatabase()
@@ -117,12 +134,13 @@ public class PostgreSqlMessageStorage : IMessageStorage
 
     public async Task<string> StoreAsync(IMessage message, MessageStorageOptions? options = null, CancellationToken cancellationToken = default)
     {
-        var connection = await GetConnectionAsync();
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+
+        var connection = await GetConnectionAsync().ConfigureAwait(false);
         var transaction = GetTransaction();
 
         try
         {
-
             var messageId = Guid.NewGuid().ToString();
             var expiresAt = options?.Ttl != null
                 ? _timeProvider.GetUtcNow().Add(options.Ttl.Value)
@@ -156,12 +174,13 @@ public class PostgreSqlMessageStorage : IMessageStorage
 
     public async Task<T?> RetrieveAsync<T>(string messageId, CancellationToken cancellationToken = default) where T : IMessage
     {
-        var connection = await GetConnectionAsync();
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+
+        var connection = await GetConnectionAsync().ConfigureAwait(false);
         var transaction = GetTransaction();
 
         try
         {
-
             var sql = $"""
                 SELECT payload FROM {_tableName}
                 WHERE id = @id
@@ -187,12 +206,13 @@ public class PostgreSqlMessageStorage : IMessageStorage
 
     public async Task<bool> DeleteAsync(string messageId, CancellationToken cancellationToken = default)
     {
-        var connection = await GetConnectionAsync();
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+
+        var connection = await GetConnectionAsync().ConfigureAwait(false);
         var transaction = GetTransaction();
 
         try
         {
-
             var sql = $"DELETE FROM {_tableName} WHERE id = @id";
 
             using var command = new NpgsqlCommand(sql, connection, transaction);
@@ -208,12 +228,13 @@ public class PostgreSqlMessageStorage : IMessageStorage
 
     public async Task<bool> ExistsAsync(string messageId, CancellationToken cancellationToken = default)
     {
-        var connection = await GetConnectionAsync();
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+
+        var connection = await GetConnectionAsync().ConfigureAwait(false);
         var transaction = GetTransaction();
 
         try
         {
-
             var sql = $"""
                 SELECT COUNT(1) FROM {_tableName}
                 WHERE id = @id
@@ -233,12 +254,13 @@ public class PostgreSqlMessageStorage : IMessageStorage
 
     public async Task<IEnumerable<T>> QueryAsync<T>(MessageQuery query, CancellationToken cancellationToken = default) where T : IMessage
     {
-        var connection = await GetConnectionAsync();
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+
+        var connection = await GetConnectionAsync().ConfigureAwait(false);
         var transaction = GetTransaction();
 
         try
         {
-
             var whereClauses = new List<string> { "(expires_at IS NULL OR expires_at > NOW())" };
             var parameters = new List<NpgsqlParameter>();
 
@@ -303,12 +325,13 @@ public class PostgreSqlMessageStorage : IMessageStorage
 
     public async Task<bool> UpdateAsync(string messageId, IMessage message, CancellationToken cancellationToken = default)
     {
-        var connection = await GetConnectionAsync();
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+
+        var connection = await GetConnectionAsync().ConfigureAwait(false);
         var transaction = GetTransaction();
 
         try
         {
-
             var sql = $"""
                 UPDATE {_tableName}
                 SET payload = @payload::jsonb,
@@ -335,12 +358,13 @@ public class PostgreSqlMessageStorage : IMessageStorage
 
     public async Task<long> CountAsync(MessageQuery? query = null, CancellationToken cancellationToken = default)
     {
-        var connection = await GetConnectionAsync();
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+
+        var connection = await GetConnectionAsync().ConfigureAwait(false);
         var transaction = GetTransaction();
 
         try
         {
-
             var whereClauses = new List<string> { "(expires_at IS NULL OR expires_at > NOW())" };
             var parameters = new List<NpgsqlParameter>();
 
@@ -386,12 +410,13 @@ public class PostgreSqlMessageStorage : IMessageStorage
 
     public async Task ClearAsync(CancellationToken cancellationToken = default)
     {
-        var connection = await GetConnectionAsync();
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+
+        var connection = await GetConnectionAsync().ConfigureAwait(false);
         var transaction = GetTransaction();
 
         try
         {
-
             var sql = $"TRUNCATE TABLE {_tableName}";
 
             using var command = new NpgsqlCommand(sql, connection, transaction);

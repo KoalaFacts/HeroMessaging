@@ -20,6 +20,8 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
     private readonly string _tableName;
     private readonly TimeProvider _timeProvider;
     private readonly IJsonSerializer _jsonSerializer;
+    private readonly SemaphoreSlim _initLock = new(1, 1);
+    private bool _initialized;
 
     public PostgreSqlOutboxStorage(
         PostgreSqlStorageOptions options,
@@ -38,11 +40,6 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
         _connectionProvider = connectionProvider ?? new PostgreSqlConnectionProvider(options.ConnectionString ?? throw new ArgumentNullException(nameof(options), "ConnectionString cannot be null"));
         _jsonOptionsProvider = jsonOptionsProvider ?? new DefaultJsonOptionsProvider();
         _schemaInitializer = schemaInitializer ?? new PostgreSqlSchemaInitializer(_connectionProvider);
-
-        if (_options.AutoCreateTables)
-        {
-            InitializeDatabase().GetAwaiter().GetResult();
-        }
     }
 
     public PostgreSqlOutboxStorage(
@@ -63,12 +60,29 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
         _schemaInitializer = new PostgreSqlSchemaInitializer(_connectionProvider);
     }
 
+    private async Task EnsureInitializedAsync(CancellationToken cancellationToken = default)
+    {
+        if (_initialized || !_options.AutoCreateTables) return;
+
+        await _initLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (_initialized) return;
+            await InitializeDatabase().ConfigureAwait(false);
+            _initialized = true;
+        }
+        finally
+        {
+            _initLock.Release();
+        }
+    }
+
     private async Task InitializeDatabase()
     {
         // Create schema if needed
         if (!string.IsNullOrEmpty(_options.Schema))
         {
-            await _schemaInitializer.InitializeSchemaAsync(_options.Schema);
+            await _schemaInitializer.InitializeSchemaAsync(_options.Schema).ConfigureAwait(false);
         }
 
         // Create table
@@ -97,7 +111,8 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
 
     public async Task<OutboxEntry> AddAsync(IMessage message, OutboxOptions options, CancellationToken cancellationToken = default)
     {
-        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken).ConfigureAwait(false);
         var transaction = _connectionProvider.GetTransaction();
 
         try
@@ -140,7 +155,8 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
 
     public async Task<IEnumerable<OutboxEntry>> GetPendingAsync(OutboxQuery query, CancellationToken cancellationToken = default)
     {
-        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken).ConfigureAwait(false);
         var transaction = _connectionProvider.GetTransaction();
 
         try
@@ -240,7 +256,8 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
 
     public async Task<bool> MarkProcessedAsync(string entryId, CancellationToken cancellationToken = default)
     {
-        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken).ConfigureAwait(false);
         var transaction = _connectionProvider.GetTransaction();
 
         try
@@ -267,7 +284,8 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
 
     public async Task<bool> MarkFailedAsync(string entryId, string error, CancellationToken cancellationToken = default)
     {
-        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken).ConfigureAwait(false);
         var transaction = _connectionProvider.GetTransaction();
 
         try
@@ -295,7 +313,8 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
 
     public async Task<bool> UpdateRetryCountAsync(string entryId, int retryCount, DateTimeOffset? nextRetry = null, CancellationToken cancellationToken = default)
     {
-        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken).ConfigureAwait(false);
         var transaction = _connectionProvider.GetTransaction();
 
         try
@@ -322,7 +341,8 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
 
     public async Task<long> GetPendingCountAsync(CancellationToken cancellationToken = default)
     {
-        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken).ConfigureAwait(false);
         var transaction = _connectionProvider.GetTransaction();
 
         try

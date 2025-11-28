@@ -17,6 +17,8 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
     private readonly string _tableName;
     private readonly TimeProvider _timeProvider;
     private readonly IJsonSerializer _jsonSerializer;
+    private readonly SemaphoreSlim _initLock = new(1, 1);
+    private bool _initialized;
 
     public PostgreSqlDeadLetterQueue(PostgreSqlStorageOptions options, TimeProvider timeProvider, IJsonSerializer jsonSerializer)
     {
@@ -29,17 +31,29 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
             PropertyNameCaseInsensitive = true,
             WriteIndented = false
         };
+    }
 
-        if (_options.AutoCreateTables)
+    private async Task EnsureInitializedAsync(CancellationToken cancellationToken = default)
+    {
+        if (_initialized || !_options.AutoCreateTables) return;
+
+        await _initLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            InitializeDatabase().GetAwaiter().GetResult();
+            if (_initialized) return;
+            await InitializeDatabase().ConfigureAwait(false);
+            _initialized = true;
+        }
+        finally
+        {
+            _initLock.Release();
         }
     }
 
     private async Task InitializeDatabase()
     {
         using var connection = new NpgsqlConnection(_options.ConnectionString);
-        await connection.OpenAsync();
+        await connection.OpenAsync().ConfigureAwait(false);
 
         var createTableSql = $"""
             CREATE TABLE IF NOT EXISTS {_tableName} (
@@ -74,10 +88,11 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
     public async Task<string> SendToDeadLetterAsync<T>(T message, DeadLetterContext context, CancellationToken cancellationToken = default)
         where T : IMessage
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         var deadLetterId = Guid.NewGuid().ToString();
 
         using var connection = new NpgsqlConnection(_options.ConnectionString);
-        await connection.OpenAsync(cancellationToken);
+        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
         var sql = $"""
             INSERT INTO {_tableName} (
@@ -117,8 +132,9 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
     public async Task<IEnumerable<DeadLetterEntry<T>>> GetDeadLettersAsync<T>(int limit = 100, CancellationToken cancellationToken = default)
         where T : IMessage
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         using var connection = new NpgsqlConnection(_options.ConnectionString);
-        await connection.OpenAsync(cancellationToken);
+        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
         var sql = $"""
             SELECT id, message_payload, reason, component, retry_count, failure_time,
@@ -180,8 +196,9 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
     public async Task<bool> RetryAsync<T>(string deadLetterId, CancellationToken cancellationToken = default)
         where T : IMessage
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         using var connection = new NpgsqlConnection(_options.ConnectionString);
-        await connection.OpenAsync(cancellationToken);
+        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
         var sql = $"""
             UPDATE {_tableName}
@@ -205,8 +222,9 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
 
     public async Task<bool> DiscardAsync<T>(string deadLetterId, CancellationToken cancellationToken = default) where T : IMessage
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         using var connection = new NpgsqlConnection(_options.ConnectionString);
-        await connection.OpenAsync(cancellationToken);
+        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
         var sql = $"""
             UPDATE {_tableName}
@@ -230,8 +248,9 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
 
     public async Task<long> GetDeadLetterCountAsync(CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         using var connection = new NpgsqlConnection(_options.ConnectionString);
-        await connection.OpenAsync(cancellationToken);
+        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
         var sql = $"SELECT COUNT(*) FROM {_tableName} WHERE status = @status";
 
@@ -248,8 +267,9 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
 
     public async Task<DeadLetterStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         using var connection = new NpgsqlConnection(_options.ConnectionString);
-        await connection.OpenAsync(cancellationToken);
+        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
         long activeCount = 0, retriedCount = 0, discardedCount = 0, totalCount = 0;
         DateTimeOffset? oldestEntry = null, newestEntry = null;
