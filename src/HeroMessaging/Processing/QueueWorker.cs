@@ -14,6 +14,18 @@ namespace HeroMessaging.Processing;
 /// </summary>
 internal sealed class QueueWorker
 {
+    /// <summary>Maximum number of messages that can be queued for processing.</summary>
+    private const int DefaultBoundedCapacity = 100;
+
+    /// <summary>Delay between polls when queue is empty (milliseconds).</summary>
+    private const int EmptyQueuePollDelayMs = 100;
+
+    /// <summary>Delay after an error before retrying (milliseconds).</summary>
+    private const int ErrorRecoveryDelayMs = 1000;
+
+    /// <summary>Maximum number of times to requeue a failed message before sending to DLQ.</summary>
+    private const int MaxRequeueAttempts = 3;
+
     private readonly string _queueName;
     private readonly IQueueStorage _storage;
     private readonly IServiceProvider _serviceProvider;
@@ -45,7 +57,7 @@ internal sealed class QueueWorker
             new ExecutionDataflowBlockOptions
             {
                 MaxDegreeOfParallelism = 1,
-                BoundedCapacity = 100
+                BoundedCapacity = DefaultBoundedCapacity
             });
     }
 
@@ -89,6 +101,10 @@ internal sealed class QueueWorker
 
         await _processingBlock.Completion;
 
+        // Dispose CancellationTokenSource to prevent memory leak
+        _cancellationTokenSource?.Dispose();
+        _cancellationTokenSource = null;
+
         _logger.LogInformation("Queue worker stopped for {QueueName}", _queueName);
     }
 
@@ -105,7 +121,7 @@ internal sealed class QueueWorker
                 }
                 else
                 {
-                    await Task.Delay(100, cancellationToken);
+                    await Task.Delay(EmptyQueuePollDelayMs, cancellationToken);
                 }
             }
             catch (OperationCanceledException)
@@ -117,7 +133,7 @@ internal sealed class QueueWorker
                 _logger.LogError(ex, "Error polling queue {QueueName}", _queueName);
                 try
                 {
-                    await Task.Delay(1000, cancellationToken);
+                    await Task.Delay(ErrorRecoveryDelayMs, cancellationToken);
                 }
                 catch (OperationCanceledException)
                 {
@@ -156,7 +172,7 @@ internal sealed class QueueWorker
             _logger.LogError(ex, "Error processing message {MessageId} from queue {QueueName}",
                 entry.Message.MessageId, _queueName);
 
-            await _storage.RejectAsync(_queueName, entry.Id, requeue: entry.DequeueCount < 3);
+            await _storage.RejectAsync(_queueName, entry.Id, requeue: entry.DequeueCount < MaxRequeueAttempts);
         }
     }
 }

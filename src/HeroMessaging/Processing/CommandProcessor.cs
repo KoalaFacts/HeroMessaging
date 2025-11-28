@@ -11,6 +11,12 @@ namespace HeroMessaging.Processing;
 
 public class CommandProcessor : ICommandProcessor, IProcessor
 {
+    /// <summary>Maximum number of commands that can be queued for processing.</summary>
+    private const int DefaultBoundedCapacity = 100;
+
+    /// <summary>Maximum number of duration samples to keep for metrics calculation.</summary>
+    private const int MetricsHistorySize = 100;
+
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<CommandProcessor> _logger;
     private readonly ActionBlock<Func<Task>> _processingBlock;
@@ -35,7 +41,7 @@ public class CommandProcessor : ICommandProcessor, IProcessor
             new ExecutionDataflowBlockOptions
             {
                 MaxDegreeOfParallelism = 1,
-                BoundedCapacity = 100
+                BoundedCapacity = DefaultBoundedCapacity
             });
     }
 
@@ -67,7 +73,7 @@ public class CommandProcessor : ICommandProcessor, IProcessor
                 {
                     _processedCount++;
                     _durations.Add(sw.ElapsedMilliseconds);
-                    if (_durations.Count > 100) _durations.RemoveAt(0);
+                    if (_durations.Count > MetricsHistorySize) _durations.RemoveAt(0);
                 }
 
                 tcs.SetResult(true);
@@ -124,7 +130,7 @@ public class CommandProcessor : ICommandProcessor, IProcessor
                 {
                     _processedCount++;
                     _durations.Add(sw.ElapsedMilliseconds);
-                    if (_durations.Count > 100) _durations.RemoveAt(0);
+                    if (_durations.Count > MetricsHistorySize) _durations.RemoveAt(0);
                 }
 
                 tcs.SetResult(result);

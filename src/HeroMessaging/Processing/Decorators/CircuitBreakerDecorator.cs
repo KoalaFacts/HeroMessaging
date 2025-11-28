@@ -119,6 +119,11 @@ public class CircuitBreakerOptions
     /// Failure rate threshold (0.0 to 1.0)
     /// </summary>
     public double FailureRateThreshold { get; set; } = 0.5;
+
+    /// <summary>
+    /// Number of consecutive successes required in half-open state to close the circuit
+    /// </summary>
+    public int HalfOpenSuccessesRequired { get; set; } = 3;
 }
 
 /// <summary>
@@ -183,7 +188,7 @@ internal class CircuitBreakerState(CircuitBreakerOptions options, TimeProvider t
             if (_currentState == CircuitState.HalfOpen)
             {
                 _halfOpenSuccesses++;
-                if (_halfOpenSuccesses >= 3) // Require 3 consecutive successes to close
+                if (_halfOpenSuccesses >= _options.HalfOpenSuccessesRequired)
                 {
                     TransitionTo(CircuitState.Closed);
                 }
