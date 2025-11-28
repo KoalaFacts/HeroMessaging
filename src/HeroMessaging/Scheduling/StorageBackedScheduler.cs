@@ -193,11 +193,7 @@ public sealed class StorageBackedScheduler : IMessageScheduler, IAsyncDisposable
         {
             try
             {
-#if NET8_0_OR_GREATER
                 await Task.Delay(_options.PollingInterval, _timeProvider, cancellationToken);
-#else
-                await Task.Delay(_options.PollingInterval, cancellationToken);
-#endif
 
                 var dueMessages = await _storage.GetDueAsync(
                     _timeProvider.GetUtcNow(),
@@ -221,11 +217,7 @@ public sealed class StorageBackedScheduler : IMessageScheduler, IAsyncDisposable
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error in polling worker");
-#if NET8_0_OR_GREATER
                 await Task.Delay(TimeSpan.FromSeconds(5), _timeProvider, cancellationToken);
-#else
-                await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
-#endif
             }
         }
 
@@ -288,11 +280,7 @@ public sealed class StorageBackedScheduler : IMessageScheduler, IAsyncDisposable
         {
             try
             {
-#if NET8_0_OR_GREATER
                 await Task.Delay(_options.CleanupInterval, _timeProvider, cancellationToken);
-#else
-                await Task.Delay(_options.CleanupInterval, cancellationToken);
-#endif
 
                 var olderThan = _timeProvider.GetUtcNow().Subtract(_options.CleanupAge);
                 var removed = await _storage.CleanupAsync(olderThan, cancellationToken);

@@ -119,12 +119,7 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
         {
             try
             {
-                // Clean up old processed entries every hour
-#if NET8_0_OR_GREATER
                 await Task.Delay(TimeSpan.FromHours(1), _timeProvider, cancellationToken);
-#else
-                await Task.Delay(TimeSpan.FromHours(1), cancellationToken);
-#endif
 
                 await _inboxStorage.CleanupOldEntriesAsync(TimeSpan.FromDays(7), cancellationToken);
 

@@ -250,11 +250,8 @@ public sealed class InMemoryScheduler : IMessageScheduler, IDisposable
                 {
                     try
                     {
-#if NET8_0_OR_GREATER
                         await Task.Delay(TimeSpan.FromSeconds(60), _timeProvider, _disposeCts.Token);
-#else
-                        await Task.Delay(TimeSpan.FromSeconds(60), _disposeCts.Token);
-#endif
+
                         _scheduledMessages.TryRemove(scheduleId, out _);
                     }
                     catch (OperationCanceledException)

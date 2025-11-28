@@ -85,12 +85,7 @@ internal sealed class TokenBucket : IDisposable
 
             try
             {
-                // Use TimeProvider.Delay for testability (extension method for .NET 6/netstandard2.0)
-#if NET8_0_OR_GREATER
                 await Task.Delay(waitTime, _timeProvider, cancellationToken);
-#else
-                await _timeProvider.Delay(waitTime, cancellationToken);
-#endif
             }
             catch (OperationCanceledException)
             {

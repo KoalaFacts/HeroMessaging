@@ -96,17 +96,7 @@ public sealed class BatchDecorator : MessageProcessorDecorator, IAsyncDisposable
 
             // Wait for the background loop to reach its first wait state
             // This ensures the delay is created before the caller can advance FakeTimeProvider
-#if NET8_0_OR_GREATER
             await decorator._loopInitialized.Task.WaitAsync(cancellationToken);
-#else
-            // For netstandard2.0: race with cancellation task
-            var cancellationTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            using (cancellationToken.Register(() => cancellationTcs.TrySetCanceled(cancellationToken)))
-            {
-                await Task.WhenAny(decorator._loopInitialized.Task, cancellationTcs.Task);
-                cancellationToken.ThrowIfCancellationRequested();
-            }
-#endif
         }
 
         return decorator;
@@ -328,11 +318,7 @@ public sealed class BatchDecorator : MessageProcessorDecorator, IAsyncDisposable
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
         // Create timeout task using TimeProvider (enables FakeTimeProvider testing)
-#if NET8_0_OR_GREATER
         var delayTask = Task.Delay(_options.BatchTimeout, _timeProvider, timeoutCts.Token);
-#else
-        var delayTask = _timeProvider.Delay(_options.BatchTimeout, timeoutCts.Token);
-#endif
 
         // Create signal wait task
         var signalTask = _batchSignal.WaitAsync(timeoutCts.Token);

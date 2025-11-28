@@ -97,11 +97,8 @@ public abstract class PollingBackgroundServiceBase<TWorkItem>
 
                 var hasWork = workItems.Any();
                 var delay = GetPollingDelay(hasWork);
-#if NET8_0_OR_GREATER
+
                 await Task.Delay(delay, TimeProvider, cancellationToken);
-#else
-                await Task.Delay(delay, cancellationToken);
-#endif
             }
             catch (OperationCanceledException)
             {
@@ -110,11 +107,7 @@ public abstract class PollingBackgroundServiceBase<TWorkItem>
             catch (Exception ex)
             {
                 Logger.LogError(ex, "Error in {ServiceName} polling loop", GetServiceName());
-#if NET8_0_OR_GREATER
                 await Task.Delay(GetErrorDelay(), TimeProvider, cancellationToken);
-#else
-                await Task.Delay(GetErrorDelay(), cancellationToken);
-#endif
             }
         }
     }

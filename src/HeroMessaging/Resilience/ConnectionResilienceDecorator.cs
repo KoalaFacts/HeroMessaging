@@ -163,12 +163,7 @@ public class DefaultConnectionResiliencePolicy(
                 _logger.LogWarning(ex, "Transient error in operation {OperationName}. Retry {RetryCount}/{MaxRetries} after {DelayMs}ms",
                     operationName, retryCount, maxRetries, delay.TotalMilliseconds);
 
-                // Use TimeProvider for testable delays
-#if NET8_0_OR_GREATER
                 await Task.Delay(delay, _timeProvider, cancellationToken);
-#else
-                await _timeProvider.Delay(delay, cancellationToken);
-#endif
             }
             catch (Exception ex)
             {
