@@ -57,10 +57,12 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync();
 
-        var createTableSql = """
-            IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'DeadLetterQueue')
+        // Extract just the table name (without schema) for sys.tables check
+        var tableNameOnly = _options.DeadLetterTableName;
+        var createTableSql = $"""
+            IF NOT EXISTS (SELECT * FROM sys.tables t JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE s.name = '{_options.Schema}' AND t.name = '{tableNameOnly}')
             BEGIN
-                CREATE TABLE DeadLetterQueue (
+                CREATE TABLE {_tableName} (
                     Id NVARCHAR(100) PRIMARY KEY,
                     MessagePayload NVARCHAR(MAX) NOT NULL,
                     MessageType NVARCHAR(500) NOT NULL,
@@ -94,8 +96,8 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
 
-        var sql = """
-            INSERT INTO DeadLetterQueue (
+        var sql = $"""
+            INSERT INTO {_tableName} (
                 Id, MessagePayload, MessageType, Reason, Component, 
                 RetryCount, FailureTime, Status, CreatedAt, 
                 ExceptionMessage, Metadata
@@ -132,11 +134,11 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
 
-        var sql = """
+        var sql = $"""
             SELECT TOP(@Limit)
                 Id, MessagePayload, Reason, Component, RetryCount, FailureTime,
                 Status, CreatedAt, RetriedAt, DiscardedAt, ExceptionMessage, Metadata
-            FROM DeadLetterQueue
+            FROM {_tableName}
             WHERE MessageType = @MessageType AND Status = @ActiveStatus
             ORDER BY FailureTime DESC
             """;
@@ -192,8 +194,8 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
 
-        var sql = """
-            UPDATE DeadLetterQueue
+        var sql = $"""
+            UPDATE {_tableName}
             SET Status = @Status, RetriedAt = @RetriedAt
             WHERE Id = @Id AND Status = @ActiveStatus
             """;
@@ -214,8 +216,8 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
 
-        var sql = """
-            UPDATE DeadLetterQueue
+        var sql = $"""
+            UPDATE {_tableName}
             SET Status = @Status, DiscardedAt = @DiscardedAt
             WHERE Id = @Id AND Status = @ActiveStatus
             """;
@@ -236,7 +238,7 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
 
-        var sql = "SELECT COUNT(*) FROM DeadLetterQueue WHERE Status = @Status";
+        var sql = $"SELECT COUNT(*) FROM {_tableName} WHERE Status = @Status";
 
         using var command = new SqlCommand(sql, connection);
         command.Parameters.Add("@Status", SqlDbType.Int).Value = (int)DeadLetterStatus.Active;
@@ -257,13 +259,13 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
         var countByReason = new Dictionary<string, long>();
 
         // Get counts by status
-        var statusSql = """
+        var statusSql = $"""
             SELECT
                 SUM(CASE WHEN Status = 0 THEN 1 ELSE 0 END) as ActiveCount,
                 SUM(CASE WHEN Status = 1 THEN 1 ELSE 0 END) as RetriedCount,
                 SUM(CASE WHEN Status = 2 THEN 1 ELSE 0 END) as DiscardedCount,
                 COUNT(*) as TotalCount
-            FROM DeadLetterQueue
+            FROM {_tableName}
             """;
 
         using (var statusCommand = new SqlCommand(statusSql, connection))
@@ -279,9 +281,9 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
         }
 
         // Get counts by component
-        var componentSql = """
+        var componentSql = $"""
             SELECT Component, COUNT(*) as Count
-            FROM DeadLetterQueue
+            FROM {_tableName}
             WHERE Status = 0
             GROUP BY Component
             """;
@@ -296,9 +298,9 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
         }
 
         // Get counts by reason (top 10)
-        var reasonSql = """
+        var reasonSql = $"""
             SELECT TOP 10 Reason, COUNT(*) as Count
-            FROM DeadLetterQueue
+            FROM {_tableName}
             WHERE Status = 0
             GROUP BY Reason
             ORDER BY COUNT(*) DESC
@@ -314,11 +316,11 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
         }
 
         // Get oldest and newest entries
-        var dateSql = """
+        var dateSql = $"""
             SELECT
                 MIN(CreatedAt) as OldestEntry,
                 MAX(CreatedAt) as NewestEntry
-            FROM DeadLetterQueue
+            FROM {_tableName}
             WHERE Status = 0
             """;
 
