@@ -95,8 +95,14 @@ public sealed class RingBuffer<T> where T : class
     /// </summary>
     /// <param name="sequence">The sequence number</param>
     /// <returns>The pre-allocated event at this sequence</returns>
+    /// <remarks>
+    /// This method is in the hot path and does not validate the sequence for performance.
+    /// Callers must ensure the sequence was obtained from Next() or is within valid bounds.
+    /// </remarks>
     public T Get(long sequence)
     {
+        System.Diagnostics.Debug.Assert(sequence >= 0, "Sequence must be non-negative");
+
         // Fast modulo using bitwise AND (only works with power of 2)
         return _entries[sequence & _bufferMask];
     }
@@ -170,7 +176,7 @@ public sealed class RingBuffer<T> where T : class
         {
             SingleProducerSequencer single => single.GetCursor(),
             MultiProducerSequencer multi => multi.GetCursor(),
-            _ => -1
+            _ => throw new InvalidOperationException($"Unknown sequencer type: {_sequencer.GetType().Name}")
         };
     }
 
@@ -204,6 +210,9 @@ public sealed class RingBuffer<T> where T : class
             _dependentSequences = dependentSequences;
         }
 
+        private const int SpinIterations = 100;
+        private const int YieldIterations = 100;
+
         public long WaitFor(long sequence)
         {
             CheckAlert();
@@ -221,11 +230,27 @@ public sealed class RingBuffer<T> where T : class
                 }
             }
 
-            // If we're still waiting, spin until available
+            // Progressive backoff: spin -> yield -> sleep
+            int spinCount = 0;
             while (availableSequence < sequence)
             {
                 CheckAlert();
-                Thread.SpinWait(1);
+
+                // Progressive backoff to reduce CPU usage
+                if (spinCount < SpinIterations)
+                {
+                    Thread.SpinWait(1);
+                }
+                else if (spinCount < SpinIterations + YieldIterations)
+                {
+                    Thread.Yield();
+                }
+                else
+                {
+                    Thread.Sleep(0);
+                }
+                spinCount++;
+
                 availableSequence = GetCursorSequence();
 
                 if (_dependentSequences.Length > 0)
@@ -265,7 +290,7 @@ public sealed class RingBuffer<T> where T : class
             {
                 SingleProducerSequencer single => single.GetCursor(),
                 MultiProducerSequencer multi => multi.GetCursor(),
-                _ => -1
+                _ => throw new InvalidOperationException($"Unknown sequencer type: {_sequencer.GetType().Name}")
             };
         }
 

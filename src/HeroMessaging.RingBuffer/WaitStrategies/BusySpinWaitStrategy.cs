@@ -9,19 +9,15 @@ namespace HeroMessaging.RingBuffer.WaitStrategies;
 public sealed class BusySpinWaitStrategy : IWaitStrategy
 {
     /// <summary>
-    /// Busy spin indefinitely until the sequence is available.
-    /// WARNING: This will consume 100% of a CPU core.
+    /// Busy spin briefly and return - caller loops until sequence is available.
+    /// WARNING: This will consume 100% of a CPU core when used in a tight loop.
     /// </summary>
     public long WaitFor(long sequence)
     {
-        // Just spin forever - the processor will be checking
-        // for new events as fast as possible
-        while (true)
-        {
-            Thread.SpinWait(1);
-            // Note: In real usage, the caller will break out when
-            // the sequence becomes available
-        }
+        // Minimal spin - caller loops until sequence is available.
+        // This provides ultra-low latency by avoiding any yielding or sleeping.
+        Thread.SpinWait(1);
+        return sequence;
     }
 
     /// <summary>
