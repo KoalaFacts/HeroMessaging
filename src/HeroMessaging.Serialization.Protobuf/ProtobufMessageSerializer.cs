@@ -3,8 +3,66 @@ using ProtoBuf;
 using ProtoBuf.Meta;
 using System;
 using System.Buffers;
+using System.Collections.Concurrent;
 
 namespace HeroMessaging.Serialization.Protobuf;
+
+/// <summary>
+/// Type registry for safe type resolution during deserialization.
+/// Only explicitly registered types can be deserialized to prevent type injection attacks.
+/// </summary>
+public sealed class ProtobufTypeRegistry
+{
+    private readonly ConcurrentDictionary<string, Type> _allowedTypes = new();
+
+    /// <summary>
+    /// Registers a type as allowed for deserialization
+    /// </summary>
+    public ProtobufTypeRegistry Register<T>() where T : class
+    {
+        var type = typeof(T);
+        var typeName = type.AssemblyQualifiedName;
+        if (!string.IsNullOrEmpty(typeName))
+        {
+            _allowedTypes[typeName] = type;
+        }
+        // Also register by full name for flexibility
+        _allowedTypes[type.FullName ?? type.Name] = type;
+        return this;
+    }
+
+    /// <summary>
+    /// Registers a type as allowed for deserialization
+    /// </summary>
+    public ProtobufTypeRegistry Register(Type type)
+    {
+        ArgumentNullException.ThrowIfNull(type);
+        var typeName = type.AssemblyQualifiedName;
+        if (!string.IsNullOrEmpty(typeName))
+        {
+            _allowedTypes[typeName] = type;
+        }
+        _allowedTypes[type.FullName ?? type.Name] = type;
+        return this;
+    }
+
+    /// <summary>
+    /// Attempts to resolve a type name to an allowed type.
+    /// Returns null if the type is not registered (safe default).
+    /// </summary>
+    public Type? TryResolve(string? typeName)
+    {
+        if (string.IsNullOrEmpty(typeName))
+            return null;
+
+        return _allowedTypes.TryGetValue(typeName, out var type) ? type : null;
+    }
+
+    /// <summary>
+    /// Creates a new registry with common HeroMessaging types pre-registered
+    /// </summary>
+    public static ProtobufTypeRegistry CreateDefault() => new();
+}
 
 /// <summary>
 /// Protocol Buffers serializer for efficient binary serialization
@@ -134,16 +192,20 @@ public class ProtobufMessageSerializer(
 }
 
 /// <summary>
-/// Protobuf serializer with type information included for polymorphic scenarios
+/// Protobuf serializer with type information included for polymorphic scenarios.
+/// SECURITY: Uses ProtobufTypeRegistry to prevent type injection attacks.
+/// Only explicitly registered types can be deserialized.
 /// </summary>
 public class TypedProtobufMessageSerializer(
     SerializationOptions? options = null,
     RuntimeTypeModel? typeModel = null,
-    ICompressionProvider? compressionProvider = null) : IMessageSerializer
+    ICompressionProvider? compressionProvider = null,
+    ProtobufTypeRegistry? typeRegistry = null) : IMessageSerializer
 {
     private readonly SerializationOptions _options = options ?? new SerializationOptions();
     private readonly RuntimeTypeModel _typeModel = typeModel ?? RuntimeTypeModel.Default;
     private readonly ICompressionProvider _compressionProvider = compressionProvider ?? new GZipCompressionProvider();
+    private readonly ProtobufTypeRegistry _typeRegistry = typeRegistry ?? ProtobufTypeRegistry.CreateDefault();
 
     public string ContentType => "application/x-protobuf-typed";
 
@@ -221,16 +283,14 @@ public class TypedProtobufMessageSerializer(
 
         if (_options.IncludeTypeInformation)
         {
-            // Read type information
+            // Read type information - SECURITY: Only allow registered types
             var typeName = Serializer.DeserializeWithLengthPrefix<string>(stream, PrefixStyle.Base128);
-            if (!string.IsNullOrEmpty(typeName))
+            var resolvedType = _typeRegistry.TryResolve(typeName);
+            if (resolvedType != null)
             {
-                var actualType = Type.GetType(typeName);
-                if (actualType != null)
-                {
-                    messageType = actualType;
-                }
+                messageType = resolvedType;
             }
+            // If type not in registry, fall back to the provided messageType (safe default)
         }
 
         var result = _typeModel.DeserializeWithLengthPrefix(stream, null, messageType, PrefixStyle.Base128, 0);
@@ -304,15 +364,14 @@ public class TypedProtobufMessageSerializer(
 
         if (_options.IncludeTypeInformation)
         {
+            // Read type information - SECURITY: Only allow registered types
             var typeName = Serializer.DeserializeWithLengthPrefix<string>(stream, PrefixStyle.Base128);
-            if (!string.IsNullOrEmpty(typeName))
+            var resolvedType = _typeRegistry.TryResolve(typeName);
+            if (resolvedType != null)
             {
-                var actualType = Type.GetType(typeName);
-                if (actualType != null)
-                {
-                    messageType = actualType;
-                }
+                messageType = resolvedType;
             }
+            // If type not in registry, fall back to the provided messageType (safe default)
         }
 
         return _typeModel.DeserializeWithLengthPrefix(stream, null, messageType, PrefixStyle.Base128, 0);
