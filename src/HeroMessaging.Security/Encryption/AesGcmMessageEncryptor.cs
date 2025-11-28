@@ -70,19 +70,10 @@ public sealed class AesGcmMessageEncryptor : IMessageEncryptor
             var ciphertext = new byte[plaintext.Length];
             var tag = new byte[TagSize];
 
-#if NET8_0_OR_GREATER
-            // .NET 8+ supports tag size in constructor
             using (var aes = new AesGcm(_key, TagSize))
             {
                 aes.Encrypt(nonce, plaintext, ciphertext, tag);
             }
-#else
-            // .NET 6-7 don't support tag size parameter
-            using (var aes = new AesGcm(_key))
-            {
-                aes.Encrypt(nonce, plaintext, ciphertext, tag);
-            }
-#endif
 
             var encryptedData = new EncryptedData(
                 ciphertext,
@@ -117,8 +108,6 @@ public sealed class AesGcmMessageEncryptor : IMessageEncryptor
         {
             var plaintext = new byte[encryptedData.Ciphertext.Length];
 
-#if NET8_0_OR_GREATER
-            // .NET 8+ supports tag size in constructor
             using (var aes = new AesGcm(_key, TagSize))
             {
                 aes.Decrypt(
@@ -127,17 +116,6 @@ public sealed class AesGcmMessageEncryptor : IMessageEncryptor
                     encryptedData.AuthenticationTag,
                     plaintext);
             }
-#else
-            // .NET 6-7 don't support tag size parameter
-            using (var aes = new AesGcm(_key))
-            {
-                aes.Decrypt(
-                    encryptedData.InitializationVector,
-                    encryptedData.Ciphertext,
-                    encryptedData.AuthenticationTag,
-                    plaintext);
-            }
-#endif
 
             return Task.FromResult(plaintext);
         }
@@ -163,17 +141,10 @@ public sealed class AesGcmMessageEncryptor : IMessageEncryptor
             // Generate random nonce
             RandomNumberGenerator.Fill(iv.Slice(0, NonceSize));
 
-#if NET8_0_OR_GREATER
             using (var aes = new AesGcm(_key, TagSize))
             {
                 aes.Encrypt(iv.Slice(0, NonceSize), plaintext, ciphertext.Slice(0, plaintext.Length), tag.Slice(0, TagSize));
             }
-#else
-            using (var aes = new AesGcm(_key))
-            {
-                aes.Encrypt(iv.Slice(0, NonceSize), plaintext, ciphertext.Slice(0, plaintext.Length), tag.Slice(0, TagSize));
-            }
-#endif
 
             return plaintext.Length;
         }
@@ -210,17 +181,10 @@ public sealed class AesGcmMessageEncryptor : IMessageEncryptor
 
         try
         {
-#if NET8_0_OR_GREATER
             using (var aes = new AesGcm(_key, TagSize))
             {
                 aes.Decrypt(iv.Slice(0, NonceSize), ciphertext, tag.Slice(0, TagSize), plaintext.Slice(0, ciphertext.Length));
             }
-#else
-            using (var aes = new AesGcm(_key))
-            {
-                aes.Decrypt(iv.Slice(0, NonceSize), ciphertext, tag.Slice(0, TagSize), plaintext.Slice(0, ciphertext.Length));
-            }
-#endif
 
             return ciphertext.Length;
         }
