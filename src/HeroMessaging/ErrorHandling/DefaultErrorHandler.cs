@@ -65,30 +65,10 @@ public class DefaultErrorHandler(ILogger<DefaultErrorHandler> logger, IDeadLette
         return ErrorHandlingResult.SendToDeadLetter(defaultReason);
     }
 
-    private bool IsTransientError(Exception error)
-    {
-        return error is TimeoutException ||
-               error is TaskCanceledException ||
-               (error.InnerException != null && IsTransientError(error.InnerException)) ||
-               CompatibilityHelpers.Contains(error.Message, "timeout", StringComparison.OrdinalIgnoreCase) ||
-               CompatibilityHelpers.Contains(error.Message, "transient", StringComparison.OrdinalIgnoreCase);
-    }
+    private static bool IsTransientError(Exception error) => ErrorClassifier.IsTransient(error);
 
-    private bool IsCriticalError(Exception error)
-    {
-        return error is OutOfMemoryException ||
-               error is StackOverflowException ||
-               error is AccessViolationException;
-    }
+    private static bool IsCriticalError(Exception error) => ErrorClassifier.IsCritical(error);
 
-    private TimeSpan CalculateRetryDelay(int retryCount)
-    {
-        // Exponential backoff with jitter
-        var baseDelay = Math.Pow(2, retryCount);
-        var jitter = RandomHelper.Instance.NextDouble() * 0.3; // 30% jitter
-        var delaySeconds = baseDelay * (1 + jitter);
-
-        // Cap at 30 seconds
-        return TimeSpan.FromSeconds(Math.Min(delaySeconds, 30));
-    }
+    private static TimeSpan CalculateRetryDelay(int retryCount) =>
+        RetryDelayCalculator.Calculate(retryCount, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(30));
 }

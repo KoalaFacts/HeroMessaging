@@ -4,6 +4,8 @@ using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Utilities;
 using Microsoft.Extensions.Logging;
 
+// Uses centralized RetryDelayCalculator and ErrorClassifier utilities
+
 namespace HeroMessaging.Processing.Decorators;
 
 /// <summary>
@@ -68,51 +70,27 @@ public class RetryDecorator(
 }
 
 /// <summary>
-/// Exponential backoff retry policy with jitter
+/// Exponential backoff retry policy with jitter.
+/// Uses centralized RetryDelayCalculator and ErrorClassifier utilities.
 /// </summary>
 public class ExponentialBackoffRetryPolicy(
     int maxRetries = 3,
     TimeSpan? baseDelay = null,
     TimeSpan? maxDelay = null,
-    double jitterFactor = 0.3) : IRetryPolicy
+    double jitterFactor = RetryDelayCalculator.DefaultJitterFactor) : IRetryPolicy
 {
     public int MaxRetries { get; } = maxRetries;
-    private readonly TimeSpan _baseDelay = baseDelay ?? TimeSpan.FromSeconds(1);
-    private readonly TimeSpan _maxDelay = maxDelay ?? TimeSpan.FromSeconds(30);
+    private readonly TimeSpan _baseDelay = baseDelay ?? RetryDelayCalculator.DefaultBaseDelay;
+    private readonly TimeSpan _maxDelay = maxDelay ?? RetryDelayCalculator.DefaultMaxDelay;
     private readonly double _jitterFactor = jitterFactor;
 
     public bool ShouldRetry(Exception? exception, int attemptNumber)
     {
-        if (attemptNumber >= MaxRetries) return false;
-        if (exception == null) return false;
-
-        // Don't retry critical errors
-        if (exception is OutOfMemoryException ||
-            exception is StackOverflowException ||
-            exception is AccessViolationException)
-        {
-            return false;
-        }
-
-        // Retry transient errors
-        return IsTransientError(exception);
+        return ErrorClassifier.ShouldRetry(exception, attemptNumber, MaxRetries);
     }
 
     public TimeSpan GetRetryDelay(int attemptNumber)
     {
-        var exponentialDelay = _baseDelay.TotalMilliseconds * Math.Pow(2, attemptNumber);
-        var jitter = RandomHelper.Instance.NextDouble() * _jitterFactor;
-        var delayWithJitter = exponentialDelay * (1 + jitter);
-        var finalDelay = TimeSpan.FromMilliseconds(Math.Min(delayWithJitter, _maxDelay.TotalMilliseconds));
-
-        return finalDelay;
-    }
-
-    private bool IsTransientError(Exception exception)
-    {
-        return exception is TimeoutException ||
-               exception is TaskCanceledException ||
-               exception is OperationCanceledException ||
-               (exception.InnerException != null && IsTransientError(exception.InnerException));
+        return RetryDelayCalculator.Calculate(attemptNumber, _baseDelay, _maxDelay, _jitterFactor);
     }
 }

@@ -1,37 +1,9 @@
 using System.Data;
-using System.Data.Common;
 using HeroMessaging.Abstractions.Storage;
 using HeroMessaging.Utilities;
 using Microsoft.Extensions.Logging;
 
 namespace HeroMessaging.Resilience;
-
-#if !NET8_0_OR_GREATER
-// Extension method to provide Task.Delay with TimeProvider for earlier .NET versions
-internal static class TimeProviderDelayExtensions
-{
-    public static Task Delay(this TimeProvider timeProvider, TimeSpan delay, CancellationToken cancellationToken)
-    {
-        if (timeProvider == TimeProvider.System)
-        {
-            return Task.Delay(delay, cancellationToken);
-        }
-
-        // For FakeTimeProvider and custom implementations
-        // Use a TaskCompletionSource with a timer based on the TimeProvider
-        var tcs = new TaskCompletionSource<bool>();
-        var timer = timeProvider.CreateTimer(_ => tcs.TrySetResult(true), null, delay, Timeout.InfiniteTimeSpan);
-
-        cancellationToken.Register(() =>
-        {
-            timer.Dispose();
-            tcs.TrySetCanceled(cancellationToken);
-        });
-
-        return tcs.Task;
-    }
-}
-#endif
 
 /// <summary>
 /// Decorator that adds connection resilience to UnitOfWork operations
@@ -222,52 +194,12 @@ public class DefaultConnectionResiliencePolicy(
         }
     }
 
-    private bool IsTransientException(Exception exception)
-    {
-        return exception switch
-        {
-            TimeoutException => true,
-            TaskCanceledException => false, // Don't retry cancellations
-            OperationCanceledException => false,
-            DbException dbEx => IsTransientDbException(dbEx),
-            InvalidOperationException invalidOpEx when invalidOpEx.Message.Contains("connection", StringComparison.OrdinalIgnoreCase) => true,
-            _ => exception.InnerException != null && IsTransientException(exception.InnerException)
-        };
-    }
+    private static bool IsTransientException(Exception exception) =>
+        ErrorClassifier.IsTransient(exception, checkInnerException: true, treatCancellationAsTransient: false);
 
-    private bool IsTransientDbException(DbException dbException)
-    {
-        // Common transient error codes for SQL Server
-        var transientErrorCodes = new[]
-        {
-            2,     // Timeout
-            20,    // Instance failure
-            64,    // Connection failure
-            233,   // Connection reset
-            10053, // Connection aborted
-            10054, // Connection reset by peer
-            40197, // Service busy
-            40501, // Service busy
-            40613, // Database not available
-            49918, // Cannot process request
-            49919, // Cannot process request
-            49920  // Cannot process request
-        };
-
-        return transientErrorCodes.Contains(dbException.ErrorCode) ||
-               dbException.Message.Contains("timeout", StringComparison.OrdinalIgnoreCase) ||
-               dbException.Message.Contains("connection", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private TimeSpan CalculateDelay(int retryCount)
-    {
-        var baseDelay = _options.BaseRetryDelay.TotalMilliseconds;
-        var exponentialDelay = baseDelay * Math.Pow(2, retryCount - 1);
-        var jitter = RandomHelper.Instance.NextDouble() * 0.3; // 30% jitter
-        var delayWithJitter = exponentialDelay * (1 + jitter);
-
-        return TimeSpan.FromMilliseconds(Math.Min(delayWithJitter, _options.MaxRetryDelay.TotalMilliseconds));
-    }
+    private TimeSpan CalculateDelay(int retryCount) =>
+        RetryDelayCalculator.Calculate(retryCount, _options.BaseRetryDelay, _options.MaxRetryDelay,
+            RetryDelayCalculator.DefaultJitterFactor, useZeroBasedAttempt: false);
 }
 
 /// <summary>

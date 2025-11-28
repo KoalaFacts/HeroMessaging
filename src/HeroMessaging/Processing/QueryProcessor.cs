@@ -14,20 +14,10 @@ public class QueryProcessor : IQueryProcessor, IProcessor
     /// <summary>Maximum number of queries that can be queued for processing.</summary>
     private const int DefaultBoundedCapacity = 100;
 
-    /// <summary>Maximum number of duration samples to keep for metrics calculation.</summary>
-    private const int MetricsHistorySize = 100;
-
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<QueryProcessor> _logger;
     private readonly ActionBlock<Func<Task>> _processingBlock;
-    private long _processedCount;
-    private long _failedCount;
-    private readonly List<long> _durations = new();
-#if NET9_0_OR_GREATER
-    private readonly Lock _metricsLock = new();
-#else
-    private readonly object _metricsLock = new();
-#endif
+    private readonly ProcessorMetricsCollector _metrics = new();
 
     public bool IsRunning { get; private set; } = true;
 
@@ -69,13 +59,7 @@ public class QueryProcessor : IQueryProcessor, IProcessor
                 var result = await ((Task<TResponse>)handleMethod!.Invoke(handler, [query, cancellationToken])!).ConfigureAwait(false);
                 sw.Stop();
 
-                lock (_metricsLock)
-                {
-                    _processedCount++;
-                    _durations.Add(sw.ElapsedMilliseconds);
-                    if (_durations.Count > MetricsHistorySize) _durations.RemoveAt(0);
-                }
-
+                _metrics.RecordSuccess(sw.ElapsedMilliseconds);
                 tcs.SetResult(result);
             }
             catch (OperationCanceledException)
@@ -84,11 +68,7 @@ public class QueryProcessor : IQueryProcessor, IProcessor
             }
             catch (Exception ex)
             {
-                lock (_metricsLock)
-                {
-                    _failedCount++;
-                }
-
+                _metrics.RecordFailure();
                 _logger.LogError(ex, "Error processing query {QueryType}", query.GetType().Name);
                 tcs.SetException(ex);
             }
@@ -102,27 +82,5 @@ public class QueryProcessor : IQueryProcessor, IProcessor
         return await tcs.Task.ConfigureAwait(false);
     }
 
-    public IQueryProcessorMetrics GetMetrics()
-    {
-        lock (_metricsLock)
-        {
-            return new QueryProcessorMetrics
-            {
-                ProcessedCount = _processedCount,
-                FailedCount = _failedCount,
-                AverageDuration = _durations.Count > 0
-                    ? TimeSpan.FromMilliseconds(_durations.Average())
-                    : TimeSpan.Zero,
-                CacheHitRate = 0
-            };
-        }
-    }
-}
-
-public class QueryProcessorMetrics : IQueryProcessorMetrics
-{
-    public long ProcessedCount { get; init; }
-    public long FailedCount { get; init; }
-    public TimeSpan AverageDuration { get; init; }
-    public double CacheHitRate { get; init; }
+    public IQueryProcessorMetrics GetMetrics() => _metrics.GetQueryMetrics();
 }

@@ -1,9 +1,8 @@
 using HeroMessaging.Abstractions;
-using HeroMessaging.Abstractions.Commands;
-using HeroMessaging.Abstractions.Events;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Abstractions.Storage;
+using HeroMessaging.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -154,21 +153,7 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
             var messaging = scope.ServiceProvider.GetRequiredService<IHeroMessaging>();
 
             // Process based on message type
-            switch (entry.Message)
-            {
-                case ICommand command:
-                    await messaging.SendAsync(command);
-                    break;
-
-                case IEvent @event:
-                    await messaging.PublishAsync(@event);
-                    break;
-
-                default:
-                    Logger.LogWarning("Unknown message type in inbox: {MessageType}",
-                        entry.Message.GetType().Name);
-                    break;
-            }
+            await MessageDispatcher.DispatchAsync(messaging, entry.Message, Logger, "inbox");
 
             await _inboxStorage.MarkProcessedAsync(entry.Id);
 

@@ -12,6 +12,9 @@ namespace HeroMessaging.Processing;
 /// </summary>
 public class EventBus : IEventBus, IProcessor
 {
+    /// <summary>Maximum number of events that can be queued for processing.</summary>
+    private const int DefaultBoundedCapacity = 1000;
+
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<EventBus> _logger;
     private readonly ActionBlock<EventEnvelope> _processingBlock;
@@ -40,7 +43,7 @@ public class EventBus : IEventBus, IProcessor
             new ExecutionDataflowBlockOptions
             {
                 MaxDegreeOfParallelism = Environment.ProcessorCount,
-                BoundedCapacity = 1000
+                BoundedCapacity = DefaultBoundedCapacity
             });
     }
 

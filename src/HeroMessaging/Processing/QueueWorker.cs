@@ -1,8 +1,7 @@
 using System.Threading.Tasks.Dataflow;
 using HeroMessaging.Abstractions;
-using HeroMessaging.Abstractions.Commands;
-using HeroMessaging.Abstractions.Events;
 using HeroMessaging.Abstractions.Storage;
+using HeroMessaging.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -150,18 +149,7 @@ internal sealed class QueueWorker
             using var scope = _serviceProvider.CreateScope();
             var messaging = scope.ServiceProvider.GetRequiredService<IHeroMessaging>();
 
-            switch (entry.Message)
-            {
-                case ICommand command:
-                    await messaging.SendAsync(command);
-                    break;
-                case IEvent @event:
-                    await messaging.PublishAsync(@event);
-                    break;
-                default:
-                    _logger.LogWarning("Unknown message type in queue: {MessageType}", entry.Message.GetType().Name);
-                    break;
-            }
+            await MessageDispatcher.DispatchAsync(messaging, entry.Message, _logger, $"queue:{_queueName}");
 
             await _storage.AcknowledgeAsync(_queueName, entry.Id);
             _logger.LogDebug("Message {MessageId} processed successfully from queue {QueueName}",

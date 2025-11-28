@@ -1,6 +1,4 @@
 using HeroMessaging.Abstractions;
-using HeroMessaging.Abstractions.Commands;
-using HeroMessaging.Abstractions.Events;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Abstractions.Storage;
@@ -86,16 +84,7 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxEntry>, IOutbo
                 // Process internally
                 using var scope = _serviceProvider.CreateScope();
                 var messaging = scope.ServiceProvider.GetRequiredService<IHeroMessaging>();
-
-                switch (entry.Message)
-                {
-                    case ICommand command:
-                        await messaging.SendAsync(command);
-                        break;
-                    case IEvent @event:
-                        await messaging.PublishAsync(@event);
-                        break;
-                }
+                await MessageDispatcher.DispatchAsync(messaging, entry.Message, Logger, "outbox");
             }
 
             await _outboxStorage.MarkProcessedAsync(entry.Id);
@@ -116,7 +105,7 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxEntry>, IOutbo
             }
             else
             {
-                var delay = entry.Options.RetryDelay ?? TimeSpan.FromSeconds(Math.Pow(2, entry.RetryCount));
+                var delay = entry.Options.RetryDelay ?? RetryDelayCalculator.CalculateWithoutJitter(entry.RetryCount);
                 var nextRetry = _timeProvider.GetUtcNow().Add(delay);
 
                 await _outboxStorage.UpdateRetryCountAsync(entry.Id, entry.RetryCount, nextRetry);

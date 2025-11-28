@@ -4,40 +4,6 @@ using HeroMessaging.Abstractions.Policies;
 
 namespace HeroMessaging.Policies;
 
-// Extension method to provide Task.Delay with TimeProvider for .NET 6 and netstandard2.0
-// ReSharper disable once CheckNamespace
-#pragma warning disable IDE0130 // Namespace does not match folder structure
-public static class ExtensionsToTimeProviderForDelay
-{
-#if !NET8_0_OR_GREATER
-    public static Task Delay(this TimeProvider timeProvider, TimeSpan delay, CancellationToken cancellationToken)
-    {
-        if (timeProvider == TimeProvider.System)
-        {
-            return Task.Delay(delay, cancellationToken);
-        }
-
-        // For testing with FakeTimeProvider, use a timer-based approach
-        var tcs = new TaskCompletionSource<bool>();
-        ITimer? timer = null;
-
-        cancellationToken.Register(() =>
-        {
-            timer?.Dispose();
-            tcs.TrySetCanceled(cancellationToken);
-        });
-
-        timer = timeProvider.CreateTimer(_ =>
-        {
-            timer?.Dispose();
-            tcs.TrySetResult(true);
-        }, null, delay, Timeout.InfiniteTimeSpan);
-
-        return tcs.Task;
-    }
-#endif
-}
-
 /// <summary>
 /// Token Bucket rate limiter implementation.
 /// Allows controlled bursts while maintaining a steady-state rate.
