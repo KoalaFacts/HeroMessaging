@@ -23,6 +23,9 @@ public class PostgreSqlSchemaInitializer : IDbSchemaInitializer
             return; // public schema always exists in PostgreSQL
         }
 
+        // SECURITY: Validate schema name to prevent SQL injection
+        PostgreSqlStorageOptions.ValidateSqlIdentifier(schemaName, nameof(schemaName));
+
         var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
         try
         {

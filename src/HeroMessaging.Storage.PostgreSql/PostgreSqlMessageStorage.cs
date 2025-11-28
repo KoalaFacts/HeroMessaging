@@ -12,6 +12,12 @@ namespace HeroMessaging.Storage.PostgreSql;
 /// </summary>
 public class PostgreSqlMessageStorage : IMessageStorage
 {
+    // SECURITY: Whitelist of allowed column names for ORDER BY to prevent SQL injection
+    private static readonly HashSet<string> AllowedOrderByColumns = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "id", "message_type", "timestamp", "correlation_id", "collection", "expires_at", "created_at"
+    };
+
     private readonly PostgreSqlStorageOptions _options;
     private readonly NpgsqlConnection? _sharedConnection;
     private readonly NpgsqlTransaction? _sharedTransaction;
@@ -22,6 +28,22 @@ public class PostgreSqlMessageStorage : IMessageStorage
     private readonly IJsonSerializer _jsonSerializer;
     private readonly SemaphoreSlim _initLock = new(1, 1);
     private bool _initialized;
+
+    /// <summary>
+    /// Validates that an ORDER BY column name is in the allowed whitelist.
+    /// SECURITY: Prevents SQL injection via ORDER BY clause.
+    /// </summary>
+    private static string ValidateOrderByColumn(string? columnName)
+    {
+        var column = columnName ?? "timestamp";
+        if (!AllowedOrderByColumns.Contains(column))
+        {
+            throw new ArgumentException(
+                $"Invalid ORDER BY column '{column}'. Allowed columns: {string.Join(", ", AllowedOrderByColumns)}",
+                nameof(columnName));
+        }
+        return column;
+    }
 
     public PostgreSqlMessageStorage(PostgreSqlStorageOptions options, TimeProvider timeProvider, IJsonSerializer jsonSerializer)
     {
@@ -283,7 +305,7 @@ public class PostgreSqlMessageStorage : IMessageStorage
             }
 
             var whereClause = string.Join(" AND ", whereClauses);
-            var orderBy = query.OrderBy ?? "timestamp";
+            var orderBy = ValidateOrderByColumn(query.OrderBy);
             var orderDirection = query.Ascending ? "ASC" : "DESC";
             var limit = query.Limit ?? 100;
             var offset = query.Offset ?? 0;
@@ -562,7 +584,7 @@ public class PostgreSqlMessageStorage : IMessageStorage
         }
 
         var whereClause = string.Join(" AND ", whereClauses);
-        var orderBy = query.OrderBy ?? "timestamp";
+        var orderBy = ValidateOrderByColumn(query.OrderBy);
         var orderDirection = query.Ascending ? "ASC" : "DESC";
         var limit = query.Limit ?? query.MaxResults;
         var offset = query.Offset ?? 0;

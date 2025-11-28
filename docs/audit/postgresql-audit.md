@@ -8,7 +8,7 @@
 | Metric | Value |
 |--------|-------|
 | Critical Issues | 0 (1 Fixed) |
-| High Priority Issues | 3 |
+| High Priority Issues | 1 (2 Fixed) |
 | Medium Priority Issues | 10 |
 | Low Priority Issues | 0 |
 
@@ -36,26 +36,21 @@
 
 ## High Priority Issues
 
-### 1. SQL Injection - ORDER BY in PostgreSqlMessageStorage
+### 1. SQL Injection - ORDER BY in PostgreSqlMessageStorage - **FIXED**
 
 **File**: `PostgreSqlMessageStorage.cs:286-296, 565-575`
 
-```csharp
-var orderBy = query.OrderBy ?? "timestamp";
-ORDER BY {orderBy} {orderDirection}
-```
+~~`var orderBy = query.OrderBy ?? "timestamp";`~~
 
-**Fix**: Whitelist validation for allowed column names.
+**Status**: ✅ FIXED - Added `AllowedOrderByColumns` whitelist and `ValidateOrderByColumn()` method. All ORDER BY columns now validated against whitelist.
 
-### 2. SQL Injection - Schema Name in PostgreSqlSchemaInitializer
+### 2. SQL Injection - Schema Name in PostgreSqlSchemaInitializer - **FIXED**
 
 **File**: `PostgreSqlSchemaInitializer.cs:29`
 
-```csharp
-var sql = $"CREATE SCHEMA IF NOT EXISTS {schemaName}";
-```
+~~`var sql = $"CREATE SCHEMA IF NOT EXISTS {schemaName}";`~~
 
-**Fix**: Add `ValidateSqlIdentifier()` call at method entry.
+**Status**: ✅ FIXED - Added `PostgreSqlStorageOptions.ValidateSqlIdentifier()` call at method entry.
 
 ## Medium Priority Issues
 
