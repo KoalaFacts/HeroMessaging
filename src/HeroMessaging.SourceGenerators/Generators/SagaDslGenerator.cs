@@ -296,7 +296,7 @@ public class SagaDslGenerator : IIncrementalGenerator
     private static string GetShortTypeName(string fullyQualifiedName)
     {
         var parts = fullyQualifiedName.Split('.');
-        return parts[^1];
+        return parts[parts.Length - 1];
     }
 
     private class SagaInfo
