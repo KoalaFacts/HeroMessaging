@@ -23,23 +23,8 @@ namespace HeroMessaging.Storage.SqlServer;
 /// <item><description>Upsert operations using MERGE statement for atomic updates</description></item>
 /// <item><description>Automatic expiration handling through indexed queries</description></item>
 /// <item><description>Thread-safe operations across multiple application instances</description></item>
+/// <item><description>Lazy initialization with auto table creation when AutoCreateTables is enabled</description></item>
 /// </list>
-/// <para>
-/// Table schema requirements:
-/// </para>
-/// <code>
-/// CREATE TABLE IdempotencyResponses (
-///     IdempotencyKey NVARCHAR(450) NOT NULL PRIMARY KEY,
-///     Status TINYINT NOT NULL,
-///     SuccessResult NVARCHAR(MAX) NULL,
-///     FailureType NVARCHAR(500) NULL,
-///     FailureMessage NVARCHAR(MAX) NULL,
-///     FailureStackTrace NVARCHAR(MAX) NULL,
-///     StoredAt DATETIME2 NOT NULL,
-///     ExpiresAt DATETIME2 NOT NULL,
-///     INDEX IX_IdempotencyResponses_ExpiresAt NONCLUSTERED (ExpiresAt ASC)
-/// );
-/// </code>
 /// <para>
 /// Performance characteristics:
 /// </para>
@@ -52,10 +37,32 @@ namespace HeroMessaging.Storage.SqlServer;
 /// </remarks>
 public sealed class SqlServerIdempotencyStore : IIdempotencyStore
 {
+    private readonly SqlServerStorageOptions _options;
     private readonly string _connectionString;
+    private readonly string _tableName;
     private readonly TimeProvider _timeProvider;
     private readonly JsonSerializerOptions _jsonOptions;
     private readonly IJsonSerializer _jsonSerializer;
+    private readonly SemaphoreSlim _initLock = new(1, 1);
+    private bool _initialized;
+
+    /// <summary>
+    /// Initializes a new instance with storage options for full configuration including auto table creation.
+    /// </summary>
+    public SqlServerIdempotencyStore(SqlServerStorageOptions options, TimeProvider timeProvider, IJsonSerializer jsonSerializer)
+    {
+        _options = options ?? throw new ArgumentNullException(nameof(options));
+        _connectionString = options.ConnectionString;
+        _tableName = options.GetFullTableName("IdempotencyResponses");
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+        _jsonSerializer = jsonSerializer ?? throw new ArgumentNullException(nameof(jsonSerializer));
+        _jsonOptions = new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true,
+            AllowTrailingCommas = true,
+            WriteIndented = false
+        };
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SqlServerIdempotencyStore"/> class.
@@ -75,7 +82,9 @@ public sealed class SqlServerIdempotencyStore : IIdempotencyStore
         if (string.IsNullOrWhiteSpace(connectionString))
             throw new ArgumentException("Connection string cannot be empty or whitespace.", nameof(connectionString));
 
+        _options = new SqlServerStorageOptions { ConnectionString = connectionString };
         _connectionString = connectionString;
+        _tableName = _options.GetFullTableName("IdempotencyResponses");
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         _jsonSerializer = jsonSerializer ?? throw new ArgumentNullException(nameof(jsonSerializer));
         _jsonOptions = new JsonSerializerOptions
@@ -84,6 +93,50 @@ public sealed class SqlServerIdempotencyStore : IIdempotencyStore
             AllowTrailingCommas = true,
             WriteIndented = false
         };
+    }
+
+    private async Task EnsureInitializedAsync(CancellationToken cancellationToken = default)
+    {
+        if (_initialized || !_options.AutoCreateTables) return;
+
+        await _initLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (_initialized) return;
+            await InitializeDatabaseAsync(cancellationToken).ConfigureAwait(false);
+            _initialized = true;
+        }
+        finally
+        {
+            _initLock.Release();
+        }
+    }
+
+    private async Task InitializeDatabaseAsync(CancellationToken cancellationToken)
+    {
+        using var connection = new SqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+
+        var createTableSql = $"""
+            IF NOT EXISTS (SELECT * FROM sys.tables t JOIN sys.schemas s ON t.schema_id = s.schema_id
+                           WHERE s.name = '{_options.Schema}' AND t.name = 'IdempotencyResponses')
+            BEGIN
+                CREATE TABLE {_tableName} (
+                    IdempotencyKey NVARCHAR(450) NOT NULL PRIMARY KEY,
+                    Status TINYINT NOT NULL,
+                    SuccessResult NVARCHAR(MAX) NULL,
+                    FailureType NVARCHAR(500) NULL,
+                    FailureMessage NVARCHAR(MAX) NULL,
+                    FailureStackTrace NVARCHAR(MAX) NULL,
+                    StoredAt DATETIME2 NOT NULL,
+                    ExpiresAt DATETIME2 NOT NULL,
+                    INDEX IX_IdempotencyResponses_ExpiresAt NONCLUSTERED (ExpiresAt ASC)
+                )
+            END
+            """;
+
+        using var command = new SqlCommand(createTableSql, connection);
+        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -96,7 +149,9 @@ public sealed class SqlServerIdempotencyStore : IIdempotencyStore
         if (string.IsNullOrEmpty(idempotencyKey))
             throw new ArgumentException("Idempotency key cannot be empty.", nameof(idempotencyKey));
 
-        const string sql = @"
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+
+        var sql = $@"
             SELECT
                 IdempotencyKey,
                 Status,
@@ -106,7 +161,7 @@ public sealed class SqlServerIdempotencyStore : IIdempotencyStore
                 FailureStackTrace,
                 StoredAt,
                 ExpiresAt
-            FROM IdempotencyResponses WITH (NOLOCK)
+            FROM {_tableName} WITH (NOLOCK)
             WHERE IdempotencyKey = @IdempotencyKey
                 AND ExpiresAt > @Now";
 
@@ -158,12 +213,14 @@ public sealed class SqlServerIdempotencyStore : IIdempotencyStore
         if (string.IsNullOrEmpty(idempotencyKey))
             throw new ArgumentException("Idempotency key cannot be empty.", nameof(idempotencyKey));
 
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+
         var now = _timeProvider.GetUtcNow().UtcDateTime;
         var expiresAt = now.Add(ttl);
         var serializedResult = SerializeResult(result);
 
-        const string sql = @"
-            MERGE IdempotencyResponses AS target
+        var sql = $@"
+            MERGE {_tableName} AS target
             USING (SELECT @IdempotencyKey AS IdempotencyKey) AS source
             ON target.IdempotencyKey = source.IdempotencyKey
             WHEN MATCHED THEN
@@ -215,11 +272,13 @@ public sealed class SqlServerIdempotencyStore : IIdempotencyStore
         if (exception == null)
             throw new ArgumentNullException(nameof(exception));
 
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+
         var now = _timeProvider.GetUtcNow().UtcDateTime;
         var expiresAt = now.Add(ttl);
 
-        const string sql = @"
-            MERGE IdempotencyResponses AS target
+        var sql = $@"
+            MERGE {_tableName} AS target
             USING (SELECT @IdempotencyKey AS IdempotencyKey) AS source
             ON target.IdempotencyKey = source.IdempotencyKey
             WHEN MATCHED THEN
@@ -269,9 +328,11 @@ public sealed class SqlServerIdempotencyStore : IIdempotencyStore
         if (string.IsNullOrEmpty(idempotencyKey))
             throw new ArgumentException("Idempotency key cannot be empty.", nameof(idempotencyKey));
 
-        const string sql = @"
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+
+        var sql = $@"
             SELECT COUNT(1)
-            FROM IdempotencyResponses WITH (NOLOCK)
+            FROM {_tableName} WITH (NOLOCK)
             WHERE IdempotencyKey = @IdempotencyKey
                 AND ExpiresAt > @Now";
 
@@ -298,8 +359,10 @@ public sealed class SqlServerIdempotencyStore : IIdempotencyStore
     /// <inheritdoc />
     public async ValueTask<int> CleanupExpiredAsync(CancellationToken cancellationToken = default)
     {
-        const string sql = @"
-            DELETE FROM IdempotencyResponses
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+
+        var sql = $@"
+            DELETE FROM {_tableName}
             WHERE ExpiresAt <= @Now;
             SELECT @@ROWCOUNT;";
 
