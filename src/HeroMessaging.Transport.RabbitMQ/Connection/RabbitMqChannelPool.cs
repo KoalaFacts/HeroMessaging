@@ -199,7 +199,7 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
     /// <summary>
     /// Represents a channel in the pool with metadata
     /// </summary>
-    private sealed class PooledChannel : IDisposable
+    private sealed class PooledChannel : IAsyncDisposable, IDisposable
     {
         private readonly TimeSpan _lifetime;
         private readonly TimeProvider _timeProvider;
@@ -218,7 +218,7 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
             _created = _timeProvider.GetUtcNow();
         }
 
-        public void Dispose()
+        public async ValueTask DisposeAsync()
         {
             if (_disposed) return;
             _disposed = true;
@@ -227,7 +227,37 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
             {
                 if (Channel.IsOpen)
                 {
-                    Channel.CloseAsync().GetAwaiter().GetResult();
+                    await Channel.CloseAsync().ConfigureAwait(false);
+                }
+                Channel.Dispose();
+            }
+            catch
+            {
+                // Ignore disposal errors
+            }
+        }
+
+        public void Dispose()
+        {
+            if (_disposed) return;
+            _disposed = true;
+
+            try
+            {
+                // Non-blocking disposal: schedule async close on thread pool
+                if (Channel.IsOpen)
+                {
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await Channel.CloseAsync().ConfigureAwait(false);
+                        }
+                        catch
+                        {
+                            // Ignore errors during async close
+                        }
+                    });
                 }
                 Channel.Dispose();
             }

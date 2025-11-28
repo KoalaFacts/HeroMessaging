@@ -373,9 +373,32 @@ internal sealed class RabbitMqConnectionPool : IAsyncDisposable
 
         public void Dispose()
         {
-            // For sync callers, run async disposal and wait
-            // This is only used during health check which runs on a timer
-            DisposeAsync().AsTask().GetAwaiter().GetResult();
+            if (_disposed) return;
+            _disposed = true;
+
+            try
+            {
+                // Non-blocking disposal: schedule async close on thread pool to prevent thread starvation
+                if (Connection.IsOpen)
+                {
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await Connection.CloseAsync().ConfigureAwait(false);
+                        }
+                        catch
+                        {
+                            // Ignore errors during async close
+                        }
+                    });
+                }
+                Connection.Dispose();
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogDebug(ex, "Error disposing RabbitMQ connection: {ConnectionId}", Connection.ClientProvidedName);
+            }
         }
     }
 }
