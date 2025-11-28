@@ -290,7 +290,6 @@ public class DefaultJsonSerializerTests
         }
     }
 
-#if !NETSTANDARD2_0
     [Trait("Category", "Unit")]
     public class SerializeToBuffer
     {
@@ -351,7 +350,6 @@ public class DefaultJsonSerializerTests
             Assert.Contains("\n", json);
         }
     }
-#endif
 
     [Trait("Category", "Unit")]
     public class DeserializeFromString_Generic

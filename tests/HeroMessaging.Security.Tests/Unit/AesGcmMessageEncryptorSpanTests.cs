@@ -8,7 +8,6 @@ namespace HeroMessaging.Security.Tests.Unit;
 [Trait("Category", "Unit")]
 public sealed class AesGcmMessageEncryptorSpanTests
 {
-#if !NETSTANDARD2_0
     [Fact]
     public void Encrypt_WithValidData_ReturnsExpectedLength()
     {
@@ -460,5 +459,4 @@ public sealed class AesGcmMessageEncryptorSpanTests
         Assert.Equal(plaintext.Length, decBytes);
         Assert.True(plaintext.SequenceEqual(decrypted));
     }
-#endif
 }

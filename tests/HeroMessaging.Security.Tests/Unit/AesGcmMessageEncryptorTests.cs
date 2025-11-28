@@ -83,7 +83,6 @@ public sealed class AesGcmMessageEncryptorTests
         Assert.NotNull(encryptor);
     }
 
-#if !NETSTANDARD2_0
     [Fact]
     public async Task EncryptAsync_WithValidData_ReturnsEncryptedData()
     {
@@ -179,7 +178,6 @@ public sealed class AesGcmMessageEncryptorTests
         await Assert.ThrowsAsync<EncryptionException>(
             () => encryptor2.DecryptAsync(encrypted, context));
     }
-#endif
 
     [Fact]
     public async Task EncryptAsync_WithNullPlaintext_ThrowsArgumentNullException()
@@ -207,7 +205,6 @@ public sealed class AesGcmMessageEncryptorTests
         Assert.Equal("encryptedData", exception.ParamName);
     }
 
-#if !NETSTANDARD2_0
     [Fact]
     public async Task DecryptAsync_WithWrongAlgorithm_ThrowsEncryptionException()
     {
@@ -270,5 +267,4 @@ public sealed class AesGcmMessageEncryptorTests
         // Assert
         Assert.Equal(plaintext, decrypted);
     }
-#endif
 }
