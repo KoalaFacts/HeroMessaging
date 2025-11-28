@@ -3,7 +3,6 @@ using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Abstractions.Storage;
 using HeroMessaging.Utilities;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace HeroMessaging.Processing;
@@ -149,11 +148,8 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
             // Mark as processing
             entry.Status = InboxStatus.Processing;
 
-            using var scope = _serviceProvider.CreateScope();
-            var messaging = scope.ServiceProvider.GetRequiredService<IHeroMessaging>();
-
             // Process based on message type
-            await MessageDispatcher.DispatchAsync(messaging, entry.Message, Logger, "inbox");
+            await ScopedMessagingExecutor.DispatchAsync(_serviceProvider, entry.Message, Logger, "inbox");
 
             await _inboxStorage.MarkProcessedAsync(entry.Id);
 

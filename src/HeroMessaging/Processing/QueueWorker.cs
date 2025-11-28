@@ -1,8 +1,6 @@
 using System.Threading.Tasks.Dataflow;
-using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Storage;
 using HeroMessaging.Utilities;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace HeroMessaging.Processing;
@@ -13,18 +11,6 @@ namespace HeroMessaging.Processing;
 /// </summary>
 internal sealed class QueueWorker
 {
-    /// <summary>Maximum number of messages that can be queued for processing.</summary>
-    private const int DefaultBoundedCapacity = 100;
-
-    /// <summary>Delay between polls when queue is empty (milliseconds).</summary>
-    private const int EmptyQueuePollDelayMs = 100;
-
-    /// <summary>Delay after an error before retrying (milliseconds).</summary>
-    private const int ErrorRecoveryDelayMs = 1000;
-
-    /// <summary>Maximum number of times to requeue a failed message before sending to DLQ.</summary>
-    private const int MaxRequeueAttempts = 3;
-
     private readonly string _queueName;
     private readonly IQueueStorage _storage;
     private readonly IServiceProvider _serviceProvider;
@@ -56,7 +42,7 @@ internal sealed class QueueWorker
             new ExecutionDataflowBlockOptions
             {
                 MaxDegreeOfParallelism = 1,
-                BoundedCapacity = DefaultBoundedCapacity
+                BoundedCapacity = ProcessingConstants.DefaultBoundedCapacity
             });
     }
 
@@ -120,7 +106,7 @@ internal sealed class QueueWorker
                 }
                 else
                 {
-                    await Task.Delay(EmptyQueuePollDelayMs, cancellationToken);
+                    await Task.Delay(ProcessingConstants.EmptyQueuePollDelayMs, cancellationToken);
                 }
             }
             catch (OperationCanceledException)
@@ -132,7 +118,7 @@ internal sealed class QueueWorker
                 _logger.LogError(ex, "Error polling queue {QueueName}", _queueName);
                 try
                 {
-                    await Task.Delay(ErrorRecoveryDelayMs, cancellationToken);
+                    await Task.Delay(ProcessingConstants.ErrorRecoveryDelayMs, cancellationToken);
                 }
                 catch (OperationCanceledException)
                 {
@@ -146,10 +132,7 @@ internal sealed class QueueWorker
     {
         try
         {
-            using var scope = _serviceProvider.CreateScope();
-            var messaging = scope.ServiceProvider.GetRequiredService<IHeroMessaging>();
-
-            await MessageDispatcher.DispatchAsync(messaging, entry.Message, _logger, $"queue:{_queueName}");
+            await ScopedMessagingExecutor.DispatchAsync(_serviceProvider, entry.Message, _logger, $"queue:{_queueName}");
 
             await _storage.AcknowledgeAsync(_queueName, entry.Id);
             _logger.LogDebug("Message {MessageId} processed successfully from queue {QueueName}",
@@ -160,7 +143,7 @@ internal sealed class QueueWorker
             _logger.LogError(ex, "Error processing message {MessageId} from queue {QueueName}",
                 entry.Message.MessageId, _queueName);
 
-            await _storage.RejectAsync(_queueName, entry.Id, requeue: entry.DequeueCount < MaxRequeueAttempts);
+            await _storage.RejectAsync(_queueName, entry.Id, requeue: entry.DequeueCount < ProcessingConstants.MaxRequeueAttempts);
         }
     }
 }

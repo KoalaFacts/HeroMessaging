@@ -9,9 +9,6 @@ namespace HeroMessaging.Processing;
 /// </summary>
 internal sealed class ProcessorMetricsCollector
 {
-    /// <summary>Maximum number of duration samples to keep for metrics calculation.</summary>
-    private const int DefaultMetricsHistorySize = 100;
-
     private readonly int _metricsHistorySize;
     private readonly List<long> _durations;
     private long _processedCount;
@@ -27,7 +24,7 @@ internal sealed class ProcessorMetricsCollector
     /// Initializes a new instance of the <see cref="ProcessorMetricsCollector"/> class.
     /// </summary>
     /// <param name="metricsHistorySize">Maximum number of duration samples to keep. Defaults to 100.</param>
-    public ProcessorMetricsCollector(int metricsHistorySize = DefaultMetricsHistorySize)
+    public ProcessorMetricsCollector(int metricsHistorySize = ProcessingConstants.DefaultMetricsHistorySize)
     {
         _metricsHistorySize = metricsHistorySize;
         _durations = new List<long>(metricsHistorySize);

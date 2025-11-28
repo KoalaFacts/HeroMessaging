@@ -3,7 +3,6 @@ using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Abstractions.Storage;
 using HeroMessaging.Utilities;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace HeroMessaging.Processing;
@@ -82,9 +81,7 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxEntry>, IOutbo
             else
             {
                 // Process internally
-                using var scope = _serviceProvider.CreateScope();
-                var messaging = scope.ServiceProvider.GetRequiredService<IHeroMessaging>();
-                await MessageDispatcher.DispatchAsync(messaging, entry.Message, Logger, "outbox");
+                await ScopedMessagingExecutor.DispatchAsync(_serviceProvider, entry.Message, Logger, "outbox");
             }
 
             await _outboxStorage.MarkProcessedAsync(entry.Id);

@@ -11,9 +11,6 @@ namespace HeroMessaging.Processing;
 
 public class QueryProcessor : IQueryProcessor, IProcessor
 {
-    /// <summary>Maximum number of queries that can be queued for processing.</summary>
-    private const int DefaultBoundedCapacity = 100;
-
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<QueryProcessor> _logger;
     private readonly ActionBlock<Func<Task>> _processingBlock;
@@ -31,7 +28,7 @@ public class QueryProcessor : IQueryProcessor, IProcessor
             new ExecutionDataflowBlockOptions
             {
                 MaxDegreeOfParallelism = 1,
-                BoundedCapacity = DefaultBoundedCapacity
+                BoundedCapacity = ProcessingConstants.DefaultBoundedCapacity
             });
     }
 

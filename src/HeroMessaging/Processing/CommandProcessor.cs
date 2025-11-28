@@ -11,9 +11,6 @@ namespace HeroMessaging.Processing;
 
 public class CommandProcessor : ICommandProcessor, IProcessor
 {
-    /// <summary>Maximum number of commands that can be queued for processing.</summary>
-    private const int DefaultBoundedCapacity = 100;
-
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<CommandProcessor> _logger;
     private readonly ActionBlock<Func<Task>> _processingBlock;
@@ -31,7 +28,7 @@ public class CommandProcessor : ICommandProcessor, IProcessor
             new ExecutionDataflowBlockOptions
             {
                 MaxDegreeOfParallelism = 1,
-                BoundedCapacity = DefaultBoundedCapacity
+                BoundedCapacity = ProcessingConstants.DefaultBoundedCapacity
             });
     }
 
