@@ -20,6 +20,8 @@ public class SqlServerMessageStorage : IMessageStorage
     private readonly SqlTransaction? _sharedTransaction;
     private readonly TimeProvider _timeProvider;
     private readonly IJsonSerializer _jsonSerializer;
+    private readonly SemaphoreSlim _initLock = new(1, 1);
+    private bool _initialized;
 
     public SqlServerMessageStorage(
         SqlServerStorageOptions options,
@@ -38,7 +40,9 @@ public class SqlServerMessageStorage : IMessageStorage
             WriteIndented = false
         };
 
-        InitializeDatabase().GetAwaiter().GetResult();
+        // Validate SQL identifiers to prevent injection
+        ValidateSqlIdentifier(_options.Schema, nameof(_options.Schema));
+        ValidateSqlIdentifier(_options.MessagesTableName, nameof(_options.MessagesTableName));
     }
 
     /// <summary>
@@ -82,6 +86,50 @@ public class SqlServerMessageStorage : IMessageStorage
     private SqlTransaction? GetTransaction()
     {
         return _sharedTransaction;
+    }
+
+    /// <summary>
+    /// Validates that a SQL identifier (schema/table name) is safe to use in SQL statements.
+    /// Prevents SQL injection by rejecting unsafe characters.
+    /// </summary>
+    private static void ValidateSqlIdentifier(string? identifier, string paramName)
+    {
+        if (string.IsNullOrEmpty(identifier))
+            return;
+
+        // SQL Server identifiers must:
+        // - Start with letter, underscore, or @ (for variables)
+        // - Contain only letters, digits, underscores
+        // - Not contain SQL keywords or special characters
+        foreach (var c in identifier)
+        {
+            if (!char.IsLetterOrDigit(c) && c != '_')
+            {
+                throw new ArgumentException(
+                    $"Invalid SQL identifier '{identifier}'. Only letters, digits, and underscores are allowed.",
+                    paramName);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Ensures the database schema is initialized. Uses lazy initialization to avoid blocking constructor.
+    /// </summary>
+    private async Task EnsureInitializedAsync(CancellationToken cancellationToken = default)
+    {
+        if (_initialized) return;
+
+        await _initLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (_initialized) return;
+            await InitializeDatabase().ConfigureAwait(false);
+            _initialized = true;
+        }
+        finally
+        {
+            _initLock.Release();
+        }
     }
 
     private async Task InitializeDatabase()
@@ -133,8 +181,10 @@ public class SqlServerMessageStorage : IMessageStorage
 
     public async Task<string> StoreAsync(IMessage message, MessageStorageOptions? options = null, CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+
         using var connection = new SqlConnection(_connectionString);
-        await connection.OpenAsync(cancellationToken);
+        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
         var messageId = message.MessageId.ToString();
         var expiresAt = options?.Ttl != null
@@ -165,8 +215,10 @@ public class SqlServerMessageStorage : IMessageStorage
 
     public async Task<T?> RetrieveAsync<T>(string messageId, CancellationToken cancellationToken = default) where T : IMessage
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+
         using var connection = new SqlConnection(_connectionString);
-        await connection.OpenAsync(cancellationToken);
+        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
         var sql = $"""
             SELECT Payload FROM {_tableName} 
@@ -189,8 +241,10 @@ public class SqlServerMessageStorage : IMessageStorage
 
     public async Task<IEnumerable<T>> QueryAsync<T>(MessageQuery query, CancellationToken cancellationToken = default) where T : IMessage
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+
         using var connection = new SqlConnection(_connectionString);
-        await connection.OpenAsync(cancellationToken);
+        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
         var whereClauses = new List<string> { "(ExpiresAt IS NULL OR ExpiresAt > GETUTCDATE())" };
         var parameters = new List<SqlParameter>();
@@ -250,8 +304,10 @@ public class SqlServerMessageStorage : IMessageStorage
 
     public async Task<bool> DeleteAsync(string messageId, CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+
         using var connection = new SqlConnection(_connectionString);
-        await connection.OpenAsync(cancellationToken);
+        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
         var sql = $"DELETE FROM {_tableName} WHERE Id = @Id";
 
@@ -264,8 +320,10 @@ public class SqlServerMessageStorage : IMessageStorage
 
     public async Task<bool> UpdateAsync(string messageId, IMessage message, CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+
         using var connection = new SqlConnection(_connectionString);
-        await connection.OpenAsync(cancellationToken);
+        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
         var sql = $"""
             UPDATE {_tableName}
@@ -289,8 +347,10 @@ public class SqlServerMessageStorage : IMessageStorage
 
     public async Task<bool> ExistsAsync(string messageId, CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+
         using var connection = new SqlConnection(_connectionString);
-        await connection.OpenAsync(cancellationToken);
+        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
         var sql = $"""
             SELECT COUNT(*) FROM {_tableName} 
@@ -307,8 +367,10 @@ public class SqlServerMessageStorage : IMessageStorage
 
     public async Task<long> CountAsync(MessageQuery? query = null, CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+
         using var connection = new SqlConnection(_connectionString);
-        await connection.OpenAsync(cancellationToken);
+        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
         var whereClauses = new List<string> { "(ExpiresAt IS NULL OR ExpiresAt > GETUTCDATE())" };
         var parameters = new List<SqlParameter>();
@@ -346,8 +408,10 @@ public class SqlServerMessageStorage : IMessageStorage
 
     public async Task ClearAsync(CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+
         using var connection = new SqlConnection(_connectionString);
-        await connection.OpenAsync(cancellationToken);
+        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
         var sql = $"TRUNCATE TABLE {_tableName}";
 
