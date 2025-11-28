@@ -22,10 +22,10 @@ public class TransactionOutboxProcessorDecorator(
     public async Task PublishToOutbox(IMessage message, OutboxOptions? options = null, CancellationToken cancellationToken = default)
     {
         await _transactionExecutor.ExecuteInTransactionAsync(
-            async ct => await _inner.PublishToOutbox(message, options, ct),
+            async ct => await _inner.PublishToOutbox(message, options, ct).ConfigureAwait(false),
             $"outbox message {message.GetType().Name} with ID {message.MessageId}",
             _defaultIsolationLevel,
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
     }
 
     public Task StartAsync(CancellationToken cancellationToken = default) =>
@@ -55,10 +55,10 @@ public class TransactionInboxProcessorDecorator(
     public async Task<bool> ProcessIncoming(IMessage message, InboxOptions? options = null, CancellationToken cancellationToken = default)
     {
         return await _transactionExecutor.ExecuteInTransactionAsync(
-            async ct => await _inner.ProcessIncoming(message, options, ct),
+            async ct => await _inner.ProcessIncoming(message, options, ct).ConfigureAwait(false),
             $"inbox message {message.GetType().Name} with ID {message.MessageId}",
             _defaultIsolationLevel,
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
     }
 
     public Task StartAsync(CancellationToken cancellationToken = default) =>

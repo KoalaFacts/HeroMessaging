@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Threading.Channels;
 using HeroMessaging.Abstractions.Observability;
 using HeroMessaging.Abstractions.Transport;
+using Microsoft.Extensions.Logging;
 
 namespace HeroMessaging.Transport.InMemory;
 
@@ -15,6 +16,7 @@ internal class InMemoryConsumer : ITransportConsumer
     private readonly ConsumerOptions _options;
     private readonly InMemoryTransport _transport;
     private readonly ITransportInstrumentation _instrumentation;
+    private readonly ILogger<InMemoryConsumer>? _logger;
     private readonly Channel<TransportEnvelope> _messageChannel;
     private readonly CancellationTokenSource _cts = new();
     private Task? _processingTask;
@@ -40,7 +42,8 @@ internal class InMemoryConsumer : ITransportConsumer
         ConsumerOptions options,
         InMemoryTransport transport,
         TimeProvider timeProvider,
-        ITransportInstrumentation? instrumentation = null)
+        ITransportInstrumentation? instrumentation = null,
+        ILogger<InMemoryConsumer>? logger = null)
     {
         ConsumerId = consumerId ?? throw new ArgumentNullException(nameof(consumerId));
         Source = source;
@@ -49,6 +52,7 @@ internal class InMemoryConsumer : ITransportConsumer
         _transport = transport ?? throw new ArgumentNullException(nameof(transport));
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         _instrumentation = instrumentation ?? NoOpTransportInstrumentation.Instance;
+        _logger = logger;
 
         _concurrencyLimiter = new SemaphoreSlim(options.ConcurrentMessageLimit, options.ConcurrentMessageLimit);
 
@@ -135,9 +139,10 @@ internal class InMemoryConsumer : ITransportConsumer
             {
                 break;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 // Continue processing on error
+                _logger?.LogWarning(ex, "Error in message processing loop for consumer {ConsumerId}", ConsumerId);
             }
         }
     }
@@ -255,9 +260,13 @@ internal class InMemoryConsumer : ITransportConsumer
                         await Task.Delay(delay, cancellationToken);
                         await DeliverMessageAsync(retryEnvelope, cancellationToken);
                     }
-                    catch
+                    catch (OperationCanceledException)
                     {
-                        // Ignore retry scheduling errors
+                        // Expected during shutdown
+                    }
+                    catch (Exception retryEx)
+                    {
+                        _logger?.LogDebug(retryEx, "Failed to schedule retry for consumer {ConsumerId}", ConsumerId);
                     }
                 }, cancellationToken);
             }

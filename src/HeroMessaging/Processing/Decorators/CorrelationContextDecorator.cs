@@ -36,7 +36,7 @@ public class CorrelationContextDecorator(
             .WithMetadata("MessageId", message.MessageId.ToString());
 
         // Process message with correlation context active
-        var result = await _inner.ProcessAsync(message, enrichedContext, cancellationToken);
+        var result = await _inner.ProcessAsync(message, enrichedContext, cancellationToken).ConfigureAwait(false);
 
         if (_logger.IsEnabled(LogLevel.Trace))
         {

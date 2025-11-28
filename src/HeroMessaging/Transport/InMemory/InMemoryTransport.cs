@@ -128,7 +128,7 @@ public class InMemoryTransport(
                 await Task.Delay(delay, cancellationToken);
             }
 
-            var queue = _queues.GetOrAdd(destination.Name, _ => new InMemoryQueue(_options.MaxQueueLength, _options.DropWhenFull));
+            var queue = _queues.GetOrAdd(destination.Name, name => new InMemoryQueue(name, _options.MaxQueueLength, _options.DropWhenFull));
 
             if (!await queue.EnqueueAsync(envelope, cancellationToken))
             {
@@ -175,7 +175,7 @@ public class InMemoryTransport(
                 await Task.Delay(delay, cancellationToken);
             }
 
-            var inMemoryTopic = _topics.GetOrAdd(topic.Name, _ => new InMemoryTopic());
+            var inMemoryTopic = _topics.GetOrAdd(topic.Name, name => new InMemoryTopic(name));
 
             await inMemoryTopic.PublishAsync(envelope, cancellationToken);
 
@@ -222,12 +222,12 @@ public class InMemoryTransport(
         // Subscribe to queue or topic
         if (source.Type == TransportAddressType.Queue)
         {
-            var queue = _queues.GetOrAdd(source.Name, _ => new InMemoryQueue(_options.MaxQueueLength, _options.DropWhenFull));
+            var queue = _queues.GetOrAdd(source.Name, name => new InMemoryQueue(name, _options.MaxQueueLength, _options.DropWhenFull));
             queue.AddConsumer(consumer);
         }
         else if (source.Type == TransportAddressType.Topic)
         {
-            var topic = _topics.GetOrAdd(source.Name, _ => new InMemoryTopic());
+            var topic = _topics.GetOrAdd(source.Name, name => new InMemoryTopic(name));
             topic.AddSubscription(consumer);
         }
 
@@ -247,13 +247,13 @@ public class InMemoryTransport(
         // Create queues
         foreach (var queueDef in topology.Queues)
         {
-            _queues.GetOrAdd(queueDef.Name, _ => new InMemoryQueue(_options.MaxQueueLength, _options.DropWhenFull));
+            _queues.GetOrAdd(queueDef.Name, name => new InMemoryQueue(name, _options.MaxQueueLength, _options.DropWhenFull));
         }
 
         // Create topics
         foreach (var topicDef in topology.Topics)
         {
-            _topics.GetOrAdd(topicDef.Name, _ => new InMemoryTopic());
+            _topics.GetOrAdd(topicDef.Name, name => new InMemoryTopic(name));
         }
 
         return Task.CompletedTask;

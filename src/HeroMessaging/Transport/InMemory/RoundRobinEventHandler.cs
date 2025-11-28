@@ -41,7 +41,8 @@ internal sealed class RoundRobinEventHandler : IEventHandler<MessageEvent>
                     var consumer = consumers[index % (uint)consumers.Length];
 
                     // Deliver message to selected consumer
-                    consumer.DeliverMessageAsync(evt.Envelope.Value, default).GetAwaiter().GetResult();
+                    // ConfigureAwait(false) prevents sync context capture, avoiding deadlocks
+                    consumer.DeliverMessageAsync(evt.Envelope.Value, default).ConfigureAwait(false).GetAwaiter().GetResult();
                 }
 
                 // Decrement depth counter

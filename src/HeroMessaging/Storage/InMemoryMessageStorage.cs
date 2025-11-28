@@ -134,15 +134,15 @@ public class InMemoryMessageStorage : IMessageStorage
         return Task.FromResult(_messages.ContainsKey(messageId));
     }
 
-    public Task<long> CountAsync(MessageQuery? query = null, CancellationToken cancellationToken = default)
+    public async Task<long> CountAsync(MessageQuery? query = null, CancellationToken cancellationToken = default)
     {
         if (query == null)
         {
-            return Task.FromResult((long)_messages.Count);
+            return _messages.Count;
         }
 
-        var count = QueryAsync<IMessage>(query, cancellationToken).Result.Count();
-        return Task.FromResult((long)count);
+        var results = await QueryAsync<IMessage>(query, cancellationToken).ConfigureAwait(false);
+        return results.Count();
     }
 
     public Task ClearAsync(CancellationToken cancellationToken = default)
@@ -171,14 +171,15 @@ public class InMemoryMessageStorage : IMessageStorage
         return RetrieveAsync<IMessage>(messageId.ToString(), cancellationToken);
     }
 
-    Task<List<IMessage>> ITransactionalMessageStorage.QueryAsync(MessageQuery query, CancellationToken cancellationToken)
+    async Task<List<IMessage>> ITransactionalMessageStorage.QueryAsync(MessageQuery query, CancellationToken cancellationToken)
     {
-        return QueryAsync<IMessage>(query, cancellationToken).ContinueWith(t => t.Result.ToList(), cancellationToken);
+        var results = await QueryAsync<IMessage>(query, cancellationToken).ConfigureAwait(false);
+        return results.ToList();
     }
 
-    Task ITransactionalMessageStorage.DeleteAsync(Guid messageId, CancellationToken cancellationToken)
+    async Task ITransactionalMessageStorage.DeleteAsync(Guid messageId, CancellationToken cancellationToken)
     {
-        return DeleteAsync(messageId.ToString(), cancellationToken).ContinueWith(_ => Task.CompletedTask, cancellationToken);
+        await DeleteAsync(messageId.ToString(), cancellationToken).ConfigureAwait(false);
     }
 
     public Task<IStorageTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)

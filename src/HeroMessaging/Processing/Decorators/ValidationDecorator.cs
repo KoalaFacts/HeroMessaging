@@ -18,7 +18,7 @@ public class ValidationDecorator(
 
     public override async ValueTask<ProcessingResult> ProcessAsync(IMessage message, ProcessingContext context, CancellationToken cancellationToken = default)
     {
-        var validationResult = await _validator.ValidateAsync(message, cancellationToken);
+        var validationResult = await _validator.ValidateAsync(message, cancellationToken).ConfigureAwait(false);
 
         if (!validationResult.IsValid)
         {
@@ -30,7 +30,7 @@ public class ValidationDecorator(
                 $"Validation failed: {string.Join(", ", validationResult.Errors)}");
         }
 
-        return await _inner.ProcessAsync(message, context, cancellationToken);
+        return await _inner.ProcessAsync(message, context, cancellationToken).ConfigureAwait(false);
     }
 }
 
@@ -49,7 +49,7 @@ public class CompositeValidator : IMessageValidator
 
         foreach (var validator in _validators)
         {
-            var result = await validator.ValidateAsync(message, cancellationToken);
+            var result = await validator.ValidateAsync(message, cancellationToken).ConfigureAwait(false);
             if (!result.IsValid)
             {
                 errors.AddRange(result.Errors);

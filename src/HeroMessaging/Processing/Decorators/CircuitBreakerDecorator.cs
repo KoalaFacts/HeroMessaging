@@ -45,7 +45,7 @@ public class CircuitBreakerDecorator : MessageProcessorDecorator
 
         try
         {
-            var result = await _inner.ProcessAsync(message, context, cancellationToken);
+            var result = await _inner.ProcessAsync(message, context, cancellationToken).ConfigureAwait(false);
 
             if (result.Success)
             {

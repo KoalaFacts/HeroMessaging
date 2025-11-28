@@ -96,7 +96,7 @@ public class EventBus : IEventBus, IProcessor
             return _processingBlock.SendAsync(envelope, cancellationToken);
         });
 
-        await Task.WhenAll(tasks);
+        await Task.WhenAll(tasks).ConfigureAwait(false);
     }
 
     private async Task ProcessEventWithPipeline(EventEnvelope envelope)
@@ -110,7 +110,7 @@ public class EventBus : IEventBus, IProcessor
                 throw new InvalidOperationException($"Handle method not found on {envelope.HandlerType.Name}");
             }
 
-            await (Task)handleMethod.Invoke(envelope.Handler, [envelope.Event, ct])!;
+            await ((Task)handleMethod.Invoke(envelope.Handler, [envelope.Event, ct])!).ConfigureAwait(false);
         });
 
         // Build the pipeline
@@ -127,7 +127,7 @@ public class EventBus : IEventBus, IProcessor
         .WithMetadata("HandlerType", envelope.Handler.GetType().Name);
 
         // Process through the pipeline
-        var result = await pipeline.ProcessAsync(envelope.Event, context, envelope.CancellationToken);
+        var result = await pipeline.ProcessAsync(envelope.Event, context, envelope.CancellationToken).ConfigureAwait(false);
 
         if (!result.Success && result.Exception != null)
         {

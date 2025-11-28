@@ -27,7 +27,7 @@ public class RetryDecorator(
         {
             try
             {
-                var result = await _inner.ProcessAsync(message, context, cancellationToken);
+                var result = await _inner.ProcessAsync(message, context, cancellationToken).ConfigureAwait(false);
 
                 if (result.Success || !_retryPolicy.ShouldRetry(result.Exception, retryCount))
                 {
@@ -54,7 +54,7 @@ public class RetryDecorator(
 
                 context = context.WithRetry(retryCount + 1, context.FirstFailureTime);
 
-                await Task.Delay(delay, cancellationToken);
+                await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
             }
 
             retryCount++;

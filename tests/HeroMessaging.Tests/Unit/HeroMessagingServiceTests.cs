@@ -37,6 +37,7 @@ public class HeroMessagingServiceTests
             _mockQueryProcessor.Object,
             _mockEventBus.Object,
             _timeProvider,
+            logger: null,
             _mockQueueProcessor.Object,
             _mockOutboxProcessor.Object,
             _mockInboxProcessor.Object);
@@ -54,6 +55,7 @@ public class HeroMessagingServiceTests
                 _mockQueryProcessor.Object,
                 _mockEventBus.Object,
                 null!,
+                logger: null,
                 _mockQueueProcessor.Object,
                 _mockOutboxProcessor.Object,
                 _mockInboxProcessor.Object));

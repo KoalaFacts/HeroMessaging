@@ -31,7 +31,7 @@ public class CommandProcessor : ICommandProcessor, IProcessor
         _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<CommandProcessor>.Instance;
 
         _processingBlock = new ActionBlock<Func<Task>>(
-            async action => await action(),
+            async action => await action().ConfigureAwait(false),
             new ExecutionDataflowBlockOptions
             {
                 MaxDegreeOfParallelism = 1,
@@ -60,7 +60,7 @@ public class CommandProcessor : ICommandProcessor, IProcessor
                 cancellationToken.ThrowIfCancellationRequested();
                 var handleMethod = handlerType.GetMethod("Handle");
                 var sw = Stopwatch.StartNew();
-                await (Task)handleMethod!.Invoke(handler, [command, cancellationToken])!;
+                await ((Task)handleMethod!.Invoke(handler, [command, cancellationToken])!).ConfigureAwait(false);
                 sw.Stop();
 
                 lock (_metricsLock)
@@ -86,14 +86,14 @@ public class CommandProcessor : ICommandProcessor, IProcessor
                 _logger.LogError(ex, "Error processing command {CommandType}", command.GetType().Name);
                 tcs.SetException(ex);
             }
-        }, cancellationToken);
+        }, cancellationToken).ConfigureAwait(false);
 
         if (!posted)
         {
             tcs.SetCanceled(cancellationToken);
         }
 
-        await tcs.Task;
+        await tcs.Task.ConfigureAwait(false);
     }
 
     public async Task<TResponse> Send<TResponse>(ICommand<TResponse> command, CancellationToken cancellationToken = default)
@@ -117,7 +117,7 @@ public class CommandProcessor : ICommandProcessor, IProcessor
                 cancellationToken.ThrowIfCancellationRequested();
                 var handleMethod = handlerType.GetMethod("Handle");
                 var sw = Stopwatch.StartNew();
-                var result = await (Task<TResponse>)handleMethod!.Invoke(handler, [command, cancellationToken])!;
+                var result = await ((Task<TResponse>)handleMethod!.Invoke(handler, [command, cancellationToken])!).ConfigureAwait(false);
                 sw.Stop();
 
                 lock (_metricsLock)
@@ -143,14 +143,14 @@ public class CommandProcessor : ICommandProcessor, IProcessor
                 _logger.LogError(ex, "Error processing command {CommandType}", command.GetType().Name);
                 tcs.SetException(ex);
             }
-        }, cancellationToken);
+        }, cancellationToken).ConfigureAwait(false);
 
         if (!posted)
         {
             tcs.SetCanceled(cancellationToken);
         }
 
-        return await tcs.Task;
+        return await tcs.Task.ConfigureAwait(false);
     }
 
     public IProcessorMetrics GetMetrics()

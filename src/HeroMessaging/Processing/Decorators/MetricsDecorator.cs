@@ -23,7 +23,7 @@ public class MetricsDecorator(IMessageProcessor inner, IMetricsCollector metrics
 
         try
         {
-            var result = await _inner.ProcessAsync(message, context, cancellationToken);
+            var result = await _inner.ProcessAsync(message, context, cancellationToken).ConfigureAwait(false);
             stopwatch.Stop();
 
             if (result.Success)

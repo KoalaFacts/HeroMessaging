@@ -77,7 +77,7 @@ public sealed class IdempotencyDecorator : MessageProcessorDecorator
         var idempotencyKey = _policy.KeyGenerator.GenerateKey(message, context);
 
         // Check cache for existing response
-        var cachedResponse = await _store.GetAsync(idempotencyKey, cancellationToken);
+        var cachedResponse = await _store.GetAsync(idempotencyKey, cancellationToken).ConfigureAwait(false);
         if (cachedResponse != null)
         {
             _logger.LogInformation(
@@ -97,7 +97,7 @@ public sealed class IdempotencyDecorator : MessageProcessorDecorator
             message.MessageId,
             idempotencyKey);
 
-        var result = await _inner.ProcessAsync(message, context, cancellationToken);
+        var result = await _inner.ProcessAsync(message, context, cancellationToken).ConfigureAwait(false);
 
         // Store result based on outcome and policy
         if (result.Success)
@@ -106,7 +106,7 @@ public sealed class IdempotencyDecorator : MessageProcessorDecorator
                 idempotencyKey,
                 result.Data,
                 _policy.SuccessTtl,
-                cancellationToken);
+                cancellationToken).ConfigureAwait(false);
 
             _logger.LogDebug(
                 "Stored successful result for message {MessageId} with TTL {SuccessTtl}",
@@ -119,7 +119,7 @@ public sealed class IdempotencyDecorator : MessageProcessorDecorator
                 idempotencyKey,
                 result.Exception,
                 _policy.FailureTtl,
-                cancellationToken);
+                cancellationToken).ConfigureAwait(false);
 
             _logger.LogWarning(
                 "Stored idempotent failure for message {MessageId} with TTL {FailureTtl}: {ExceptionType}",

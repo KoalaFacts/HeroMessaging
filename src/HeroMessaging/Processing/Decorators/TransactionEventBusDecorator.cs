@@ -35,7 +35,7 @@ public class TransactionEventBusDecorator(
         _logger.LogDebug("Publishing event {EventType} with ID {EventId}",
             @event.GetType().Name, @event.MessageId);
 
-        await _inner.Publish(@event, cancellationToken);
+        await _inner.Publish(@event, cancellationToken).ConfigureAwait(false);
 
         _logger.LogDebug("Event {EventType} with ID {EventId} published successfully",
             @event.GetType().Name, @event.MessageId);
@@ -59,9 +59,9 @@ public class TransactionEventHandlerWrapper<TEvent>(
     public async Task HandleAsync(TEvent @event, CancellationToken cancellationToken = default)
     {
         await _transactionExecutor.ExecuteInTransactionAsync(
-            async ct => await _handler(@event, ct),
+            async ct => await _handler(@event, ct).ConfigureAwait(false),
             $"event handler {typeof(TEvent).Name} with ID {@event.MessageId}",
             _isolationLevel,
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
     }
 }

@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using HeroMessaging.Abstractions.Transport;
+using Microsoft.Extensions.Logging;
 
 namespace HeroMessaging.Transport.InMemory;
 
@@ -10,8 +11,16 @@ namespace HeroMessaging.Transport.InMemory;
 internal class InMemoryTopic
 {
     private readonly ConcurrentDictionary<string, InMemoryConsumer> _subscriptions = new();
+    private readonly ILogger<InMemoryTopic>? _logger;
+    private readonly string _topicName;
     private long _publishedCount;
     private long _pendingMessages;
+
+    public InMemoryTopic(string topicName, ILogger<InMemoryTopic>? logger = null)
+    {
+        _topicName = topicName;
+        _logger = logger;
+    }
 
     public long PublishedCount => Interlocked.Read(ref _publishedCount);
     public long PendingMessages => Interlocked.Read(ref _pendingMessages);
@@ -28,10 +37,11 @@ internal class InMemoryTopic
                 Interlocked.Increment(ref _pendingMessages);
                 await subscription.DeliverMessageAsync(envelope, cancellationToken);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 // Log error but don't fail publishing
                 // Individual consumer failures shouldn't affect other consumers
+                _logger?.LogWarning(ex, "Failed to deliver message to consumer {ConsumerId} on topic {TopicName}", subscription.ConsumerId, _topicName);
             }
             finally
             {

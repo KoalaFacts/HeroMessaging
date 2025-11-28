@@ -86,8 +86,9 @@ public class PluginLoader : IPluginLoader
             var constructors = descriptor.PluginType.GetConstructors();
             return Task.FromResult(constructors.Length > 0);
         }
-        catch
+        catch (Exception ex)
         {
+            _logger?.LogDebug(ex, "Plugin {PluginName} cannot be loaded", descriptor?.Name ?? "unknown");
             return Task.FromResult(false);
         }
     }

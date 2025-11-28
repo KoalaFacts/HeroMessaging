@@ -31,7 +31,7 @@ public class QueryProcessor : IQueryProcessor, IProcessor
         _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<QueryProcessor>.Instance;
 
         _processingBlock = new ActionBlock<Func<Task>>(
-            async action => await action(),
+            async action => await action().ConfigureAwait(false),
             new ExecutionDataflowBlockOptions
             {
                 MaxDegreeOfParallelism = 1,
@@ -60,7 +60,7 @@ public class QueryProcessor : IQueryProcessor, IProcessor
                 cancellationToken.ThrowIfCancellationRequested();
                 var handleMethod = handlerType.GetMethod("Handle");
                 var sw = Stopwatch.StartNew();
-                var result = await (Task<TResponse>)handleMethod!.Invoke(handler, [query, cancellationToken])!;
+                var result = await ((Task<TResponse>)handleMethod!.Invoke(handler, [query, cancellationToken])!).ConfigureAwait(false);
                 sw.Stop();
 
                 lock (_metricsLock)
@@ -86,14 +86,14 @@ public class QueryProcessor : IQueryProcessor, IProcessor
                 _logger.LogError(ex, "Error processing query {QueryType}", query.GetType().Name);
                 tcs.SetException(ex);
             }
-        }, cancellationToken);
+        }, cancellationToken).ConfigureAwait(false);
 
         if (!posted)
         {
             tcs.SetCanceled(cancellationToken);
         }
 
-        return await tcs.Task;
+        return await tcs.Task.ConfigureAwait(false);
     }
 
     public IQueryProcessorMetrics GetMetrics()

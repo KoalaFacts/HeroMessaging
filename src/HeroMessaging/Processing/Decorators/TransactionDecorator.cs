@@ -21,19 +21,19 @@ public class TransactionCommandProcessorDecorator(
     public async Task Send(ICommand command, CancellationToken cancellationToken = default)
     {
         await _transactionExecutor.ExecuteInTransactionAsync(
-            async ct => await _inner.Send(command, ct),
+            async ct => await _inner.Send(command, ct).ConfigureAwait(false),
             $"command {command.GetType().Name} with ID {command.MessageId}",
             _defaultIsolationLevel,
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<TResponse> Send<TResponse>(ICommand<TResponse> command, CancellationToken cancellationToken = default)
     {
         return await _transactionExecutor.ExecuteInTransactionAsync(
-            async ct => await _inner.Send<TResponse>(command, ct),
+            async ct => await _inner.Send<TResponse>(command, ct).ConfigureAwait(false),
             $"command {command.GetType().Name} with ID {command.MessageId}",
             _defaultIsolationLevel,
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
     }
 
     public bool IsRunning => (_inner as IProcessor)?.IsRunning ?? true;
@@ -54,10 +54,10 @@ public class TransactionQueryProcessorDecorator(
     public async Task<TResponse> Send<TResponse>(IQuery<TResponse> query, CancellationToken cancellationToken = default)
     {
         return await _transactionExecutor.ExecuteInTransactionAsync(
-            async ct => await _inner.Send<TResponse>(query, ct),
+            async ct => await _inner.Send<TResponse>(query, ct).ConfigureAwait(false),
             $"query {query.GetType().Name} with ID {query.MessageId}",
             IsolationLevel.ReadCommitted,
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
     }
 
     public bool IsRunning => (_inner as IProcessor)?.IsRunning ?? true;

@@ -29,7 +29,7 @@ public class ErrorHandlingDecorator(
         {
             try
             {
-                var result = await _inner.ProcessAsync(message, context, cancellationToken);
+                var result = await _inner.ProcessAsync(message, context, cancellationToken).ConfigureAwait(false);
 
                 if (result.Success)
                 {
@@ -70,7 +70,7 @@ public class ErrorHandlingDecorator(
                     Metadata = context.Metadata.ToDictionary(kvp => kvp.Key, kvp => kvp.Value)
                 };
 
-                var errorResult = await _errorHandler.HandleErrorAsync(message, lastException, errorContext, cancellationToken);
+                var errorResult = await _errorHandler.HandleErrorAsync(message, lastException, errorContext, cancellationToken).ConfigureAwait(false);
 
                 switch (errorResult.Action)
                 {
@@ -81,7 +81,7 @@ public class ErrorHandlingDecorator(
                         if (errorResult.RetryDelay.HasValue)
                         {
                             _logger.LogDebug("Waiting {Delay}ms before retry", errorResult.RetryDelay.Value.TotalMilliseconds);
-                            await Task.Delay(errorResult.RetryDelay.Value, cancellationToken);
+                            await Task.Delay(errorResult.RetryDelay.Value, cancellationToken).ConfigureAwait(false);
                         }
                         continue;
 

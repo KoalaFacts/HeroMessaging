@@ -12,6 +12,6 @@ public abstract class MessageProcessorDecorator(IMessageProcessor inner) : IMess
 
     public virtual async ValueTask<ProcessingResult> ProcessAsync(IMessage message, ProcessingContext context, CancellationToken cancellationToken = default)
     {
-        return await _inner.ProcessAsync(message, context, cancellationToken);
+        return await _inner.ProcessAsync(message, context, cancellationToken).ConfigureAwait(false);
     }
 }

@@ -5,6 +5,7 @@ using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Abstractions.Queries;
 using HeroMessaging.Processing;
+using Microsoft.Extensions.Logging;
 
 namespace HeroMessaging;
 
@@ -27,6 +28,7 @@ namespace HeroMessaging;
 /// <param name="queryProcessor">The processor for handling queries.</param>
 /// <param name="eventBus">The event bus for publishing events.</param>
 /// <param name="timeProvider">The time provider for timestamp operations.</param>
+/// <param name="logger">Optional logger for diagnostic output.</param>
 /// <param name="queueProcessor">Optional processor for queue operations.</param>
 /// <param name="outboxProcessor">Optional processor for outbox operations.</param>
 /// <param name="inboxProcessor">Optional processor for inbox operations.</param>
@@ -35,6 +37,7 @@ public class HeroMessagingService(
     IQueryProcessor queryProcessor,
     IEventBus eventBus,
     TimeProvider timeProvider,
+    ILogger<HeroMessagingService>? logger = null,
     IQueueProcessor? queueProcessor = null,
     IOutboxProcessor? outboxProcessor = null,
     IInboxProcessor? inboxProcessor = null) : IHeroMessaging
@@ -46,31 +49,32 @@ public class HeroMessagingService(
     private readonly IOutboxProcessor? _outboxProcessor = outboxProcessor;
     private readonly IInboxProcessor? _inboxProcessor = inboxProcessor;
     private readonly TimeProvider _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+    private readonly ILogger<HeroMessagingService>? _logger = logger;
 
     private readonly MessagingMetrics _metrics = new();
 
     public async Task SendAsync(ICommand command, CancellationToken cancellationToken = default)
     {
         _metrics.CommandsSent++;
-        await _commandProcessor.Send(command, cancellationToken);
+        await _commandProcessor.Send(command, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<TResponse> SendAsync<TResponse>(ICommand<TResponse> command, CancellationToken cancellationToken = default)
     {
         _metrics.CommandsSent++;
-        return await _commandProcessor.Send(command, cancellationToken);
+        return await _commandProcessor.Send(command, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<TResponse> SendAsync<TResponse>(IQuery<TResponse> query, CancellationToken cancellationToken = default)
     {
         _metrics.QueriesSent++;
-        return await _queryProcessor.Send(query, cancellationToken);
+        return await _queryProcessor.Send(query, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task PublishAsync(IEvent @event, CancellationToken cancellationToken = default)
     {
         _metrics.EventsPublished++;
-        await _eventBus.Publish(@event, cancellationToken);
+        await _eventBus.Publish(@event, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<IReadOnlyList<bool>> SendBatchAsync(IReadOnlyList<ICommand> commands, CancellationToken cancellationToken = default)
@@ -85,7 +89,7 @@ public class HeroMessagingService(
         {
             try
             {
-                await _commandProcessor.Send(command, cancellationToken);
+                await _commandProcessor.Send(command, cancellationToken).ConfigureAwait(false);
                 results.Add(true);
             }
             catch (OperationCanceledException)
@@ -93,9 +97,10 @@ public class HeroMessagingService(
                 // Cancellation should stop batch processing immediately
                 throw;
             }
-            catch
+            catch (Exception ex)
             {
                 // Track failure but continue processing remaining commands
+                _logger?.LogWarning(ex, "Failed to process command {CommandType} in batch", command.GetType().Name);
                 results.Add(false);
             }
         }
@@ -113,7 +118,7 @@ public class HeroMessagingService(
 
         foreach (var command in commands)
         {
-            var result = await _commandProcessor.Send(command, cancellationToken);
+            var result = await _commandProcessor.Send(command, cancellationToken).ConfigureAwait(false);
             results.Add(result);
         }
 
@@ -132,7 +137,7 @@ public class HeroMessagingService(
         {
             try
             {
-                await _eventBus.Publish(@event, cancellationToken);
+                await _eventBus.Publish(@event, cancellationToken).ConfigureAwait(false);
                 results.Add(true);
             }
             catch (OperationCanceledException)
@@ -140,9 +145,10 @@ public class HeroMessagingService(
                 // Cancellation should stop batch processing immediately
                 throw;
             }
-            catch
+            catch (Exception ex)
             {
                 // Track failure but continue processing remaining events
+                _logger?.LogWarning(ex, "Failed to publish event {EventType} in batch", @event.GetType().Name);
                 results.Add(false);
             }
         }
@@ -156,7 +162,7 @@ public class HeroMessagingService(
             throw new InvalidOperationException("Queue functionality is not enabled. Call WithQueues() during configuration.");
 
         _metrics.MessagesQueued++;
-        await _queueProcessor.Enqueue(message, queueName, options, cancellationToken);
+        await _queueProcessor.Enqueue(message, queueName, options, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task StartQueueAsync(string queueName, CancellationToken cancellationToken = default)
@@ -164,7 +170,7 @@ public class HeroMessagingService(
         if (_queueProcessor == null)
             throw new InvalidOperationException("Queue functionality is not enabled. Call WithQueues() during configuration.");
 
-        await _queueProcessor.StartQueue(queueName, cancellationToken);
+        await _queueProcessor.StartQueue(queueName, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task StopQueueAsync(string queueName, CancellationToken cancellationToken = default)
@@ -172,7 +178,7 @@ public class HeroMessagingService(
         if (_queueProcessor == null)
             throw new InvalidOperationException("Queue functionality is not enabled. Call WithQueues() during configuration.");
 
-        await _queueProcessor.StopQueue(queueName, cancellationToken);
+        await _queueProcessor.StopQueue(queueName, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task PublishToOutboxAsync(IMessage message, OutboxOptions? options = null, CancellationToken cancellationToken = default)
@@ -181,7 +187,7 @@ public class HeroMessagingService(
             throw new InvalidOperationException("Outbox functionality is not enabled. Call WithOutbox() during configuration.");
 
         _metrics.OutboxMessages++;
-        await _outboxProcessor.PublishToOutbox(message, options, cancellationToken);
+        await _outboxProcessor.PublishToOutbox(message, options, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task ProcessIncomingAsync(IMessage message, InboxOptions? options = null, CancellationToken cancellationToken = default)
@@ -190,7 +196,7 @@ public class HeroMessagingService(
             throw new InvalidOperationException("Inbox functionality is not enabled. Call WithInbox() during configuration.");
 
         _metrics.InboxMessages++;
-        await _inboxProcessor.ProcessIncoming(message, options, cancellationToken);
+        await _inboxProcessor.ProcessIncoming(message, options, cancellationToken).ConfigureAwait(false);
     }
 
     public MessagingMetrics GetMetrics()

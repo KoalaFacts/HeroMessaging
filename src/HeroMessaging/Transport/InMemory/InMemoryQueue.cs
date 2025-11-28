@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Channels;
 using HeroMessaging.Abstractions.Transport;
+using Microsoft.Extensions.Logging;
 
 namespace HeroMessaging.Transport.InMemory;
 
@@ -14,6 +15,8 @@ internal class InMemoryQueue : IDisposable, IAsyncDisposable
     private readonly Channel<TransportEnvelope> _channel;
     private readonly ConcurrentDictionary<string, InMemoryConsumer> _consumers = new();
     private readonly CancellationTokenSource _cts = new();
+    private readonly ILogger<InMemoryQueue>? _logger;
+    private readonly string _queueName;
     private Task? _processingTask;
 #if NET9_0_OR_GREATER
     private readonly Lock _processingTaskLock = new();
@@ -33,10 +36,12 @@ internal class InMemoryQueue : IDisposable, IAsyncDisposable
     public long MessageCount => Interlocked.Read(ref _messageCount);
     public long Depth => Interlocked.Read(ref _depth);
 
-    public InMemoryQueue(int maxQueueLength, bool dropWhenFull)
+    public InMemoryQueue(string queueName, int maxQueueLength, bool dropWhenFull, ILogger<InMemoryQueue>? logger = null)
     {
+        _queueName = queueName;
         _maxQueueLength = maxQueueLength;
         _dropWhenFull = dropWhenFull;
+        _logger = logger;
 
         // IMPORTANT: When dropWhenFull=false, the channel uses BoundedChannelFullMode.Wait
         // This means EnqueueAsync will WAIT INDEFINITELY for space when the queue is full
@@ -148,18 +153,22 @@ internal class InMemoryQueue : IDisposable, IAsyncDisposable
                         {
                             await consumer.DeliverMessageAsync(envelope, cancellationToken);
                         }
-                        catch (Exception)
+                        catch (Exception ex)
                         {
                             // Consumer delivery failed, but don't stop processing other messages
-                            // In a real implementation, we'd log this
+                            _logger?.LogWarning(ex, "Failed to deliver message to consumer {ConsumerId} on queue {QueueName}", consumer.ConsumerId, _queueName);
                         }
                     }
                 }
             }
         }
-        catch
+        catch (OperationCanceledException)
         {
-            // Processing loop error - in real implementation we'd log this
+            // Expected during shutdown
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Error in processing loop for queue {QueueName}", _queueName);
         }
     }
 
