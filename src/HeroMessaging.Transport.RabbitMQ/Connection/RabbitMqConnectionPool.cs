@@ -11,10 +11,12 @@ namespace HeroMessaging.Transport.RabbitMQ.Connection;
 /// </summary>
 internal sealed class RabbitMqConnectionPool : IAsyncDisposable
 {
+    private const int MaxGetConnectionRetries = 50; // Prevent stack overflow from recursion
+
     private readonly RabbitMqTransportOptions _options;
     private readonly ILogger<RabbitMqConnectionPool> _logger;
     private readonly IConnectionFactory _connectionFactory;
-    private readonly ConcurrentBag<PooledConnection> _connections = new();
+    private readonly ConcurrentDictionary<string, PooledConnection> _connections = new();
     private readonly SemaphoreSlim _createConnectionLock = new(1, 1);
     private readonly Timer _healthCheckTimer;
     private readonly TimeProvider _timeProvider;
@@ -74,38 +76,46 @@ internal sealed class RabbitMqConnectionPool : IAsyncDisposable
     {
         ThrowIfDisposed();
 
-        // Try to find an existing healthy connection
-        foreach (var pooledConnection in _connections)
+        for (int retryCount = 0; retryCount < MaxGetConnectionRetries; retryCount++)
         {
-            if (pooledConnection.IsHealthy && pooledConnection.TryAcquire())
+            // Try to find an existing healthy connection
+            foreach (var kvp in _connections)
             {
-                _logger.LogTrace("Reusing existing connection {ConnectionId}", pooledConnection.Connection.ClientProvidedName);
-                return pooledConnection.Connection;
-            }
-        }
-
-        // Create new connection if under max pool size
-        if (_connectionCount < _options.MaxPoolSize)
-        {
-            await _createConnectionLock.WaitAsync(cancellationToken);
-            try
-            {
-                // Double-check after acquiring lock
-                if (_connectionCount < _options.MaxPoolSize)
+                var pooledConnection = kvp.Value;
+                if (pooledConnection.IsHealthy && pooledConnection.TryAcquire())
                 {
-                    return await CreateConnectionAsync(cancellationToken);
+                    _logger.LogTrace("Reusing existing connection {ConnectionId}", pooledConnection.Connection.ClientProvidedName);
+                    return pooledConnection.Connection;
                 }
             }
-            finally
+
+            // Create new connection if under max pool size
+            if (_connectionCount < _options.MaxPoolSize)
             {
-                _createConnectionLock.Release();
+                await _createConnectionLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    // Double-check after acquiring lock
+                    if (_connectionCount < _options.MaxPoolSize)
+                    {
+                        return await CreateConnectionAsync(cancellationToken).ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    _createConnectionLock.Release();
+                }
             }
+
+            // Wait and retry if pool is full (iterative instead of recursive)
+            if (retryCount == 0)
+            {
+                _logger.LogWarning("Connection pool is full ({MaxSize} connections). Waiting for available connection...", _options.MaxPoolSize);
+            }
+            await Task.Delay(100, cancellationToken).ConfigureAwait(false);
         }
 
-        // Wait and retry if pool is full
-        _logger.LogWarning("Connection pool is full ({MaxSize} connections). Waiting for available connection...", _options.MaxPoolSize);
-        await Task.Delay(100, cancellationToken);
-        return await GetConnectionAsync(cancellationToken);
+        throw new InvalidOperationException($"Unable to acquire connection from pool after {MaxGetConnectionRetries} attempts. Pool may be exhausted.");
     }
 
     /// <summary>
@@ -140,7 +150,7 @@ internal sealed class RabbitMqConnectionPool : IAsyncDisposable
             connection.CallbackExceptionAsync += OnCallbackExceptionAsync;
 
             var pooledConnection = new PooledConnection(connection, _options.ConnectionIdleTimeout, _timeProvider);
-            _connections.Add(pooledConnection);
+            _connections.TryAdd(connectionName, pooledConnection);
 
             _logger.LogInformation(
                 "RabbitMQ connection created successfully: {ConnectionName}, Endpoint: {Endpoint}",
@@ -161,11 +171,11 @@ internal sealed class RabbitMqConnectionPool : IAsyncDisposable
     /// </summary>
     public void ReleaseConnection(IConnection connection)
     {
-        foreach (var pooledConnection in _connections)
+        foreach (var kvp in _connections)
         {
-            if (pooledConnection.Connection == connection)
+            if (kvp.Value.Connection == connection)
             {
-                pooledConnection.Release();
+                kvp.Value.Release();
                 _logger.LogTrace("Released connection {ConnectionId}", connection.ClientProvidedName);
                 return;
             }
@@ -181,18 +191,23 @@ internal sealed class RabbitMqConnectionPool : IAsyncDisposable
 
         _logger.LogTrace("Performing health check on {Count} connections", _connections.Count);
 
-        foreach (var pooledConnection in _connections)
+        foreach (var kvp in _connections)
         {
+            var connectionKey = kvp.Key;
+            var pooledConnection = kvp.Value;
+
             if (!pooledConnection.IsHealthy)
             {
                 _logger.LogWarning(
                     "Removing unhealthy connection: {ConnectionId}",
                     pooledConnection.Connection.ClientProvidedName);
 
-                // Remove from pool
-                // Note: ConcurrentBag doesn't support removal, but connection will be skipped in GetConnection
-                pooledConnection.Dispose();
-                Interlocked.Decrement(ref _connectionCount);
+                // Remove from pool using ConcurrentDictionary (proper removal support)
+                if (_connections.TryRemove(connectionKey, out var removed))
+                {
+                    removed.Dispose();
+                    Interlocked.Decrement(ref _connectionCount);
+                }
             }
             else if (pooledConnection.IsIdle)
             {
@@ -208,8 +223,11 @@ internal sealed class RabbitMqConnectionPool : IAsyncDisposable
                         "Closing idle connection: {ConnectionId}",
                         pooledConnection.Connection.ClientProvidedName);
 
-                    pooledConnection.Dispose();
-                    Interlocked.Decrement(ref _connectionCount);
+                    if (_connections.TryRemove(connectionKey, out var removed))
+                    {
+                        removed.Dispose();
+                        Interlocked.Decrement(ref _connectionCount);
+                    }
                 }
             }
         }
@@ -221,8 +239,8 @@ internal sealed class RabbitMqConnectionPool : IAsyncDisposable
     public (int Total, int Active, int Idle) GetStatistics()
     {
         var total = _connectionCount;
-        var active = _connections.Count(c => c.IsHealthy && !c.IsIdle);
-        var idle = _connections.Count(c => c.IsHealthy && c.IsIdle);
+        var active = _connections.Values.Count(c => c.IsHealthy && !c.IsIdle);
+        var idle = _connections.Values.Count(c => c.IsHealthy && c.IsIdle);
 
         return (total, active, idle);
     }
@@ -281,14 +299,13 @@ internal sealed class RabbitMqConnectionPool : IAsyncDisposable
 
         _logger.LogInformation("Disposing RabbitMQ connection pool...");
 
-        await _healthCheckTimer.DisposeAsync();
+        await _healthCheckTimer.DisposeAsync().ConfigureAwait(false);
         _createConnectionLock.Dispose();
 
-        // Close all connections
-        foreach (var pooledConnection in _connections)
-        {
-            pooledConnection.Dispose();
-        }
+        // Close all connections asynchronously
+        var disposeTasks = _connections.Values.Select(c => c.DisposeAsync().AsTask()).ToList();
+        await Task.WhenAll(disposeTasks).ConfigureAwait(false);
+        _connections.Clear();
 
         _logger.LogInformation("RabbitMQ connection pool disposed");
     }
@@ -296,10 +313,11 @@ internal sealed class RabbitMqConnectionPool : IAsyncDisposable
     /// <summary>
     /// Represents a connection in the pool with metadata
     /// </summary>
-    private sealed class PooledConnection : IDisposable
+    private sealed class PooledConnection : IAsyncDisposable, IDisposable
     {
         private readonly TimeSpan _idleTimeout;
         private readonly TimeProvider _timeProvider;
+        private readonly ILogger? _logger;
         private int _inUseCount;
         private DateTimeOffset _lastUsed;
         private bool _disposed;
@@ -309,11 +327,12 @@ internal sealed class RabbitMqConnectionPool : IAsyncDisposable
         public bool IsHealthy => Connection.IsOpen && !_disposed;
         public bool IsIdle => (_timeProvider.GetUtcNow() - _lastUsed) > _idleTimeout && _inUseCount == 0;
 
-        public PooledConnection(IConnection connection, TimeSpan idleTimeout, TimeProvider timeProvider)
+        public PooledConnection(IConnection connection, TimeSpan idleTimeout, TimeProvider timeProvider, ILogger? logger = null)
         {
             Connection = connection;
             _idleTimeout = idleTimeout;
             _timeProvider = timeProvider;
+            _logger = logger;
             _lastUsed = _timeProvider.GetUtcNow();
         }
 
@@ -332,7 +351,7 @@ internal sealed class RabbitMqConnectionPool : IAsyncDisposable
             _lastUsed = _timeProvider.GetUtcNow();
         }
 
-        public void Dispose()
+        public async ValueTask DisposeAsync()
         {
             if (_disposed) return;
             _disposed = true;
@@ -341,14 +360,22 @@ internal sealed class RabbitMqConnectionPool : IAsyncDisposable
             {
                 if (Connection.IsOpen)
                 {
-                    Connection.CloseAsync().GetAwaiter().GetResult();
+                    await Connection.CloseAsync().ConfigureAwait(false);
                 }
                 Connection.Dispose();
             }
-            catch
+            catch (Exception ex)
             {
-                // Ignore disposal errors
+                // Log disposal errors instead of silently ignoring
+                _logger?.LogDebug(ex, "Error disposing RabbitMQ connection: {ConnectionId}", Connection.ClientProvidedName);
             }
+        }
+
+        public void Dispose()
+        {
+            // For sync callers, run async disposal and wait
+            // This is only used during health check which runs on a timer
+            DisposeAsync().AsTask().GetAwaiter().GetResult();
         }
     }
 }
