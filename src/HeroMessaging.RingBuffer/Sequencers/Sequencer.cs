@@ -12,6 +12,7 @@ public abstract class Sequencer
     protected readonly int _bufferSize;
     protected readonly IWaitStrategy _waitStrategy;
     protected readonly List<ISequence> _gatingSequences = new();
+    private readonly object _gatingLock = new();
 
     /// <summary>
     /// Creates a new sequencer
@@ -59,7 +60,10 @@ public abstract class Sequencer
     /// <param name="sequence">The gating sequence to add</param>
     public void AddGatingSequence(ISequence sequence)
     {
-        _gatingSequences.Add(sequence);
+        lock (_gatingLock)
+        {
+            _gatingSequences.Add(sequence);
+        }
     }
 
     /// <summary>
@@ -68,7 +72,10 @@ public abstract class Sequencer
     /// <param name="sequence">The gating sequence to remove</param>
     public bool RemoveGatingSequence(ISequence sequence)
     {
-        return _gatingSequences.Remove(sequence);
+        lock (_gatingLock)
+        {
+            return _gatingSequences.Remove(sequence);
+        }
     }
 
     /// <summary>
@@ -79,16 +86,19 @@ public abstract class Sequencer
     /// <returns>The minimum sequence value</returns>
     public long GetMinimumGatingSequence(long defaultValue = long.MaxValue)
     {
-        if (_gatingSequences.Count == 0)
-            return defaultValue;
-
-        long min = long.MaxValue;
-        foreach (var sequence in _gatingSequences)
+        lock (_gatingLock)
         {
-            long value = sequence.Value;
-            if (value < min)
-                min = value;
+            if (_gatingSequences.Count == 0)
+                return defaultValue;
+
+            long min = long.MaxValue;
+            foreach (var sequence in _gatingSequences)
+            {
+                long value = sequence.Value;
+                if (value < min)
+                    min = value;
+            }
+            return min;
         }
-        return min;
     }
 }

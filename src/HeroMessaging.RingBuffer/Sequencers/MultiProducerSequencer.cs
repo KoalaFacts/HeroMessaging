@@ -118,7 +118,7 @@ public sealed class MultiProducerSequencer : Sequencer
     {
         int index = CalculateIndex(sequence);
         int flag = CalculateAvailabilityFlag(sequence);
-        _availableBuffer[index] = flag;
+        Volatile.Write(ref _availableBuffer[index], flag);
     }
 
     /// <summary>
@@ -128,7 +128,7 @@ public sealed class MultiProducerSequencer : Sequencer
     {
         int index = CalculateIndex(sequence);
         int flag = CalculateAvailabilityFlag(sequence);
-        return _availableBuffer[index] == flag;
+        return Volatile.Read(ref _availableBuffer[index]) == flag;
     }
 
     /// <summary>
