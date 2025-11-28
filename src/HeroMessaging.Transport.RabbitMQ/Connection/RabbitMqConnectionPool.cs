@@ -281,12 +281,7 @@ internal sealed class RabbitMqConnectionPool : IAsyncDisposable
 
         _logger.LogInformation("Disposing RabbitMQ connection pool...");
 
-#if NETSTANDARD2_0
-        _healthCheckTimer.Dispose();
-        await Task.CompletedTask;
-#else
         await _healthCheckTimer.DisposeAsync();
-#endif
         _createConnectionLock.Dispose();
 
         // Close all connections

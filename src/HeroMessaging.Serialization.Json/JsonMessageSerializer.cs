@@ -47,12 +47,6 @@ public class JsonMessageSerializer(
     {
         if (message == null) return 0;
 
-#if NETSTANDARD2_0
-        var json = JsonSerializer.Serialize(message, _jsonOptions);
-        var utf8Bytes = Encoding.UTF8.GetBytes(json);
-        utf8Bytes.CopyTo(destination);
-        return utf8Bytes.Length;
-#else
         var bufferWriter = new ArrayBufferWriter<byte>(destination.Length);
         using var writer = new Utf8JsonWriter(bufferWriter);
         JsonSerializer.Serialize(writer, message, _jsonOptions);
@@ -61,7 +55,6 @@ public class JsonMessageSerializer(
         var written = bufferWriter.WrittenSpan;
         written.CopyTo(destination);
         return written.Length;
-#endif
     }
 
     public bool TrySerialize<T>(T message, Span<byte> destination, out int bytesWritten)

@@ -2,9 +2,7 @@ using System.Reflection;
 using HeroMessaging.Abstractions.Configuration;
 using HeroMessaging.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-#if !NETSTANDARD2_0
 using Microsoft.Extensions.Hosting;
-#endif
 
 namespace Microsoft.Extensions.DependencyInjection;
 
@@ -108,7 +106,6 @@ public static class ExtensionsToIServiceCollectionForHeroMessaging
     }
 }
 
-#if !NETSTANDARD2_0
 /// <summary>
 /// Extension methods for IHostBuilder to configure HeroMessaging
 /// </summary>
@@ -156,5 +153,3 @@ public static class ExtensionsToIHostBuilderForHeroMessaging
         });
     }
 }
-#endif
-

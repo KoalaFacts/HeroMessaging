@@ -26,11 +26,7 @@ public class GZipCompressionProvider : ICompressionProvider
 
         using (var gzip = new GZipStream(output, gzipLevel))
         {
-#if NETSTANDARD2_0
-            await gzip.WriteAsync(data, 0, data.Length, cancellationToken);
-#else
             await gzip.WriteAsync(data, cancellationToken);
-#endif
         }
 
         return output.ToArray();
@@ -50,11 +46,7 @@ public class GZipCompressionProvider : ICompressionProvider
         using var output = new MemoryStream();
         using var gzip = new GZipStream(input, CompressionMode.Decompress);
 
-#if NETSTANDARD2_0
-        await gzip.CopyToAsync(output);
-#else
         await gzip.CopyToAsync(output, cancellationToken);
-#endif
 
         return output.ToArray();
     }
@@ -69,11 +61,7 @@ public class GZipCompressionProvider : ICompressionProvider
         using var output = new MemoryStream(destination.Length);
         using (var gzip = new GZipStream(output, gzipLevel, leaveOpen: true))
         {
-#if NETSTANDARD2_0
-            gzip.Write(source.ToArray(), 0, source.Length);
-#else
             gzip.Write(source);
-#endif
         }
 
         var bytesWritten = (int)output.Position;
@@ -83,13 +71,7 @@ public class GZipCompressionProvider : ICompressionProvider
         }
 
         output.Position = 0;
-#if NETSTANDARD2_0
-        var buffer = destination.ToArray();
-        output.Read(buffer, 0, destination.Length);
-        buffer.CopyTo(destination);
-#else
         output.Read(destination);
-#endif
         return bytesWritten;
     }
 
@@ -124,14 +106,7 @@ public class GZipCompressionProvider : ICompressionProvider
         using var input = new MemoryStream(source.ToArray());
         using var gzip = new GZipStream(input, CompressionMode.Decompress);
 
-#if NETSTANDARD2_0
-        var buffer = destination.ToArray();
-        var bytesRead = gzip.Read(buffer, 0, destination.Length);
-        buffer.AsSpan(0, bytesRead).CopyTo(destination);
-        return bytesRead;
-#else
         return gzip.Read(destination);
-#endif
     }
 
     /// <inheritdoc />

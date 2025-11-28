@@ -28,10 +28,6 @@ public sealed class DefaultJsonSerializer : IJsonSerializer
     /// </summary>
     public string SerializeToString(object value, JsonSerializerOptions? options = null)
     {
-#if NETSTANDARD2_0
-        var json = JsonSerializer.Serialize(value, value.GetType(), options);
-        return json;
-#else
         var bufferWriter = new ArrayBufferWriter<byte>();
 
         var writerOptions = new JsonWriterOptions
@@ -48,7 +44,6 @@ public sealed class DefaultJsonSerializer : IJsonSerializer
         // Convert UTF-8 bytes to string
         var utf8Bytes = bufferWriter.WrittenSpan;
         return Encoding.UTF8.GetString(utf8Bytes);
-#endif
     }
 
     /// <summary>
@@ -57,10 +52,6 @@ public sealed class DefaultJsonSerializer : IJsonSerializer
     /// </summary>
     public string SerializeToString<T>(T value, JsonSerializerOptions? options = null)
     {
-#if NETSTANDARD2_0
-        var json = JsonSerializer.Serialize(value, options);
-        return json;
-#else
         var bufferWriter = new ArrayBufferWriter<byte>();
 
         var writerOptions = new JsonWriterOptions
@@ -77,7 +68,6 @@ public sealed class DefaultJsonSerializer : IJsonSerializer
         // Convert UTF-8 bytes to string
         var utf8Bytes = bufferWriter.WrittenSpan;
         return Encoding.UTF8.GetString(utf8Bytes);
-#endif
     }
 
     /// <summary>
@@ -86,10 +76,6 @@ public sealed class DefaultJsonSerializer : IJsonSerializer
     /// </summary>
     public string SerializeToString(object value, Type type, JsonSerializerOptions? options = null)
     {
-#if NETSTANDARD2_0
-        var json = JsonSerializer.Serialize(value, type, options);
-        return json;
-#else
         var bufferWriter = new ArrayBufferWriter<byte>();
 
         var writerOptions = new JsonWriterOptions
@@ -106,15 +92,12 @@ public sealed class DefaultJsonSerializer : IJsonSerializer
         // Convert UTF-8 bytes to string
         var utf8Bytes = bufferWriter.WrittenSpan;
         return Encoding.UTF8.GetString(utf8Bytes);
-#endif
     }
 
     /// <summary>
     /// Serializes an object to JSON UTF-8 bytes and writes to an ArrayBufferWriter.
     /// Allows caller to reuse the buffer or convert to string as needed.
-    /// NOTE: Not available in netstandard2.0 due to ArrayBufferWriter accessibility.
     /// </summary>
-#if !NETSTANDARD2_0
     public void SerializeToBuffer<T>(T value, ArrayBufferWriter<byte> buffer, JsonSerializerOptions? options = null)
     {
         var writerOptions = new JsonWriterOptions
@@ -126,7 +109,6 @@ public sealed class DefaultJsonSerializer : IJsonSerializer
         using var writer = new Utf8JsonWriter(buffer, writerOptions);
         JsonSerializer.Serialize(writer, value, options);
     }
-#endif
 
     /// <summary>
     /// Deserializes JSON from a UTF-8 string using span-based APIs with pooled buffers.
@@ -138,9 +120,6 @@ public sealed class DefaultJsonSerializer : IJsonSerializer
         if (string.IsNullOrEmpty(json))
             return default;
 
-#if NETSTANDARD2_0
-        return JsonSerializer.Deserialize<T>(json, options);
-#else
         var maxByteCount = Encoding.UTF8.GetMaxByteCount(json.Length);
 
         if (maxByteCount <= _bufferPool.SmallBufferThreshold)
@@ -162,7 +141,6 @@ public sealed class DefaultJsonSerializer : IJsonSerializer
             var reader = new Utf8JsonReader(pooledBuffer.Span.Slice(0, utf8Bytes.Length));
             return JsonSerializer.Deserialize<T>(ref reader, options);
         }
-#endif
     }
 
     /// <summary>
@@ -174,9 +152,6 @@ public sealed class DefaultJsonSerializer : IJsonSerializer
         if (string.IsNullOrEmpty(json))
             return null;
 
-#if NETSTANDARD2_0
-        return JsonSerializer.Deserialize(json, type, options);
-#else
         var maxByteCount = Encoding.UTF8.GetMaxByteCount(json.Length);
 
         if (maxByteCount <= _bufferPool.SmallBufferThreshold)
@@ -198,7 +173,6 @@ public sealed class DefaultJsonSerializer : IJsonSerializer
             var reader = new Utf8JsonReader(pooledBuffer.Span.Slice(0, utf8Bytes.Length));
             return JsonSerializer.Deserialize(ref reader, type, options);
         }
-#endif
     }
 
     /// <summary>
@@ -207,10 +181,6 @@ public sealed class DefaultJsonSerializer : IJsonSerializer
     /// </summary>
     public int GetJsonByteCount<T>(T value, JsonSerializerOptions? options = null)
     {
-#if NETSTANDARD2_0
-        var json = JsonSerializer.Serialize(value, options);
-        return Encoding.UTF8.GetByteCount(json);
-#else
         var bufferWriter = new ArrayBufferWriter<byte>();
 
         var writerOptions = new JsonWriterOptions
@@ -225,6 +195,5 @@ public sealed class DefaultJsonSerializer : IJsonSerializer
         }
 
         return bufferWriter.WrittenCount;
-#endif
     }
 }

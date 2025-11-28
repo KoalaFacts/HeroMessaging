@@ -13,21 +13,10 @@ public class InMemoryTransport(
     TimeProvider timeProvider,
     ITransportInstrumentation? instrumentation = null) : IMessageTransport
 {
-#if NETSTANDARD2_0
-    private static readonly ThreadLocal<Random> _random = new ThreadLocal<Random>(() => new Random(Guid.NewGuid().GetHashCode()));
-#else
     private static readonly Random _random = Random.Shared;
-#endif
 
-    // Helper to get Random instance in a thread-safe manner across all frameworks
-    private static Random GetRandom()
-    {
-#if NETSTANDARD2_0
-        return _random.Value!;
-#else
-        return _random;
-#endif
-    }
+    // Helper to get Random instance
+    private static Random GetRandom() => _random;
 
     private readonly InMemoryTransportOptions _options = options ?? throw new ArgumentNullException(nameof(options));
     private readonly ITransportInstrumentation _instrumentation = instrumentation ?? NoOpTransportInstrumentation.Instance;

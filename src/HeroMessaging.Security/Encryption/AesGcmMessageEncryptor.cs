@@ -70,13 +70,7 @@ public sealed class AesGcmMessageEncryptor : IMessageEncryptor
             var ciphertext = new byte[plaintext.Length];
             var tag = new byte[TagSize];
 
-#if NETSTANDARD2_0
-            // AesGcm is not available in netstandard2.0
-            throw new PlatformNotSupportedException(
-                "AES-GCM is not available in .NET Standard 2.0. " +
-                "Please target .NET 6.0 or later for AES-GCM support, " +
-                "or use AesCbcHmacMessageEncryptor for .NET Standard 2.0 compatibility.");
-#elif NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER
             // .NET 8+ supports tag size in constructor
             using (var aes = new AesGcm(_key, TagSize))
             {
@@ -123,13 +117,7 @@ public sealed class AesGcmMessageEncryptor : IMessageEncryptor
         {
             var plaintext = new byte[encryptedData.Ciphertext.Length];
 
-#if NETSTANDARD2_0
-            // AesGcm is not available in netstandard2.0
-            throw new PlatformNotSupportedException(
-                "AES-GCM is not available in .NET Standard 2.0. " +
-                "Please target .NET 6.0 or later for AES-GCM support, " +
-                "or use AesCbcHmacMessageEncryptor for .NET Standard 2.0 compatibility.");
-#elif NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER
             // .NET 8+ supports tag size in constructor
             using (var aes = new AesGcm(_key, TagSize))
             {
@@ -173,22 +161,9 @@ public sealed class AesGcmMessageEncryptor : IMessageEncryptor
         try
         {
             // Generate random nonce
-#if NETSTANDARD2_0
-            var nonceArray = new byte[NonceSize];
-            using (var rng = RandomNumberGenerator.Create())
-            {
-                rng.GetBytes(nonceArray);
-            }
-            nonceArray.CopyTo(iv.Slice(0, NonceSize));
-#else
             RandomNumberGenerator.Fill(iv.Slice(0, NonceSize));
-#endif
 
-#if NETSTANDARD2_0
-            throw new PlatformNotSupportedException(
-                "AES-GCM is not available in .NET Standard 2.0. " +
-                "Please target .NET 6.0 or later for AES-GCM support.");
-#elif NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER
             using (var aes = new AesGcm(_key, TagSize))
             {
                 aes.Encrypt(iv.Slice(0, NonceSize), plaintext, ciphertext.Slice(0, plaintext.Length), tag.Slice(0, TagSize));
@@ -235,11 +210,7 @@ public sealed class AesGcmMessageEncryptor : IMessageEncryptor
 
         try
         {
-#if NETSTANDARD2_0
-            throw new PlatformNotSupportedException(
-                "AES-GCM is not available in .NET Standard 2.0. " +
-                "Please target .NET 6.0 or later for AES-GCM support.");
-#elif NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER
             using (var aes = new AesGcm(_key, TagSize))
             {
                 aes.Decrypt(iv.Slice(0, NonceSize), ciphertext, tag.Slice(0, TagSize), plaintext.Slice(0, ciphertext.Length));
