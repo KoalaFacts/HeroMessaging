@@ -18,6 +18,8 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
     private readonly string _tableName;
     private readonly TimeProvider _timeProvider;
     private readonly IJsonSerializer _jsonSerializer;
+    private readonly SemaphoreSlim _initLock = new(1, 1);
+    private bool _initialized;
 
     public SqlServerDeadLetterQueue(SqlServerStorageOptions options, TimeProvider timeProvider, IJsonSerializer jsonSerializer)
     {
@@ -31,8 +33,23 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
             PropertyNameCaseInsensitive = true,
             WriteIndented = false
         };
+    }
 
-        InitializeDatabase().GetAwaiter().GetResult();
+    private async Task EnsureInitializedAsync(CancellationToken cancellationToken = default)
+    {
+        if (_initialized || !_options.AutoCreateTables) return;
+
+        await _initLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (_initialized) return;
+            await InitializeDatabase().ConfigureAwait(false);
+            _initialized = true;
+        }
+        finally
+        {
+            _initLock.Release();
+        }
     }
 
     private async Task InitializeDatabase()
@@ -71,6 +88,7 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
     public async Task<string> SendToDeadLetterAsync<T>(T message, DeadLetterContext context, CancellationToken cancellationToken = default)
         where T : IMessage
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         var deadLetterId = Guid.NewGuid().ToString();
 
         using var connection = new SqlConnection(_connectionString);
@@ -110,6 +128,7 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
     public async Task<IEnumerable<DeadLetterEntry<T>>> GetDeadLettersAsync<T>(int limit = 100, CancellationToken cancellationToken = default)
         where T : IMessage
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
 
@@ -169,6 +188,7 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
     public async Task<bool> RetryAsync<T>(string deadLetterId, CancellationToken cancellationToken = default)
         where T : IMessage
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
 
@@ -190,6 +210,7 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
 
     public async Task<bool> DiscardAsync<T>(string deadLetterId, CancellationToken cancellationToken = default) where T : IMessage
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
 
@@ -211,6 +232,7 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
 
     public async Task<long> GetDeadLetterCountAsync(CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
 
@@ -225,6 +247,7 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
 
     public async Task<DeadLetterStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
 

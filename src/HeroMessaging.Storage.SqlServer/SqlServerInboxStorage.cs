@@ -21,6 +21,8 @@ public class SqlServerInboxStorage : IInboxStorage
     private readonly string _tableName;
     private readonly TimeProvider _timeProvider;
     private readonly IJsonSerializer _jsonSerializer;
+    private readonly SemaphoreSlim _initLock = new(1, 1);
+    private bool _initialized;
 
     public SqlServerInboxStorage(
         SqlServerStorageOptions options,
@@ -39,11 +41,6 @@ public class SqlServerInboxStorage : IInboxStorage
         _connectionProvider = connectionProvider ?? new SqlServerConnectionProvider(options.ConnectionString ?? throw new ArgumentNullException(nameof(options), "ConnectionString cannot be null"));
         _jsonOptionsProvider = jsonOptionsProvider ?? new DefaultJsonOptionsProvider();
         _schemaInitializer = schemaInitializer ?? new SqlServerSchemaInitializer(_connectionProvider);
-
-        if (_options.AutoCreateTables)
-        {
-            InitializeDatabase().GetAwaiter().GetResult();
-        }
     }
 
     public SqlServerInboxStorage(
@@ -62,6 +59,23 @@ public class SqlServerInboxStorage : IInboxStorage
         _options = new SqlServerStorageOptions { ConnectionString = connection.ConnectionString };
         _tableName = _options.GetFullTableName(_options.InboxTableName);
         _schemaInitializer = new SqlServerSchemaInitializer(_connectionProvider);
+    }
+
+    private async Task EnsureInitializedAsync(CancellationToken cancellationToken = default)
+    {
+        if (_initialized || !_options.AutoCreateTables) return;
+
+        await _initLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (_initialized) return;
+            await InitializeDatabase().ConfigureAwait(false);
+            _initialized = true;
+        }
+        finally
+        {
+            _initLock.Release();
+        }
     }
 
     private async Task InitializeDatabase()
@@ -96,6 +110,7 @@ public class SqlServerInboxStorage : IInboxStorage
 
     public async Task<InboxEntry?> AddAsync(IMessage message, InboxOptions options, CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
         var transaction = _connectionProvider.GetTransaction();
 
@@ -148,6 +163,7 @@ public class SqlServerInboxStorage : IInboxStorage
 
     public async Task<bool> IsDuplicateAsync(string messageId, TimeSpan? window = null, CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
         var transaction = _connectionProvider.GetTransaction();
 
@@ -177,6 +193,7 @@ public class SqlServerInboxStorage : IInboxStorage
 
     public async Task<InboxEntry?> GetAsync(string messageId, CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
         var transaction = _connectionProvider.GetTransaction();
 
@@ -236,6 +253,7 @@ public class SqlServerInboxStorage : IInboxStorage
 
     public async Task<bool> MarkProcessedAsync(string messageId, CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
         var transaction = _connectionProvider.GetTransaction();
 
@@ -263,6 +281,7 @@ public class SqlServerInboxStorage : IInboxStorage
 
     public async Task<bool> MarkFailedAsync(string messageId, string error, CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
         var transaction = _connectionProvider.GetTransaction();
 
@@ -291,6 +310,7 @@ public class SqlServerInboxStorage : IInboxStorage
 
     public async Task<IEnumerable<InboxEntry>> GetPendingAsync(InboxQuery query, CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
         var transaction = _connectionProvider.GetTransaction();
 
@@ -392,6 +412,7 @@ public class SqlServerInboxStorage : IInboxStorage
 
     public async Task<long> GetUnprocessedCountAsync(CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
         var transaction = _connectionProvider.GetTransaction();
 
@@ -411,6 +432,7 @@ public class SqlServerInboxStorage : IInboxStorage
 
     public async Task CleanupOldEntriesAsync(TimeSpan olderThan, CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
         var transaction = _connectionProvider.GetTransaction();
 

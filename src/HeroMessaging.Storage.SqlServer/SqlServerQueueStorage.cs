@@ -22,6 +22,8 @@ public class SqlServerQueueStorage : IQueueStorage
     private readonly TimeProvider _timeProvider;
     private readonly JsonSerializerOptions _jsonOptions;
     private readonly IJsonSerializer _jsonSerializer;
+    private readonly SemaphoreSlim _initLock = new(1, 1);
+    private bool _initialized;
 
     public SqlServerQueueStorage(SqlServerStorageOptions options, TimeProvider timeProvider, IJsonSerializer jsonSerializer)
     {
@@ -36,11 +38,6 @@ public class SqlServerQueueStorage : IQueueStorage
             PropertyNameCaseInsensitive = true,
             WriteIndented = false
         };
-
-        if (_options.AutoCreateTables)
-        {
-            InitializeDatabase().GetAwaiter().GetResult();
-        }
     }
 
     public SqlServerQueueStorage(SqlConnection connection, SqlTransaction? transaction, TimeProvider timeProvider, IJsonSerializer jsonSerializer)
@@ -77,6 +74,23 @@ public class SqlServerQueueStorage : IQueueStorage
     private SqlTransaction? GetTransaction()
     {
         return _sharedTransaction;
+    }
+
+    private async Task EnsureInitializedAsync(CancellationToken cancellationToken = default)
+    {
+        if (_initialized || !_options.AutoCreateTables) return;
+
+        await _initLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (_initialized) return;
+            await InitializeDatabase().ConfigureAwait(false);
+            _initialized = true;
+        }
+        finally
+        {
+            _initLock.Release();
+        }
     }
 
     private async Task InitializeDatabase()
@@ -127,6 +141,7 @@ public class SqlServerQueueStorage : IQueueStorage
 
     public async Task<QueueEntry> EnqueueAsync(string queueName, IMessage message, EnqueueOptions? options = null, CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         var connection = await GetConnectionAsync();
         var transaction = GetTransaction();
 
@@ -173,6 +188,7 @@ public class SqlServerQueueStorage : IQueueStorage
 
     public async Task<QueueEntry?> DequeueAsync(string queueName, CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         var connection = await GetConnectionAsync();
         var transaction = GetTransaction();
 
@@ -263,6 +279,7 @@ public class SqlServerQueueStorage : IQueueStorage
 
     public async Task<IEnumerable<QueueEntry>> PeekAsync(string queueName, int count = 1, CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         var connection = await GetConnectionAsync();
         var transaction = GetTransaction();
 
@@ -324,6 +341,7 @@ public class SqlServerQueueStorage : IQueueStorage
 
     public async Task<bool> AcknowledgeAsync(string queueName, string entryId, CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         var connection = await GetConnectionAsync();
         var transaction = GetTransaction();
 
@@ -350,6 +368,7 @@ public class SqlServerQueueStorage : IQueueStorage
 
     public async Task<bool> RejectAsync(string queueName, string entryId, bool requeue = false, CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         var connection = await GetConnectionAsync();
         var transaction = GetTransaction();
 
@@ -396,6 +415,7 @@ public class SqlServerQueueStorage : IQueueStorage
 
     public async Task<long> GetQueueDepthAsync(string queueName, CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         var connection = await GetConnectionAsync();
         var transaction = GetTransaction();
 
@@ -430,6 +450,7 @@ public class SqlServerQueueStorage : IQueueStorage
 
     public async Task<bool> DeleteQueueAsync(string queueName, CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         var connection = await GetConnectionAsync();
         var transaction = GetTransaction();
 
@@ -454,6 +475,7 @@ public class SqlServerQueueStorage : IQueueStorage
 
     public async Task<IEnumerable<string>> GetQueuesAsync(CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         var connection = await GetConnectionAsync();
         var transaction = GetTransaction();
 
@@ -484,6 +506,7 @@ public class SqlServerQueueStorage : IQueueStorage
 
     public async Task<bool> QueueExistsAsync(string queueName, CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         var connection = await GetConnectionAsync();
         var transaction = GetTransaction();
 

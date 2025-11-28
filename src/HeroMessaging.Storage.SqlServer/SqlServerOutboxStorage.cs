@@ -20,6 +20,8 @@ public class SqlServerOutboxStorage : IOutboxStorage
     private readonly SqlTransaction? _sharedTransaction;
     private readonly TimeProvider _timeProvider;
     private readonly IJsonSerializer _jsonSerializer;
+    private readonly SemaphoreSlim _initLock = new(1, 1);
+    private bool _initialized;
 
     public SqlServerOutboxStorage(
         SqlServerStorageOptions options,
@@ -35,11 +37,6 @@ public class SqlServerOutboxStorage : IOutboxStorage
             PropertyNameCaseInsensitive = true,
             WriteIndented = false
         };
-
-        if (_options.AutoCreateTables)
-        {
-            InitializeDatabase().GetAwaiter().GetResult();
-        }
     }
 
     /// <summary>
@@ -86,10 +83,22 @@ public class SqlServerOutboxStorage : IOutboxStorage
             PropertyNameCaseInsensitive = true,
             WriteIndented = false
         };
+    }
 
-        if (_options.AutoCreateTables)
+    private async Task EnsureInitializedAsync(CancellationToken cancellationToken = default)
+    {
+        if (_initialized || !_options.AutoCreateTables) return;
+
+        await _initLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            InitializeDatabase().GetAwaiter().GetResult();
+            if (_initialized) return;
+            await InitializeDatabase().ConfigureAwait(false);
+            _initialized = true;
+        }
+        finally
+        {
+            _initLock.Release();
         }
     }
 
@@ -141,6 +150,7 @@ public class SqlServerOutboxStorage : IOutboxStorage
 
     public async Task<OutboxEntry> AddAsync(IMessage message, OutboxOptions options, CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         var entry = new OutboxEntry
         {
             Id = Guid.NewGuid().ToString(),
@@ -191,6 +201,7 @@ public class SqlServerOutboxStorage : IOutboxStorage
 
     public async Task<IEnumerable<OutboxEntry>> GetPendingAsync(OutboxQuery query, CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         using var connection = new SqlConnection(_options.ConnectionString);
         await connection.OpenAsync(cancellationToken);
 
@@ -254,6 +265,7 @@ public class SqlServerOutboxStorage : IOutboxStorage
 
     public async Task<IEnumerable<OutboxEntry>> GetPendingAsync(int limit = 100, CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         using var connection = new SqlConnection(_options.ConnectionString);
         await connection.OpenAsync(cancellationToken);
 
@@ -335,6 +347,7 @@ public class SqlServerOutboxStorage : IOutboxStorage
 
     public async Task<bool> MarkProcessedAsync(string entryId, CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         using var connection = new SqlConnection(_options.ConnectionString);
         await connection.OpenAsync(cancellationToken);
 
@@ -356,6 +369,7 @@ public class SqlServerOutboxStorage : IOutboxStorage
 
     public async Task<bool> MarkFailedAsync(string entryId, string error, CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         using var connection = new SqlConnection(_options.ConnectionString);
         await connection.OpenAsync(cancellationToken);
 
@@ -377,6 +391,7 @@ public class SqlServerOutboxStorage : IOutboxStorage
 
     public async Task<bool> UpdateRetryCountAsync(string entryId, int retryCount, DateTimeOffset? nextRetry = null, CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         using var connection = new SqlConnection(_options.ConnectionString);
         await connection.OpenAsync(cancellationToken);
 
@@ -399,6 +414,7 @@ public class SqlServerOutboxStorage : IOutboxStorage
 
     public async Task<long> GetPendingCountAsync(CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         using var connection = new SqlConnection(_options.ConnectionString);
         await connection.OpenAsync(cancellationToken);
 
@@ -414,6 +430,7 @@ public class SqlServerOutboxStorage : IOutboxStorage
 
     public async Task<IEnumerable<OutboxEntry>> GetFailedAsync(int limit = 100, CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         using var connection = new SqlConnection(_options.ConnectionString);
         await connection.OpenAsync(cancellationToken);
 
