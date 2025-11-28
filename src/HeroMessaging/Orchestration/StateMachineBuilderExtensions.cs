@@ -1,13 +1,16 @@
 using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Events;
 using HeroMessaging.Abstractions.Sagas;
+using HeroMessaging.Orchestration;
 
-namespace HeroMessaging.Orchestration;
+namespace HeroMessaging.Abstractions.Sagas;
 
 /// <summary>
 /// Enhanced builder extensions for more intuitive and powerful state machine definition
 /// </summary>
-public static class StateMachineBuilderExtensions
+// ReSharper disable once CheckNamespace
+#pragma warning disable IDE0130 // Namespace does not match folder structure
+public static class ExtensionsToStateMachineBuilderForSagas
 {
     /// <summary>
     /// Define a state inline without pre-declaring a State instance
@@ -306,7 +309,9 @@ public class ElseConfigurator<TSaga, TEvent>
 /// <summary>
 /// Extension methods for adding conditional logic to state transitions
 /// </summary>
-public static class ConditionalTransitionExtensions
+// ReSharper disable once CheckNamespace
+#pragma warning disable IDE0130 // Namespace does not match folder structure
+public static class ExtensionsToWhenConfiguratorForConditions
 {
     /// <summary>
     /// Add conditional logic to a transition

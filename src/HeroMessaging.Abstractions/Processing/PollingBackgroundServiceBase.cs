@@ -51,6 +51,11 @@ public abstract class PollingBackgroundServiceBase<TWorkItem>
     }
 
     /// <summary>
+    /// Gets a value indicating whether the service is currently running
+    /// </summary>
+    public bool IsRunning => _cancellationTokenSource != null && !_cancellationTokenSource.IsCancellationRequested;
+
+    /// <summary>
     /// Stops the background polling service
     /// </summary>
     public async Task StopAsync()

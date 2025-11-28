@@ -271,22 +271,29 @@ public class HeroMessagingServiceTests
     }
 
     [Fact]
-    public async Task SendBatchAsync_WithFailingCommand_ThrowsExceptionAndMarksFailure()
+    public async Task SendBatchAsync_WithFailingCommand_ContinuesAndMarksFailure()
     {
         // Arrange
         var commands = new List<ICommand>
         {
+            new Mock<ICommand>().Object,
             new Mock<ICommand>().Object,
             new Mock<ICommand>().Object
         };
 
         _mockCommandProcessor.SetupSequence(x => x.Send(It.IsAny<ICommand>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask)
-            .ThrowsAsync(new InvalidOperationException("Command failed"));
+            .ThrowsAsync(new InvalidOperationException("Command failed"))
+            .Returns(Task.CompletedTask);
 
-        // Act & Assert
-        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await _sut.SendBatchAsync(commands));
+        // Act - batch operations should NOT throw, they should continue processing
+        var results = await _sut.SendBatchAsync(commands);
+
+        // Assert - first succeeded, second failed, third succeeded
+        Assert.Equal(3, results.Count);
+        Assert.True(results[0]);
+        Assert.False(results[1]);
+        Assert.True(results[2]);
     }
 
     [Fact]
@@ -379,22 +386,29 @@ public class HeroMessagingServiceTests
     }
 
     [Fact]
-    public async Task PublishBatchAsync_WithFailingEvent_ThrowsExceptionAndMarksFailure()
+    public async Task PublishBatchAsync_WithFailingEvent_ContinuesAndMarksFailure()
     {
         // Arrange
         var events = new List<IEvent>
         {
+            new Mock<IEvent>().Object,
             new Mock<IEvent>().Object,
             new Mock<IEvent>().Object
         };
 
         _mockEventBus.SetupSequence(x => x.Publish(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask)
-            .ThrowsAsync(new InvalidOperationException("Event failed"));
+            .ThrowsAsync(new InvalidOperationException("Event failed"))
+            .Returns(Task.CompletedTask);
 
-        // Act & Assert
-        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await _sut.PublishBatchAsync(events));
+        // Act - batch operations should NOT throw, they should continue processing
+        var results = await _sut.PublishBatchAsync(events);
+
+        // Assert - first succeeded, second failed, third succeeded
+        Assert.Equal(3, results.Count);
+        Assert.True(results[0]);
+        Assert.False(results[1]);
+        Assert.True(results[2]);
     }
 
     #endregion

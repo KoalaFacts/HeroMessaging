@@ -1,15 +1,18 @@
 using HeroMessaging.Abstractions.Configuration;
 using HeroMessaging.Abstractions.Versioning;
+using HeroMessaging.Configuration;
 using HeroMessaging.Versioning;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
-namespace HeroMessaging.Configuration;
+namespace HeroMessaging.Abstractions.Configuration;
 
 /// <summary>
 /// Extension methods for configuring message versioning in HeroMessaging
 /// </summary>
-public static class VersioningExtensions
+// ReSharper disable once CheckNamespace
+#pragma warning disable IDE0130 // Namespace does not match folder structure
+public static class ExtensionsToIHeroMessagingBuilderForVersioning
 {
     /// <summary>
     /// Adds message versioning support to HeroMessaging

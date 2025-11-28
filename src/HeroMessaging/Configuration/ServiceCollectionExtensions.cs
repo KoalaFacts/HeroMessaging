@@ -1,16 +1,19 @@
 using System.Reflection;
 using HeroMessaging.Abstractions.Configuration;
+using HeroMessaging.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 #if !NETSTANDARD2_0
 using Microsoft.Extensions.Hosting;
 #endif
 
-namespace HeroMessaging.Configuration;
+namespace Microsoft.Extensions.DependencyInjection;
 
 /// <summary>
 /// Extension methods for IServiceCollection to configure HeroMessaging
 /// </summary>
-public static class HeroMessagingServiceCollectionExtensions
+// ReSharper disable once CheckNamespace
+#pragma warning disable IDE0130 // Namespace does not match folder structure
+public static class ExtensionsToIServiceCollectionForHeroMessaging
 {
     /// <summary>
     /// Adds HeroMessaging services to the dependency injection container
@@ -109,7 +112,9 @@ public static class HeroMessagingServiceCollectionExtensions
 /// <summary>
 /// Extension methods for IHostBuilder to configure HeroMessaging
 /// </summary>
-public static class HeroMessagingHostBuilderExtensions
+// ReSharper disable once CheckNamespace
+#pragma warning disable IDE0130 // Namespace does not match folder structure
+public static class ExtensionsToIHostBuilderForHeroMessaging
 {
     /// <summary>
     /// Configures HeroMessaging services in the host builder

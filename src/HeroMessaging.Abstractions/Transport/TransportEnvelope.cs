@@ -195,7 +195,9 @@ public readonly record struct TransportEnvelope
 /// <summary>
 /// Extension methods for TransportEnvelope
 /// </summary>
-public static class TransportEnvelopeExtensions
+// ReSharper disable once CheckNamespace
+#pragma warning disable IDE0130 // Namespace does not match folder structure
+public static class ExtensionsToReadOnlyMemoryForTransportEnvelope
 {
     /// <summary>
     /// Create an envelope from a message type and body

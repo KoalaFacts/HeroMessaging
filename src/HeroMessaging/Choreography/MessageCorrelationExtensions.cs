@@ -1,12 +1,15 @@
 using HeroMessaging.Abstractions.Messages;
+using HeroMessaging.Choreography;
 
-namespace HeroMessaging.Choreography;
+namespace HeroMessaging.Abstractions.Messages;
 
 /// <summary>
 /// Extension methods for applying correlation and causation tracking to messages
 /// Supports choreography pattern by automatically linking related messages in workflows
 /// </summary>
-public static class MessageCorrelationExtensions
+// ReSharper disable once CheckNamespace
+#pragma warning disable IDE0130 // Namespace does not match folder structure
+public static class ExtensionsToMessageBaseForCorrelation
 {
     /// <summary>
     /// Applies correlation context to a message that extends MessageBase

@@ -41,7 +41,7 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxEntry>, IOutbo
         }
     }
 
-    public bool IsRunning => true; // TODO: Track running state properly
+    public new bool IsRunning => base.IsRunning;
 
     public IOutboxProcessorMetrics GetMetrics()
     {

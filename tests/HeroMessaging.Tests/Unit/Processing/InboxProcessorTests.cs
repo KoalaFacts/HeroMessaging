@@ -431,13 +431,49 @@ public sealed class InboxProcessorTests : IDisposable
     #region IsRunning
 
     [Fact]
-    public void IsRunning_ReturnsTrue()
+    public void IsRunning_BeforeStart_ReturnsFalse()
     {
         // Arrange
         var processor = CreateProcessor();
 
-        // Act & Assert
+        // Act & Assert - Before starting, IsRunning should be false
+        Assert.False(processor.IsRunning);
+    }
+
+    [Fact]
+    public async Task IsRunning_AfterStart_ReturnsTrue()
+    {
+        // Arrange
+        var processor = CreateProcessor();
+        _storageMock
+            .Setup(s => s.GetUnprocessedAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<InboxEntry>());
+
+        // Act
+        await processor.StartAsync();
+
+        // Assert - After starting, IsRunning should be true
         Assert.True(processor.IsRunning);
+
+        // Cleanup
+        await processor.StopAsync();
+    }
+
+    [Fact]
+    public async Task IsRunning_AfterStop_ReturnsFalse()
+    {
+        // Arrange
+        var processor = CreateProcessor();
+        _storageMock
+            .Setup(s => s.GetUnprocessedAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<InboxEntry>());
+
+        // Act
+        await processor.StartAsync();
+        await processor.StopAsync();
+
+        // Assert - After stopping, IsRunning should be false
+        Assert.False(processor.IsRunning);
     }
 
     #endregion

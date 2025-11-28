@@ -163,7 +163,9 @@ public class DelegateCompensatingAction : ICompensatingAction
 /// <summary>
 /// Extension methods for easier compensation context usage
 /// </summary>
-public static class CompensationExtensions
+// ReSharper disable once CheckNamespace
+#pragma warning disable IDE0130 // Namespace does not match folder structure
+public static class ExtensionsToCompensationContext
 {
     /// <summary>
     /// Add a compensation action using a delegate

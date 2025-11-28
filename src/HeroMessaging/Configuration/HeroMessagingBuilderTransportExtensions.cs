@@ -2,12 +2,14 @@ using HeroMessaging.Abstractions.Configuration;
 using HeroMessaging.Abstractions.Transport;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace HeroMessaging.Configuration;
+namespace HeroMessaging.Abstractions.Configuration;
 
 /// <summary>
 /// Extension methods for configuring transport layer options in HeroMessaging
 /// </summary>
-public static class HeroMessagingBuilderTransportExtensions
+// ReSharper disable once CheckNamespace
+#pragma warning disable IDE0130 // Namespace does not match folder structure
+public static class ExtensionsToIHeroMessagingBuilderForTransport
 {
     /// <summary>
     /// Configure in-memory queue options

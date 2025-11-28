@@ -2,15 +2,18 @@ using HeroMessaging.Abstractions.Configuration;
 using HeroMessaging.Abstractions.ErrorHandling;
 using HeroMessaging.Abstractions.Sagas;
 using HeroMessaging.Abstractions.Storage;
+using HeroMessaging.Storage.PostgreSql;
 using HeroMessaging.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace HeroMessaging.Storage.PostgreSql;
+namespace HeroMessaging.Abstractions.Configuration;
 
 /// <summary>
 /// Extension methods for PostgreSQL storage registration
 /// </summary>
-public static class ServiceCollectionExtensions
+// ReSharper disable once CheckNamespace
+#pragma warning disable IDE0130 // Namespace does not match folder structure
+public static class ExtensionsToIHeroMessagingBuilderForPostgreSql
 {
     /// <summary>
     /// Use PostgreSQL for all storage needs with default options

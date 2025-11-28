@@ -5,12 +5,14 @@ using HeroMessaging.Security.Encryption;
 using HeroMessaging.Security.Signing;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace HeroMessaging.Security.Configuration;
+namespace Microsoft.Extensions.DependencyInjection;
 
 /// <summary>
 /// Extension methods for configuring message security
 /// </summary>
-public static class SecurityBuilderExtensions
+// ReSharper disable once CheckNamespace
+#pragma warning disable IDE0130 // Namespace does not match folder structure
+public static class ExtensionsToIServiceCollectionForSecurity
 {
     /// <summary>
     /// Adds AES-256-GCM encryption to the message pipeline

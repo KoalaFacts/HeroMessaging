@@ -1,7 +1,6 @@
 using System.Security.Cryptography;
 using System.Security.Claims;
 using HeroMessaging.Abstractions.Security;
-using HeroMessaging.Security.Configuration;
 using HeroMessaging.Security.Encryption;
 using HeroMessaging.Security.Signing;
 using HeroMessaging.Security.Authentication;

@@ -1,6 +1,7 @@
 using System.Data;
 using HeroMessaging.Abstractions.Configuration;
 using HeroMessaging.Abstractions.Events;
+using HeroMessaging.Configuration;
 using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Abstractions.Storage;
 using HeroMessaging.Processing;
@@ -9,12 +10,14 @@ using HeroMessaging.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-namespace HeroMessaging.Configuration;
+namespace HeroMessaging.Abstractions.Configuration;
 
 /// <summary>
 /// Extension methods for configuring transaction management in HeroMessaging
 /// </summary>
-public static class TransactionExtensions
+// ReSharper disable once CheckNamespace
+#pragma warning disable IDE0130 // Namespace does not match folder structure
+public static class ExtensionsToIHeroMessagingBuilderForTransactions
 {
     /// <summary>
     /// Adds transaction management to all message processors

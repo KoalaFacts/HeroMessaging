@@ -1,11 +1,14 @@
 using HeroMessaging.Abstractions.Storage;
 using HeroMessaging.Abstractions.Transport;
+using HeroMessaging.Observability.HealthChecks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
-namespace HeroMessaging.Observability.HealthChecks;
+namespace Microsoft.Extensions.Diagnostics.HealthChecks;
 
-public static class ServiceCollectionExtensions
+// ReSharper disable once CheckNamespace
+#pragma warning disable IDE0130 // Namespace does not match folder structure
+public static class ExtensionsToIHealthChecksBuilderForHeroMessaging
 {
     public static IHealthChecksBuilder AddHeroMessagingHealthChecks(
         this IHealthChecksBuilder builder,

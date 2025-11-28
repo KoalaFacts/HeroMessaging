@@ -100,7 +100,9 @@ public interface IUnitOfWorkFactory
 /// <summary>
 /// Extension methods for IUnitOfWork to provide common transaction patterns
 /// </summary>
-public static class UnitOfWorkExtensions
+// ReSharper disable once CheckNamespace
+#pragma warning disable IDE0130 // Namespace does not match folder structure
+public static class ExtensionsToIUnitOfWorkForTransactions
 {
     /// <summary>
     /// Executes a function within a transaction, automatically handling commit/rollback

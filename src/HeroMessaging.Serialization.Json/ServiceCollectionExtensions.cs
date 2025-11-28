@@ -1,14 +1,17 @@
 using System.Text.Json;
 using HeroMessaging.Abstractions.Serialization;
+using HeroMessaging.Serialization.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
-namespace HeroMessaging.Serialization.Json;
+namespace Microsoft.Extensions.DependencyInjection;
 
 /// <summary>
 /// Extension methods for registering JSON serialization
 /// </summary>
-public static class ServiceCollectionExtensions
+// ReSharper disable once CheckNamespace
+#pragma warning disable IDE0130 // Namespace does not match folder structure
+public static class ExtensionsToIServiceCollectionForJsonSerialization
 {
     /// <summary>
     /// Add JSON serialization support to HeroMessaging

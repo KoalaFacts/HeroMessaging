@@ -91,7 +91,9 @@ public static class PipelineConfigurations
 /// <summary>
 /// Extension methods for pipeline configuration
 /// </summary>
-public static class PipelineExtensions
+// ReSharper disable once CheckNamespace
+#pragma warning disable IDE0130 // Namespace does not match folder structure
+public static class ExtensionsToIServiceCollectionForPipeline
 {
     public static IServiceCollection AddMessageProcessingPipeline(this IServiceCollection services)
     {

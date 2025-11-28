@@ -1,17 +1,20 @@
 using HeroMessaging.Abstractions.Configuration;
 using HeroMessaging.Abstractions.Observability;
+using HeroMessaging.Observability.OpenTelemetry;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
-namespace HeroMessaging.Observability.OpenTelemetry;
+namespace HeroMessaging.Abstractions.Configuration;
 
 /// <summary>
 /// Extension methods for registering OpenTelemetry instrumentation
 /// </summary>
-public static class ServiceCollectionExtensions
+// ReSharper disable once CheckNamespace
+#pragma warning disable IDE0130 // Namespace does not match folder structure
+public static class ExtensionsToIHeroMessagingBuilderForOpenTelemetry
 {
     /// <summary>
     /// Add OpenTelemetry instrumentation to HeroMessaging
@@ -20,11 +23,11 @@ public static class ServiceCollectionExtensions
     /// <param name="configure">Optional configuration action for OpenTelemetry</param>
     public static IHeroMessagingBuilder AddOpenTelemetry(
         this IHeroMessagingBuilder builder,
-        Action<OpenTelemetryOptions>? configure = null)
+        Action<OpenTelemetryInstrumentationOptions>? configure = null)
     {
         var services = builder.Build();
 
-        var options = new OpenTelemetryOptions();
+        var options = new OpenTelemetryInstrumentationOptions();
         configure?.Invoke(options);
 
         // Register transport instrumentation
@@ -76,9 +79,9 @@ public static class ServiceCollectionExtensions
 }
 
 /// <summary>
-/// Configuration options for OpenTelemetry integration
+/// Configuration options for OpenTelemetry instrumentation integration
 /// </summary>
-public class OpenTelemetryOptions
+public class OpenTelemetryInstrumentationOptions
 {
     /// <summary>
     /// Service name for OpenTelemetry resource attributes
@@ -118,7 +121,7 @@ public class OpenTelemetryOptions
     /// <summary>
     /// Add a tracing exporter or configuration
     /// </summary>
-    public OpenTelemetryOptions ConfigureTracing(Action<TracerProviderBuilder> configure)
+    public OpenTelemetryInstrumentationOptions ConfigureTracing(Action<TracerProviderBuilder> configure)
     {
         TracingConfigurations.Add(configure);
         return this;
@@ -127,7 +130,7 @@ public class OpenTelemetryOptions
     /// <summary>
     /// Add a metrics exporter or configuration
     /// </summary>
-    public OpenTelemetryOptions ConfigureMetrics(Action<MeterProviderBuilder> configure)
+    public OpenTelemetryInstrumentationOptions ConfigureMetrics(Action<MeterProviderBuilder> configure)
     {
         MetricsConfigurations.Add(configure);
         return this;

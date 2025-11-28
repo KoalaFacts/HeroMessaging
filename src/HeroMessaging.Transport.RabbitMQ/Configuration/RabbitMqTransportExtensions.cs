@@ -1,14 +1,17 @@
 using HeroMessaging.Abstractions.Configuration;
 using HeroMessaging.Abstractions.Transport;
+using HeroMessaging.Transport.RabbitMQ;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-namespace HeroMessaging.Transport.RabbitMQ.Configuration;
+namespace HeroMessaging.Abstractions.Configuration;
 
 /// <summary>
 /// Extension methods for configuring RabbitMQ transport
 /// </summary>
-public static class RabbitMqTransportExtensions
+// ReSharper disable once CheckNamespace
+#pragma warning disable IDE0130 // Namespace does not match folder structure
+public static class ExtensionsToIHeroMessagingBuilderForRabbitMQ
 {
     /// <summary>
     /// Add RabbitMQ transport to HeroMessaging

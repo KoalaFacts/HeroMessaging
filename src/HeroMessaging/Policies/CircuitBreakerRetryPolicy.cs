@@ -67,53 +67,9 @@ public class CircuitBreakerRetryPolicy(
         return TimeSpan.FromMilliseconds(_baseDelay.TotalMilliseconds * (attemptNumber + 1));
     }
 
-    private string GetCircuitKey(Exception exception)
+    private static string GetCircuitKey(Exception exception)
     {
         // Create a key based on exception type and message
         return $"{exception.GetType().Name}:{exception.Message?.GetHashCode()}";
-    }
-
-    private class CircuitState(TimeProvider timeProvider)
-    {
-        private int _failureCount;
-        private DateTimeOffset _openedAt;
-        private bool _isOpen;
-#if NET9_0_OR_GREATER
-        private readonly Lock _lock = new();
-#else
-        private readonly object _lock = new();
-#endif
-        private readonly TimeProvider _timeProvider = timeProvider;
-
-        public int FailureCount => _failureCount;
-        public DateTimeOffset OpenedAt => _openedAt;
-        public bool IsOpen => _isOpen;
-
-        public void RecordFailure()
-        {
-            lock (_lock)
-            {
-                _failureCount++;
-            }
-        }
-
-        public void Open()
-        {
-            lock (_lock)
-            {
-                _isOpen = true;
-                _openedAt = _timeProvider.GetUtcNow();
-            }
-        }
-
-        public void Reset()
-        {
-            lock (_lock)
-            {
-                _failureCount = 0;
-                _isOpen = false;
-                _openedAt = default;
-            }
-        }
     }
 }

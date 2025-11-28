@@ -1,14 +1,17 @@
 using HeroMessaging.Abstractions.Serialization;
+using HeroMessaging.Serialization.MessagePack;
 using MessagePack;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
-namespace HeroMessaging.Serialization.MessagePack;
+namespace Microsoft.Extensions.DependencyInjection;
 
 /// <summary>
 /// Extension methods for registering MessagePack serialization
 /// </summary>
-public static class ServiceCollectionExtensions
+// ReSharper disable once CheckNamespace
+#pragma warning disable IDE0130 // Namespace does not match folder structure
+public static class ExtensionsToIServiceCollectionForMessagePackSerialization
 {
     /// <summary>
     /// Add MessagePack serialization support to HeroMessaging

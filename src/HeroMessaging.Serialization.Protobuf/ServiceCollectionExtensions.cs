@@ -1,14 +1,17 @@
 using HeroMessaging.Abstractions.Serialization;
+using HeroMessaging.Serialization.Protobuf;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using ProtoBuf.Meta;
 
-namespace HeroMessaging.Serialization.Protobuf;
+namespace Microsoft.Extensions.DependencyInjection;
 
 /// <summary>
 /// Extension methods for registering Protobuf serialization
 /// </summary>
-public static class ServiceCollectionExtensions
+// ReSharper disable once CheckNamespace
+#pragma warning disable IDE0130 // Namespace does not match folder structure
+public static class ExtensionsToIServiceCollectionForProtobufSerialization
 {
     /// <summary>
     /// Add Protobuf serialization support to HeroMessaging

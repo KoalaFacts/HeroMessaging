@@ -1,7 +1,6 @@
 using HeroMessaging.Abstractions.Security;
 using HeroMessaging.Security.Authentication;
 using HeroMessaging.Security.Authorization;
-using HeroMessaging.Security.Configuration;
 using HeroMessaging.Security.Encryption;
 using HeroMessaging.Security.Signing;
 using Microsoft.Extensions.DependencyInjection;

@@ -1,12 +1,15 @@
 using HeroMessaging.Abstractions.Transport;
+using HeroMessaging.Transport.InMemory;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace HeroMessaging.Transport.InMemory;
+namespace Microsoft.Extensions.DependencyInjection;
 
 /// <summary>
 /// Extension methods for configuring InMemoryTransport
 /// </summary>
-public static class InMemoryTransportExtensions
+// ReSharper disable once CheckNamespace
+#pragma warning disable IDE0130 // Namespace does not match folder structure
+public static class ExtensionsToIServiceCollectionForInMemoryTransport
 {
     /// <summary>
     /// Add InMemoryTransport to the service collection

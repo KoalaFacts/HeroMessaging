@@ -8,6 +8,28 @@ using HeroMessaging.Processing;
 
 namespace HeroMessaging;
 
+/// <summary>
+/// Default implementation of <see cref="IHeroMessaging"/> providing unified access to
+/// all messaging operations in the HeroMessaging framework.
+/// </summary>
+/// <remarks>
+/// <para>
+/// HeroMessagingService acts as a facade over the command processor, query processor,
+/// event bus, and optional queue/outbox/inbox processors. It provides a single entry point
+/// for all messaging operations and tracks metrics across all operations.
+/// </para>
+/// <para>
+/// This service is typically registered as a singleton via <c>services.AddHeroMessaging()</c>
+/// and injected where needed.
+/// </para>
+/// </remarks>
+/// <param name="commandProcessor">The processor for handling commands.</param>
+/// <param name="queryProcessor">The processor for handling queries.</param>
+/// <param name="eventBus">The event bus for publishing events.</param>
+/// <param name="timeProvider">The time provider for timestamp operations.</param>
+/// <param name="queueProcessor">Optional processor for queue operations.</param>
+/// <param name="outboxProcessor">Optional processor for outbox operations.</param>
+/// <param name="inboxProcessor">Optional processor for inbox operations.</param>
 public class HeroMessagingService(
     ICommandProcessor commandProcessor,
     IQueryProcessor queryProcessor,
@@ -66,10 +88,15 @@ public class HeroMessagingService(
                 await _commandProcessor.Send(command, cancellationToken);
                 results.Add(true);
             }
+            catch (OperationCanceledException)
+            {
+                // Cancellation should stop batch processing immediately
+                throw;
+            }
             catch
             {
+                // Track failure but continue processing remaining commands
                 results.Add(false);
-                throw; // Re-throw to maintain error handling behavior
             }
         }
 
@@ -108,10 +135,15 @@ public class HeroMessagingService(
                 await _eventBus.Publish(@event, cancellationToken);
                 results.Add(true);
             }
+            catch (OperationCanceledException)
+            {
+                // Cancellation should stop batch processing immediately
+                throw;
+            }
             catch
             {
+                // Track failure but continue processing remaining events
                 results.Add(false);
-                throw; // Re-throw to maintain error handling behavior
             }
         }
 

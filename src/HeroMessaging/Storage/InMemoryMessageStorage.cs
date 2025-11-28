@@ -151,7 +151,7 @@ public class InMemoryMessageStorage : IMessageStorage
         return Task.CompletedTask;
     }
 
-    Task IMessageStorage.StoreAsync(IMessage message, IStorageTransaction? transaction, CancellationToken cancellationToken)
+    Task ITransactionalMessageStorage.StoreAsync(IMessage message, IStorageTransaction? transaction, CancellationToken cancellationToken)
     {
         // Store using the message's own MessageId
         var now = _timeProvider.GetUtcNow();
@@ -166,17 +166,17 @@ public class InMemoryMessageStorage : IMessageStorage
         return Task.CompletedTask;
     }
 
-    Task<IMessage?> IMessageStorage.RetrieveAsync(Guid messageId, IStorageTransaction? transaction, CancellationToken cancellationToken)
+    Task<IMessage?> ITransactionalMessageStorage.RetrieveAsync(Guid messageId, IStorageTransaction? transaction, CancellationToken cancellationToken)
     {
         return RetrieveAsync<IMessage>(messageId.ToString(), cancellationToken);
     }
 
-    Task<List<IMessage>> IMessageStorage.QueryAsync(MessageQuery query, CancellationToken cancellationToken)
+    Task<List<IMessage>> ITransactionalMessageStorage.QueryAsync(MessageQuery query, CancellationToken cancellationToken)
     {
         return QueryAsync<IMessage>(query, cancellationToken).ContinueWith(t => t.Result.ToList(), cancellationToken);
     }
 
-    Task IMessageStorage.DeleteAsync(Guid messageId, CancellationToken cancellationToken)
+    Task ITransactionalMessageStorage.DeleteAsync(Guid messageId, CancellationToken cancellationToken)
     {
         return DeleteAsync(messageId.ToString(), cancellationToken).ContinueWith(_ => Task.CompletedTask, cancellationToken);
     }

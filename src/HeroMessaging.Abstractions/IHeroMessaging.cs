@@ -1,40 +1,33 @@
-using HeroMessaging.Abstractions.Commands;
-using HeroMessaging.Abstractions.Events;
-using HeroMessaging.Abstractions.Messages;
-using HeroMessaging.Abstractions.Queries;
-
 namespace HeroMessaging.Abstractions;
 
-public interface IHeroMessaging
+/// <summary>
+/// Main entry point for the HeroMessaging framework providing unified access to
+/// command, query, and event processing capabilities.
+/// </summary>
+/// <remarks>
+/// <para>
+/// IHeroMessaging serves as the primary facade for all messaging operations including:
+/// </para>
+/// <list type="bullet">
+/// <item><description>Command execution (fire-and-forget and request-response)</description></item>
+/// <item><description>Query execution</description></item>
+/// <item><description>Event publishing</description></item>
+/// <item><description>Queue management</description></item>
+/// <item><description>Outbox/Inbox patterns for reliable messaging</description></item>
+/// </list>
+/// <para>
+/// Register the service using <c>services.AddHeroMessaging()</c> during application startup.
+/// </para>
+/// <para>
+/// For more focused dependency injection, you can depend on the segregated interfaces:
+/// <see cref="ICommandSender"/>, <see cref="IQuerySender"/>, <see cref="IEventPublisher"/>,
+/// <see cref="IMessageQueue"/>, <see cref="IReliableMessaging"/>, or <see cref="IMessagingObservability"/>.
+/// </para>
+/// </remarks>
+public interface IHeroMessaging : ICommandSender, IQuerySender, IEventPublisher, IMessageQueue, IReliableMessaging, IMessagingObservability
 {
-    Task SendAsync(ICommand command, CancellationToken cancellationToken = default);
-
-    Task<TResponse> SendAsync<TResponse>(ICommand<TResponse> command, CancellationToken cancellationToken = default);
-
-    Task<TResponse> SendAsync<TResponse>(IQuery<TResponse> query, CancellationToken cancellationToken = default);
-
-    Task PublishAsync(IEvent @event, CancellationToken cancellationToken = default);
-
-    // Batch operations
-    Task<IReadOnlyList<bool>> SendBatchAsync(IReadOnlyList<ICommand> commands, CancellationToken cancellationToken = default);
-
-    Task<IReadOnlyList<TResponse>> SendBatchAsync<TResponse>(IReadOnlyList<ICommand<TResponse>> commands, CancellationToken cancellationToken = default);
-
-    Task<IReadOnlyList<bool>> PublishBatchAsync(IReadOnlyList<IEvent> events, CancellationToken cancellationToken = default);
-
-    Task EnqueueAsync(IMessage message, string queueName, EnqueueOptions? options = null, CancellationToken cancellationToken = default);
-
-    Task StartQueueAsync(string queueName, CancellationToken cancellationToken = default);
-
-    Task StopQueueAsync(string queueName, CancellationToken cancellationToken = default);
-
-    Task PublishToOutboxAsync(IMessage message, OutboxOptions? options = null, CancellationToken cancellationToken = default);
-
-    Task ProcessIncomingAsync(IMessage message, InboxOptions? options = null, CancellationToken cancellationToken = default);
-
-    MessagingMetrics GetMetrics();
-
-    MessagingHealth GetHealth();
+    // All members are inherited from the segregated interfaces.
+    // This interface serves as a unified facade for consumers who need all capabilities.
 }
 
 public record EnqueueOptions

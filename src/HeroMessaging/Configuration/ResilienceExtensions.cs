@@ -1,17 +1,20 @@
 using HeroMessaging.Abstractions.Configuration;
 using HeroMessaging.Abstractions.Storage;
+using HeroMessaging.Configuration;
 using HeroMessaging.Resilience;
 using HeroMessaging.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 
-namespace HeroMessaging.Configuration;
+namespace HeroMessaging.Abstractions.Configuration;
 
 /// <summary>
 /// Extension methods for configuring connection resilience in HeroMessaging
 /// </summary>
-public static class ResilienceExtensions
+// ReSharper disable once CheckNamespace
+#pragma warning disable IDE0130 // Namespace does not match folder structure
+public static class ExtensionsToIHeroMessagingBuilderForResilience
 {
     /// <summary>
     /// Adds connection resilience to all storage operations

@@ -2,15 +2,18 @@ using HeroMessaging.Abstractions.Configuration;
 using HeroMessaging.Abstractions.ErrorHandling;
 using HeroMessaging.Abstractions.Sagas;
 using HeroMessaging.Abstractions.Storage;
+using HeroMessaging.Storage.SqlServer;
 using HeroMessaging.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace HeroMessaging.Storage.SqlServer;
+namespace HeroMessaging.Abstractions.Configuration;
 
 /// <summary>
 /// Extension methods for SQL Server storage registration
 /// </summary>
-public static class ServiceCollectionExtensions
+// ReSharper disable once CheckNamespace
+#pragma warning disable IDE0130 // Namespace does not match folder structure
+public static class ExtensionsToIHeroMessagingBuilderForSqlServer
 {
     /// <summary>
     /// Use SQL Server for all storage needs with default options

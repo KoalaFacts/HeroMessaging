@@ -82,7 +82,7 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
         await base.StopAsync();
     }
 
-    public bool IsRunning => true; // TODO: Track running state properly
+    public new bool IsRunning => base.IsRunning;
 
     public IInboxProcessorMetrics GetMetrics()
     {

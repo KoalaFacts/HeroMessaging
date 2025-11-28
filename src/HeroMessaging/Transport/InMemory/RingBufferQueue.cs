@@ -21,37 +21,14 @@ internal class RingBufferQueue : IDisposable, IAsyncDisposable
     private long _depth;
     private readonly object _consumerLock = new();
 
-    // Message wrapper for ring buffer (pre-allocated)
-    private class MessageEvent
-    {
-        public TransportEnvelope? Envelope { get; set; }
-    }
-
-    private class MessageEventFactory : IEventFactory<MessageEvent>
-    {
-        public MessageEvent Create() => new MessageEvent();
-    }
-
-    // Consumer processor with event handler
-    private class ConsumerProcessor : IDisposable
-    {
-        public InMemoryConsumer Consumer { get; }
-        public IEventProcessor Processor { get; }
-
-        public ConsumerProcessor(InMemoryConsumer consumer, IEventProcessor processor)
-        {
-            Consumer = consumer;
-            Processor = processor;
-        }
-
-        public void Dispose()
-        {
-            Processor.Stop();
-            Processor.Dispose();
-        }
-    }
-
+    /// <summary>
+    /// Gets the total number of messages enqueued.
+    /// </summary>
     public long MessageCount => Interlocked.Read(ref _messageCount);
+
+    /// <summary>
+    /// Gets the current queue depth (messages pending processing).
+    /// </summary>
     public long Depth => Interlocked.Read(ref _depth);
 
     public RingBufferQueue(InMemoryQueueOptions options)
@@ -181,70 +158,27 @@ internal class RingBufferQueue : IDisposable, IAsyncDisposable
     }
 
     /// <summary>
-    /// Event handler that delivers messages in round-robin fashion to all consumers
+    /// Gets a thread-safe snapshot of all current consumers.
     /// </summary>
-    private class RoundRobinEventHandler : IEventHandler<MessageEvent>
+    /// <returns>An array of consumers, or null if no consumers are registered.</returns>
+    internal InMemoryConsumer[]? GetConsumersSnapshot()
     {
-        private readonly RingBufferQueue _queue;
-        private int _consumerIndex;
-
-        public RoundRobinEventHandler(RingBufferQueue queue)
+        lock (_consumerLock)
         {
-            _queue = queue ?? throw new ArgumentNullException(nameof(queue));
-        }
-
-        public void OnEvent(MessageEvent evt, long sequence, bool endOfBatch)
-        {
-            if (evt.Envelope.HasValue)
+            if (_consumers.Count > 0)
             {
-                try
-                {
-                    // Get current consumers list (thread-safe copy)
-                    InMemoryConsumer[]? consumers = null;
-                    lock (_queue._consumerLock)
-                    {
-                        if (_queue._consumers.Count > 0)
-                        {
-                            consumers = _queue._consumers.Select(cp => cp.Consumer).ToArray();
-                        }
-                    }
-
-                    if (consumers != null && consumers.Length > 0)
-                    {
-                        // Round-robin distribution
-                        var index = unchecked((uint)Interlocked.Increment(ref _consumerIndex));
-                        var consumer = consumers[index % (uint)consumers.Length];
-
-                        // Deliver message to selected consumer
-                        consumer.DeliverMessageAsync(evt.Envelope.Value, default).GetAwaiter().GetResult();
-                    }
-
-                    // Decrement depth counter
-                    Interlocked.Decrement(ref _queue._depth);
-                }
-                catch (Exception)
-                {
-                    // Log error - in production would use ILogger
-                    // For now, just decrement depth and continue
-                    Interlocked.Decrement(ref _queue._depth);
-                }
-                finally
-                {
-                    // Clear envelope for reuse (zero allocation)
-                    evt.Envelope = null;
-                }
+                return _consumers.Select(cp => cp.Consumer).ToArray();
             }
+            return null;
         }
+    }
 
-        public void OnError(Exception ex)
-        {
-            // Log error - in production would use ILogger
-        }
-
-        public void OnShutdown()
-        {
-            // Cleanup - nothing to do currently
-        }
+    /// <summary>
+    /// Decrements the queue depth counter.
+    /// </summary>
+    internal void DecrementDepth()
+    {
+        Interlocked.Decrement(ref _depth);
     }
 
     private static IWaitStrategy CreateWaitStrategy(WaitStrategy strategy)
