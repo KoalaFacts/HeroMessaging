@@ -22,6 +22,8 @@ public class PostgreSqlQueueStorage : IQueueStorage
     private readonly TimeProvider _timeProvider;
     private readonly JsonSerializerOptions _jsonOptions;
     private readonly IJsonSerializer _jsonSerializer;
+    private readonly SemaphoreSlim _initLock = new(1, 1);
+    private bool _initialized;
 
     public PostgreSqlQueueStorage(PostgreSqlStorageOptions options, TimeProvider timeProvider, IJsonSerializer jsonSerializer)
     {
@@ -36,11 +38,6 @@ public class PostgreSqlQueueStorage : IQueueStorage
             PropertyNameCaseInsensitive = true,
             WriteIndented = false
         };
-
-        if (_options.AutoCreateTables)
-        {
-            InitializeDatabase().GetAwaiter().GetResult();
-        }
     }
 
     public PostgreSqlQueueStorage(NpgsqlConnection connection, NpgsqlTransaction? transaction, TimeProvider timeProvider, IJsonSerializer jsonSerializer)
@@ -79,10 +76,27 @@ public class PostgreSqlQueueStorage : IQueueStorage
         return _sharedTransaction;
     }
 
+    private async Task EnsureInitializedAsync(CancellationToken cancellationToken = default)
+    {
+        if (_initialized || !_options.AutoCreateTables) return;
+
+        await _initLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (_initialized) return;
+            await InitializeDatabase().ConfigureAwait(false);
+            _initialized = true;
+        }
+        finally
+        {
+            _initLock.Release();
+        }
+    }
+
     private async Task InitializeDatabase()
     {
         using var connection = new NpgsqlConnection(_connectionString);
-        await connection.OpenAsync();
+        await connection.OpenAsync().ConfigureAwait(false);
 
         // Create schema if it doesn't exist
         if (!string.IsNullOrEmpty(_options.Schema) && _options.Schema != "public")
@@ -118,7 +132,8 @@ public class PostgreSqlQueueStorage : IQueueStorage
 
     public async Task<QueueEntry> EnqueueAsync(string queueName, IMessage message, EnqueueOptions? options = null, CancellationToken cancellationToken = default)
     {
-        var connection = await GetConnectionAsync();
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+        var connection = await GetConnectionAsync().ConfigureAwait(false);
         var transaction = GetTransaction();
 
         try
@@ -164,7 +179,8 @@ public class PostgreSqlQueueStorage : IQueueStorage
 
     public async Task<QueueEntry?> DequeueAsync(string queueName, CancellationToken cancellationToken = default)
     {
-        var connection = await GetConnectionAsync();
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+        var connection = await GetConnectionAsync().ConfigureAwait(false);
         var transaction = GetTransaction();
 
         try
@@ -256,7 +272,8 @@ public class PostgreSqlQueueStorage : IQueueStorage
 
     public async Task<IEnumerable<QueueEntry>> PeekAsync(string queueName, int count = 1, CancellationToken cancellationToken = default)
     {
-        var connection = await GetConnectionAsync();
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+        var connection = await GetConnectionAsync().ConfigureAwait(false);
         var transaction = GetTransaction();
 
         try
@@ -318,7 +335,8 @@ public class PostgreSqlQueueStorage : IQueueStorage
 
     public async Task<bool> AcknowledgeAsync(string queueName, string entryId, CancellationToken cancellationToken = default)
     {
-        var connection = await GetConnectionAsync();
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+        var connection = await GetConnectionAsync().ConfigureAwait(false);
         var transaction = GetTransaction();
 
         try
@@ -344,7 +362,8 @@ public class PostgreSqlQueueStorage : IQueueStorage
 
     public async Task<bool> RejectAsync(string queueName, string entryId, bool requeue = false, CancellationToken cancellationToken = default)
     {
-        var connection = await GetConnectionAsync();
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+        var connection = await GetConnectionAsync().ConfigureAwait(false);
         var transaction = GetTransaction();
 
         try
@@ -390,7 +409,8 @@ public class PostgreSqlQueueStorage : IQueueStorage
 
     public async Task<long> GetQueueDepthAsync(string queueName, CancellationToken cancellationToken = default)
     {
-        var connection = await GetConnectionAsync();
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+        var connection = await GetConnectionAsync().ConfigureAwait(false);
         var transaction = GetTransaction();
 
         try
@@ -417,14 +437,15 @@ public class PostgreSqlQueueStorage : IQueueStorage
     public async Task<bool> CreateQueueAsync(string queueName, QueueOptions? options = null, CancellationToken cancellationToken = default)
     {
         // In PostgreSQL implementation, queues are created implicitly when messages are enqueued
-        // This is a no-op but returns true to indicate success
-        await Task.CompletedTask;
+        // Ensure tables exist
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         return true;
     }
 
     public async Task<bool> DeleteQueueAsync(string queueName, CancellationToken cancellationToken = default)
     {
-        var connection = await GetConnectionAsync();
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+        var connection = await GetConnectionAsync().ConfigureAwait(false);
         var transaction = GetTransaction();
 
         try
@@ -448,7 +469,8 @@ public class PostgreSqlQueueStorage : IQueueStorage
 
     public async Task<IEnumerable<string>> GetQueuesAsync(CancellationToken cancellationToken = default)
     {
-        var connection = await GetConnectionAsync();
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+        var connection = await GetConnectionAsync().ConfigureAwait(false);
         var transaction = GetTransaction();
 
         try
@@ -478,7 +500,8 @@ public class PostgreSqlQueueStorage : IQueueStorage
 
     public async Task<bool> QueueExistsAsync(string queueName, CancellationToken cancellationToken = default)
     {
-        var connection = await GetConnectionAsync();
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+        var connection = await GetConnectionAsync().ConfigureAwait(false);
         var transaction = GetTransaction();
 
         try
