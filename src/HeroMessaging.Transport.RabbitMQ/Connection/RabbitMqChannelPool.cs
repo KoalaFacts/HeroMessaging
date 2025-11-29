@@ -64,12 +64,12 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
         // Create new channel if under limit
         if (_channelCount < _maxChannels)
         {
-            await _createChannelLock.WaitAsync(cancellationToken);
+            await _createChannelLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
                 if (_channelCount < _maxChannels)
                 {
-                    return await CreateChannelAsync(cancellationToken);
+                    return await CreateChannelAsync(cancellationToken).ConfigureAwait(false);
                 }
             }
             finally
@@ -80,7 +80,7 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
 
         // If pool is full, create a temporary channel (not pooled)
         _logger.LogWarning("Channel pool is full ({MaxChannels}). Creating temporary channel", _maxChannels);
-        return await CreateChannelAsync(cancellationToken);
+        return await CreateChannelAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -110,7 +110,7 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
             throw new InvalidOperationException("Cannot create channel: connection is not open");
         }
 
-        var channel = await _connection.CreateChannelAsync(cancellationToken: cancellationToken);
+        var channel = await _connection.CreateChannelAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
         Interlocked.Increment(ref _channelCount);
 
         _logger.LogDebug("Created new channel {ChannelNumber} (Total: {TotalChannels})",
@@ -126,10 +126,10 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
         Func<IChannel, Task<T>> operation,
         CancellationToken cancellationToken = default)
     {
-        var channel = await AcquireChannelAsync(cancellationToken);
+        var channel = await AcquireChannelAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            return await operation(channel);
+            return await operation(channel).ConfigureAwait(false);
         }
         finally
         {
@@ -144,10 +144,10 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
         Func<IChannel, Task> operation,
         CancellationToken cancellationToken = default)
     {
-        var channel = await AcquireChannelAsync(cancellationToken);
+        var channel = await AcquireChannelAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await operation(channel);
+            await operation(channel).ConfigureAwait(false);
         }
         finally
         {
@@ -178,7 +178,7 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
 
         _logger.LogDebug("Disposing channel pool for connection {ConnectionId}", _connection.ClientProvidedName);
 
-        await _createChannelLock.WaitAsync();
+        await _createChannelLock.WaitAsync().ConfigureAwait(false);
         try
         {
             // Dispose all channels

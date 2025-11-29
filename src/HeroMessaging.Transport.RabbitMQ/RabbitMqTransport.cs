@@ -62,7 +62,7 @@ public sealed class RabbitMqTransport : IMessageTransport
     /// <inheritdoc/>
     public async Task ConnectAsync(CancellationToken cancellationToken = default)
     {
-        await _connectLock.WaitAsync(cancellationToken);
+        await _connectLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             if (_state == TransportState.Connected)
@@ -80,7 +80,7 @@ public sealed class RabbitMqTransport : IMessageTransport
                 _timeProvider);
 
             // Test connection by acquiring one
-            var connection = await _connectionPool.GetConnectionAsync(cancellationToken);
+            var connection = await _connectionPool.GetConnectionAsync(cancellationToken).ConfigureAwait(false);
             _connectionPool.ReleaseConnection(connection);
 
             ChangeState(TransportState.Connected, "Connected to RabbitMQ");
@@ -109,21 +109,21 @@ public sealed class RabbitMqTransport : IMessageTransport
         // Stop all consumers
         foreach (var consumer in _consumers.Values)
         {
-            await consumer.StopAsync(cancellationToken);
+            await consumer.StopAsync(cancellationToken).ConfigureAwait(false);
         }
         _consumers.Clear();
 
         // Dispose channel pools
         foreach (var channelPool in _channelPools.Values)
         {
-            await channelPool.DisposeAsync();
+            await channelPool.DisposeAsync().ConfigureAwait(false);
         }
         _channelPools.Clear();
 
         // Dispose connection pool
         if (_connectionPool != null)
         {
-            await _connectionPool.DisposeAsync();
+            await _connectionPool.DisposeAsync().ConfigureAwait(false);
             _connectionPool = null;
         }
 
@@ -149,7 +149,7 @@ public sealed class RabbitMqTransport : IMessageTransport
             // Inject trace context into envelope headers
             envelope = _instrumentation.InjectTraceContext(envelope, activity);
 
-            var channelPool = await GetOrCreateChannelPoolAsync(cancellationToken);
+            var channelPool = await GetOrCreateChannelPoolAsync(cancellationToken).ConfigureAwait(false);
 
             await channelPool.ExecuteAsync(async channel =>
             {
@@ -185,13 +185,13 @@ public sealed class RabbitMqTransport : IMessageTransport
                     mandatory: false,
                     basicProperties: properties,
                     body: envelope.Body,
-                    cancellationToken: cancellationToken);
+                    cancellationToken: cancellationToken).ConfigureAwait(false);
 
                 // Publisher confirms are handled via CancellationToken timeout in RabbitMQ 7.x
                 _instrumentation.AddEvent(activity, "publish.complete");
 
                 _logger.LogDebug("Sent message {MessageId} to queue {Queue}", envelope.MessageId, destination.Name);
-            }, cancellationToken);
+            }, cancellationToken).ConfigureAwait(false);
 
             // Record successful operation
             var durationMs = _timeProvider.GetElapsedTime(startTime).TotalMilliseconds;
@@ -226,7 +226,7 @@ public sealed class RabbitMqTransport : IMessageTransport
             // Inject trace context into envelope headers
             envelope = _instrumentation.InjectTraceContext(envelope, activity);
 
-            var channelPool = await GetOrCreateChannelPoolAsync(cancellationToken);
+            var channelPool = await GetOrCreateChannelPoolAsync(cancellationToken).ConfigureAwait(false);
 
             await channelPool.ExecuteAsync(async channel =>
             {
@@ -263,12 +263,12 @@ public sealed class RabbitMqTransport : IMessageTransport
                     mandatory: false,
                     basicProperties: properties,
                     body: envelope.Body,
-                    cancellationToken: cancellationToken);
+                    cancellationToken: cancellationToken).ConfigureAwait(false);
 
                 _instrumentation.AddEvent(activity, "publish.complete");
 
                 _logger.LogDebug("Published message {MessageId} to exchange {Exchange}", envelope.MessageId, topic.Name);
-            }, cancellationToken);
+            }, cancellationToken).ConfigureAwait(false);
 
             // Record successful operation
             var durationMs = _timeProvider.GetElapsedTime(startTime).TotalMilliseconds;
@@ -300,11 +300,11 @@ public sealed class RabbitMqTransport : IMessageTransport
 
         _logger.LogInformation("Creating consumer {ConsumerId} for {Source}", consumerId, source.Name);
 
-        var channelPool = await GetOrCreateChannelPoolAsync(cancellationToken);
-        var channel = await channelPool.AcquireChannelAsync(cancellationToken);
+        var channelPool = await GetOrCreateChannelPoolAsync(cancellationToken).ConfigureAwait(false);
+        var channel = await channelPool.AcquireChannelAsync(cancellationToken).ConfigureAwait(false);
 
         // Set prefetch count
-        await channel.BasicQosAsync(0, _options.PrefetchCount, false, cancellationToken);
+        await channel.BasicQosAsync(0, _options.PrefetchCount, false, cancellationToken).ConfigureAwait(false);
 
         var consumer = new RabbitMqConsumer(
             consumerId,
@@ -325,7 +325,7 @@ public sealed class RabbitMqTransport : IMessageTransport
 
         if (options.StartImmediately)
         {
-            await consumer.StartAsync(cancellationToken);
+            await consumer.StartAsync(cancellationToken).ConfigureAwait(false);
         }
 
         return consumer;
@@ -340,7 +340,7 @@ public sealed class RabbitMqTransport : IMessageTransport
 
         _logger.LogInformation("Configuring RabbitMQ topology");
 
-        var channelPool = await GetOrCreateChannelPoolAsync(cancellationToken);
+        var channelPool = await GetOrCreateChannelPoolAsync(cancellationToken).ConfigureAwait(false);
 
         await channelPool.ExecuteAsync(async channel =>
         {
@@ -364,7 +364,7 @@ public sealed class RabbitMqTransport : IMessageTransport
                     durable: exchange.Durable,
                     autoDelete: exchange.AutoDelete,
                     cancellationToken: cancellationToken,
-                    arguments: exchange.Arguments);
+                    arguments: exchange.Arguments).ConfigureAwait(false);
             }
 
             // Declare queues
@@ -408,7 +408,7 @@ public sealed class RabbitMqTransport : IMessageTransport
                     exclusive: queue.Exclusive,
                     autoDelete: queue.AutoDelete,
                     arguments: arguments,
-                    cancellationToken: cancellationToken);
+                    cancellationToken: cancellationToken).ConfigureAwait(false);
             }
 
             // Create bindings
@@ -422,9 +422,9 @@ public sealed class RabbitMqTransport : IMessageTransport
                     exchange: binding.SourceExchange,
                     routingKey: binding.RoutingKey ?? "",
                     arguments: binding.Arguments,
-                    cancellationToken: cancellationToken);
+                    cancellationToken: cancellationToken).ConfigureAwait(false);
             }
-        }, cancellationToken);
+        }, cancellationToken).ConfigureAwait(false);
 
         _logger.LogInformation("Topology configured successfully");
     }
@@ -467,7 +467,7 @@ public sealed class RabbitMqTransport : IMessageTransport
     /// <inheritdoc/>
     public async ValueTask DisposeAsync()
     {
-        await DisconnectAsync();
+        await DisconnectAsync().ConfigureAwait(false);
         _connectLock.Dispose();
     }
 
@@ -481,7 +481,7 @@ public sealed class RabbitMqTransport : IMessageTransport
         if (_connectionPool == null)
             throw new InvalidOperationException("Connection pool is not initialized");
 
-        var connection = await _connectionPool.GetConnectionAsync(cancellationToken);
+        var connection = await _connectionPool.GetConnectionAsync(cancellationToken).ConfigureAwait(false);
 
         var poolKey = connection.ClientProvidedName ?? "default";
 
