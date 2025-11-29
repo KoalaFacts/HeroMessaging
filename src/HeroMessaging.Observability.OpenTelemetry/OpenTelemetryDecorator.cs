@@ -28,7 +28,7 @@ public class OpenTelemetryDecorator(IMessageProcessor inner) : MessageProcessorD
 
         try
         {
-            var result = await _innerProcessor.ProcessAsync(message, context, cancellationToken);
+            var result = await _innerProcessor.ProcessAsync(message, context, cancellationToken).ConfigureAwait(false);
             stopwatch.Stop();
 
             // Record processing duration metric
