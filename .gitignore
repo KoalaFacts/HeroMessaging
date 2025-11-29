@@ -492,3 +492,4 @@ specs/
 
 # Converage
 coverage-report*/
+coverage-results*/

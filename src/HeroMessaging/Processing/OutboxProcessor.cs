@@ -34,7 +34,7 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxEntry>, IOutbo
         // Trigger immediate processing for high priority messages
         if (options.Priority > 5)
         {
-            await SubmitWorkItem(entry, cancellationToken);
+            await SubmitWorkItemAsync(entry, cancellationToken);
         }
     }
 
@@ -61,12 +61,12 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxEntry>, IOutbo
 
     protected override string GetServiceName() => "Outbox processor";
 
-    protected override async Task<IEnumerable<OutboxEntry>> PollForWorkItems(CancellationToken cancellationToken)
+    protected override async Task<IEnumerable<OutboxEntry>> PollForWorkItemsAsync(CancellationToken cancellationToken)
     {
         return await _outboxStorage.GetPendingAsync(100, cancellationToken);
     }
 
-    protected override async Task ProcessWorkItem(OutboxEntry entry)
+    protected override async Task ProcessWorkItemAsync(OutboxEntry entry)
     {
         try
         {

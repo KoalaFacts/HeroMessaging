@@ -51,7 +51,7 @@ internal sealed class QueueWorker
     /// </summary>
     /// <param name="cancellationToken">A token to cancel the operation.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    public Task Start(CancellationToken cancellationToken)
+    public Task StartAsync(CancellationToken cancellationToken)
     {
         if (_cancellationTokenSource != null)
             return Task.CompletedTask;
@@ -67,7 +67,7 @@ internal sealed class QueueWorker
     /// Stops processing the queue.
     /// </summary>
     /// <returns>A task representing the asynchronous operation.</returns>
-    public async Task Stop()
+    public async Task StopAsync()
     {
         _cancellationTokenSource?.Cancel();
         _processingBlock.Complete();

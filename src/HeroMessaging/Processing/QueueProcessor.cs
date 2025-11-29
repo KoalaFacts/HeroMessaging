@@ -41,14 +41,14 @@ public class QueueProcessor(
             _serviceProvider,
             _logger));
 
-        await worker.Start(cancellationToken);
+        await worker.StartAsync(cancellationToken);
     }
 
     public async Task StopQueueAsync(string queueName, CancellationToken cancellationToken = default)
     {
         if (_workers.TryRemove(queueName, out var worker))
         {
-            await worker.Stop();
+            await worker.StopAsync();
         }
     }
 

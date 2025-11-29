@@ -27,7 +27,7 @@ public abstract class PollingBackgroundServiceBase<TWorkItem> : IAsyncDisposable
         TimeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
         _processingBlock = new ActionBlock<TWorkItem>(
-            ProcessWorkItem,
+            ProcessWorkItemAsync,
             new ExecutionDataflowBlockOptions
             {
                 MaxDegreeOfParallelism = maxDegreeOfParallelism,
@@ -80,7 +80,7 @@ public abstract class PollingBackgroundServiceBase<TWorkItem> : IAsyncDisposable
     /// <summary>
     /// Submits a work item for immediate processing
     /// </summary>
-    protected async Task SubmitWorkItem(TWorkItem workItem, CancellationToken cancellationToken = default)
+    protected async Task SubmitWorkItemAsync(TWorkItem workItem, CancellationToken cancellationToken = default)
     {
         await _processingBlock.SendAsync(workItem, cancellationToken).ConfigureAwait(false);
     }
@@ -94,7 +94,7 @@ public abstract class PollingBackgroundServiceBase<TWorkItem> : IAsyncDisposable
         {
             try
             {
-                var workItems = await PollForWorkItems(cancellationToken).ConfigureAwait(false);
+                var workItems = await PollForWorkItemsAsync(cancellationToken).ConfigureAwait(false);
 
                 foreach (var workItem in workItems)
                 {
@@ -126,12 +126,12 @@ public abstract class PollingBackgroundServiceBase<TWorkItem> : IAsyncDisposable
     /// <summary>
     /// Override to poll for work items from the data source
     /// </summary>
-    protected abstract Task<IEnumerable<TWorkItem>> PollForWorkItems(CancellationToken cancellationToken);
+    protected abstract Task<IEnumerable<TWorkItem>> PollForWorkItemsAsync(CancellationToken cancellationToken);
 
     /// <summary>
     /// Override to process a single work item
     /// </summary>
-    protected abstract Task ProcessWorkItem(TWorkItem workItem);
+    protected abstract Task ProcessWorkItemAsync(TWorkItem workItem);
 
     /// <summary>
     /// Override to customize polling delay based on whether work was found

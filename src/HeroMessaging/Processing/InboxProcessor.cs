@@ -56,7 +56,7 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
         }
 
         // Process immediately
-        await SubmitWorkItem(entry, cancellationToken);
+        await SubmitWorkItemAsync(entry, cancellationToken);
 
         return true;
     }
@@ -103,7 +103,7 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
 
     protected override string GetServiceName() => "Inbox processor";
 
-    protected override async Task<IEnumerable<InboxEntry>> PollForWorkItems(CancellationToken cancellationToken)
+    protected override async Task<IEnumerable<InboxEntry>> PollForWorkItemsAsync(CancellationToken cancellationToken)
     {
         return await _inboxStorage.GetUnprocessedAsync(100, cancellationToken);
     }
@@ -136,7 +136,7 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
         }
     }
 
-    protected override async Task ProcessWorkItem(InboxEntry entry)
+    protected override async Task ProcessWorkItemAsync(InboxEntry entry)
     {
         try
         {
