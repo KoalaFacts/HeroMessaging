@@ -108,7 +108,7 @@ public sealed class SingleProducerSequencer : Sequencer
     /// <summary>
     /// Get the current cursor (highest published sequence)
     /// </summary>
-    public long GetCursor()
+    public override long GetCursor()
     {
         return _cursor.Value;
     }
