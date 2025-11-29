@@ -4,9 +4,10 @@ using HeroMessaging.Abstractions.Security;
 namespace HeroMessaging.Security.Encryption;
 
 /// <summary>
-/// Provides AES-256-GCM authenticated encryption for messages
+/// Provides AES-256-GCM authenticated encryption for messages.
+/// SECURITY: Implements IDisposable to securely clear key material from memory.
 /// </summary>
-public sealed class AesGcmMessageEncryptor : IMessageEncryptor
+public sealed class AesGcmMessageEncryptor : IMessageEncryptor, IDisposable
 {
     private const int KeySize = 32; // 256 bits
     private const int NonceSize = 12; // 96 bits (recommended for GCM)
@@ -14,6 +15,7 @@ public sealed class AesGcmMessageEncryptor : IMessageEncryptor
 
     private readonly byte[] _key;
     private readonly string? _keyId;
+    private bool _disposed;
 
     public string Algorithm => "AES-256-GCM";
     public int IVSize => NonceSize;
@@ -55,6 +57,7 @@ public sealed class AesGcmMessageEncryptor : IMessageEncryptor
         SecurityContext context,
         CancellationToken cancellationToken = default)
     {
+        ThrowIfDisposed();
         if (plaintext == null)
             throw new ArgumentNullException(nameof(plaintext));
 
@@ -95,6 +98,7 @@ public sealed class AesGcmMessageEncryptor : IMessageEncryptor
         SecurityContext context,
         CancellationToken cancellationToken = default)
     {
+        ThrowIfDisposed();
         if (encryptedData == null)
             throw new ArgumentNullException(nameof(encryptedData));
 
@@ -127,6 +131,7 @@ public sealed class AesGcmMessageEncryptor : IMessageEncryptor
 
     public int Encrypt(ReadOnlySpan<byte> plaintext, Span<byte> ciphertext, Span<byte> iv, Span<byte> tag, SecurityContext context)
     {
+        ThrowIfDisposed();
         if (ciphertext.Length < plaintext.Length)
             throw new ArgumentException("Ciphertext buffer must be at least as large as plaintext", nameof(ciphertext));
 
@@ -170,6 +175,7 @@ public sealed class AesGcmMessageEncryptor : IMessageEncryptor
 
     public int Decrypt(ReadOnlySpan<byte> ciphertext, ReadOnlySpan<byte> iv, ReadOnlySpan<byte> tag, Span<byte> plaintext, SecurityContext context)
     {
+        ThrowIfDisposed();
         if (plaintext.Length < ciphertext.Length)
             throw new ArgumentException("Plaintext buffer must be at least as large as ciphertext", nameof(plaintext));
 
@@ -206,5 +212,22 @@ public sealed class AesGcmMessageEncryptor : IMessageEncryptor
             bytesWritten = 0;
             return false;
         }
+    }
+
+    /// <summary>
+    /// Securely clears the encryption key from memory
+    /// </summary>
+    public void Dispose()
+    {
+        if (_disposed) return;
+
+        // Securely clear the key from memory
+        CryptographicOperations.ZeroMemory(_key);
+        _disposed = true;
+    }
+
+    private void ThrowIfDisposed()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
     }
 }

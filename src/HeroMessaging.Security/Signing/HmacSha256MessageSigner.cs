@@ -4,15 +4,17 @@ using HeroMessaging.Abstractions.Security;
 namespace HeroMessaging.Security.Signing;
 
 /// <summary>
-/// Provides HMAC-SHA256 message signing for integrity and authenticity
+/// Provides HMAC-SHA256 message signing for integrity and authenticity.
+/// SECURITY: Implements IDisposable to securely clear key material from memory.
 /// </summary>
-public sealed class HmacSha256MessageSigner : IMessageSigner
+public sealed class HmacSha256MessageSigner : IMessageSigner, IDisposable
 {
     private const int KeySize = 32; // 256 bits recommended for HMAC-SHA256
     private const int HashSize = 32; // SHA256 produces 32 bytes
     private readonly byte[] _key;
     private readonly string? _keyId;
     private readonly TimeProvider _timeProvider;
+    private bool _disposed;
 
     public string Algorithm => "HMAC-SHA256";
     public int SignatureSize => HashSize;
@@ -56,6 +58,7 @@ public sealed class HmacSha256MessageSigner : IMessageSigner
         SecurityContext context,
         CancellationToken cancellationToken = default)
     {
+        ThrowIfDisposed();
         if (data == null)
             throw new ArgumentNullException(nameof(data));
 
@@ -85,6 +88,7 @@ public sealed class HmacSha256MessageSigner : IMessageSigner
         SecurityContext context,
         CancellationToken cancellationToken = default)
     {
+        ThrowIfDisposed();
         if (data == null)
             throw new ArgumentNullException(nameof(data));
 
@@ -114,6 +118,7 @@ public sealed class HmacSha256MessageSigner : IMessageSigner
 
     public int Sign(ReadOnlySpan<byte> data, Span<byte> signature, SecurityContext context)
     {
+        ThrowIfDisposed();
         if (signature.Length < HashSize)
             throw new ArgumentException($"Signature buffer must be at least {HashSize} bytes", nameof(signature));
 
@@ -150,6 +155,7 @@ public sealed class HmacSha256MessageSigner : IMessageSigner
 
     public bool Verify(ReadOnlySpan<byte> data, ReadOnlySpan<byte> signature, SecurityContext context)
     {
+        ThrowIfDisposed();
         if (signature.Length != HashSize)
             return false;
 
@@ -172,5 +178,22 @@ public sealed class HmacSha256MessageSigner : IMessageSigner
         {
             return false;
         }
+    }
+
+    /// <summary>
+    /// Securely clears the signing key from memory
+    /// </summary>
+    public void Dispose()
+    {
+        if (_disposed) return;
+
+        // Securely clear the key from memory
+        CryptographicOperations.ZeroMemory(_key);
+        _disposed = true;
+    }
+
+    private void ThrowIfDisposed()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
     }
 }
