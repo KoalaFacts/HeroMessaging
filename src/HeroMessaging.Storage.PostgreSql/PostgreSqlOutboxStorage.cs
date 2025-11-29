@@ -106,7 +106,7 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
             CREATE INDEX IF NOT EXISTS idx_{_options.OutboxTableName}_created_at ON {_tableName}(created_at DESC);
             """;
 
-        await _schemaInitializer.ExecuteSchemaScriptAsync(createTableSql);
+        await _schemaInitializer.ExecuteSchemaScriptAsync(createTableSql).ConfigureAwait(false);
     }
 
     public async Task<OutboxEntry> AddAsync(IMessage message, OutboxOptions options, CancellationToken cancellationToken = default)
@@ -136,7 +136,7 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
             command.Parameters.AddWithValue("max_retries", options.MaxRetries);
             command.Parameters.AddWithValue("created_at", now);
 
-            await command.ExecuteNonQueryAsync(cancellationToken);
+            await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
             return new OutboxEntry
             {
@@ -201,8 +201,8 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
             }
 
             var entries = new List<OutboxEntry>();
-            using var reader = await command.ExecuteReaderAsync(cancellationToken);
-            while (await reader.ReadAsync(cancellationToken))
+            using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
                 var entryId = reader.GetString(0);
                 var messageType = reader.GetString(1);
@@ -251,7 +251,7 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
             Limit = limit
         };
 
-        return await GetPendingAsync(query, cancellationToken);
+        return await GetPendingAsync(query, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<bool> MarkProcessedAsync(string entryId, CancellationToken cancellationToken = default)
@@ -274,7 +274,7 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
             command.Parameters.AddWithValue("status", "Processed");
             command.Parameters.AddWithValue("processed_at", _timeProvider.GetUtcNow());
 
-            var rowsAffected = await command.ExecuteNonQueryAsync(cancellationToken);
+            var rowsAffected = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             return rowsAffected > 0;
         }
         finally
@@ -303,7 +303,7 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
             command.Parameters.AddWithValue("processed_at", _timeProvider.GetUtcNow());
             command.Parameters.AddWithValue("last_error", error);
 
-            var rowsAffected = await command.ExecuteNonQueryAsync(cancellationToken);
+            var rowsAffected = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             return rowsAffected > 0;
         }
         finally
@@ -331,7 +331,7 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
             command.Parameters.AddWithValue("retry_count", retryCount);
             command.Parameters.AddWithValue("next_retry_at", (object?)nextRetry ?? DBNull.Value);
 
-            var rowsAffected = await command.ExecuteNonQueryAsync(cancellationToken);
+            var rowsAffected = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             return rowsAffected > 0;
         }
         finally
@@ -351,7 +351,7 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
             var sql = $"SELECT COUNT(1) FROM {_tableName} WHERE status = 'Pending'";
 
             using var command = new NpgsqlCommand(sql, connection, transaction);
-            var count = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken));
+            var count = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false));
             return count;
         }
         finally
@@ -367,6 +367,6 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
             Limit = limit
         };
 
-        return await GetPendingAsync(query, cancellationToken);
+        return await GetPendingAsync(query, cancellationToken).ConfigureAwait(false);
     }
 }

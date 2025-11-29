@@ -60,10 +60,32 @@ namespace HeroMessaging.Storage.PostgreSql;
 /// </remarks>
 public sealed class PostgreSqlIdempotencyStore : IIdempotencyStore
 {
+    private readonly PostgreSqlStorageOptions _options;
     private readonly string _connectionString;
+    private readonly string _tableName;
     private readonly TimeProvider _timeProvider;
     private readonly JsonSerializerOptions _jsonOptions;
     private readonly IJsonSerializer _jsonSerializer;
+    private readonly SemaphoreSlim _initLock = new(1, 1);
+    private bool _initialized;
+
+    /// <summary>
+    /// Initializes a new instance with storage options for full configuration including auto table creation.
+    /// </summary>
+    public PostgreSqlIdempotencyStore(PostgreSqlStorageOptions options, TimeProvider timeProvider, IJsonSerializer jsonSerializer)
+    {
+        _options = options ?? throw new ArgumentNullException(nameof(options));
+        _connectionString = options.ConnectionString;
+        _tableName = options.GetFullTableName("idempotency_responses");
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+        _jsonSerializer = jsonSerializer ?? throw new ArgumentNullException(nameof(jsonSerializer));
+        _jsonOptions = new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true,
+            AllowTrailingCommas = true,
+            WriteIndented = false
+        };
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PostgreSqlIdempotencyStore"/> class.
@@ -84,7 +106,9 @@ public sealed class PostgreSqlIdempotencyStore : IIdempotencyStore
         if (string.IsNullOrWhiteSpace(connectionString))
             throw new ArgumentException("Connection string cannot be empty or whitespace.", nameof(connectionString));
 
+        _options = new PostgreSqlStorageOptions { ConnectionString = connectionString };
         _connectionString = connectionString;
+        _tableName = _options.GetFullTableName("idempotency_responses");
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         _jsonSerializer = jsonSerializer ?? throw new ArgumentNullException(nameof(jsonSerializer));
         _jsonOptions = new JsonSerializerOptions
@@ -93,6 +117,47 @@ public sealed class PostgreSqlIdempotencyStore : IIdempotencyStore
             AllowTrailingCommas = true,
             WriteIndented = false
         };
+    }
+
+    private async Task EnsureInitializedAsync(CancellationToken cancellationToken = default)
+    {
+        if (_initialized || !_options.AutoCreateTables) return;
+
+        await _initLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (_initialized) return;
+            await InitializeDatabaseAsync(cancellationToken).ConfigureAwait(false);
+            _initialized = true;
+        }
+        finally
+        {
+            _initLock.Release();
+        }
+    }
+
+    private async Task InitializeDatabaseAsync(CancellationToken cancellationToken)
+    {
+        await using var connection = new NpgsqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+
+        var createTableSql = $"""
+            CREATE TABLE IF NOT EXISTS {_tableName} (
+                idempotency_key VARCHAR(450) NOT NULL PRIMARY KEY,
+                status SMALLINT NOT NULL,
+                success_result JSONB NULL,
+                failure_type VARCHAR(500) NULL,
+                failure_message TEXT NULL,
+                failure_stack_trace TEXT NULL,
+                stored_at TIMESTAMP NOT NULL,
+                expires_at TIMESTAMP NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_{_options.Schema}_idempotency_responses_expires_at
+                ON {_tableName}(expires_at);
+            """;
+
+        await using var command = new NpgsqlCommand(createTableSql, connection);
+        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -105,7 +170,9 @@ public sealed class PostgreSqlIdempotencyStore : IIdempotencyStore
         if (string.IsNullOrEmpty(idempotencyKey))
             throw new ArgumentException("Idempotency key cannot be empty.", nameof(idempotencyKey));
 
-        const string sql = @"
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+
+        var sql = $@"
             SELECT
                 idempotency_key,
                 status,
@@ -115,7 +182,7 @@ public sealed class PostgreSqlIdempotencyStore : IIdempotencyStore
                 failure_stack_trace,
                 stored_at,
                 expires_at
-            FROM idempotency_responses
+            FROM {_tableName}
             WHERE idempotency_key = $1
                 AND expires_at > $2";
 
@@ -167,12 +234,14 @@ public sealed class PostgreSqlIdempotencyStore : IIdempotencyStore
         if (string.IsNullOrEmpty(idempotencyKey))
             throw new ArgumentException("Idempotency key cannot be empty.", nameof(idempotencyKey));
 
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+
         var now = _timeProvider.GetUtcNow().UtcDateTime;
         var expiresAt = now.Add(ttl);
         var serializedResult = SerializeResult(result);
 
-        const string sql = @"
-            INSERT INTO idempotency_responses
+        var sql = $@"
+            INSERT INTO {_tableName}
                 (idempotency_key, status, success_result, failure_type, failure_message, failure_stack_trace, stored_at, expires_at)
             VALUES
                 ($1, $2, $3::jsonb, NULL, NULL, NULL, $4, $5)
@@ -222,11 +291,13 @@ public sealed class PostgreSqlIdempotencyStore : IIdempotencyStore
         if (exception == null)
             throw new ArgumentNullException(nameof(exception));
 
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+
         var now = _timeProvider.GetUtcNow().UtcDateTime;
         var expiresAt = now.Add(ttl);
 
-        const string sql = @"
-            INSERT INTO idempotency_responses
+        var sql = $@"
+            INSERT INTO {_tableName}
                 (idempotency_key, status, success_result, failure_type, failure_message, failure_stack_trace, stored_at, expires_at)
             VALUES
                 ($1, $2, NULL, $3, $4, $5, $6, $7)
@@ -274,9 +345,11 @@ public sealed class PostgreSqlIdempotencyStore : IIdempotencyStore
         if (string.IsNullOrEmpty(idempotencyKey))
             throw new ArgumentException("Idempotency key cannot be empty.", nameof(idempotencyKey));
 
-        const string sql = @"
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+
+        var sql = $@"
             SELECT COUNT(1)
-            FROM idempotency_responses
+            FROM {_tableName}
             WHERE idempotency_key = $1
                 AND expires_at > $2";
 
@@ -303,9 +376,11 @@ public sealed class PostgreSqlIdempotencyStore : IIdempotencyStore
     /// <inheritdoc />
     public async ValueTask<int> CleanupExpiredAsync(CancellationToken cancellationToken = default)
     {
-        const string sql = @"
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+
+        var sql = $@"
             WITH deleted AS (
-                DELETE FROM idempotency_responses
+                DELETE FROM {_tableName}
                 WHERE expires_at <= $1
                 RETURNING *
             )

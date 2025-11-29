@@ -23,19 +23,22 @@ public class PostgreSqlSchemaInitializer : IDbSchemaInitializer
             return; // public schema always exists in PostgreSQL
         }
 
-        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        // SECURITY: Validate schema name to prevent SQL injection
+        PostgreSqlStorageOptions.ValidateSqlIdentifier(schemaName, nameof(schemaName));
+
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             var sql = $"CREATE SCHEMA IF NOT EXISTS {schemaName}";
             using var command = new NpgsqlCommand(sql, connection);
             command.Transaction = _connectionProvider.GetTransaction();
-            await command.ExecuteNonQueryAsync(cancellationToken);
+            await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
         finally
         {
             if (!_connectionProvider.IsSharedConnection)
             {
-                await connection.DisposeAsync();
+                await connection.DisposeAsync().ConfigureAwait(false);
             }
         }
     }
@@ -43,18 +46,18 @@ public class PostgreSqlSchemaInitializer : IDbSchemaInitializer
     /// <inheritdoc />
     public async Task ExecuteSchemaScriptAsync(string sql, CancellationToken cancellationToken = default)
     {
-        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken);
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             using var command = new NpgsqlCommand(sql, connection);
             command.Transaction = _connectionProvider.GetTransaction();
-            await command.ExecuteNonQueryAsync(cancellationToken);
+            await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
         finally
         {
             if (!_connectionProvider.IsSharedConnection)
             {
-                await connection.DisposeAsync();
+                await connection.DisposeAsync().ConfigureAwait(false);
             }
         }
     }
