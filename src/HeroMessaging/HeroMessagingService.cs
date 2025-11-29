@@ -168,7 +168,7 @@ public class HeroMessagingService(
             throw new InvalidOperationException("Queue functionality is not enabled. Call WithQueues() during configuration.");
 
         Interlocked.Increment(ref _messagesQueued);
-        await _queueProcessor.Enqueue(message, queueName, options, cancellationToken).ConfigureAwait(false);
+        await _queueProcessor.EnqueueAsync(message, queueName, options, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task StartQueueAsync(string queueName, CancellationToken cancellationToken = default)
@@ -176,7 +176,7 @@ public class HeroMessagingService(
         if (_queueProcessor == null)
             throw new InvalidOperationException("Queue functionality is not enabled. Call WithQueues() during configuration.");
 
-        await _queueProcessor.StartQueue(queueName, cancellationToken).ConfigureAwait(false);
+        await _queueProcessor.StartQueueAsync(queueName, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task StopQueueAsync(string queueName, CancellationToken cancellationToken = default)
@@ -184,7 +184,7 @@ public class HeroMessagingService(
         if (_queueProcessor == null)
             throw new InvalidOperationException("Queue functionality is not enabled. Call WithQueues() during configuration.");
 
-        await _queueProcessor.StopQueue(queueName, cancellationToken).ConfigureAwait(false);
+        await _queueProcessor.StopQueueAsync(queueName, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task PublishToOutboxAsync(IMessage message, OutboxOptions? options = null, CancellationToken cancellationToken = default)
@@ -193,7 +193,7 @@ public class HeroMessagingService(
             throw new InvalidOperationException("Outbox functionality is not enabled. Call WithOutbox() during configuration.");
 
         Interlocked.Increment(ref _outboxMessages);
-        await _outboxProcessor.PublishToOutbox(message, options, cancellationToken).ConfigureAwait(false);
+        await _outboxProcessor.PublishToOutboxAsync(message, options, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task ProcessIncomingAsync(IMessage message, InboxOptions? options = null, CancellationToken cancellationToken = default)
@@ -202,7 +202,7 @@ public class HeroMessagingService(
             throw new InvalidOperationException("Inbox functionality is not enabled. Call WithInbox() during configuration.");
 
         Interlocked.Increment(ref _inboxMessages);
-        await _inboxProcessor.ProcessIncoming(message, options, cancellationToken).ConfigureAwait(false);
+        await _inboxProcessor.ProcessIncomingAsync(message, options, cancellationToken).ConfigureAwait(false);
     }
 
     public MessagingMetrics GetMetrics()

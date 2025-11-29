@@ -90,11 +90,11 @@ public class TransactionOutboxProcessorDecoratorTests
                 async (func, desc, iso, ct) => await func(ct))
             .Returns(Task.CompletedTask);
 
-        _mockInner.Setup(x => x.PublishToOutbox(message, options, It.IsAny<CancellationToken>()))
+        _mockInner.Setup(x => x.PublishToOutboxAsync(message, options, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act
-        await _sut.PublishToOutbox(message, options);
+        await _sut.PublishToOutboxAsync(message, options);
 
         // Assert
         _mockTransactionExecutor.Verify(
@@ -105,7 +105,7 @@ public class TransactionOutboxProcessorDecoratorTests
                 It.IsAny<CancellationToken>()),
             Times.Once);
 
-        _mockInner.Verify(x => x.PublishToOutbox(message, options, It.IsAny<CancellationToken>()), Times.Once);
+        _mockInner.Verify(x => x.PublishToOutboxAsync(message, options, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -125,7 +125,7 @@ public class TransactionOutboxProcessorDecoratorTests
             .Returns(Task.CompletedTask);
 
         // Act
-        await _sut.PublishToOutbox(message, null, cancellationToken);
+        await _sut.PublishToOutboxAsync(message, null, cancellationToken);
 
         // Assert
         _mockTransactionExecutor.Verify(
@@ -154,7 +154,7 @@ public class TransactionOutboxProcessorDecoratorTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await _sut.PublishToOutbox(message));
+            async () => await _sut.PublishToOutboxAsync(message));
 
         Assert.Same(expectedException, exception);
     }
@@ -175,14 +175,14 @@ public class TransactionOutboxProcessorDecoratorTests
                 async (func, desc, iso, ct) => await func(ct))
             .Returns(Task.CompletedTask);
 
-        _mockInner.Setup(x => x.PublishToOutbox(message, null, It.IsAny<CancellationToken>()))
+        _mockInner.Setup(x => x.PublishToOutboxAsync(message, null, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act
-        await _sut.PublishToOutbox(message, null);
+        await _sut.PublishToOutboxAsync(message, null);
 
         // Assert
-        _mockInner.Verify(x => x.PublishToOutbox(message, null, It.IsAny<CancellationToken>()), Times.Once);
+        _mockInner.Verify(x => x.PublishToOutboxAsync(message, null, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     #endregion
@@ -228,7 +228,7 @@ public class TransactionOutboxProcessorDecoratorTests
     public async Task StopAsync_CallsInnerStopAsync()
     {
         // Arrange
-        _mockInner.Setup(x => x.StopAsync())
+        _mockInner.Setup(x => x.StopAsync(It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act
@@ -357,11 +357,11 @@ public class TransactionInboxProcessorDecoratorTests
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
-        _mockInner.Setup(x => x.ProcessIncoming(message, options, It.IsAny<CancellationToken>()))
+        _mockInner.Setup(x => x.ProcessIncomingAsync(message, options, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
         // Act
-        var result = await _sut.ProcessIncoming(message, options);
+        var result = await _sut.ProcessIncomingAsync(message, options);
 
         // Assert
         Assert.True(result);
@@ -388,11 +388,11 @@ public class TransactionInboxProcessorDecoratorTests
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
 
-        _mockInner.Setup(x => x.ProcessIncoming(message, null, It.IsAny<CancellationToken>()))
+        _mockInner.Setup(x => x.ProcessIncomingAsync(message, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
 
         // Act
-        var result = await _sut.ProcessIncoming(message);
+        var result = await _sut.ProcessIncomingAsync(message);
 
         // Assert
         Assert.False(result);
@@ -415,7 +415,7 @@ public class TransactionInboxProcessorDecoratorTests
             .ReturnsAsync(true);
 
         // Act
-        await _sut.ProcessIncoming(message, null, cancellationToken);
+        await _sut.ProcessIncomingAsync(message, null, cancellationToken);
 
         // Assert
         _mockTransactionExecutor.Verify(
@@ -444,7 +444,7 @@ public class TransactionInboxProcessorDecoratorTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await _sut.ProcessIncoming(message));
+            async () => await _sut.ProcessIncomingAsync(message));
 
         Assert.Same(expectedException, exception);
     }
@@ -475,7 +475,7 @@ public class TransactionInboxProcessorDecoratorTests
     public async Task StopAsync_CallsInnerStopAsync()
     {
         // Arrange
-        _mockInner.Setup(x => x.StopAsync())
+        _mockInner.Setup(x => x.StopAsync(It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act
@@ -494,15 +494,15 @@ public class TransactionInboxProcessorDecoratorTests
     {
         // Arrange
         var expectedCount = 42L;
-        _mockInner.Setup(x => x.GetUnprocessedCount(It.IsAny<CancellationToken>()))
+        _mockInner.Setup(x => x.GetUnprocessedCountAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedCount);
 
         // Act
-        var result = await _sut.GetUnprocessedCount();
+        var result = await _sut.GetUnprocessedCountAsync();
 
         // Assert
         Assert.Equal(expectedCount, result);
-        _mockInner.Verify(x => x.GetUnprocessedCount(It.IsAny<CancellationToken>()), Times.Once);
+        _mockInner.Verify(x => x.GetUnprocessedCountAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     #endregion

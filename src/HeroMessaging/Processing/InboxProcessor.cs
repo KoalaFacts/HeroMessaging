@@ -27,7 +27,7 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
 
-    public async Task<bool> ProcessIncoming(IMessage message, InboxOptions? options = null, CancellationToken cancellationToken = default)
+    public async Task<bool> ProcessIncomingAsync(IMessage message, InboxOptions? options = null, CancellationToken cancellationToken = default)
     {
         options ??= new InboxOptions();
 
@@ -70,14 +70,14 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
         return base.StartAsync(cancellationToken);
     }
 
-    public new async Task StopAsync()
+    public new async Task StopAsync(CancellationToken cancellationToken = default)
     {
         _cleanupCancellationTokenSource?.Cancel();
 
         if (_cleanupTask != null)
-            await _cleanupTask;
+            await _cleanupTask.ConfigureAwait(false);
 
-        await base.StopAsync();
+        await base.StopAsync(cancellationToken).ConfigureAwait(false);
     }
 
     public new bool IsRunning => base.IsRunning;
@@ -160,7 +160,7 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
         }
     }
 
-    public async Task<long> GetUnprocessedCount(CancellationToken cancellationToken = default)
+    public async Task<long> GetUnprocessedCountAsync(CancellationToken cancellationToken = default)
     {
         return await _inboxStorage.GetUnprocessedCountAsync(cancellationToken);
     }

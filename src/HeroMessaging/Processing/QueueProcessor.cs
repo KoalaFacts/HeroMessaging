@@ -17,7 +17,7 @@ public class QueueProcessor(
     private readonly ILogger<QueueProcessor> _logger = logger;
     private readonly ConcurrentDictionary<string, QueueWorker> _workers = new();
 
-    public async Task Enqueue(IMessage message, string queueName, EnqueueOptions? options = null, CancellationToken cancellationToken = default)
+    public async Task EnqueueAsync(IMessage message, string queueName, EnqueueOptions? options = null, CancellationToken cancellationToken = default)
     {
         if (!await _queueStorage.QueueExistsAsync(queueName, cancellationToken))
         {
@@ -28,7 +28,7 @@ public class QueueProcessor(
         _logger.LogDebug("Message enqueued to {QueueName} with priority {Priority}", queueName, options?.Priority ?? 0);
     }
 
-    public async Task StartQueue(string queueName, CancellationToken cancellationToken = default)
+    public async Task StartQueueAsync(string queueName, CancellationToken cancellationToken = default)
     {
         if (!await _queueStorage.QueueExistsAsync(queueName, cancellationToken))
         {
@@ -44,7 +44,7 @@ public class QueueProcessor(
         await worker.Start(cancellationToken);
     }
 
-    public async Task StopQueue(string queueName, CancellationToken cancellationToken = default)
+    public async Task StopQueueAsync(string queueName, CancellationToken cancellationToken = default)
     {
         if (_workers.TryRemove(queueName, out var worker))
         {

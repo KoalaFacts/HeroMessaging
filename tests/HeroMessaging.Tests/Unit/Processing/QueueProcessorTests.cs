@@ -61,7 +61,7 @@ public class QueueProcessorTests
             .ReturnsAsync(new QueueEntry { Message = message });
 
         // Act
-        await _sut.Enqueue(message, queueName, options);
+        await _sut.EnqueueAsync(message, queueName, options);
 
         // Assert
         _mockQueueStorage.Verify(x => x.QueueExistsAsync(queueName, It.IsAny<CancellationToken>()), Times.Once);
@@ -83,7 +83,7 @@ public class QueueProcessorTests
             .ReturnsAsync(new QueueEntry());
 
         // Act
-        await _sut.Enqueue(message, queueName, options);
+        await _sut.EnqueueAsync(message, queueName, options);
 
         // Assert
         _mockQueueStorage.Verify(x => x.QueueExistsAsync(queueName, It.IsAny<CancellationToken>()), Times.Once);
@@ -104,7 +104,7 @@ public class QueueProcessorTests
             .ReturnsAsync(new QueueEntry());
 
         // Act
-        await _sut.Enqueue(message, queueName, null);
+        await _sut.EnqueueAsync(message, queueName, null);
 
         // Assert
         _mockQueueStorage.Verify(x => x.EnqueueAsync(queueName, message, null, It.IsAny<CancellationToken>()), Times.Once);
@@ -125,7 +125,7 @@ public class QueueProcessorTests
             .ReturnsAsync(new QueueEntry());
 
         // Act
-        await _sut.Enqueue(message, queueName, null, cancellationToken);
+        await _sut.EnqueueAsync(message, queueName, null, cancellationToken);
 
         // Assert
         _mockQueueStorage.Verify(x => x.EnqueueAsync(queueName, message, null, cancellationToken), Times.Once);
@@ -147,7 +147,7 @@ public class QueueProcessorTests
             .ReturnsAsync(true);
 
         // Act
-        await _sut.StartQueue(queueName);
+        await _sut.StartQueueAsync(queueName);
 
         // Assert
         _mockQueueStorage.Verify(x => x.QueueExistsAsync(queueName, It.IsAny<CancellationToken>()), Times.Once);
@@ -164,7 +164,7 @@ public class QueueProcessorTests
             .ReturnsAsync(true);
 
         // Act
-        await _sut.StartQueue(queueName);
+        await _sut.StartQueueAsync(queueName);
 
         // Assert
         _mockQueueStorage.Verify(x => x.QueueExistsAsync(queueName, It.IsAny<CancellationToken>()), Times.Once);
@@ -181,8 +181,8 @@ public class QueueProcessorTests
             .ReturnsAsync(true);
 
         // Act
-        await _sut.StartQueue(queueName);
-        await _sut.StartQueue(queueName); // Second call should not create new worker
+        await _sut.StartQueueAsync(queueName);
+        await _sut.StartQueueAsync(queueName); // Second call should not create new worker
 
         // Assert
         _mockQueueStorage.Verify(x => x.QueueExistsAsync(queueName, It.IsAny<CancellationToken>()), Times.Exactly(2));
@@ -200,7 +200,7 @@ public class QueueProcessorTests
             .ReturnsAsync(true);
 
         // Act
-        await _sut.StartQueue(queueName, cancellationToken);
+        await _sut.StartQueueAsync(queueName, cancellationToken);
 
         // Assert
         _mockQueueStorage.Verify(x => x.QueueExistsAsync(queueName, cancellationToken), Times.Once);
@@ -219,10 +219,10 @@ public class QueueProcessorTests
         _mockQueueStorage.Setup(x => x.QueueExistsAsync(queueName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
-        await _sut.StartQueue(queueName);
+        await _sut.StartQueueAsync(queueName);
 
         // Act
-        await _sut.StopQueue(queueName);
+        await _sut.StopQueueAsync(queueName);
 
         // Assert - Should complete without exception
         Assert.True(true);
@@ -235,7 +235,7 @@ public class QueueProcessorTests
         var queueName = "non-existent-queue";
 
         // Act
-        await _sut.StopQueue(queueName);
+        await _sut.StopQueueAsync(queueName);
 
         // Assert - Should complete without exception
         Assert.True(true);
@@ -250,11 +250,11 @@ public class QueueProcessorTests
         _mockQueueStorage.Setup(x => x.QueueExistsAsync(queueName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
-        await _sut.StartQueue(queueName);
+        await _sut.StartQueueAsync(queueName);
 
         // Act
-        await _sut.StopQueue(queueName);
-        await _sut.StopQueue(queueName); // Second call should complete without error
+        await _sut.StopQueueAsync(queueName);
+        await _sut.StopQueueAsync(queueName); // Second call should complete without error
 
         // Assert
         Assert.True(true);
@@ -324,7 +324,7 @@ public class QueueProcessorTests
             .ReturnsAsync(true);
 
         // Act
-        await _sut.StartQueue(queueName);
+        await _sut.StartQueueAsync(queueName);
         var result = _sut.IsRunning;
 
         // Assert
@@ -340,10 +340,10 @@ public class QueueProcessorTests
         _mockQueueStorage.Setup(x => x.QueueExistsAsync(queueName, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
-        await _sut.StartQueue(queueName);
+        await _sut.StartQueueAsync(queueName);
 
         // Act
-        await _sut.StopQueue(queueName);
+        await _sut.StopQueueAsync(queueName);
         var result = _sut.IsRunning;
 
         // Assert
@@ -392,8 +392,8 @@ public class QueueProcessorTests
         _mockQueueStorage.Setup(x => x.QueueExistsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
-        await _sut.StartQueue(queue1);
-        await _sut.StartQueue(queue2);
+        await _sut.StartQueueAsync(queue1);
+        await _sut.StartQueueAsync(queue2);
 
         // Act
         var result = await _sut.GetActiveQueuesAsync();
@@ -415,9 +415,9 @@ public class QueueProcessorTests
         _mockQueueStorage.Setup(x => x.QueueExistsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
-        await _sut.StartQueue(queue1);
-        await _sut.StartQueue(queue2);
-        await _sut.StopQueue(queue1);
+        await _sut.StartQueueAsync(queue1);
+        await _sut.StartQueueAsync(queue2);
+        await _sut.StopQueueAsync(queue1);
 
         // Act
         var result = await _sut.GetActiveQueuesAsync();
@@ -506,13 +506,13 @@ public class QueueProcessorTests
             .ReturnsAsync(true);
 
         // Act
-        await _sut.Enqueue(message.Object, queueName);
-        await _sut.StartQueue(queueName);
+        await _sut.EnqueueAsync(message.Object, queueName);
+        await _sut.StartQueueAsync(queueName);
 
         // Give worker time to process
         await Task.Delay(500);
 
-        await _sut.StopQueue(queueName);
+        await _sut.StopQueueAsync(queueName);
 
         // Assert
         _mockQueueStorage.Verify(x => x.EnqueueAsync(queueName, It.IsAny<IMessage>(), It.IsAny<EnqueueOptions?>(), It.IsAny<CancellationToken>()), Times.Once);

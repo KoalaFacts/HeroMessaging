@@ -425,14 +425,14 @@ public class HeroMessagingServiceTests
         var queueName = "test-queue";
         var options = new EnqueueOptions();
 
-        _mockQueueProcessor.Setup(x => x.Enqueue(message, queueName, options, It.IsAny<CancellationToken>()))
+        _mockQueueProcessor.Setup(x => x.EnqueueAsync(message, queueName, options, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act
         await _sut.EnqueueAsync(message, queueName, options);
 
         // Assert
-        _mockQueueProcessor.Verify(x => x.Enqueue(message, queueName, options, It.IsAny<CancellationToken>()), Times.Once);
+        _mockQueueProcessor.Verify(x => x.EnqueueAsync(message, queueName, options, It.IsAny<CancellationToken>()), Times.Once);
         var metrics = _sut.GetMetrics();
         Assert.Equal(1, metrics.MessagesQueued);
     }
@@ -469,14 +469,14 @@ public class HeroMessagingServiceTests
     {
         // Arrange
         var queueName = "test-queue";
-        _mockQueueProcessor.Setup(x => x.StartQueue(queueName, It.IsAny<CancellationToken>()))
+        _mockQueueProcessor.Setup(x => x.StartQueueAsync(queueName, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act
         await _sut.StartQueueAsync(queueName);
 
         // Assert
-        _mockQueueProcessor.Verify(x => x.StartQueue(queueName, It.IsAny<CancellationToken>()), Times.Once);
+        _mockQueueProcessor.Verify(x => x.StartQueueAsync(queueName, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -508,14 +508,14 @@ public class HeroMessagingServiceTests
     {
         // Arrange
         var queueName = "test-queue";
-        _mockQueueProcessor.Setup(x => x.StopQueue(queueName, It.IsAny<CancellationToken>()))
+        _mockQueueProcessor.Setup(x => x.StopQueueAsync(queueName, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act
         await _sut.StopQueueAsync(queueName);
 
         // Assert
-        _mockQueueProcessor.Verify(x => x.StopQueue(queueName, It.IsAny<CancellationToken>()), Times.Once);
+        _mockQueueProcessor.Verify(x => x.StopQueueAsync(queueName, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -549,14 +549,14 @@ public class HeroMessagingServiceTests
         var message = new Mock<IMessage>().Object;
         var options = new OutboxOptions();
 
-        _mockOutboxProcessor.Setup(x => x.PublishToOutbox(message, options, It.IsAny<CancellationToken>()))
+        _mockOutboxProcessor.Setup(x => x.PublishToOutboxAsync(message, options, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act
         await _sut.PublishToOutboxAsync(message, options);
 
         // Assert
-        _mockOutboxProcessor.Verify(x => x.PublishToOutbox(message, options, It.IsAny<CancellationToken>()), Times.Once);
+        _mockOutboxProcessor.Verify(x => x.PublishToOutboxAsync(message, options, It.IsAny<CancellationToken>()), Times.Once);
         var metrics = _sut.GetMetrics();
         Assert.Equal(1, metrics.OutboxMessages);
     }
@@ -595,14 +595,14 @@ public class HeroMessagingServiceTests
         var message = new Mock<IMessage>().Object;
         var options = new InboxOptions();
 
-        _mockInboxProcessor.Setup(x => x.ProcessIncoming(message, options, It.IsAny<CancellationToken>()))
+        _mockInboxProcessor.Setup(x => x.ProcessIncomingAsync(message, options, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
         // Act
         await _sut.ProcessIncomingAsync(message, options);
 
         // Assert
-        _mockInboxProcessor.Verify(x => x.ProcessIncoming(message, options, It.IsAny<CancellationToken>()), Times.Once);
+        _mockInboxProcessor.Verify(x => x.ProcessIncomingAsync(message, options, It.IsAny<CancellationToken>()), Times.Once);
         var metrics = _sut.GetMetrics();
         Assert.Equal(1, metrics.InboxMessages);
     }

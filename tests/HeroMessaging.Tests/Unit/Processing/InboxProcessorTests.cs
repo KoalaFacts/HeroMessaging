@@ -63,7 +63,7 @@ public sealed class InboxProcessorTests : IDisposable
             .ReturnsAsync(entry);
 
         // Act
-        var result = await processor.ProcessIncoming(message);
+        var result = await processor.ProcessIncomingAsync(message);
 
         // Assert
         Assert.True(result);
@@ -82,7 +82,7 @@ public sealed class InboxProcessorTests : IDisposable
             .ReturnsAsync((InboxEntry?)null);
 
         // Act
-        var result = await processor.ProcessIncoming(message);
+        var result = await processor.ProcessIncomingAsync(message);
 
         // Assert
         Assert.False(result);
@@ -108,7 +108,7 @@ public sealed class InboxProcessorTests : IDisposable
             .ReturnsAsync(true);
 
         // Act
-        var result = await processor.ProcessIncoming(message, options);
+        var result = await processor.ProcessIncomingAsync(message, options);
 
         // Assert
         Assert.False(result);
@@ -137,7 +137,7 @@ public sealed class InboxProcessorTests : IDisposable
             .ReturnsAsync(entry);
 
         // Act
-        var result = await processor.ProcessIncoming(message, options);
+        var result = await processor.ProcessIncomingAsync(message, options);
 
         // Assert
         Assert.True(result);
@@ -163,7 +163,7 @@ public sealed class InboxProcessorTests : IDisposable
             .ReturnsAsync(expectedCount);
 
         // Act
-        var count = await processor.GetUnprocessedCount();
+        var count = await processor.GetUnprocessedCountAsync();
 
         // Assert
         Assert.Equal(expectedCount, count);
@@ -199,7 +199,7 @@ public sealed class InboxProcessorTests : IDisposable
         // This test verifies the structure and flow
 
         // Act
-        var result = await processor.ProcessIncoming(command);
+        var result = await processor.ProcessIncomingAsync(command);
 
         // Assert
         Assert.True(result);
@@ -232,7 +232,7 @@ public sealed class InboxProcessorTests : IDisposable
             .ReturnsAsync(true);
 
         // Act
-        var result = await processor.ProcessIncoming(@event);
+        var result = await processor.ProcessIncomingAsync(@event);
 
         // Assert
         Assert.True(result);
@@ -388,7 +388,7 @@ public sealed class InboxProcessorTests : IDisposable
             .ReturnsAsync(true);
 
         // Act
-        await processor.ProcessIncoming(message, options);
+        await processor.ProcessIncomingAsync(message, options);
 
         // Assert
         _loggerMock.Verify(
@@ -413,7 +413,7 @@ public sealed class InboxProcessorTests : IDisposable
             .ReturnsAsync((InboxEntry?)null);
 
         // Act
-        await processor.ProcessIncoming(message);
+        await processor.ProcessIncomingAsync(message);
 
         // Assert
         _loggerMock.Verify(

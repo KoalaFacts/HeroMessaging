@@ -19,10 +19,10 @@ public class TransactionOutboxProcessorDecorator(
     private readonly ITransactionExecutor _transactionExecutor = transactionExecutor ?? throw new ArgumentNullException(nameof(transactionExecutor));
     private readonly IsolationLevel _defaultIsolationLevel = defaultIsolationLevel;
 
-    public async Task PublishToOutbox(IMessage message, OutboxOptions? options = null, CancellationToken cancellationToken = default)
+    public async Task PublishToOutboxAsync(IMessage message, OutboxOptions? options = null, CancellationToken cancellationToken = default)
     {
         await _transactionExecutor.ExecuteInTransactionAsync(
-            async ct => await _inner.PublishToOutbox(message, options, ct).ConfigureAwait(false),
+            async ct => await _inner.PublishToOutboxAsync(message, options, ct).ConfigureAwait(false),
             $"outbox message {message.GetType().Name} with ID {message.MessageId}",
             _defaultIsolationLevel,
             cancellationToken).ConfigureAwait(false);
@@ -31,8 +31,8 @@ public class TransactionOutboxProcessorDecorator(
     public Task StartAsync(CancellationToken cancellationToken = default) =>
         _inner.StartAsync(cancellationToken);
 
-    public Task StopAsync() =>
-        _inner.StopAsync();
+    public Task StopAsync(CancellationToken cancellationToken = default) =>
+        _inner.StopAsync(cancellationToken);
 
     public bool IsRunning => _inner.IsRunning;
 
@@ -52,10 +52,10 @@ public class TransactionInboxProcessorDecorator(
     private readonly ITransactionExecutor _transactionExecutor = transactionExecutor ?? throw new ArgumentNullException(nameof(transactionExecutor));
     private readonly IsolationLevel _defaultIsolationLevel = defaultIsolationLevel;
 
-    public async Task<bool> ProcessIncoming(IMessage message, InboxOptions? options = null, CancellationToken cancellationToken = default)
+    public async Task<bool> ProcessIncomingAsync(IMessage message, InboxOptions? options = null, CancellationToken cancellationToken = default)
     {
         return await _transactionExecutor.ExecuteInTransactionAsync(
-            async ct => await _inner.ProcessIncoming(message, options, ct).ConfigureAwait(false),
+            async ct => await _inner.ProcessIncomingAsync(message, options, ct).ConfigureAwait(false),
             $"inbox message {message.GetType().Name} with ID {message.MessageId}",
             _defaultIsolationLevel,
             cancellationToken).ConfigureAwait(false);
@@ -64,11 +64,11 @@ public class TransactionInboxProcessorDecorator(
     public Task StartAsync(CancellationToken cancellationToken = default) =>
         _inner.StartAsync(cancellationToken);
 
-    public Task StopAsync() =>
-        _inner.StopAsync();
+    public Task StopAsync(CancellationToken cancellationToken = default) =>
+        _inner.StopAsync(cancellationToken);
 
-    public Task<long> GetUnprocessedCount(CancellationToken cancellationToken = default) =>
-        _inner.GetUnprocessedCount(cancellationToken);
+    public Task<long> GetUnprocessedCountAsync(CancellationToken cancellationToken = default) =>
+        _inner.GetUnprocessedCountAsync(cancellationToken);
 
     public bool IsRunning => _inner.IsRunning;
 

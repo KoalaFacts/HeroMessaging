@@ -61,7 +61,7 @@ public abstract class PollingBackgroundServiceBase<TWorkItem> : IAsyncDisposable
     /// <summary>
     /// Stops the background polling service
     /// </summary>
-    public async Task StopAsync()
+    public async Task StopAsync(CancellationToken cancellationToken = default)
     {
         if (_cancellationTokenSource == null)
             return;

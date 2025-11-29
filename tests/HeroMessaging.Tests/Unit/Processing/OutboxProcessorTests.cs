@@ -66,7 +66,7 @@ public sealed class OutboxProcessorTests : IDisposable
             .ReturnsAsync(entry);
 
         // Act
-        await processor.PublishToOutbox(message);
+        await processor.PublishToOutboxAsync(message);
 
         // Assert
         _storageMock.Verify(s => s.AddAsync(message, It.IsAny<OutboxOptions>(), It.IsAny<CancellationToken>()), Times.Once);
@@ -92,7 +92,7 @@ public sealed class OutboxProcessorTests : IDisposable
             .ReturnsAsync(entry);
 
         // Act
-        await processor.PublishToOutbox(message, options);
+        await processor.PublishToOutboxAsync(message, options);
 
         // Assert
         _storageMock.Verify(s => s.AddAsync(message, options, It.IsAny<CancellationToken>()), Times.Once);
@@ -118,7 +118,7 @@ public sealed class OutboxProcessorTests : IDisposable
             .ReturnsAsync(entry);
 
         // Act
-        await processor.PublishToOutbox(message, options);
+        await processor.PublishToOutboxAsync(message, options);
 
         // Assert
         _storageMock.Verify(s => s.AddAsync(message, options, It.IsAny<CancellationToken>()), Times.Once);
@@ -181,7 +181,7 @@ public sealed class OutboxProcessorTests : IDisposable
             .ReturnsAsync(true);
 
         // Act
-        await processor.PublishToOutbox(command);
+        await processor.PublishToOutboxAsync(command);
 
         // Assert
         _storageMock.Verify(s => s.AddAsync(command, It.IsAny<OutboxOptions>(), It.IsAny<CancellationToken>()), Times.Once);
@@ -214,7 +214,7 @@ public sealed class OutboxProcessorTests : IDisposable
             .ReturnsAsync(true);
 
         // Act
-        await processor.PublishToOutbox(@event);
+        await processor.PublishToOutboxAsync(@event);
 
         // Assert
         _storageMock.Verify(s => s.AddAsync(@event, It.IsAny<OutboxOptions>(), It.IsAny<CancellationToken>()), Times.Once);
@@ -376,7 +376,7 @@ public sealed class OutboxProcessorTests : IDisposable
             .ReturnsAsync(entry);
 
         // Act
-        await processor.PublishToOutbox(message, options);
+        await processor.PublishToOutboxAsync(message, options);
 
         // Assert
         _storageMock.Verify(s => s.AddAsync(message, options, It.IsAny<CancellationToken>()), Times.Once);
