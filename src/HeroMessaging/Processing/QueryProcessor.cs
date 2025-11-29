@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging;
 
 namespace HeroMessaging.Processing;
 
-public class QueryProcessor : IQueryProcessor, IProcessor
+public class QueryProcessor : IQueryProcessor, IProcessor, IAsyncDisposable
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<QueryProcessor> _logger;
@@ -80,4 +80,14 @@ public class QueryProcessor : IQueryProcessor, IProcessor
     }
 
     public IQueryProcessorMetrics GetMetrics() => _metrics.GetQueryMetrics();
+
+    /// <summary>
+    /// Disposes the query processor by completing the processing block.
+    /// </summary>
+    public async ValueTask DisposeAsync()
+    {
+        IsRunning = false;
+        _processingBlock.Complete();
+        await _processingBlock.Completion.ConfigureAwait(false);
+    }
 }
