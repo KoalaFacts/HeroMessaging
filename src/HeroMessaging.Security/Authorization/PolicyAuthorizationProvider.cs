@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System;
 using System.Security.Claims;
 using HeroMessaging.Abstractions.Security;
@@ -9,7 +10,7 @@ namespace HeroMessaging.Security.Authorization;
 /// </summary>
 public sealed class PolicyAuthorizationProvider : IAuthorizationProvider
 {
-    private readonly Dictionary<string, AuthorizationPolicy> _policies;
+    private readonly ConcurrentDictionary<string, AuthorizationPolicy> _policies;
     private readonly bool _requireAuthenticatedUser;
 
     /// <summary>
@@ -19,7 +20,7 @@ public sealed class PolicyAuthorizationProvider : IAuthorizationProvider
     public PolicyAuthorizationProvider(bool requireAuthenticatedUser = true)
     {
         _requireAuthenticatedUser = requireAuthenticatedUser;
-        _policies = new Dictionary<string, AuthorizationPolicy>(StringComparer.OrdinalIgnoreCase);
+        _policies = new ConcurrentDictionary<string, AuthorizationPolicy>(StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>

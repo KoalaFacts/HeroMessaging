@@ -39,18 +39,24 @@ public sealed class HmacSha256MessageSigner : IMessageSigner, IDisposable
         _keyId = keyId;
     }
 
+    /// </summary>
     /// <summary>
-    /// Creates a new HMAC-SHA256 signer by generating a random key
+    /// Creates a new HMAC-SHA256 signer by generating a random key.
+    /// SECURITY: The generated key is zeroed from memory after being copied to the signer.
     /// </summary>
     public static HmacSha256MessageSigner CreateWithRandomKey(TimeProvider timeProvider, string? keyId = null)
     {
         if (timeProvider == null) throw new ArgumentNullException(nameof(timeProvider));
         var key = new byte[KeySize];
-        using (var rng = RandomNumberGenerator.Create())
+        try
         {
-            rng.GetBytes(key);
+            RandomNumberGenerator.Fill(key);
+            return new HmacSha256MessageSigner(key, timeProvider, keyId);
         }
-        return new HmacSha256MessageSigner(key, timeProvider, keyId);
+        finally
+        {
+            CryptographicOperations.ZeroMemory(key);
+        }
     }
 
     public Task<MessageSignature> SignAsync(
