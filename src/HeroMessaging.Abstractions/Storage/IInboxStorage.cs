@@ -25,8 +25,8 @@ public interface IInboxStorage
 
 public class InboxEntry
 {
-    public string Id { get; set; } = null!;
-    public IMessage Message { get; set; } = null!;
+    public required string Id { get; set; }
+    public required IMessage Message { get; set; }
     public InboxOptions Options { get; set; } = new();
     public InboxStatus Status { get; set; } = InboxStatus.Pending;
     public DateTimeOffset ReceivedAt { get; set; } = TimeProvider.System.GetUtcNow();
@@ -34,6 +34,9 @@ public class InboxEntry
     public string? Error { get; set; }
 }
 
+/// <summary>
+/// Status of an inbox entry
+/// </summary>
 public enum InboxStatus
 {
     Pending,
@@ -43,18 +46,11 @@ public enum InboxStatus
     Duplicate
 }
 
-public enum InboxEntryStatus
-{
-    Pending,
-    Processing,
-    Processed,
-    Failed,
-    Duplicate
-}
+// InboxEntryStatus removed - use InboxStatus instead
 
 public class InboxQuery
 {
-    public InboxEntryStatus? Status { get; set; }
+    public InboxStatus? Status { get; set; }
     public int Limit { get; set; } = 100;
     public DateTimeOffset? OlderThan { get; set; }
     public DateTimeOffset? NewerThan { get; set; }

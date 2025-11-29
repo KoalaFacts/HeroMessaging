@@ -30,7 +30,7 @@ public interface ITransactionExecutor
 /// <summary>
 /// Default implementation of transaction executor
 /// </summary>
-public class TransactionExecutor : ITransactionExecutor
+public sealed class TransactionExecutor : ITransactionExecutor
 {
     private readonly IUnitOfWorkFactory _unitOfWorkFactory;
     private readonly ILogger<TransactionExecutor> _logger;
@@ -47,22 +47,22 @@ public class TransactionExecutor : ITransactionExecutor
         IsolationLevel isolationLevel = IsolationLevel.ReadCommitted,
         CancellationToken cancellationToken = default)
     {
-        await using var unitOfWork = await _unitOfWorkFactory.CreateAsync(isolationLevel, cancellationToken);
+        await using var unitOfWork = await _unitOfWorkFactory.CreateAsync(isolationLevel, cancellationToken).ConfigureAwait(false);
 
         try
         {
             _logger.LogDebug("Starting transaction for {OperationName}", operationName);
 
-            await operation(cancellationToken);
+            await operation(cancellationToken).ConfigureAwait(false);
 
-            await unitOfWork.CommitAsync(cancellationToken);
+            await unitOfWork.CommitAsync(cancellationToken).ConfigureAwait(false);
 
             _logger.LogDebug("Transaction committed successfully for {OperationName}", operationName);
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Transaction rollback for {OperationName}", operationName);
-            await unitOfWork.RollbackAsync(cancellationToken);
+            await unitOfWork.RollbackAsync(cancellationToken).ConfigureAwait(false);
             throw;
         }
     }
@@ -73,15 +73,15 @@ public class TransactionExecutor : ITransactionExecutor
         IsolationLevel isolationLevel = IsolationLevel.ReadCommitted,
         CancellationToken cancellationToken = default)
     {
-        await using var unitOfWork = await _unitOfWorkFactory.CreateAsync(isolationLevel, cancellationToken);
+        await using var unitOfWork = await _unitOfWorkFactory.CreateAsync(isolationLevel, cancellationToken).ConfigureAwait(false);
 
         try
         {
             _logger.LogDebug("Starting transaction for {OperationName}", operationName);
 
-            var result = await operation(cancellationToken);
+            var result = await operation(cancellationToken).ConfigureAwait(false);
 
-            await unitOfWork.CommitAsync(cancellationToken);
+            await unitOfWork.CommitAsync(cancellationToken).ConfigureAwait(false);
 
             _logger.LogDebug("Transaction committed successfully for {OperationName}", operationName);
 
@@ -90,7 +90,7 @@ public class TransactionExecutor : ITransactionExecutor
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Transaction rollback for {OperationName}", operationName);
-            await unitOfWork.RollbackAsync(cancellationToken);
+            await unitOfWork.RollbackAsync(cancellationToken).ConfigureAwait(false);
             throw;
         }
     }

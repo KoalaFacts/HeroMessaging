@@ -3,28 +3,61 @@ namespace HeroMessaging.Abstractions.Transport;
 /// <summary>
 /// Base class for component metrics with common patterns
 /// Consolidates success rate calculation and error tracking
+/// Thread-safe for concurrent operations
 /// </summary>
 public abstract class ComponentMetricsBase
 {
+    private long _successfulOperations;
+    private long _failedOperations;
+    private string? _lastError;
+    private DateTimeOffset? _lastErrorOccurredAt;
+    private readonly object _errorLock = new();
+
     /// <summary>
     /// Total number of successful operations
     /// </summary>
-    public long SuccessfulOperations { get; set; }
+    public long SuccessfulOperations
+    {
+        get => Interlocked.Read(ref _successfulOperations);
+        protected set => Interlocked.Exchange(ref _successfulOperations, value);
+    }
 
     /// <summary>
     /// Total number of failed operations
     /// </summary>
-    public long FailedOperations { get; set; }
+    public long FailedOperations
+    {
+        get => Interlocked.Read(ref _failedOperations);
+        protected set => Interlocked.Exchange(ref _failedOperations, value);
+    }
 
     /// <summary>
     /// Last error message
     /// </summary>
-    public string? LastError { get; set; }
+    public string? LastError
+    {
+        get
+        {
+            lock (_errorLock)
+            {
+                return _lastError;
+            }
+        }
+    }
 
     /// <summary>
     /// When the last error occurred
     /// </summary>
-    public DateTimeOffset? LastErrorOccurredAt { get; set; }
+    public DateTimeOffset? LastErrorOccurredAt
+    {
+        get
+        {
+            lock (_errorLock)
+            {
+                return _lastErrorOccurredAt;
+            }
+        }
+    }
 
     /// <summary>
     /// Calculate success rate (0.0 - 1.0)
@@ -34,47 +67,55 @@ public abstract class ComponentMetricsBase
     {
         get
         {
-            var total = SuccessfulOperations + FailedOperations;
-            return total > 0 ? (double)SuccessfulOperations / total : 0.0;
+            var success = Interlocked.Read(ref _successfulOperations);
+            var failed = Interlocked.Read(ref _failedOperations);
+            var total = success + failed;
+            return total > 0 ? (double)success / total : 0.0;
         }
     }
 
     /// <summary>
     /// Total operations (successful + failed)
     /// </summary>
-    public long TotalOperations => SuccessfulOperations + FailedOperations;
+    public long TotalOperations => Interlocked.Read(ref _successfulOperations) + Interlocked.Read(ref _failedOperations);
 
     /// <summary>
-    /// Record a successful operation
+    /// Record a successful operation (thread-safe)
     /// </summary>
     public virtual void RecordSuccess()
     {
-        SuccessfulOperations++;
+        Interlocked.Increment(ref _successfulOperations);
     }
 
     /// <summary>
-    /// Record a failed operation
+    /// Record a failed operation (thread-safe)
     /// </summary>
     /// <param name="error">Error message or exception details</param>
     /// <param name="timeProvider">Optional time provider for testability. Uses system time if null.</param>
     public virtual void RecordFailure(string? error = null, TimeProvider? timeProvider = null)
     {
-        FailedOperations++;
+        Interlocked.Increment(ref _failedOperations);
         if (error != null)
         {
-            LastError = error;
-            LastErrorOccurredAt = (timeProvider ?? TimeProvider.System).GetUtcNow();
+            lock (_errorLock)
+            {
+                _lastError = error;
+                _lastErrorOccurredAt = (timeProvider ?? TimeProvider.System).GetUtcNow();
+            }
         }
     }
 
     /// <summary>
-    /// Reset all metrics
+    /// Reset all metrics (thread-safe)
     /// </summary>
     public virtual void Reset()
     {
-        SuccessfulOperations = 0;
-        FailedOperations = 0;
-        LastError = null;
-        LastErrorOccurredAt = null;
+        Interlocked.Exchange(ref _successfulOperations, 0);
+        Interlocked.Exchange(ref _failedOperations, 0);
+        lock (_errorLock)
+        {
+            _lastError = null;
+            _lastErrorOccurredAt = null;
+        }
     }
 }

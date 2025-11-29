@@ -1,4 +1,4 @@
-using System;
+using HeroMessaging.Abstractions.Configuration;
 
 namespace HeroMessaging.Abstractions.Serialization;
 

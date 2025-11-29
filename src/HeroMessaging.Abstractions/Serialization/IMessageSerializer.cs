@@ -1,3 +1,5 @@
+using HeroMessaging.Abstractions.Configuration;
+
 namespace HeroMessaging.Abstractions.Serialization;
 
 /// <summary>
@@ -78,10 +80,4 @@ public class SerializationOptions
     public bool IncludeTypeInformation { get; set; } = true;
 }
 
-public enum CompressionLevel
-{
-    None = 0,
-    Fastest = 1,
-    Optimal = 2,
-    Maximum = 3
-}
+// CompressionLevel enum consolidated in HeroMessaging.Abstractions.Configuration namespace

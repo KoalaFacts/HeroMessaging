@@ -1,6 +1,7 @@
-using System;
-using System.Buffers;
 using System.IO.Compression;
+using HeroMessaging.Abstractions.Configuration;
+using SysCompressionLevel = System.IO.Compression.CompressionLevel;
+using CompressionLevel = HeroMessaging.Abstractions.Configuration.CompressionLevel;
 
 namespace HeroMessaging.Abstractions.Serialization;
 
@@ -9,6 +10,29 @@ namespace HeroMessaging.Abstractions.Serialization;
 /// </summary>
 public class GZipCompressionProvider : ICompressionProvider
 {
+    /// <summary>
+    /// Maximum decompressed size to prevent decompression bomb attacks (100MB default)
+    /// </summary>
+    public const int DefaultMaxDecompressedSize = 100 * 1024 * 1024;
+
+    private readonly int _maxDecompressedSize;
+
+    /// <summary>
+    /// Creates a new GZipCompressionProvider with default maximum decompressed size (100MB)
+    /// </summary>
+    public GZipCompressionProvider() : this(DefaultMaxDecompressedSize)
+    {
+    }
+
+    /// <summary>
+    /// Creates a new GZipCompressionProvider with the specified maximum decompressed size
+    /// </summary>
+    /// <param name="maxDecompressedSize">Maximum allowed decompressed size in bytes (default: 100MB)</param>
+    public GZipCompressionProvider(int maxDecompressedSize)
+    {
+        _maxDecompressedSize = maxDecompressedSize > 0 ? maxDecompressedSize : DefaultMaxDecompressedSize;
+    }
+
     /// <inheritdoc />
     public async ValueTask<byte[]> CompressAsync(
         byte[] data,
@@ -26,7 +50,7 @@ public class GZipCompressionProvider : ICompressionProvider
 
         using (var gzip = new GZipStream(output, gzipLevel))
         {
-            await gzip.WriteAsync(data, cancellationToken);
+            await gzip.WriteAsync(data, cancellationToken).ConfigureAwait(false);
         }
 
         return output.ToArray();
@@ -46,7 +70,23 @@ public class GZipCompressionProvider : ICompressionProvider
         using var output = new MemoryStream();
         using var gzip = new GZipStream(input, CompressionMode.Decompress);
 
-        await gzip.CopyToAsync(output, cancellationToken);
+        // Use a limited copy to prevent decompression bomb attacks
+        var buffer = new byte[81920]; // 80KB buffer
+        int bytesRead;
+        long totalBytesRead = 0;
+
+        while ((bytesRead = await gzip.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0)
+        {
+            totalBytesRead += bytesRead;
+            if (totalBytesRead > _maxDecompressedSize)
+            {
+                throw new InvalidOperationException(
+                    $"Decompressed data exceeds maximum allowed size of {_maxDecompressedSize} bytes. " +
+                    "This may indicate a decompression bomb attack.");
+            }
+
+            await output.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken).ConfigureAwait(false);
+        }
 
         return output.ToArray();
     }
@@ -83,11 +123,13 @@ public class GZipCompressionProvider : ICompressionProvider
             bytesWritten = Compress(source, destination, level);
             return true;
         }
-        catch
+        catch (ArgumentException)
         {
+            // Buffer too small - expected failure case
             bytesWritten = 0;
             return false;
         }
+        // Let critical exceptions (OutOfMemoryException, etc.) propagate
     }
 
     /// <inheritdoc />
@@ -106,7 +148,19 @@ public class GZipCompressionProvider : ICompressionProvider
         using var input = new MemoryStream(source.ToArray());
         using var gzip = new GZipStream(input, CompressionMode.Decompress);
 
-        return gzip.Read(destination);
+        var totalRead = 0;
+        int bytesRead;
+        while ((bytesRead = gzip.Read(destination.Slice(totalRead))) > 0)
+        {
+            totalRead += bytesRead;
+            if (totalRead > _maxDecompressedSize)
+            {
+                throw new InvalidOperationException(
+                    $"Decompressed data exceeds maximum allowed size of {_maxDecompressedSize} bytes.");
+            }
+        }
+
+        return totalRead;
     }
 
     /// <inheritdoc />
@@ -117,25 +171,34 @@ public class GZipCompressionProvider : ICompressionProvider
             bytesWritten = Decompress(source, destination);
             return true;
         }
-        catch
+        catch (ArgumentException)
         {
+            // Buffer too small - expected failure case
             bytesWritten = 0;
             return false;
         }
+        catch (InvalidOperationException)
+        {
+            // Decompression bomb protection triggered - expected failure case
+            bytesWritten = 0;
+            return false;
+        }
+        // Let critical exceptions propagate
     }
 
     /// <summary>
     /// Maps the HeroMessaging compression level to System.IO.Compression level
     /// </summary>
-    private static System.IO.Compression.CompressionLevel MapCompressionLevel(CompressionLevel level)
+    private static SysCompressionLevel MapCompressionLevel(CompressionLevel level)
     {
+        // Note: Maximum is an alias for SmallestSize, so they map to the same value
         return level switch
         {
-            CompressionLevel.None => System.IO.Compression.CompressionLevel.NoCompression,
-            CompressionLevel.Fastest => System.IO.Compression.CompressionLevel.Fastest,
-            CompressionLevel.Optimal => System.IO.Compression.CompressionLevel.Optimal,
-            CompressionLevel.Maximum => System.IO.Compression.CompressionLevel.Optimal,
-            _ => System.IO.Compression.CompressionLevel.Optimal
+            CompressionLevel.None => SysCompressionLevel.NoCompression,
+            CompressionLevel.Fastest => SysCompressionLevel.Fastest,
+            CompressionLevel.Optimal => SysCompressionLevel.Optimal,
+            CompressionLevel.SmallestSize => SysCompressionLevel.SmallestSize,
+            _ => SysCompressionLevel.Optimal
         };
     }
 }

@@ -24,7 +24,7 @@ public interface IOutboxStorage
 public class OutboxEntry
 {
     public string Id { get; set; } = Guid.NewGuid().ToString();
-    public IMessage Message { get; set; } = null!;
+    public required IMessage Message { get; set; }
     public Abstractions.OutboxOptions Options { get; set; } = new();
     public OutboxStatus Status { get; set; } = OutboxStatus.Pending;
     public int RetryCount { get; set; }
@@ -34,6 +34,9 @@ public class OutboxEntry
     public string? LastError { get; set; }
 }
 
+/// <summary>
+/// Status of an outbox entry
+/// </summary>
 public enum OutboxStatus
 {
     Pending,
@@ -42,17 +45,11 @@ public enum OutboxStatus
     Failed
 }
 
-public enum OutboxEntryStatus
-{
-    Pending,
-    Processing,
-    Processed,
-    Failed
-}
+// OutboxEntryStatus removed - use OutboxStatus instead
 
 public class OutboxQuery
 {
-    public OutboxEntryStatus? Status { get; set; }
+    public OutboxStatus? Status { get; set; }
     public int Limit { get; set; } = 100;
     public DateTimeOffset? OlderThan { get; set; }
     public DateTimeOffset? NewerThan { get; set; }

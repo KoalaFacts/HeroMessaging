@@ -101,7 +101,7 @@ public interface IUnitOfWorkFactory
 /// Extension methods for IUnitOfWork to provide common transaction patterns
 /// </summary>
 // ReSharper disable once CheckNamespace
-#pragma warning disable IDE0130 // Namespace does not match folder structure
+#pragma warning disable IDE0130 // Namespace does not match folder structure - Extension methods follow target type namespace
 public static class ExtensionsToIUnitOfWorkForTransactions
 {
     /// <summary>
@@ -119,19 +119,19 @@ public static class ExtensionsToIUnitOfWorkForTransactions
         IsolationLevel isolationLevel = IsolationLevel.ReadCommitted,
         CancellationToken cancellationToken = default)
     {
-        await unitOfWork.BeginTransactionAsync(isolationLevel, cancellationToken);
+        await unitOfWork.BeginTransactionAsync(isolationLevel, cancellationToken).ConfigureAwait(false);
 
         try
         {
-            var result = await operation(unitOfWork, cancellationToken);
-            await unitOfWork.CommitAsync(cancellationToken);
+            var result = await operation(unitOfWork, cancellationToken).ConfigureAwait(false);
+            await unitOfWork.CommitAsync(cancellationToken).ConfigureAwait(false);
             return result;
         }
         catch
         {
             if (unitOfWork.IsTransactionActive)
             {
-                await unitOfWork.RollbackAsync(cancellationToken);
+                await unitOfWork.RollbackAsync(cancellationToken).ConfigureAwait(false);
             }
             throw;
         }
@@ -151,18 +151,18 @@ public static class ExtensionsToIUnitOfWorkForTransactions
         IsolationLevel isolationLevel = IsolationLevel.ReadCommitted,
         CancellationToken cancellationToken = default)
     {
-        await unitOfWork.BeginTransactionAsync(isolationLevel, cancellationToken);
+        await unitOfWork.BeginTransactionAsync(isolationLevel, cancellationToken).ConfigureAwait(false);
 
         try
         {
-            await operation(unitOfWork, cancellationToken);
-            await unitOfWork.CommitAsync(cancellationToken);
+            await operation(unitOfWork, cancellationToken).ConfigureAwait(false);
+            await unitOfWork.CommitAsync(cancellationToken).ConfigureAwait(false);
         }
         catch
         {
             if (unitOfWork.IsTransactionActive)
             {
-                await unitOfWork.RollbackAsync(cancellationToken);
+                await unitOfWork.RollbackAsync(cancellationToken).ConfigureAwait(false);
             }
             throw;
         }

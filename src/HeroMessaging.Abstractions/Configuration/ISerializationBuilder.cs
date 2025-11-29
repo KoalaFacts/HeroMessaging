@@ -81,10 +81,33 @@ public class MessagePackSerializationOptions
     public bool ContractlessResolve { get; set; } = true;
 }
 
+/// <summary>
+/// Compression level for message serialization
+/// </summary>
 public enum CompressionLevel
 {
+    /// <summary>
+    /// No compression
+    /// </summary>
     None = 0,
+
+    /// <summary>
+    /// Fastest compression (lowest ratio)
+    /// </summary>
     Fastest = 1,
+
+    /// <summary>
+    /// Balanced compression
+    /// </summary>
     Optimal = 2,
-    SmallestSize = 3
+
+    /// <summary>
+    /// Maximum compression (highest ratio, slowest)
+    /// </summary>
+    SmallestSize = 3,
+
+    /// <summary>
+    /// Alias for SmallestSize for backward compatibility
+    /// </summary>
+    Maximum = SmallestSize
 }

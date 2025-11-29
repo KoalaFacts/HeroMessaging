@@ -7,13 +7,14 @@ namespace HeroMessaging.Abstractions.Processing;
 /// Base class for background services that poll for work items and process them
 /// </summary>
 /// <typeparam name="TWorkItem">The type of work item to process</typeparam>
-public abstract class PollingBackgroundServiceBase<TWorkItem>
+public abstract class PollingBackgroundServiceBase<TWorkItem> : IAsyncDisposable
 {
     protected ILogger Logger { get; }
     protected TimeProvider TimeProvider { get; }
     private readonly ActionBlock<TWorkItem> _processingBlock;
     private CancellationTokenSource? _cancellationTokenSource;
     private Task? _pollingTask;
+    private bool _disposed;
 
     protected PollingBackgroundServiceBase(
         ILogger logger,
@@ -40,6 +41,8 @@ public abstract class PollingBackgroundServiceBase<TWorkItem>
     /// </summary>
     public Task StartAsync(CancellationToken cancellationToken = default)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
         if (_cancellationTokenSource != null)
             return Task.CompletedTask;
 
@@ -60,13 +63,16 @@ public abstract class PollingBackgroundServiceBase<TWorkItem>
     /// </summary>
     public async Task StopAsync()
     {
-        _cancellationTokenSource?.Cancel();
+        if (_cancellationTokenSource == null)
+            return;
+
+        await _cancellationTokenSource.CancelAsync().ConfigureAwait(false);
         _processingBlock.Complete();
 
         if (_pollingTask != null)
-            await _pollingTask;
+            await _pollingTask.ConfigureAwait(false);
 
-        await _processingBlock.Completion;
+        await _processingBlock.Completion.ConfigureAwait(false);
 
         Logger.LogInformation("{ServiceName} stopped", GetServiceName());
     }
@@ -76,7 +82,7 @@ public abstract class PollingBackgroundServiceBase<TWorkItem>
     /// </summary>
     protected async Task SubmitWorkItem(TWorkItem workItem, CancellationToken cancellationToken = default)
     {
-        await _processingBlock.SendAsync(workItem, cancellationToken);
+        await _processingBlock.SendAsync(workItem, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -88,17 +94,17 @@ public abstract class PollingBackgroundServiceBase<TWorkItem>
         {
             try
             {
-                var workItems = await PollForWorkItems(cancellationToken);
+                var workItems = await PollForWorkItems(cancellationToken).ConfigureAwait(false);
 
                 foreach (var workItem in workItems)
                 {
-                    await _processingBlock.SendAsync(workItem, cancellationToken);
+                    await _processingBlock.SendAsync(workItem, cancellationToken).ConfigureAwait(false);
                 }
 
                 var hasWork = workItems.Any();
                 var delay = GetPollingDelay(hasWork);
 
-                await Task.Delay(delay, TimeProvider, cancellationToken);
+                await Task.Delay(delay, TimeProvider, cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -107,7 +113,7 @@ public abstract class PollingBackgroundServiceBase<TWorkItem>
             catch (Exception ex)
             {
                 Logger.LogError(ex, "Error in {ServiceName} polling loop", GetServiceName());
-                await Task.Delay(GetErrorDelay(), TimeProvider, cancellationToken);
+                await Task.Delay(GetErrorDelay(), TimeProvider, cancellationToken).ConfigureAwait(false);
             }
         }
     }
@@ -143,5 +149,23 @@ public abstract class PollingBackgroundServiceBase<TWorkItem>
     protected virtual TimeSpan GetErrorDelay()
     {
         return TimeSpan.FromSeconds(5);
+    }
+
+    /// <summary>
+    /// Disposes the background service and releases resources
+    /// </summary>
+    public async ValueTask DisposeAsync()
+    {
+        if (_disposed)
+            return;
+
+        await StopAsync().ConfigureAwait(false);
+
+        _cancellationTokenSource?.Dispose();
+        _cancellationTokenSource = null;
+
+        _disposed = true;
+
+        GC.SuppressFinalize(this);
     }
 }
