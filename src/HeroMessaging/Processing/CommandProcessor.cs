@@ -1,7 +1,5 @@
 using System.Diagnostics;
-using System.Threading.Tasks.Dataflow;
 using HeroMessaging.Abstractions.Commands;
-using HeroMessaging.Abstractions.Handlers;
 using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Utilities;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,34 +7,37 @@ using Microsoft.Extensions.Logging;
 
 namespace HeroMessaging.Processing;
 
+/// <summary>
+/// Zero-allocation command processor using SemaphoreSlim for serialization.
+/// Eliminates TaskCompletionSource and async lambda allocations.
+/// </summary>
 public class CommandProcessor : ICommandProcessor, IProcessor, IAsyncDisposable
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<CommandProcessor> _logger;
-    private readonly ActionBlock<Func<Task>> _processingBlock;
+    private readonly SemaphoreSlim _processingLock = new(1, 1);
     private readonly ProcessorMetricsCollector _metrics = new();
+    private volatile bool _isRunning = true;
 
-    public bool IsRunning { get; private set; } = true;
+    public bool IsRunning => _isRunning;
 
     public CommandProcessor(IServiceProvider serviceProvider, ILogger<CommandProcessor>? logger = null)
     {
         _serviceProvider = serviceProvider;
         _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<CommandProcessor>.Instance;
-
-        _processingBlock = new ActionBlock<Func<Task>>(
-            async action => await action().ConfigureAwait(false),
-            new ExecutionDataflowBlockOptions
-            {
-                MaxDegreeOfParallelism = 1,
-                BoundedCapacity = ProcessingConstants.DefaultBoundedCapacity
-            });
     }
 
     public async Task Send(ICommand command, CancellationToken cancellationToken = default)
     {
         CompatibilityHelpers.ThrowIfNull(command, nameof(command));
 
-        var handlerType = typeof(ICommandHandler<>).MakeGenericType(command.GetType());
+        if (!_isRunning)
+        {
+            throw new ObjectDisposedException(nameof(CommandProcessor));
+        }
+
+        // Use cached handler type - avoids MakeGenericType allocation after first call
+        var handlerType = HandlerTypeCache.GetCommandHandlerType(command.GetType());
         var handler = _serviceProvider.GetService(handlerType);
 
         if (handler == null)
@@ -44,46 +45,46 @@ public class CommandProcessor : ICommandProcessor, IProcessor, IAsyncDisposable
             throw new InvalidOperationException($"No handler found for command type {command.GetType().Name}");
         }
 
-        var tcs = new TaskCompletionSource<bool>();
+        // Cache the handle method to avoid reflection on each call
+        var handleMethod = HandlerTypeCache.GetHandleMethod(handlerType);
 
-        var posted = await _processingBlock.SendAsync(async () =>
+        await _processingLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            try
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var handleMethod = handlerType.GetMethod("Handle");
-                var sw = Stopwatch.StartNew();
-                await ((Task)handleMethod!.Invoke(handler, [command, cancellationToken])!).ConfigureAwait(false);
-                sw.Stop();
+            cancellationToken.ThrowIfCancellationRequested();
+            var sw = Stopwatch.StartNew();
+            await ((Task)handleMethod.Invoke(handler, [command, cancellationToken])!).ConfigureAwait(false);
+            sw.Stop();
 
-                _metrics.RecordSuccess(sw.ElapsedMilliseconds);
-                tcs.SetResult(true);
-            }
-            catch (OperationCanceledException)
-            {
-                tcs.SetCanceled(cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                _metrics.RecordFailure();
-                _logger.LogError(ex, "Error processing command {CommandType}", command.GetType().Name);
-                tcs.SetException(ex);
-            }
-        }, cancellationToken).ConfigureAwait(false);
-
-        if (!posted)
-        {
-            tcs.SetCanceled(cancellationToken);
+            _metrics.RecordSuccess(sw.ElapsedMilliseconds);
         }
-
-        await tcs.Task.ConfigureAwait(false);
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _metrics.RecordFailure();
+            _logger.LogError(ex, "Error processing command {CommandType}", command.GetType().Name);
+            throw;
+        }
+        finally
+        {
+            _processingLock.Release();
+        }
     }
 
     public async Task<TResponse> Send<TResponse>(ICommand<TResponse> command, CancellationToken cancellationToken = default)
     {
         CompatibilityHelpers.ThrowIfNull(command, nameof(command));
 
-        var handlerType = typeof(ICommandHandler<,>).MakeGenericType(command.GetType(), typeof(TResponse));
+        if (!_isRunning)
+        {
+            throw new ObjectDisposedException(nameof(CommandProcessor));
+        }
+
+        // Use cached handler type - avoids MakeGenericType allocation after first call
+        var handlerType = HandlerTypeCache.GetCommandWithResponseHandlerType(command.GetType(), typeof(TResponse));
         var handler = _serviceProvider.GetService(handlerType);
 
         if (handler == null)
@@ -91,50 +92,45 @@ public class CommandProcessor : ICommandProcessor, IProcessor, IAsyncDisposable
             throw new InvalidOperationException($"No handler found for command type {command.GetType().Name}");
         }
 
-        var tcs = new TaskCompletionSource<TResponse>();
+        // Cache the handle method to avoid reflection on each call
+        var handleMethod = HandlerTypeCache.GetHandleMethod(handlerType);
 
-        var posted = await _processingBlock.SendAsync(async () =>
+        await _processingLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            try
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var handleMethod = handlerType.GetMethod("Handle");
-                var sw = Stopwatch.StartNew();
-                var result = await ((Task<TResponse>)handleMethod!.Invoke(handler, [command, cancellationToken])!).ConfigureAwait(false);
-                sw.Stop();
+            cancellationToken.ThrowIfCancellationRequested();
+            var sw = Stopwatch.StartNew();
+            var result = await ((Task<TResponse>)handleMethod.Invoke(handler, [command, cancellationToken])!).ConfigureAwait(false);
+            sw.Stop();
 
-                _metrics.RecordSuccess(sw.ElapsedMilliseconds);
-                tcs.SetResult(result);
-            }
-            catch (OperationCanceledException)
-            {
-                tcs.SetCanceled(cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                _metrics.RecordFailure();
-                _logger.LogError(ex, "Error processing command {CommandType}", command.GetType().Name);
-                tcs.SetException(ex);
-            }
-        }, cancellationToken).ConfigureAwait(false);
-
-        if (!posted)
-        {
-            tcs.SetCanceled(cancellationToken);
+            _metrics.RecordSuccess(sw.ElapsedMilliseconds);
+            return result;
         }
-
-        return await tcs.Task.ConfigureAwait(false);
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _metrics.RecordFailure();
+            _logger.LogError(ex, "Error processing command {CommandType}", command.GetType().Name);
+            throw;
+        }
+        finally
+        {
+            _processingLock.Release();
+        }
     }
 
     public IProcessorMetrics GetMetrics() => _metrics.GetMetrics();
 
     /// <summary>
-    /// Disposes the command processor by completing the processing block.
+    /// Disposes the command processor.
     /// </summary>
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        IsRunning = false;
-        _processingBlock.Complete();
-        await _processingBlock.Completion.ConfigureAwait(false);
+        _isRunning = false;
+        _processingLock.Dispose();
+        return ValueTask.CompletedTask;
     }
 }
