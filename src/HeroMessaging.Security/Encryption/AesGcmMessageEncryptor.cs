@@ -40,16 +40,21 @@ public sealed class AesGcmMessageEncryptor : IMessageEncryptor, IDisposable
     }
 
     /// <summary>
-    /// Creates a new AES-GCM encryptor by generating a random key
+    /// Creates a new AES-GCM encryptor by generating a random key.
+    /// SECURITY: The generated key is zeroed from memory after being copied to the encryptor.
     /// </summary>
     public static AesGcmMessageEncryptor CreateWithRandomKey(string? keyId = null)
     {
         var key = new byte[KeySize];
-        using (var rng = RandomNumberGenerator.Create())
+        try
         {
-            rng.GetBytes(key);
+            RandomNumberGenerator.Fill(key);
+            return new AesGcmMessageEncryptor(key, keyId);
         }
-        return new AesGcmMessageEncryptor(key, keyId);
+        finally
+        {
+            CryptographicOperations.ZeroMemory(key);
+        }
     }
 
     public Task<EncryptedData> EncryptAsync(

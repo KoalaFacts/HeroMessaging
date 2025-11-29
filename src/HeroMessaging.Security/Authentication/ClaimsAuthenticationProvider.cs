@@ -1,15 +1,17 @@
 using System;
+using System.Collections.Concurrent;
 using System.Security.Claims;
 using HeroMessaging.Abstractions.Security;
 
 namespace HeroMessaging.Security.Authentication;
 
 /// <summary>
-/// Provides claims-based authentication for messages
+/// Provides claims-based authentication for messages.
+/// Thread-safe for concurrent registration and authentication operations.
 /// </summary>
 public sealed class ClaimsAuthenticationProvider : IAuthenticationProvider
 {
-    private readonly Dictionary<string, ClaimsPrincipal> _apiKeys;
+    private readonly ConcurrentDictionary<string, ClaimsPrincipal> _apiKeys;
     private readonly string _scheme;
 
     public string Scheme => _scheme;
@@ -21,7 +23,7 @@ public sealed class ClaimsAuthenticationProvider : IAuthenticationProvider
     public ClaimsAuthenticationProvider(string scheme = "ApiKey")
     {
         _scheme = scheme ?? throw new ArgumentNullException(nameof(scheme));
-        _apiKeys = new Dictionary<string, ClaimsPrincipal>(StringComparer.Ordinal);
+        _apiKeys = new ConcurrentDictionary<string, ClaimsPrincipal>(StringComparer.Ordinal);
     }
 
     /// <summary>
