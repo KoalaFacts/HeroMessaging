@@ -10,7 +10,7 @@ namespace HeroMessaging.Processing;
 /// <summary>
 /// Event bus implementation using the pipeline architecture
 /// </summary>
-public class EventBus : IEventBus, IProcessor
+public class EventBus : IEventBus, IProcessor, IAsyncDisposable
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<EventBus> _logger;
@@ -170,5 +170,15 @@ public class EventBus : IEventBus, IProcessor
         public object Handler { get; set; } = null!;
         public Type HandlerType { get; set; } = null!;
         public CancellationToken CancellationToken { get; set; }
+    }
+
+    /// <summary>
+    /// Disposes the event bus by completing the processing block.
+    /// </summary>
+    public async ValueTask DisposeAsync()
+    {
+        IsRunning = false;
+        _processingBlock.Complete();
+        await _processingBlock.Completion.ConfigureAwait(false);
     }
 }

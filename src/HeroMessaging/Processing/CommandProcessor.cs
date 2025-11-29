@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging;
 
 namespace HeroMessaging.Processing;
 
-public class CommandProcessor : ICommandProcessor, IProcessor
+public class CommandProcessor : ICommandProcessor, IProcessor, IAsyncDisposable
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<CommandProcessor> _logger;
@@ -127,4 +127,14 @@ public class CommandProcessor : ICommandProcessor, IProcessor
     }
 
     public IProcessorMetrics GetMetrics() => _metrics.GetMetrics();
+
+    /// <summary>
+    /// Disposes the command processor by completing the processing block.
+    /// </summary>
+    public async ValueTask DisposeAsync()
+    {
+        IsRunning = false;
+        _processingBlock.Complete();
+        await _processingBlock.Completion.ConfigureAwait(false);
+    }
 }

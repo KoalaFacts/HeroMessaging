@@ -37,6 +37,28 @@ namespace HeroMessaging.Idempotency.Decorators;
 /// </remarks>
 public sealed class IdempotencyDecorator : MessageProcessorDecorator
 {
+    /// <summary>
+    /// SECURITY: Allowlist of exception types that can be reconstructed from cache.
+    /// Using Type.GetType() with untrusted input is dangerous - attackers could
+    /// instantiate arbitrary types if they have access to the idempotency store.
+    /// Only well-known, safe exception types are allowed.
+    /// </summary>
+    private static readonly HashSet<string> AllowedExceptionTypes = new(StringComparer.Ordinal)
+    {
+        typeof(ArgumentException).FullName!,
+        typeof(ArgumentNullException).FullName!,
+        typeof(ArgumentOutOfRangeException).FullName!,
+        typeof(InvalidOperationException).FullName!,
+        typeof(NotSupportedException).FullName!,
+        typeof(NotImplementedException).FullName!,
+        typeof(FormatException).FullName!,
+        typeof(KeyNotFoundException).FullName!,
+        typeof(UnauthorizedAccessException).FullName!,
+        typeof(TimeoutException).FullName!,
+        typeof(OperationCanceledException).FullName!,
+        typeof(TaskCanceledException).FullName!,
+    };
+
     private readonly IIdempotencyStore _store;
     private readonly IIdempotencyPolicy _policy;
     private readonly ILogger<IdempotencyDecorator> _logger;
@@ -133,39 +155,44 @@ public sealed class IdempotencyDecorator : MessageProcessorDecorator
 
     /// <summary>
     /// Reconstructs an exception from cached failure information.
+    /// SECURITY: Only reconstructs exception types from the allowlist to prevent
+    /// arbitrary type instantiation attacks.
     /// </summary>
-    /// <param name="cachedResponse">The cached failure response.</param>
-    /// <returns>A processing result containing the reconstructed exception.</returns>
     private static ProcessingResult ReconstructFailure(IdempotencyResponse cachedResponse)
     {
         Exception exception;
 
+        var failureType = cachedResponse.FailureType ?? string.Empty;
+
         try
         {
-            // Try to reconstruct the original exception type
-            var exceptionType = Type.GetType(cachedResponse.FailureType ?? string.Empty);
+            // SECURITY: Only allow reconstruction of explicitly allowlisted exception types
+            // to prevent arbitrary type instantiation via Type.GetType() with untrusted input
+            if (!string.IsNullOrEmpty(failureType) && AllowedExceptionTypes.Contains(failureType))
+            {
+                var exceptionType = Type.GetType(failureType);
 
-            if (exceptionType != null && typeof(Exception).IsAssignableFrom(exceptionType))
-            {
-                // Try to create exception with message constructor
-                var constructor = exceptionType.GetConstructor(new[] { typeof(string) });
-                if (constructor != null)
+                if (exceptionType != null && typeof(Exception).IsAssignableFrom(exceptionType))
                 {
-                    exception = (Exception)constructor.Invoke(new object?[] { cachedResponse.FailureMessage });
-                }
-                else
-                {
-                    // Fall back to parameterless constructor
-                    exception = (Exception?)Activator.CreateInstance(exceptionType)
-                        ?? new Exception(cachedResponse.FailureMessage);
+                    // Try to create exception with message constructor
+                    var constructor = exceptionType.GetConstructor([typeof(string)]);
+                    if (constructor != null)
+                    {
+                        exception = (Exception)constructor.Invoke([cachedResponse.FailureMessage]);
+                    }
+                    else
+                    {
+                        // Fall back to parameterless constructor
+                        exception = (Exception?)Activator.CreateInstance(exceptionType)
+                            ?? new Exception(cachedResponse.FailureMessage);
+                    }
+
+                    return ProcessingResult.Failed(exception, "Idempotent cached failure");
                 }
             }
-            else
-            {
-                // Unknown exception type, use generic Exception
-                exception = new Exception(
-                    $"[{cachedResponse.FailureType}] {cachedResponse.FailureMessage}");
-            }
+
+            // For unknown or non-allowlisted exception types, create a safe wrapper
+            exception = new Exception($"[{failureType}] {cachedResponse.FailureMessage}");
         }
         catch
         {

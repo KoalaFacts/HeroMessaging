@@ -51,29 +51,35 @@ public class HeroMessagingService(
     private readonly TimeProvider _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     private readonly ILogger<HeroMessagingService>? _logger = logger;
 
-    private readonly MessagingMetrics _metrics = new();
+    // Thread-safe counters for metrics
+    private long _commandsSent;
+    private long _queriesSent;
+    private long _eventsPublished;
+    private long _messagesQueued;
+    private long _outboxMessages;
+    private long _inboxMessages;
 
     public async Task SendAsync(ICommand command, CancellationToken cancellationToken = default)
     {
-        _metrics.CommandsSent++;
+        Interlocked.Increment(ref _commandsSent);
         await _commandProcessor.Send(command, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<TResponse> SendAsync<TResponse>(ICommand<TResponse> command, CancellationToken cancellationToken = default)
     {
-        _metrics.CommandsSent++;
+        Interlocked.Increment(ref _commandsSent);
         return await _commandProcessor.Send(command, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<TResponse> SendAsync<TResponse>(IQuery<TResponse> query, CancellationToken cancellationToken = default)
     {
-        _metrics.QueriesSent++;
+        Interlocked.Increment(ref _queriesSent);
         return await _queryProcessor.Send(query, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task PublishAsync(IEvent @event, CancellationToken cancellationToken = default)
     {
-        _metrics.EventsPublished++;
+        Interlocked.Increment(ref _eventsPublished);
         await _eventBus.Publish(@event, cancellationToken).ConfigureAwait(false);
     }
 
@@ -83,7 +89,7 @@ public class HeroMessagingService(
             return Array.Empty<bool>();
 
         var results = new List<bool>(commands.Count);
-        _metrics.CommandsSent += commands.Count;
+        Interlocked.Add(ref _commandsSent, commands.Count);
 
         foreach (var command in commands)
         {
@@ -114,7 +120,7 @@ public class HeroMessagingService(
             return Array.Empty<TResponse>();
 
         var results = new List<TResponse>(commands.Count);
-        _metrics.CommandsSent += commands.Count;
+        Interlocked.Add(ref _commandsSent, commands.Count);
 
         foreach (var command in commands)
         {
@@ -131,7 +137,7 @@ public class HeroMessagingService(
             return Array.Empty<bool>();
 
         var results = new List<bool>(events.Count);
-        _metrics.EventsPublished += events.Count;
+        Interlocked.Add(ref _eventsPublished, events.Count);
 
         foreach (var @event in events)
         {
@@ -161,7 +167,7 @@ public class HeroMessagingService(
         if (_queueProcessor == null)
             throw new InvalidOperationException("Queue functionality is not enabled. Call WithQueues() during configuration.");
 
-        _metrics.MessagesQueued++;
+        Interlocked.Increment(ref _messagesQueued);
         await _queueProcessor.Enqueue(message, queueName, options, cancellationToken).ConfigureAwait(false);
     }
 
@@ -186,7 +192,7 @@ public class HeroMessagingService(
         if (_outboxProcessor == null)
             throw new InvalidOperationException("Outbox functionality is not enabled. Call WithOutbox() during configuration.");
 
-        _metrics.OutboxMessages++;
+        Interlocked.Increment(ref _outboxMessages);
         await _outboxProcessor.PublishToOutbox(message, options, cancellationToken).ConfigureAwait(false);
     }
 
@@ -195,13 +201,21 @@ public class HeroMessagingService(
         if (_inboxProcessor == null)
             throw new InvalidOperationException("Inbox functionality is not enabled. Call WithInbox() during configuration.");
 
-        _metrics.InboxMessages++;
+        Interlocked.Increment(ref _inboxMessages);
         await _inboxProcessor.ProcessIncoming(message, options, cancellationToken).ConfigureAwait(false);
     }
 
     public MessagingMetrics GetMetrics()
     {
-        return _metrics;
+        return new MessagingMetrics
+        {
+            CommandsSent = Interlocked.Read(ref _commandsSent),
+            QueriesSent = Interlocked.Read(ref _queriesSent),
+            EventsPublished = Interlocked.Read(ref _eventsPublished),
+            MessagesQueued = Interlocked.Read(ref _messagesQueued),
+            OutboxMessages = Interlocked.Read(ref _outboxMessages),
+            InboxMessages = Interlocked.Read(ref _inboxMessages)
+        };
     }
 
     public MessagingHealth GetHealth()
