@@ -150,7 +150,7 @@ public class MessagePackMessageSerializer(SerializationOptions? options = null, 
 
         using (var gzip = new GZipStream(output, compressionLevel))
         {
-            await gzip.WriteAsync(data, 0, data.Length, cancellationToken);
+            await gzip.WriteAsync(data, 0, data.Length, cancellationToken).ConfigureAwait(false);
         }
 
         return output.ToArray();
@@ -162,7 +162,7 @@ public class MessagePackMessageSerializer(SerializationOptions? options = null, 
         using var output = new MemoryStream();
         using var gzip = new GZipStream(input, CompressionMode.Decompress);
 
-        await gzip.CopyToAsync(output, cancellationToken);
+        await gzip.CopyToAsync(output, cancellationToken).ConfigureAwait(false);
         return output.ToArray();
     }
 }
@@ -309,7 +309,7 @@ public class ContractMessagePackSerializer(SerializationOptions? options = null,
 
         using (var gzip = new GZipStream(output, compressionLevel))
         {
-            await gzip.WriteAsync(data, 0, data.Length, cancellationToken);
+            await gzip.WriteAsync(data, 0, data.Length, cancellationToken).ConfigureAwait(false);
         }
 
         return output.ToArray();
@@ -321,7 +321,7 @@ public class ContractMessagePackSerializer(SerializationOptions? options = null,
         using var output = new MemoryStream();
         using var gzip = new GZipStream(input, CompressionMode.Decompress);
 
-        await gzip.CopyToAsync(output, cancellationToken);
+        await gzip.CopyToAsync(output, cancellationToken).ConfigureAwait(false);
         return output.ToArray();
     }
 }
