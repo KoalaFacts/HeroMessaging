@@ -1,3 +1,4 @@
+using System.Numerics;
 using HeroMessaging.RingBuffer.Sequences;
 using HeroMessaging.RingBuffer.WaitStrategies;
 
@@ -25,7 +26,7 @@ public sealed class MultiProducerSequencer : Sequencer
     {
         _availableBuffer = new int[bufferSize];
         _indexMask = bufferSize - 1;
-        _indexShift = Log2(bufferSize);
+        _indexShift = BitOperations.Log2((uint)bufferSize);
         InitializeAvailableBuffer();
     }
 
@@ -164,20 +165,11 @@ public sealed class MultiProducerSequencer : Sequencer
         }
     }
 
-    private static int Log2(int value)
-    {
-        int result = 0;
-        while ((value >>= 1) != 0)
-        {
-            result++;
-        }
-        return result;
-    }
 
     /// <summary>
     /// Get the current cursor (highest claimed sequence)
     /// </summary>
-    public long GetCursor()
+    public override long GetCursor()
     {
         return _cursor.Value;
     }

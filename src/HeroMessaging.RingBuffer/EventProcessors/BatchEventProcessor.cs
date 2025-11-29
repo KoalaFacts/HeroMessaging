@@ -6,9 +6,10 @@ namespace HeroMessaging.RingBuffer.EventProcessors;
 /// <summary>
 /// Batch event processor for high-throughput scenarios.
 /// Processes events in batches to maximize cache efficiency and throughput.
+/// Thread-safe for Start/Stop operations.
 /// </summary>
 /// <typeparam name="T">The type of event to process</typeparam>
-public sealed class BatchEventProcessor<T> : IEventProcessor where T : class
+public sealed class BatchEventProcessor<T> : IEventProcessor, IAsyncDisposable where T : class
 {
     private readonly RingBuffer<T> _ringBuffer;
     private readonly ISequenceBarrier _sequenceBarrier;
@@ -16,7 +17,8 @@ public sealed class BatchEventProcessor<T> : IEventProcessor where T : class
     private readonly ISequence _sequence = new Sequence(-1);
     private readonly CancellationTokenSource _cts = new();
     private Task? _processingTask;
-    private volatile bool _isRunning;
+    private int _isRunning; // 0 = stopped, 1 = running (for Interlocked)
+    private int _disposed;  // 0 = not disposed, 1 = disposed (for Interlocked)
 
     /// <summary>
     /// Creates a new batch event processor
@@ -42,19 +44,19 @@ public sealed class BatchEventProcessor<T> : IEventProcessor where T : class
     /// <summary>
     /// Gets whether the processor is currently running
     /// </summary>
-    public bool IsRunning => _isRunning;
+    public bool IsRunning => Volatile.Read(ref _isRunning) == 1;
 
     /// <summary>
-    /// Start processing events
+    /// Start processing events. Thread-safe - only one thread will succeed if called concurrently.
     /// </summary>
     public void Start()
     {
-        if (_isRunning)
+        // Atomic check-and-set to prevent race condition
+        if (Interlocked.CompareExchange(ref _isRunning, 1, 0) != 0)
         {
-            return;
+            return; // Already running
         }
 
-        _isRunning = true;
         _processingTask = Task.Run(ProcessEvents, _cts.Token);
     }
 
@@ -63,7 +65,7 @@ public sealed class BatchEventProcessor<T> : IEventProcessor where T : class
     /// </summary>
     public void Stop()
     {
-        _isRunning = false;
+        Volatile.Write(ref _isRunning, 0);
         _cts.Cancel();
         _sequenceBarrier.Alert();
     }
@@ -77,7 +79,7 @@ public sealed class BatchEventProcessor<T> : IEventProcessor where T : class
 
         try
         {
-            while (!_cts.Token.IsCancellationRequested && _isRunning)
+            while (!_cts.Token.IsCancellationRequested && Volatile.Read(ref _isRunning) == 1)
             {
                 try
                 {
@@ -95,7 +97,7 @@ public sealed class BatchEventProcessor<T> : IEventProcessor where T : class
                         nextSequence++;
                     }
 
-                    // Update our sequence to signal we're done processing
+                    // Update our sequence to signal we are done processing
                     _sequence.Value = availableSequence;
                 }
                 catch (AlertException)
@@ -118,15 +120,18 @@ public sealed class BatchEventProcessor<T> : IEventProcessor where T : class
         {
             // Notify handler of shutdown
             _eventHandler.OnShutdown();
-            _isRunning = false;
+            Volatile.Write(ref _isRunning, 0);
         }
     }
 
     /// <summary>
-    /// Dispose the processor and wait for it to stop
+    /// Dispose the processor and wait for it to stop. Idempotent.
     /// </summary>
     public void Dispose()
     {
+        if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
+            return; // Already disposed
+
         Stop();
 
         // Wait for processing task to complete, handling cancellation gracefully
@@ -145,6 +150,35 @@ public sealed class BatchEventProcessor<T> : IEventProcessor where T : class
         catch (OperationCanceledException)
         {
             // Expected during shutdown
+        }
+
+        _cts.Dispose();
+    }
+
+    /// <summary>
+    /// Asynchronously dispose the processor. Idempotent.
+    /// </summary>
+    public async ValueTask DisposeAsync()
+    {
+        if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
+            return; // Already disposed
+
+        Stop();
+
+        if (_processingTask != null)
+        {
+            try
+            {
+                await _processingTask.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            }
+            catch (TimeoutException)
+            {
+                // Timeout waiting for task - continue with disposal
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected during shutdown
+            }
         }
 
         _cts.Dispose();

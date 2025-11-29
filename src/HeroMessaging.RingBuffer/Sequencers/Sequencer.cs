@@ -6,12 +6,15 @@ namespace HeroMessaging.RingBuffer.Sequencers;
 /// <summary>
 /// Base sequencer for coordinating producers and consumers in the ring buffer.
 /// Handles sequence number allocation and backpressure via gating sequences.
+/// Thread-safe for adding/removing gating sequences.
 /// </summary>
 public abstract class Sequencer
 {
     protected readonly int _bufferSize;
     protected readonly IWaitStrategy _waitStrategy;
-    protected readonly List<ISequence> _gatingSequences = new();
+
+    // Use volatile array reference for lock-free reads in hot path
+    private volatile ISequence[] _gatingSequencesArray = Array.Empty<ISequence>();
     private readonly object _gatingLock = new();
 
     /// <summary>
@@ -22,8 +25,13 @@ public abstract class Sequencer
     protected Sequencer(int bufferSize, IWaitStrategy waitStrategy)
     {
         _bufferSize = bufferSize;
-        _waitStrategy = waitStrategy;
+        _waitStrategy = waitStrategy ?? throw new ArgumentNullException(nameof(waitStrategy));
     }
+
+    /// <summary>
+    /// Gets the current cursor position (highest published sequence)
+    /// </summary>
+    public abstract long GetCursor();
 
     /// <summary>
     /// Claim the next sequence number for publishing.
@@ -54,15 +62,22 @@ public abstract class Sequencer
 
     /// <summary>
     /// Add a gating sequence that this sequencer must wait for.
-    /// Gating sequences represent consumers - we can't overwrite data
-    /// that consumers haven't processed yet.
+    /// Gating sequences represent consumers - we cannot overwrite data
+    /// that consumers have not processed yet.
     /// </summary>
     /// <param name="sequence">The gating sequence to add</param>
     public void AddGatingSequence(ISequence sequence)
     {
+        if (sequence == null)
+            throw new ArgumentNullException(nameof(sequence));
+
         lock (_gatingLock)
         {
-            _gatingSequences.Add(sequence);
+            var current = _gatingSequencesArray;
+            var newArray = new ISequence[current.Length + 1];
+            Array.Copy(current, newArray, current.Length);
+            newArray[current.Length] = sequence;
+            Volatile.Write(ref _gatingSequencesArray, newArray);
         }
     }
 
@@ -74,31 +89,43 @@ public abstract class Sequencer
     {
         lock (_gatingLock)
         {
-            return _gatingSequences.Remove(sequence);
+            var current = _gatingSequencesArray;
+            int index = Array.IndexOf(current, sequence);
+            if (index < 0)
+                return false;
+
+            var newArray = new ISequence[current.Length - 1];
+            if (index > 0)
+                Array.Copy(current, 0, newArray, 0, index);
+            if (index < current.Length - 1)
+                Array.Copy(current, index + 1, newArray, index, current.Length - index - 1);
+
+            Volatile.Write(ref _gatingSequencesArray, newArray);
+            return true;
         }
     }
 
     /// <summary>
     /// Get the minimum sequence from all gating sequences.
-    /// This represents the slowest consumer - we can't publish past this point.
+    /// This represents the slowest consumer - we cannot publish past this point.
+    /// Lock-free for high performance in the hot path.
     /// </summary>
     /// <param name="defaultValue">Value to return if no gating sequences exist</param>
     /// <returns>The minimum sequence value</returns>
     public long GetMinimumGatingSequence(long defaultValue = long.MaxValue)
     {
-        lock (_gatingLock)
-        {
-            if (_gatingSequences.Count == 0)
-                return defaultValue;
+        // Lock-free read of the array reference
+        var sequences = Volatile.Read(ref _gatingSequencesArray);
+        if (sequences.Length == 0)
+            return defaultValue;
 
-            long min = long.MaxValue;
-            foreach (var sequence in _gatingSequences)
-            {
-                long value = sequence.Value;
-                if (value < min)
-                    min = value;
-            }
-            return min;
+        long min = long.MaxValue;
+        foreach (var sequence in sequences)
+        {
+            long value = sequence.Value;
+            if (value < min)
+                min = value;
         }
+        return min;
     }
 }
