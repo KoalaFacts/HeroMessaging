@@ -52,10 +52,10 @@ public class PostgreSqlUnitOfWork : IUnitOfWork
 
         if (_connection.State != ConnectionState.Open)
         {
-            await _connection.OpenAsync(cancellationToken);
+            await _connection.OpenAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        _transaction = await _connection.BeginTransactionAsync(isolationLevel, cancellationToken);
+        _transaction = await _connection.BeginTransactionAsync(isolationLevel, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task CommitAsync(CancellationToken cancellationToken = default)
@@ -67,11 +67,11 @@ public class PostgreSqlUnitOfWork : IUnitOfWork
 
         try
         {
-            await _transaction.CommitAsync(cancellationToken);
+            await _transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
         }
         finally
         {
-            await _transaction.DisposeAsync();
+            await _transaction.DisposeAsync().ConfigureAwait(false);
             _transaction = null;
             _savepoints.Clear();
         }
@@ -86,11 +86,11 @@ public class PostgreSqlUnitOfWork : IUnitOfWork
 
         try
         {
-            await _transaction.RollbackAsync(cancellationToken);
+            await _transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
         }
         finally
         {
-            await _transaction.DisposeAsync();
+            await _transaction.DisposeAsync().ConfigureAwait(false);
             _transaction = null;
             _savepoints.Clear();
         }
@@ -113,7 +113,7 @@ public class PostgreSqlUnitOfWork : IUnitOfWork
             throw new InvalidOperationException($"Savepoint '{savepointName}' already exists");
         }
 
-        await _transaction.SaveAsync(savepointName, cancellationToken);
+        await _transaction.SaveAsync(savepointName, cancellationToken).ConfigureAwait(false);
         _savepoints.Add(savepointName);
     }
 
@@ -129,7 +129,7 @@ public class PostgreSqlUnitOfWork : IUnitOfWork
             throw new InvalidOperationException($"Savepoint '{savepointName}' does not exist");
         }
 
-        await _transaction.RollbackAsync(savepointName, cancellationToken);
+        await _transaction.RollbackAsync(savepointName, cancellationToken).ConfigureAwait(false);
 
         // Remove this savepoint and all later ones
         var index = _savepoints.IndexOf(savepointName);
@@ -145,8 +145,8 @@ public class PostgreSqlUnitOfWork : IUnitOfWork
         {
             if (_transaction != null)
             {
-                await _transaction.RollbackAsync();
-                await _transaction.DisposeAsync();
+                await _transaction.RollbackAsync().ConfigureAwait(false);
+                await _transaction.DisposeAsync().ConfigureAwait(false);
             }
         }
         catch
@@ -157,11 +157,11 @@ public class PostgreSqlUnitOfWork : IUnitOfWork
         {
             if (_connection?.State == ConnectionState.Open)
             {
-                await _connection.CloseAsync();
+                await _connection.CloseAsync().ConfigureAwait(false);
             }
             if (_connection != null)
             {
-                await _connection.DisposeAsync();
+                await _connection.DisposeAsync().ConfigureAwait(false);
             }
             _disposed = true;
         }
@@ -178,14 +178,14 @@ public class PostgreSqlUnitOfWorkFactory(string connectionString) : IUnitOfWorkF
     public async Task<IUnitOfWork> CreateAsync(CancellationToken cancellationToken = default)
     {
         var unitOfWork = new PostgreSqlUnitOfWork(_connectionString);
-        await unitOfWork.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
+        await unitOfWork.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken).ConfigureAwait(false);
         return unitOfWork;
     }
 
     public async Task<IUnitOfWork> CreateAsync(IsolationLevel isolationLevel, CancellationToken cancellationToken = default)
     {
         var unitOfWork = new PostgreSqlUnitOfWork(_connectionString);
-        await unitOfWork.BeginTransactionAsync(isolationLevel, cancellationToken);
+        await unitOfWork.BeginTransactionAsync(isolationLevel, cancellationToken).ConfigureAwait(false);
         return unitOfWork;
     }
 }

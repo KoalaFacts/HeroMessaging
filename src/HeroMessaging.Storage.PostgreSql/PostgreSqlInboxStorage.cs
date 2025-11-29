@@ -105,7 +105,7 @@ public class PostgreSqlInboxStorage : IInboxStorage
             CREATE INDEX IF NOT EXISTS idx_{_options.InboxTableName}_processed_at ON {_tableName}(processed_at);
             """;
 
-        await _schemaInitializer.ExecuteSchemaScriptAsync(createTableSql);
+        await _schemaInitializer.ExecuteSchemaScriptAsync(createTableSql).ConfigureAwait(false);
     }
 
     public async Task<InboxEntry?> AddAsync(IMessage message, InboxOptions options, CancellationToken cancellationToken = default)
@@ -122,7 +122,7 @@ public class PostgreSqlInboxStorage : IInboxStorage
             // Check for duplicates if idempotency is required
             if (options.RequireIdempotency)
             {
-                var isDuplicate = await IsDuplicateAsync(messageId, options.DeduplicationWindow, cancellationToken);
+                var isDuplicate = await IsDuplicateAsync(messageId, options.DeduplicationWindow, cancellationToken).ConfigureAwait(false);
                 if (isDuplicate)
                 {
                     return null; // Message already exists
@@ -144,7 +144,7 @@ public class PostgreSqlInboxStorage : IInboxStorage
             command.Parameters.AddWithValue("require_idempotency", options.RequireIdempotency);
             command.Parameters.AddWithValue("deduplication_window_minutes", (object?)options.DeduplicationWindow?.TotalMinutes ?? DBNull.Value);
 
-            await command.ExecuteNonQueryAsync(cancellationToken);
+            await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
             return new InboxEntry
             {
@@ -159,7 +159,7 @@ public class PostgreSqlInboxStorage : IInboxStorage
         {
             if (!_connectionProvider.IsSharedConnection)
             {
-                await connection.DisposeAsync();
+                await connection.DisposeAsync().ConfigureAwait(false);
             }
         }
     }
@@ -185,14 +185,14 @@ public class PostgreSqlInboxStorage : IInboxStorage
                 command.Parameters.AddWithValue("window_start", windowStart);
             }
 
-            var count = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken));
+            var count = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false));
             return count > 0;
         }
         finally
         {
             if (!_connectionProvider.IsSharedConnection)
             {
-                await connection.DisposeAsync();
+                await connection.DisposeAsync().ConfigureAwait(false);
             }
         }
     }
@@ -215,8 +215,8 @@ public class PostgreSqlInboxStorage : IInboxStorage
             using var command = new NpgsqlCommand(sql, connection, transaction);
             command.Parameters.AddWithValue("id", messageId);
 
-            using var reader = await command.ExecuteReaderAsync(cancellationToken);
-            if (await reader.ReadAsync(cancellationToken))
+            using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            if (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
                 var messageType = reader.GetString(0);
                 var payload = reader.GetString(1);
@@ -276,7 +276,7 @@ public class PostgreSqlInboxStorage : IInboxStorage
             command.Parameters.AddWithValue("status", "Processed");
             command.Parameters.AddWithValue("processed_at", _timeProvider.GetUtcNow());
 
-            var rowsAffected = await command.ExecuteNonQueryAsync(cancellationToken);
+            var rowsAffected = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             return rowsAffected > 0;
         }
         finally
@@ -305,7 +305,7 @@ public class PostgreSqlInboxStorage : IInboxStorage
             command.Parameters.AddWithValue("processed_at", _timeProvider.GetUtcNow());
             command.Parameters.AddWithValue("error", error);
 
-            var rowsAffected = await command.ExecuteNonQueryAsync(cancellationToken);
+            var rowsAffected = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             return rowsAffected > 0;
         }
         finally
@@ -361,8 +361,8 @@ public class PostgreSqlInboxStorage : IInboxStorage
             }
 
             var entries = new List<InboxEntry>();
-            using var reader = await command.ExecuteReaderAsync(cancellationToken);
-            while (await reader.ReadAsync(cancellationToken))
+            using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
                 var messageId = reader.GetString(0);
                 var messageType = reader.GetString(1);
@@ -411,7 +411,7 @@ public class PostgreSqlInboxStorage : IInboxStorage
             Limit = limit
         };
 
-        return await GetPendingAsync(query, cancellationToken);
+        return await GetPendingAsync(query, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<long> GetUnprocessedCountAsync(CancellationToken cancellationToken = default)
@@ -426,7 +426,7 @@ public class PostgreSqlInboxStorage : IInboxStorage
             var sql = $"SELECT COUNT(1) FROM {_tableName} WHERE status = 'Pending'";
 
             using var command = new NpgsqlCommand(sql, connection, transaction);
-            var count = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken));
+            var count = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false));
             return count;
         }
         finally
@@ -454,7 +454,7 @@ public class PostgreSqlInboxStorage : IInboxStorage
             using var command = new NpgsqlCommand(sql, connection, transaction);
             command.Parameters.AddWithValue("cutoff_time", cutoffTime);
 
-            await command.ExecuteNonQueryAsync(cancellationToken);
+            await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
         finally
         {

@@ -82,7 +82,7 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         {
             CommandTimeout = _options.CommandTimeout
         };
-        await command.ExecuteNonQueryAsync();
+        await command.ExecuteNonQueryAsync().ConfigureAwait(false);
     }
 
     public async Task<string> SendToDeadLetterAsync<T>(T message, DeadLetterContext context, CancellationToken cancellationToken = default)
@@ -125,7 +125,7 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         command.Parameters.AddWithValue("@metadata", NpgsqlDbType.Jsonb,
             context.Metadata.Any() ? _jsonSerializer.SerializeToString(context.Metadata, _jsonOptions) : (object)DBNull.Value);
 
-        await command.ExecuteNonQueryAsync(cancellationToken);
+        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         return deadLetterId;
     }
 
@@ -156,8 +156,8 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         command.Parameters.AddWithValue("@active_status", (int)DeadLetterStatus.Active);
         command.Parameters.AddWithValue("@limit", limit);
 
-        using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        while (await reader.ReadAsync(cancellationToken))
+        using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
             var messagePayload = reader.GetString(1);
             var message = _jsonSerializer.DeserializeFromString<T>(messagePayload, _jsonOptions);
@@ -216,7 +216,7 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         command.Parameters.AddWithValue("@id", deadLetterId);
         command.Parameters.AddWithValue("@active_status", (int)DeadLetterStatus.Active);
 
-        var result = await command.ExecuteNonQueryAsync(cancellationToken);
+        var result = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         return result > 0;
     }
 
@@ -242,7 +242,7 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         command.Parameters.AddWithValue("@id", deadLetterId);
         command.Parameters.AddWithValue("@active_status", (int)DeadLetterStatus.Active);
 
-        var result = await command.ExecuteNonQueryAsync(cancellationToken);
+        var result = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         return result > 0;
     }
 
@@ -261,7 +261,7 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
 
         command.Parameters.AddWithValue("@status", (int)DeadLetterStatus.Active);
 
-        var result = await command.ExecuteScalarAsync(cancellationToken);
+        var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
         return Convert.ToInt64(result ?? 0);
     }
 
@@ -287,9 +287,9 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
             """;
 
         using (var statusCommand = new NpgsqlCommand(statusSql, connection) { CommandTimeout = _options.CommandTimeout })
-        using (var reader = await statusCommand.ExecuteReaderAsync(cancellationToken))
+        using (var reader = await statusCommand.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
         {
-            if (await reader.ReadAsync(cancellationToken))
+            if (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
                 activeCount = reader.IsDBNull(0) ? 0 : reader.GetInt64(0);
                 retriedCount = reader.IsDBNull(1) ? 0 : reader.GetInt64(1);
@@ -307,9 +307,9 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
             """;
 
         using (var componentCommand = new NpgsqlCommand(componentSql, connection) { CommandTimeout = _options.CommandTimeout })
-        using (var reader = await componentCommand.ExecuteReaderAsync(cancellationToken))
+        using (var reader = await componentCommand.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
         {
-            while (await reader.ReadAsync(cancellationToken))
+            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
                 countByComponent[reader.GetString(0)] = reader.GetInt64(1);
             }
@@ -326,9 +326,9 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
             """;
 
         using (var reasonCommand = new NpgsqlCommand(reasonSql, connection) { CommandTimeout = _options.CommandTimeout })
-        using (var reader = await reasonCommand.ExecuteReaderAsync(cancellationToken))
+        using (var reader = await reasonCommand.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
         {
-            while (await reader.ReadAsync(cancellationToken))
+            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
                 countByReason[reader.GetString(0)] = reader.GetInt64(1);
             }
@@ -344,9 +344,9 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
             """;
 
         using (var dateCommand = new NpgsqlCommand(dateSql, connection) { CommandTimeout = _options.CommandTimeout })
-        using (var reader = await dateCommand.ExecuteReaderAsync(cancellationToken))
+        using (var reader = await dateCommand.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
         {
-            if (await reader.ReadAsync(cancellationToken))
+            if (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
                 oldestEntry = reader.IsDBNull(0) ? null : reader.GetDateTime(0);
                 newestEntry = reader.IsDBNull(1) ? null : reader.GetDateTime(1);

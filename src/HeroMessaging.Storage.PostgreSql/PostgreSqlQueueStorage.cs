@@ -67,7 +67,7 @@ public class PostgreSqlQueueStorage : IQueueStorage
         }
 
         var connection = new NpgsqlConnection(_connectionString);
-        await connection.OpenAsync();
+        await connection.OpenAsync().ConfigureAwait(false);
         return connection;
     }
 
@@ -104,7 +104,7 @@ public class PostgreSqlQueueStorage : IQueueStorage
             var createSchemaSql = $"CREATE SCHEMA IF NOT EXISTS {_options.Schema}";
 
             using var schemaCommand = new NpgsqlCommand(createSchemaSql, connection);
-            await schemaCommand.ExecuteNonQueryAsync();
+            await schemaCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
         }
 
         var createTableSql = $"""
@@ -127,7 +127,7 @@ public class PostgreSqlQueueStorage : IQueueStorage
             """;
 
         using var command = new NpgsqlCommand(createTableSql, connection);
-        await command.ExecuteNonQueryAsync();
+        await command.ExecuteNonQueryAsync().ConfigureAwait(false);
     }
 
     public async Task<QueueEntry> EnqueueAsync(string queueName, IMessage message, EnqueueOptions? options = null, CancellationToken cancellationToken = default)
@@ -160,7 +160,7 @@ public class PostgreSqlQueueStorage : IQueueStorage
             command.Parameters.AddWithValue("visible_at", visibleAt);
             command.Parameters.AddWithValue("delay_minutes", (object?)options?.Delay?.TotalMinutes ?? DBNull.Value);
 
-            await command.ExecuteNonQueryAsync(cancellationToken);
+            await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
             return new QueueEntry
             {
@@ -189,7 +189,7 @@ public class PostgreSqlQueueStorage : IQueueStorage
             var now = _timeProvider.GetUtcNow();
 
             // Use a transaction to ensure atomic dequeue
-            var localTransaction = transaction ?? await connection.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
+            var localTransaction = transaction ?? await connection.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken).ConfigureAwait(false);
 
             try
             {
@@ -209,10 +209,10 @@ public class PostgreSqlQueueStorage : IQueueStorage
                 selectCommand.Parameters.AddWithValue("queue_name", queueName);
                 selectCommand.Parameters.AddWithValue("now", now);
 
-                using var reader = await selectCommand.ExecuteReaderAsync(cancellationToken);
-                if (!await reader.ReadAsync(cancellationToken))
+                using var reader = await selectCommand.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+                if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
                 {
-                    if (transaction == null) await localTransaction.RollbackAsync(cancellationToken);
+                    if (transaction == null) await localTransaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
                     return null;
                 }
 
@@ -225,7 +225,7 @@ public class PostgreSqlQueueStorage : IQueueStorage
                 var dequeueCount = reader.GetInt32(6);
                 var delayMinutes = reader.IsDBNull(7) ? (int?)null : reader.GetInt32(7);
 
-                await reader.CloseAsync();
+                await reader.CloseAsync().ConfigureAwait(false);
 
                 // Update dequeue count and visibility timeout
                 var updateSql = $"""
@@ -239,9 +239,9 @@ public class PostgreSqlQueueStorage : IQueueStorage
                 updateCommand.Parameters.AddWithValue("id", entryId);
                 updateCommand.Parameters.AddWithValue("visible_at", now.AddMinutes(5));
 
-                await updateCommand.ExecuteNonQueryAsync(cancellationToken);
+                await updateCommand.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
-                if (transaction == null) await localTransaction.CommitAsync(cancellationToken);
+                if (transaction == null) await localTransaction.CommitAsync(cancellationToken).ConfigureAwait(false);
 
                 var message = _jsonSerializer.DeserializeFromString<IMessage>(payload, _jsonOptions);
 
@@ -261,7 +261,7 @@ public class PostgreSqlQueueStorage : IQueueStorage
             }
             catch
             {
-                if (transaction == null) await localTransaction.RollbackAsync(cancellationToken);
+                if (transaction == null) await localTransaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
                 throw;
             }
         }
@@ -297,8 +297,8 @@ public class PostgreSqlQueueStorage : IQueueStorage
             command.Parameters.AddWithValue("now", now);
 
             var entries = new List<QueueEntry>();
-            using var reader = await command.ExecuteReaderAsync(cancellationToken);
-            while (await reader.ReadAsync(cancellationToken))
+            using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
                 var entryId = reader.GetString(0);
                 var messageType = reader.GetString(1);
@@ -352,7 +352,7 @@ public class PostgreSqlQueueStorage : IQueueStorage
             command.Parameters.AddWithValue("id", entryId);
             command.Parameters.AddWithValue("queue_name", queueName);
 
-            var rowsAffected = await command.ExecuteNonQueryAsync(cancellationToken);
+            var rowsAffected = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             return rowsAffected > 0;
         }
         finally
@@ -383,7 +383,7 @@ public class PostgreSqlQueueStorage : IQueueStorage
                 command.Parameters.AddWithValue("queue_name", queueName);
                 command.Parameters.AddWithValue("now", _timeProvider.GetUtcNow());
 
-                var rowsAffected = await command.ExecuteNonQueryAsync(cancellationToken);
+                var rowsAffected = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
                 return rowsAffected > 0;
             }
             else
@@ -398,7 +398,7 @@ public class PostgreSqlQueueStorage : IQueueStorage
                 command.Parameters.AddWithValue("id", entryId);
                 command.Parameters.AddWithValue("queue_name", queueName);
 
-                var rowsAffected = await command.ExecuteNonQueryAsync(cancellationToken);
+                var rowsAffected = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
                 return rowsAffected > 0;
             }
         }
@@ -426,7 +426,7 @@ public class PostgreSqlQueueStorage : IQueueStorage
             using var command = new NpgsqlCommand(sql, connection, transaction);
             command.Parameters.AddWithValue("queue_name", queueName);
 
-            var count = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken));
+            var count = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false));
             return count;
         }
         finally
@@ -459,7 +459,7 @@ public class PostgreSqlQueueStorage : IQueueStorage
             using var command = new NpgsqlCommand(sql, connection, transaction);
             command.Parameters.AddWithValue("queue_name", queueName);
 
-            await command.ExecuteNonQueryAsync(cancellationToken);
+            await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             return true;
         }
         finally
@@ -485,8 +485,8 @@ public class PostgreSqlQueueStorage : IQueueStorage
             using var command = new NpgsqlCommand(sql, connection, transaction);
 
             var queues = new List<string>();
-            using var reader = await command.ExecuteReaderAsync(cancellationToken);
-            while (await reader.ReadAsync(cancellationToken))
+            using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
                 queues.Add(reader.GetString(0));
             }
@@ -516,7 +516,7 @@ public class PostgreSqlQueueStorage : IQueueStorage
             using var command = new NpgsqlCommand(sql, connection, transaction);
             command.Parameters.AddWithValue("queue_name", queueName);
 
-            var count = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken));
+            var count = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false));
             return count > 0;
         }
         finally
