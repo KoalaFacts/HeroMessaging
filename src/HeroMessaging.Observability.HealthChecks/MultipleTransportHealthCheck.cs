@@ -31,7 +31,7 @@ public class MultipleTransportHealthCheck(IEnumerable<IMessageTransport> transpo
         {
             try
             {
-                var transportHealth = await transport.GetHealthAsync(cancellationToken);
+                var transportHealth = await transport.GetHealthAsync(cancellationToken).ConfigureAwait(false);
                 var status = MapHealthStatus(transportHealth.Status);
                 var statusMessage = string.IsNullOrWhiteSpace(transportHealth.StatusMessage)
                     ? GetDefaultStatusMessage(status)
@@ -55,7 +55,7 @@ public class MultipleTransportHealthCheck(IEnumerable<IMessageTransport> transpo
             }
         });
 
-        results = (await Task.WhenAll(tasks)).ToList();
+        results = (await Task.WhenAll(tasks).ConfigureAwait(false)).ToList();
 
         // Aggregate results
         var overallStatus = AggregateStatus(results.Select(r => r.Status));

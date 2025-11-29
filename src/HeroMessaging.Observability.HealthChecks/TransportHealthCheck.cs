@@ -21,7 +21,7 @@ public class TransportHealthCheck(IMessageTransport transport, string? name = nu
     {
         try
         {
-            var transportHealth = await _transport.GetHealthAsync(cancellationToken);
+            var transportHealth = await _transport.GetHealthAsync(cancellationToken).ConfigureAwait(false);
             return MapToHealthCheckResult(transportHealth);
         }
         catch (OperationCanceledException ex)
