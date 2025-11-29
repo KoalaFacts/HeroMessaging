@@ -55,14 +55,14 @@ public sealed class CommandProcessorTests : IDisposable
         var command = new TestCommand();
 
         handlerMock
-            .Setup(h => h.Handle(command, It.IsAny<CancellationToken>()))
+            .Setup(h => h.HandleAsync(command, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act
         await processor.SendAsync(command);
 
         // Assert
-        handlerMock.Verify(h => h.Handle(command, It.IsAny<CancellationToken>()), Times.Once);
+        handlerMock.Verify(h => h.HandleAsync(command, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -75,7 +75,7 @@ public sealed class CommandProcessorTests : IDisposable
         var command = new TestCommand();
 
         handlerMock
-            .Setup(h => h.Handle(command, It.IsAny<CancellationToken>()))
+            .Setup(h => h.HandleAsync(command, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act
@@ -98,7 +98,7 @@ public sealed class CommandProcessorTests : IDisposable
         var command2 = new TestCommand();
 
         handlerMock
-            .Setup(h => h.Handle(It.IsAny<TestCommand>(), It.IsAny<CancellationToken>()))
+            .Setup(h => h.HandleAsync(It.IsAny<TestCommand>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act
@@ -108,7 +108,7 @@ public sealed class CommandProcessorTests : IDisposable
         // Assert
         var metrics = processor.GetMetrics();
         Assert.Equal(2, metrics.ProcessedCount);
-        handlerMock.Verify(h => h.Handle(It.IsAny<TestCommand>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+        handlerMock.Verify(h => h.HandleAsync(It.IsAny<TestCommand>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
 
     #endregion
@@ -126,7 +126,7 @@ public sealed class CommandProcessorTests : IDisposable
         var expectedResponse = "Success";
 
         handlerMock
-            .Setup(h => h.Handle(command, It.IsAny<CancellationToken>()))
+            .Setup(h => h.HandleAsync(command, It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedResponse);
 
         // Act
@@ -146,7 +146,7 @@ public sealed class CommandProcessorTests : IDisposable
         var command = new TestCommandWithResponse();
 
         handlerMock
-            .Setup(h => h.Handle(command, It.IsAny<CancellationToken>()))
+            .Setup(h => h.HandleAsync(command, It.IsAny<CancellationToken>()))
             .ReturnsAsync("Success");
 
         // Act
@@ -186,7 +186,7 @@ public sealed class CommandProcessorTests : IDisposable
         var expectedException = new InvalidOperationException("Handler error");
 
         handlerMock
-            .Setup(h => h.Handle(command, It.IsAny<CancellationToken>()))
+            .Setup(h => h.HandleAsync(command, It.IsAny<CancellationToken>()))
             .ThrowsAsync(expectedException);
 
         // Act & Assert
@@ -205,7 +205,7 @@ public sealed class CommandProcessorTests : IDisposable
         var command = new TestCommand();
 
         handlerMock
-            .Setup(h => h.Handle(command, It.IsAny<CancellationToken>()))
+            .Setup(h => h.HandleAsync(command, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Handler error"));
 
         // Act
@@ -234,7 +234,7 @@ public sealed class CommandProcessorTests : IDisposable
         var command = new TestCommand();
 
         handlerMock
-            .Setup(h => h.Handle(command, It.IsAny<CancellationToken>()))
+            .Setup(h => h.HandleAsync(command, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Handler error"));
 
         // Act
@@ -289,7 +289,7 @@ public sealed class CommandProcessorTests : IDisposable
         var cts = new CancellationTokenSource();
 
         handlerMock
-            .Setup(h => h.Handle(command, It.IsAny<CancellationToken>()))
+            .Setup(h => h.HandleAsync(command, It.IsAny<CancellationToken>()))
             .Returns(async () =>
             {
                 cts.Cancel();
@@ -356,7 +356,7 @@ public sealed class CommandProcessorTests : IDisposable
         var command = new TestCommand();
 
         handlerMock
-            .Setup(h => h.Handle(command, It.IsAny<CancellationToken>()))
+            .Setup(h => h.HandleAsync(command, It.IsAny<CancellationToken>()))
             .Returns(async () => await Task.Delay(10));
 
         // Act
@@ -376,7 +376,7 @@ public sealed class CommandProcessorTests : IDisposable
         var processor = CreateProcessor();
 
         handlerMock
-            .Setup(h => h.Handle(It.IsAny<TestCommand>(), It.IsAny<CancellationToken>()))
+            .Setup(h => h.HandleAsync(It.IsAny<TestCommand>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act
@@ -386,7 +386,7 @@ public sealed class CommandProcessorTests : IDisposable
         try
         {
             handlerMock
-                .Setup(h => h.Handle(It.IsAny<TestCommand>(), It.IsAny<CancellationToken>()))
+                .Setup(h => h.HandleAsync(It.IsAny<TestCommand>(), It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new InvalidOperationException());
             await processor.SendAsync(new TestCommand());
         }

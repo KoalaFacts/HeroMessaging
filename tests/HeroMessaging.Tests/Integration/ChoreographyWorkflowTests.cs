@@ -153,7 +153,7 @@ public class ChoreographyWorkflowTests
             _capturedEvents = capturedEvents;
         }
 
-        public async Task Handle(OrderCreatedEvent @event, CancellationToken cancellationToken)
+        public async Task HandleAsync(OrderCreatedEvent @event, CancellationToken cancellationToken)
         {
             // Simulate inventory reservation
             await Task.Delay(10, cancellationToken);
@@ -183,7 +183,7 @@ public class ChoreographyWorkflowTests
             _capturedEvents = capturedEvents;
         }
 
-        public async Task Handle(InventoryReservedEvent @event, CancellationToken cancellationToken)
+        public async Task HandleAsync(InventoryReservedEvent @event, CancellationToken cancellationToken)
         {
             // Simulate payment processing
             await Task.Delay(10, cancellationToken);
@@ -213,7 +213,7 @@ public class ChoreographyWorkflowTests
             _capturedEvents = capturedEvents;
         }
 
-        public async Task Handle(PaymentProcessedEvent @event, CancellationToken cancellationToken)
+        public async Task HandleAsync(PaymentProcessedEvent @event, CancellationToken cancellationToken)
         {
             // Simulate shipping
             await Task.Delay(10, cancellationToken);

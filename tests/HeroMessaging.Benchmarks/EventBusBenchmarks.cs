@@ -108,7 +108,7 @@ public record TestEvent : IEvent
 
 public class TestEventHandler : IEventHandler<TestEvent>
 {
-    public Task Handle(TestEvent @event, CancellationToken cancellationToken)
+    public Task HandleAsync(TestEvent @event, CancellationToken cancellationToken)
     {
         // Minimal processing - measuring framework overhead
         return Task.CompletedTask;
@@ -117,7 +117,7 @@ public class TestEventHandler : IEventHandler<TestEvent>
 
 public class TestEventHandler2 : IEventHandler<TestEvent>
 {
-    public Task Handle(TestEvent @event, CancellationToken cancellationToken)
+    public Task HandleAsync(TestEvent @event, CancellationToken cancellationToken)
     {
         return Task.CompletedTask;
     }
@@ -125,7 +125,7 @@ public class TestEventHandler2 : IEventHandler<TestEvent>
 
 public class TestEventHandler3 : IEventHandler<TestEvent>
 {
-    public Task Handle(TestEvent @event, CancellationToken cancellationToken)
+    public Task HandleAsync(TestEvent @event, CancellationToken cancellationToken)
     {
         return Task.CompletedTask;
     }

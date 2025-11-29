@@ -88,7 +88,7 @@ public record TestCommand : ICommand
 
 public class TestCommandHandler : ICommandHandler<TestCommand>
 {
-    public Task Handle(TestCommand command, CancellationToken cancellationToken)
+    public Task HandleAsync(TestCommand command, CancellationToken cancellationToken)
     {
         // Minimal processing - we're measuring framework overhead
         return Task.CompletedTask;
@@ -108,7 +108,7 @@ public record TestCommandWithResponse : ICommand<int>
 
 public class TestCommandWithResponseHandler : ICommandHandler<TestCommandWithResponse, int>
 {
-    public Task<int> Handle(TestCommandWithResponse command, CancellationToken cancellationToken)
+    public Task<int> HandleAsync(TestCommandWithResponse command, CancellationToken cancellationToken)
     {
         return Task.FromResult(command.Id * 2);
     }

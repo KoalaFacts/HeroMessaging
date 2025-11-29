@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using HeroMessaging.Abstractions.Events;
 using HeroMessaging.Abstractions.Handlers;
 
 namespace HeroMessaging.Processing;
@@ -11,6 +12,19 @@ namespace HeroMessaging.Processing;
 /// </summary>
 internal static class HandlerTypeCache
 {
+    // Dummy type to enable nameof() usage for compile-time safety
+    private sealed class DummyEvent : IEvent
+    {
+        public Guid MessageId { get; set; }
+        public DateTimeOffset Timestamp { get; set; }
+        public string? CorrelationId { get; set; }
+        public string? CausationId { get; set; }
+        public Dictionary<string, object>? Metadata { get; set; }
+    }
+
+    // Method name validated at compile-time via nameof
+    private static readonly string HandleAsyncMethodName = nameof(IEventHandler<DummyEvent>.HandleAsync);
+
     // Cache for MakeGenericType results
     private static readonly ConcurrentDictionary<Type, Type> _eventHandlerTypes = new();
     private static readonly ConcurrentDictionary<Type, Type> _commandHandlerTypes = new();
@@ -61,12 +75,12 @@ internal static class HandlerTypeCache
     }
 
     /// <summary>
-    /// Gets the Handle method for a handler type. Cached after first lookup.
+    /// Gets the HandleAsync method for a handler type. Cached after first lookup.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static MethodInfo GetHandleMethod(Type handlerType)
     {
-        return _handleMethods.GetOrAdd(handlerType, static t =>
-            t.GetMethod("Handle") ?? throw new InvalidOperationException($"Handle method not found on {t.Name}"));
+        return _handleMethods.GetOrAdd(handlerType, t =>
+            t.GetMethod(HandleAsyncMethodName) ?? throw new InvalidOperationException($"{HandleAsyncMethodName} method not found on {t.Name}"));
     }
 }

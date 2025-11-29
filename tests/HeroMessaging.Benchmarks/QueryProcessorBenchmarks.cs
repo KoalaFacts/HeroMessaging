@@ -76,7 +76,7 @@ public record TestQuery : IQuery<string>
 
 public class TestQueryHandler : IQueryHandler<TestQuery, string>
 {
-    public Task<string> Handle(TestQuery query, CancellationToken cancellationToken)
+    public Task<string> HandleAsync(TestQuery query, CancellationToken cancellationToken)
     {
         // Minimal processing - we're measuring framework overhead
         return Task.FromResult($"Result_{query.Id}");

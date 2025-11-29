@@ -60,7 +60,7 @@ public sealed class EventBusTests : IDisposable
         var testEvent = new TestEvent();
 
         handlerMock
-            .Setup(h => h.Handle(testEvent, It.IsAny<CancellationToken>()))
+            .Setup(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act
@@ -70,7 +70,7 @@ public sealed class EventBusTests : IDisposable
         await Task.Delay(100);
 
         // Assert
-        handlerMock.Verify(h => h.Handle(testEvent, It.IsAny<CancellationToken>()), Times.Once);
+        handlerMock.Verify(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -99,9 +99,9 @@ public sealed class EventBusTests : IDisposable
         var eventBus = CreateEventBus();
         var testEvent = new TestEvent();
 
-        handler1Mock.Setup(h => h.Handle(testEvent, It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
-        handler2Mock.Setup(h => h.Handle(testEvent, It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
-        handler3Mock.Setup(h => h.Handle(testEvent, It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        handler1Mock.Setup(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        handler2Mock.Setup(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        handler3Mock.Setup(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
         // Act
         await eventBus.PublishAsync(testEvent);
@@ -110,9 +110,9 @@ public sealed class EventBusTests : IDisposable
         await Task.Delay(200);
 
         // Assert
-        handler1Mock.Verify(h => h.Handle(testEvent, It.IsAny<CancellationToken>()), Times.Once);
-        handler2Mock.Verify(h => h.Handle(testEvent, It.IsAny<CancellationToken>()), Times.Once);
-        handler3Mock.Verify(h => h.Handle(testEvent, It.IsAny<CancellationToken>()), Times.Once);
+        handler1Mock.Verify(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>()), Times.Once);
+        handler2Mock.Verify(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>()), Times.Once);
+        handler3Mock.Verify(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -124,7 +124,7 @@ public sealed class EventBusTests : IDisposable
         var eventBus = CreateEventBus();
 
         handlerMock
-            .Setup(h => h.Handle(It.IsAny<TestEvent>(), It.IsAny<CancellationToken>()))
+            .Setup(h => h.HandleAsync(It.IsAny<TestEvent>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act
@@ -136,7 +136,7 @@ public sealed class EventBusTests : IDisposable
         await Task.Delay(200);
 
         // Assert
-        handlerMock.Verify(h => h.Handle(It.IsAny<TestEvent>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
+        handlerMock.Verify(h => h.HandleAsync(It.IsAny<TestEvent>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
     }
 
     #endregion
@@ -157,11 +157,11 @@ public sealed class EventBusTests : IDisposable
         var testEvent = new TestEvent();
 
         handler1Mock
-            .Setup(h => h.Handle(testEvent, It.IsAny<CancellationToken>()))
+            .Setup(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Handler 1 failed"));
 
         handler2Mock
-            .Setup(h => h.Handle(testEvent, It.IsAny<CancellationToken>()))
+            .Setup(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act
@@ -171,7 +171,7 @@ public sealed class EventBusTests : IDisposable
         await Task.Delay(200);
 
         // Assert - Handler 2 should still be called despite Handler 1 failing
-        handler2Mock.Verify(h => h.Handle(testEvent, It.IsAny<CancellationToken>()), Times.Once);
+        handler2Mock.Verify(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -184,7 +184,7 @@ public sealed class EventBusTests : IDisposable
         var testEvent = new TestEvent();
 
         handlerMock
-            .Setup(h => h.Handle(testEvent, It.IsAny<CancellationToken>()))
+            .Setup(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Handler failed"));
 
         // Act
@@ -208,7 +208,7 @@ public sealed class EventBusTests : IDisposable
         var testEvent = new TestEvent();
 
         handlerMock
-            .Setup(h => h.Handle(testEvent, It.IsAny<CancellationToken>()))
+            .Setup(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Handler failed"));
 
         // Act
@@ -243,7 +243,7 @@ public sealed class EventBusTests : IDisposable
         var cts = new CancellationTokenSource();
 
         handlerMock
-            .Setup(h => h.Handle(testEvent, It.IsAny<CancellationToken>()))
+            .Setup(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act
@@ -253,7 +253,7 @@ public sealed class EventBusTests : IDisposable
         await Task.Delay(100);
 
         // Assert
-        handlerMock.Verify(h => h.Handle(testEvent, It.IsAny<CancellationToken>()), Times.Once);
+        handlerMock.Verify(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -300,7 +300,7 @@ public sealed class EventBusTests : IDisposable
         var testEvent = new TestEvent();
 
         handlerMock
-            .Setup(h => h.Handle(testEvent, It.IsAny<CancellationToken>()))
+            .Setup(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act
@@ -324,8 +324,8 @@ public sealed class EventBusTests : IDisposable
         var eventBus = CreateEventBus();
         var testEvent = new TestEvent();
 
-        handler1Mock.Setup(h => h.Handle(testEvent, It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
-        handler2Mock.Setup(h => h.Handle(testEvent, It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        handler1Mock.Setup(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        handler2Mock.Setup(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
         // Act
         await eventBus.PublishAsync(testEvent);
@@ -344,7 +344,7 @@ public sealed class EventBusTests : IDisposable
         var eventBus = CreateEventBus();
 
         handlerMock
-            .Setup(h => h.Handle(It.IsAny<TestEvent>(), It.IsAny<CancellationToken>()))
+            .Setup(h => h.HandleAsync(It.IsAny<TestEvent>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act
@@ -385,7 +385,7 @@ public sealed class EventBusTests : IDisposable
         var testEvent = new TestEvent();
 
         handlerMock
-            .Setup(h => h.Handle(testEvent, It.IsAny<CancellationToken>()))
+            .Setup(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act
@@ -395,7 +395,7 @@ public sealed class EventBusTests : IDisposable
         await Task.Delay(100);
 
         // Assert - Handler was invoked through the pipeline
-        handlerMock.Verify(h => h.Handle(testEvent, It.IsAny<CancellationToken>()), Times.Once);
+        handlerMock.Verify(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     #endregion
@@ -419,7 +419,7 @@ public sealed class EventBusTests : IDisposable
         var testEvent = new TestEvent();
 
         handler1Mock
-            .Setup(h => h.Handle(testEvent, It.IsAny<CancellationToken>()))
+            .Setup(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>()))
             .Returns(async () =>
             {
                 await Task.Delay(50);
@@ -427,7 +427,7 @@ public sealed class EventBusTests : IDisposable
             });
 
         handler2Mock
-            .Setup(h => h.Handle(testEvent, It.IsAny<CancellationToken>()))
+            .Setup(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>()))
             .Returns(async () =>
             {
                 handler2Started.SetResult(true);
@@ -463,8 +463,8 @@ public sealed class EventBusTests : IDisposable
         var testEvent = new TestEvent();
         var anotherEvent = new AnotherTestEvent();
 
-        handler1Mock.Setup(h => h.Handle(testEvent, It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
-        handler2Mock.Setup(h => h.Handle(anotherEvent, It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        handler1Mock.Setup(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        handler2Mock.Setup(h => h.HandleAsync(anotherEvent, It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
         // Act
         await eventBus.PublishAsync(testEvent);
@@ -474,8 +474,8 @@ public sealed class EventBusTests : IDisposable
         await Task.Delay(200);
 
         // Assert
-        handler1Mock.Verify(h => h.Handle(testEvent, It.IsAny<CancellationToken>()), Times.Once);
-        handler2Mock.Verify(h => h.Handle(anotherEvent, It.IsAny<CancellationToken>()), Times.Once);
+        handler1Mock.Verify(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>()), Times.Once);
+        handler2Mock.Verify(h => h.HandleAsync(anotherEvent, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     #endregion

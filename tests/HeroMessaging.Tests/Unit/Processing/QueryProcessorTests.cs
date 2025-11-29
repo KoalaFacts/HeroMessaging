@@ -55,7 +55,7 @@ public sealed class QueryProcessorTests : IDisposable
         var expectedResult = "Query Result";
 
         handlerMock
-            .Setup(h => h.Handle(query, It.IsAny<CancellationToken>()))
+            .Setup(h => h.HandleAsync(query, It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedResult);
 
         // Act
@@ -75,7 +75,7 @@ public sealed class QueryProcessorTests : IDisposable
         var query = new TestQuery();
 
         handlerMock
-            .Setup(h => h.Handle(query, It.IsAny<CancellationToken>()))
+            .Setup(h => h.HandleAsync(query, It.IsAny<CancellationToken>()))
             .ReturnsAsync("Result");
 
         // Act
@@ -98,7 +98,7 @@ public sealed class QueryProcessorTests : IDisposable
         var query2 = new TestQuery();
 
         handlerMock
-            .Setup(h => h.Handle(It.IsAny<TestQuery>(), It.IsAny<CancellationToken>()))
+            .Setup(h => h.HandleAsync(It.IsAny<TestQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("Result");
 
         // Act
@@ -108,7 +108,7 @@ public sealed class QueryProcessorTests : IDisposable
         // Assert
         var metrics = processor.GetMetrics();
         Assert.Equal(2, metrics.ProcessedCount);
-        handlerMock.Verify(h => h.Handle(It.IsAny<TestQuery>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+        handlerMock.Verify(h => h.HandleAsync(It.IsAny<TestQuery>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
 
     [Fact]
@@ -122,7 +122,7 @@ public sealed class QueryProcessorTests : IDisposable
         var expectedResult = new TestQueryResult { Id = 123, Name = "Test", IsActive = true };
 
         handlerMock
-            .Setup(h => h.Handle(query, It.IsAny<CancellationToken>()))
+            .Setup(h => h.HandleAsync(query, It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedResult);
 
         // Act
@@ -162,7 +162,7 @@ public sealed class QueryProcessorTests : IDisposable
         var expectedException = new InvalidOperationException("Handler error");
 
         handlerMock
-            .Setup(h => h.Handle(query, It.IsAny<CancellationToken>()))
+            .Setup(h => h.HandleAsync(query, It.IsAny<CancellationToken>()))
             .ThrowsAsync(expectedException);
 
         // Act & Assert
@@ -181,7 +181,7 @@ public sealed class QueryProcessorTests : IDisposable
         var query = new TestQuery();
 
         handlerMock
-            .Setup(h => h.Handle(query, It.IsAny<CancellationToken>()))
+            .Setup(h => h.HandleAsync(query, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Handler error"));
 
         // Act
@@ -210,7 +210,7 @@ public sealed class QueryProcessorTests : IDisposable
         var query = new TestQuery();
 
         handlerMock
-            .Setup(h => h.Handle(query, It.IsAny<CancellationToken>()))
+            .Setup(h => h.HandleAsync(query, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Handler error"));
 
         // Act
@@ -265,7 +265,7 @@ public sealed class QueryProcessorTests : IDisposable
         var cts = new CancellationTokenSource();
 
         handlerMock
-            .Setup(h => h.Handle(query, It.IsAny<CancellationToken>()))
+            .Setup(h => h.HandleAsync(query, It.IsAny<CancellationToken>()))
             .Returns(async () =>
             {
                 cts.Cancel();
@@ -323,7 +323,7 @@ public sealed class QueryProcessorTests : IDisposable
         var query = new TestQuery();
 
         handlerMock
-            .Setup(h => h.Handle(query, It.IsAny<CancellationToken>()))
+            .Setup(h => h.HandleAsync(query, It.IsAny<CancellationToken>()))
             .Returns(async () =>
             {
                 await Task.Delay(10);
@@ -347,7 +347,7 @@ public sealed class QueryProcessorTests : IDisposable
         var processor = CreateProcessor();
 
         handlerMock
-            .Setup(h => h.Handle(It.IsAny<TestQuery>(), It.IsAny<CancellationToken>()))
+            .Setup(h => h.HandleAsync(It.IsAny<TestQuery>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("Result");
 
         // Act
@@ -357,7 +357,7 @@ public sealed class QueryProcessorTests : IDisposable
         try
         {
             handlerMock
-                .Setup(h => h.Handle(It.IsAny<TestQuery>(), It.IsAny<CancellationToken>()))
+                .Setup(h => h.HandleAsync(It.IsAny<TestQuery>(), It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new InvalidOperationException());
             await processor.SendAsync(new TestQuery());
         }
