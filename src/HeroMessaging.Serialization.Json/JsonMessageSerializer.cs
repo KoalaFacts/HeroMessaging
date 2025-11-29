@@ -37,7 +37,7 @@ public class JsonMessageSerializer(
 
         if (_options.EnableCompression)
         {
-            data = await _compressionProvider.CompressAsync(data, _options.CompressionLevel, cancellationToken);
+            data = await _compressionProvider.CompressAsync(data, _options.CompressionLevel, cancellationToken).ConfigureAwait(false);
         }
 
         return data;
@@ -102,7 +102,7 @@ public class JsonMessageSerializer(
 
         if (_options.EnableCompression)
         {
-            data = await _compressionProvider.DecompressAsync(data, cancellationToken);
+            data = await _compressionProvider.DecompressAsync(data, cancellationToken).ConfigureAwait(false);
         }
 
         var json = Encoding.UTF8.GetString(data);
@@ -119,7 +119,7 @@ public class JsonMessageSerializer(
 
         if (_options.EnableCompression)
         {
-            data = await _compressionProvider.DecompressAsync(data, cancellationToken);
+            data = await _compressionProvider.DecompressAsync(data, cancellationToken).ConfigureAwait(false);
         }
 
         var json = Encoding.UTF8.GetString(data);
