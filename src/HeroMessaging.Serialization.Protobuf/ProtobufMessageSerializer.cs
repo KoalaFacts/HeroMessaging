@@ -96,7 +96,7 @@ public class ProtobufMessageSerializer(
 
         if (_options.EnableCompression)
         {
-            data = await _compressionProvider.CompressAsync(data, _options.CompressionLevel, cancellationToken);
+            data = await _compressionProvider.CompressAsync(data, _options.CompressionLevel, cancellationToken).ConfigureAwait(false);
         }
 
         return data;
@@ -111,7 +111,7 @@ public class ProtobufMessageSerializer(
 
         if (_options.EnableCompression)
         {
-            data = await _compressionProvider.DecompressAsync(data, cancellationToken);
+            data = await _compressionProvider.DecompressAsync(data, cancellationToken).ConfigureAwait(false);
         }
 
         using var stream = new MemoryStream(data);
@@ -128,7 +128,7 @@ public class ProtobufMessageSerializer(
 
         if (_options.EnableCompression)
         {
-            data = await _compressionProvider.DecompressAsync(data, cancellationToken);
+            data = await _compressionProvider.DecompressAsync(data, cancellationToken).ConfigureAwait(false);
         }
 
         using var stream = new MemoryStream(data);
@@ -237,7 +237,7 @@ public class TypedProtobufMessageSerializer(
 
         if (_options.EnableCompression)
         {
-            data = await _compressionProvider.CompressAsync(data, _options.CompressionLevel, cancellationToken);
+            data = await _compressionProvider.CompressAsync(data, _options.CompressionLevel, cancellationToken).ConfigureAwait(false);
         }
 
         return data;
@@ -252,7 +252,7 @@ public class TypedProtobufMessageSerializer(
 
         if (_options.EnableCompression)
         {
-            data = await _compressionProvider.DecompressAsync(data, cancellationToken);
+            data = await _compressionProvider.DecompressAsync(data, cancellationToken).ConfigureAwait(false);
         }
 
         using var stream = new MemoryStream(data);
@@ -276,7 +276,7 @@ public class TypedProtobufMessageSerializer(
 
         if (_options.EnableCompression)
         {
-            data = await _compressionProvider.DecompressAsync(data, cancellationToken);
+            data = await _compressionProvider.DecompressAsync(data, cancellationToken).ConfigureAwait(false);
         }
 
         using var stream = new MemoryStream(data);
