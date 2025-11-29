@@ -64,12 +64,12 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
         // Create new channel if under limit
         if (_channelCount < _maxChannels)
         {
-            await _createChannelLock.WaitAsync(cancellationToken);
+            await _createChannelLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
                 if (_channelCount < _maxChannels)
                 {
-                    return await CreateChannelAsync(cancellationToken);
+                    return await CreateChannelAsync(cancellationToken).ConfigureAwait(false);
                 }
             }
             finally
@@ -80,7 +80,7 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
 
         // If pool is full, create a temporary channel (not pooled)
         _logger.LogWarning("Channel pool is full ({MaxChannels}). Creating temporary channel", _maxChannels);
-        return await CreateChannelAsync(cancellationToken);
+        return await CreateChannelAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -110,7 +110,7 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
             throw new InvalidOperationException("Cannot create channel: connection is not open");
         }
 
-        var channel = await _connection.CreateChannelAsync(cancellationToken: cancellationToken);
+        var channel = await _connection.CreateChannelAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
         Interlocked.Increment(ref _channelCount);
 
         _logger.LogDebug("Created new channel {ChannelNumber} (Total: {TotalChannels})",
@@ -126,10 +126,10 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
         Func<IChannel, Task<T>> operation,
         CancellationToken cancellationToken = default)
     {
-        var channel = await AcquireChannelAsync(cancellationToken);
+        var channel = await AcquireChannelAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            return await operation(channel);
+            return await operation(channel).ConfigureAwait(false);
         }
         finally
         {
@@ -144,10 +144,10 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
         Func<IChannel, Task> operation,
         CancellationToken cancellationToken = default)
     {
-        var channel = await AcquireChannelAsync(cancellationToken);
+        var channel = await AcquireChannelAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await operation(channel);
+            await operation(channel).ConfigureAwait(false);
         }
         finally
         {
@@ -178,7 +178,7 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
 
         _logger.LogDebug("Disposing channel pool for connection {ConnectionId}", _connection.ClientProvidedName);
 
-        await _createChannelLock.WaitAsync();
+        await _createChannelLock.WaitAsync().ConfigureAwait(false);
         try
         {
             // Dispose all channels
@@ -199,7 +199,7 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
     /// <summary>
     /// Represents a channel in the pool with metadata
     /// </summary>
-    private sealed class PooledChannel : IDisposable
+    private sealed class PooledChannel : IAsyncDisposable, IDisposable
     {
         private readonly TimeSpan _lifetime;
         private readonly TimeProvider _timeProvider;
@@ -218,7 +218,7 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
             _created = _timeProvider.GetUtcNow();
         }
 
-        public void Dispose()
+        public async ValueTask DisposeAsync()
         {
             if (_disposed) return;
             _disposed = true;
@@ -227,7 +227,37 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
             {
                 if (Channel.IsOpen)
                 {
-                    Channel.CloseAsync().GetAwaiter().GetResult();
+                    await Channel.CloseAsync().ConfigureAwait(false);
+                }
+                Channel.Dispose();
+            }
+            catch
+            {
+                // Ignore disposal errors
+            }
+        }
+
+        public void Dispose()
+        {
+            if (_disposed) return;
+            _disposed = true;
+
+            try
+            {
+                // Non-blocking disposal: schedule async close on thread pool
+                if (Channel.IsOpen)
+                {
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await Channel.CloseAsync().ConfigureAwait(false);
+                        }
+                        catch
+                        {
+                            // Ignore errors during async close
+                        }
+                    });
                 }
                 Channel.Dispose();
             }

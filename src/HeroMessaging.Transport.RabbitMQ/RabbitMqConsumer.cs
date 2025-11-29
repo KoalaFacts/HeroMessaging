@@ -91,7 +91,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
         _consumerTag = await _channel.BasicConsumeAsync(
             queue: Source.Name,
             autoAck: false, // Manual acknowledgment for reliability
-            consumer: _consumer);
+            consumer: _consumer).ConfigureAwait(false);
 
         _logger.LogInformation("Consumer {ConsumerId} started with tag {ConsumerTag}", ConsumerId, _consumerTag);
     }
@@ -121,7 +121,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
         {
             try
             {
-                await _channel.BasicCancelAsync(_consumerTag);
+                await _channel.BasicCancelAsync(_consumerTag).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -147,14 +147,14 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
     /// <inheritdoc/>
     public async ValueTask DisposeAsync()
     {
-        await StopAsync();
+        await StopAsync().ConfigureAwait(false);
 
         // Dispose channel
         try
         {
             if (_channel.IsOpen)
             {
-                await _channel.CloseAsync();
+                await _channel.CloseAsync().ConfigureAwait(false);
             }
             _channel.Dispose();
         }
@@ -227,22 +227,22 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
                 }.ToImmutableDictionary(),
                 Acknowledge = async (ct) =>
                 {
-                    await _channel.BasicAckAsync(ea.DeliveryTag, multiple: false, ct);
+                    await _channel.BasicAckAsync(ea.DeliveryTag, multiple: false, ct).ConfigureAwait(false);
                     _instrumentation.AddEvent(activity, "acknowledge");
                 },
                 Reject = async (requeue, ct) =>
                 {
-                    await _channel.BasicNackAsync(ea.DeliveryTag, multiple: false, requeue, ct);
+                    await _channel.BasicNackAsync(ea.DeliveryTag, multiple: false, requeue, ct).ConfigureAwait(false);
                     _instrumentation.AddEvent(activity, requeue ? "reject.requeue" : "reject.drop");
                 },
                 Defer = async (delay, ct) =>
                 {
-                    await _channel.BasicNackAsync(ea.DeliveryTag, multiple: false, requeue: true, ct);
+                    await _channel.BasicNackAsync(ea.DeliveryTag, multiple: false, requeue: true, ct).ConfigureAwait(false);
                     _instrumentation.AddEvent(activity, "defer");
                 },
                 DeadLetter = async (reason, ct) =>
                 {
-                    await _channel.BasicNackAsync(ea.DeliveryTag, multiple: false, requeue: false, ct);
+                    await _channel.BasicNackAsync(ea.DeliveryTag, multiple: false, requeue: false, ct).ConfigureAwait(false);
                     _instrumentation.AddEvent(activity, "deadletter", new[]
                     {
                         new KeyValuePair<string, object?>("reason", reason ?? "unknown")
@@ -254,12 +254,12 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
             _instrumentation.AddEvent(activity, "handler.start");
 
             // Process message
-            await _handler(envelope, context, CancellationToken.None);
+            await _handler(envelope, context, CancellationToken.None).ConfigureAwait(false);
 
             _instrumentation.AddEvent(activity, "handler.complete");
 
             // Acknowledge successful processing
-            await _channel.BasicAckAsync(ea.DeliveryTag, multiple: false);
+            await _channel.BasicAckAsync(ea.DeliveryTag, multiple: false).ConfigureAwait(false);
 
             Interlocked.Increment(ref _messagesProcessed);
 
@@ -282,7 +282,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
 
             // Nack with requeue for transient failures
             // In production, you'd want to check error type and potentially dead-letter permanent failures
-            await _channel.BasicNackAsync(ea.DeliveryTag, multiple: false, requeue: true);
+            await _channel.BasicNackAsync(ea.DeliveryTag, multiple: false, requeue: true).ConfigureAwait(false);
         }
         finally
         {
