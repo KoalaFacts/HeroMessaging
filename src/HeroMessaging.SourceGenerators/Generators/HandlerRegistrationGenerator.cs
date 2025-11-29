@@ -53,7 +53,7 @@ public class HandlerRegistrationGenerator : IIncrementalGenerator
 
         // Check if implements any handler interface
         var handlerInterfaces = symbol.AllInterfaces
-            .Where(i => i.Name.Contains("Handler"))
+            .Where(i => i.Name.EndsWith("Handler") && (i.ContainingNamespace?.ToDisplayString().StartsWith("HeroMessaging") ?? false))
             .ToList();
 
         if (!handlerInterfaces.Any()) return null;
