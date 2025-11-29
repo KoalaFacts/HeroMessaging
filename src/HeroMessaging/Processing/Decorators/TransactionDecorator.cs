@@ -18,19 +18,19 @@ public class TransactionCommandProcessorDecorator(
     private readonly ITransactionExecutor _transactionExecutor = transactionExecutor ?? throw new ArgumentNullException(nameof(transactionExecutor));
     private readonly IsolationLevel _defaultIsolationLevel = defaultIsolationLevel;
 
-    public async Task Send(ICommand command, CancellationToken cancellationToken = default)
+    public async Task SendAsync(ICommand command, CancellationToken cancellationToken = default)
     {
         await _transactionExecutor.ExecuteInTransactionAsync(
-            async ct => await _inner.Send(command, ct).ConfigureAwait(false),
+            async ct => await _inner.SendAsync(command, ct).ConfigureAwait(false),
             $"command {command.GetType().Name} with ID {command.MessageId}",
             _defaultIsolationLevel,
             cancellationToken).ConfigureAwait(false);
     }
 
-    public async Task<TResponse> Send<TResponse>(ICommand<TResponse> command, CancellationToken cancellationToken = default)
+    public async Task<TResponse> SendAsync<TResponse>(ICommand<TResponse> command, CancellationToken cancellationToken = default)
     {
         return await _transactionExecutor.ExecuteInTransactionAsync(
-            async ct => await _inner.Send<TResponse>(command, ct).ConfigureAwait(false),
+            async ct => await _inner.SendAsync<TResponse>(command, ct).ConfigureAwait(false),
             $"command {command.GetType().Name} with ID {command.MessageId}",
             _defaultIsolationLevel,
             cancellationToken).ConfigureAwait(false);
@@ -51,10 +51,10 @@ public class TransactionQueryProcessorDecorator(
     private readonly IQueryProcessor _inner = inner ?? throw new ArgumentNullException(nameof(inner));
     private readonly ITransactionExecutor _transactionExecutor = transactionExecutor ?? throw new ArgumentNullException(nameof(transactionExecutor));
 
-    public async Task<TResponse> Send<TResponse>(IQuery<TResponse> query, CancellationToken cancellationToken = default)
+    public async Task<TResponse> SendAsync<TResponse>(IQuery<TResponse> query, CancellationToken cancellationToken = default)
     {
         return await _transactionExecutor.ExecuteInTransactionAsync(
-            async ct => await _inner.Send<TResponse>(query, ct).ConfigureAwait(false),
+            async ct => await _inner.SendAsync<TResponse>(query, ct).ConfigureAwait(false),
             $"query {query.GetType().Name} with ID {query.MessageId}",
             IsolationLevel.ReadCommitted,
             cancellationToken).ConfigureAwait(false);

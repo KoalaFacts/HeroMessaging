@@ -89,14 +89,14 @@ public class HeroMessagingServiceTests
     {
         // Arrange
         var command = new Mock<ICommand>().Object;
-        _mockCommandProcessor.Setup(x => x.Send(command, It.IsAny<CancellationToken>()))
+        _mockCommandProcessor.Setup(x => x.SendAsync(command, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act
         await _sut.SendAsync(command);
 
         // Assert
-        _mockCommandProcessor.Verify(x => x.Send(command, It.IsAny<CancellationToken>()), Times.Once);
+        _mockCommandProcessor.Verify(x => x.SendAsync(command, It.IsAny<CancellationToken>()), Times.Once);
         var metrics = _sut.GetMetrics();
         Assert.Equal(1, metrics.CommandsSent);
     }
@@ -107,7 +107,7 @@ public class HeroMessagingServiceTests
         // Arrange
         var command = new Mock<ICommand<string>>().Object;
         var expectedResponse = "test-response";
-        _mockCommandProcessor.Setup(x => x.Send(command, It.IsAny<CancellationToken>()))
+        _mockCommandProcessor.Setup(x => x.SendAsync(command, It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedResponse);
 
         // Act
@@ -115,7 +115,7 @@ public class HeroMessagingServiceTests
 
         // Assert
         Assert.Equal(expectedResponse, result);
-        _mockCommandProcessor.Verify(x => x.Send(command, It.IsAny<CancellationToken>()), Times.Once);
+        _mockCommandProcessor.Verify(x => x.SendAsync(command, It.IsAny<CancellationToken>()), Times.Once);
         var metrics = _sut.GetMetrics();
         Assert.Equal(1, metrics.CommandsSent);
     }
@@ -128,14 +128,14 @@ public class HeroMessagingServiceTests
         using var cts = new CancellationTokenSource();
         var cancellationToken = cts.Token;
 
-        _mockCommandProcessor.Setup(x => x.Send(command, cancellationToken))
+        _mockCommandProcessor.Setup(x => x.SendAsync(command, cancellationToken))
             .Returns(Task.CompletedTask);
 
         // Act
         await _sut.SendAsync(command, cancellationToken);
 
         // Assert
-        _mockCommandProcessor.Verify(x => x.Send(command, cancellationToken), Times.Once);
+        _mockCommandProcessor.Verify(x => x.SendAsync(command, cancellationToken), Times.Once);
     }
 
     #endregion
@@ -148,7 +148,7 @@ public class HeroMessagingServiceTests
         // Arrange
         var query = new Mock<IQuery<int>>().Object;
         var expectedResponse = 42;
-        _mockQueryProcessor.Setup(x => x.Send(query, It.IsAny<CancellationToken>()))
+        _mockQueryProcessor.Setup(x => x.SendAsync(query, It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedResponse);
 
         // Act
@@ -156,7 +156,7 @@ public class HeroMessagingServiceTests
 
         // Assert
         Assert.Equal(expectedResponse, result);
-        _mockQueryProcessor.Verify(x => x.Send(query, It.IsAny<CancellationToken>()), Times.Once);
+        _mockQueryProcessor.Verify(x => x.SendAsync(query, It.IsAny<CancellationToken>()), Times.Once);
         var metrics = _sut.GetMetrics();
         Assert.Equal(1, metrics.QueriesSent);
     }
@@ -169,14 +169,14 @@ public class HeroMessagingServiceTests
         using var cts = new CancellationTokenSource();
         var cancellationToken = cts.Token;
 
-        _mockQueryProcessor.Setup(x => x.Send(query, cancellationToken))
+        _mockQueryProcessor.Setup(x => x.SendAsync(query, cancellationToken))
             .ReturnsAsync("result");
 
         // Act
         await _sut.SendAsync(query, cancellationToken);
 
         // Assert
-        _mockQueryProcessor.Verify(x => x.Send(query, cancellationToken), Times.Once);
+        _mockQueryProcessor.Verify(x => x.SendAsync(query, cancellationToken), Times.Once);
     }
 
     #endregion
@@ -188,14 +188,14 @@ public class HeroMessagingServiceTests
     {
         // Arrange
         var @event = new Mock<IEvent>().Object;
-        _mockEventBus.Setup(x => x.Publish(@event, It.IsAny<CancellationToken>()))
+        _mockEventBus.Setup(x => x.PublishAsync(@event, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act
         await _sut.PublishAsync(@event);
 
         // Assert
-        _mockEventBus.Verify(x => x.Publish(@event, It.IsAny<CancellationToken>()), Times.Once);
+        _mockEventBus.Verify(x => x.PublishAsync(@event, It.IsAny<CancellationToken>()), Times.Once);
         var metrics = _sut.GetMetrics();
         Assert.Equal(1, metrics.EventsPublished);
     }
@@ -208,14 +208,14 @@ public class HeroMessagingServiceTests
         using var cts = new CancellationTokenSource();
         var cancellationToken = cts.Token;
 
-        _mockEventBus.Setup(x => x.Publish(@event, cancellationToken))
+        _mockEventBus.Setup(x => x.PublishAsync(@event, cancellationToken))
             .Returns(Task.CompletedTask);
 
         // Act
         await _sut.PublishAsync(@event, cancellationToken);
 
         // Assert
-        _mockEventBus.Verify(x => x.Publish(@event, cancellationToken), Times.Once);
+        _mockEventBus.Verify(x => x.PublishAsync(@event, cancellationToken), Times.Once);
     }
 
     #endregion
@@ -258,7 +258,7 @@ public class HeroMessagingServiceTests
             new Mock<ICommand>().Object
         };
 
-        _mockCommandProcessor.Setup(x => x.Send(It.IsAny<ICommand>(), It.IsAny<CancellationToken>()))
+        _mockCommandProcessor.Setup(x => x.SendAsync(It.IsAny<ICommand>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act
@@ -267,7 +267,7 @@ public class HeroMessagingServiceTests
         // Assert
         Assert.Equal(3, results.Count);
         Assert.All(results, r => Assert.True(r));
-        _mockCommandProcessor.Verify(x => x.Send(It.IsAny<ICommand>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
+        _mockCommandProcessor.Verify(x => x.SendAsync(It.IsAny<ICommand>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
         var metrics = _sut.GetMetrics();
         Assert.Equal(3, metrics.CommandsSent);
     }
@@ -283,7 +283,7 @@ public class HeroMessagingServiceTests
             new Mock<ICommand>().Object
         };
 
-        _mockCommandProcessor.SetupSequence(x => x.Send(It.IsAny<ICommand>(), It.IsAny<CancellationToken>()))
+        _mockCommandProcessor.SetupSequence(x => x.SendAsync(It.IsAny<ICommand>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask)
             .ThrowsAsync(new InvalidOperationException("Command failed"))
             .Returns(Task.CompletedTask);
@@ -308,7 +308,7 @@ public class HeroMessagingServiceTests
             new Mock<ICommand<string>>().Object
         };
 
-        _mockCommandProcessor.SetupSequence(x => x.Send(It.IsAny<ICommand<string>>(), It.IsAny<CancellationToken>()))
+        _mockCommandProcessor.SetupSequence(x => x.SendAsync(It.IsAny<ICommand<string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("result1")
             .ReturnsAsync("result2");
 
@@ -373,7 +373,7 @@ public class HeroMessagingServiceTests
             new Mock<IEvent>().Object
         };
 
-        _mockEventBus.Setup(x => x.Publish(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()))
+        _mockEventBus.Setup(x => x.PublishAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act
@@ -382,7 +382,7 @@ public class HeroMessagingServiceTests
         // Assert
         Assert.Equal(2, results.Count);
         Assert.All(results, r => Assert.True(r));
-        _mockEventBus.Verify(x => x.Publish(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+        _mockEventBus.Verify(x => x.PublishAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         var metrics = _sut.GetMetrics();
         Assert.Equal(2, metrics.EventsPublished);
     }
@@ -398,7 +398,7 @@ public class HeroMessagingServiceTests
             new Mock<IEvent>().Object
         };
 
-        _mockEventBus.SetupSequence(x => x.Publish(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()))
+        _mockEventBus.SetupSequence(x => x.PublishAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask)
             .ThrowsAsync(new InvalidOperationException("Event failed"))
             .Returns(Task.CompletedTask);
@@ -653,11 +653,11 @@ public class HeroMessagingServiceTests
     public async Task GetMetrics_AfterMultipleOperations_ReturnsAccumulatedMetrics()
     {
         // Arrange
-        _mockCommandProcessor.Setup(x => x.Send(It.IsAny<ICommand>(), It.IsAny<CancellationToken>()))
+        _mockCommandProcessor.Setup(x => x.SendAsync(It.IsAny<ICommand>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
-        _mockQueryProcessor.Setup(x => x.Send(It.IsAny<IQuery<int>>(), It.IsAny<CancellationToken>()))
+        _mockQueryProcessor.Setup(x => x.SendAsync(It.IsAny<IQuery<int>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(1);
-        _mockEventBus.Setup(x => x.Publish(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()))
+        _mockEventBus.Setup(x => x.PublishAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act

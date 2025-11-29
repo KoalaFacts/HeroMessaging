@@ -13,7 +13,7 @@ namespace HeroMessaging.Processing;
 /// Event bus implementation using the pipeline architecture.
 /// Optimized for zero-allocation in steady state through caching and pooling.
 /// </summary>
-public class EventBus : IEventBus, IProcessor, IAsyncDisposable
+public class EventBus : IEventBus, IAsyncDisposable
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<EventBus> _logger;
@@ -64,7 +64,7 @@ public class EventBus : IEventBus, IProcessor, IAsyncDisposable
             .UseRetry();            // Innermost - retry the actual processing
     }
 
-    public async Task Publish(IEvent @event, CancellationToken cancellationToken = default)
+    public async Task PublishAsync(IEvent @event, CancellationToken cancellationToken = default)
     {
         // Return early if already cancelled - graceful handling
         if (cancellationToken.IsCancellationRequested)

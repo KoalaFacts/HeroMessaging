@@ -59,7 +59,7 @@ public sealed class QueryProcessorTests : IDisposable
             .ReturnsAsync(expectedResult);
 
         // Act
-        var result = await processor.Send(query);
+        var result = await processor.SendAsync(query);
 
         // Assert
         Assert.Equal(expectedResult, result);
@@ -79,7 +79,7 @@ public sealed class QueryProcessorTests : IDisposable
             .ReturnsAsync("Result");
 
         // Act
-        await processor.Send(query);
+        await processor.SendAsync(query);
 
         // Assert
         var metrics = processor.GetMetrics();
@@ -102,8 +102,8 @@ public sealed class QueryProcessorTests : IDisposable
             .ReturnsAsync("Result");
 
         // Act
-        await processor.Send(query1);
-        await processor.Send(query2);
+        await processor.SendAsync(query1);
+        await processor.SendAsync(query2);
 
         // Assert
         var metrics = processor.GetMetrics();
@@ -126,7 +126,7 @@ public sealed class QueryProcessorTests : IDisposable
             .ReturnsAsync(expectedResult);
 
         // Act
-        var result = await processor.Send(query);
+        var result = await processor.SendAsync(query);
 
         // Assert
         Assert.Equal(expectedResult.Id, result.Id);
@@ -147,7 +147,7 @@ public sealed class QueryProcessorTests : IDisposable
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await processor.Send(query));
+            async () => await processor.SendAsync(query));
         Assert.Contains("No handler found", exception.Message);
     }
 
@@ -167,7 +167,7 @@ public sealed class QueryProcessorTests : IDisposable
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await processor.Send(query));
+            async () => await processor.SendAsync(query));
         Assert.Equal("Handler error", exception.Message);
     }
 
@@ -187,7 +187,7 @@ public sealed class QueryProcessorTests : IDisposable
         // Act
         try
         {
-            await processor.Send(query);
+            await processor.SendAsync(query);
         }
         catch (InvalidOperationException)
         {
@@ -216,7 +216,7 @@ public sealed class QueryProcessorTests : IDisposable
         // Act
         try
         {
-            await processor.Send(query);
+            await processor.SendAsync(query);
         }
         catch (InvalidOperationException)
         {
@@ -251,7 +251,7 @@ public sealed class QueryProcessorTests : IDisposable
 
         // Act & Assert
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
-            async () => await processor.Send(query, cts.Token));
+            async () => await processor.SendAsync(query, cts.Token));
     }
 
     [Fact]
@@ -275,7 +275,7 @@ public sealed class QueryProcessorTests : IDisposable
 
         // Act & Assert
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
-            async () => await processor.Send(query, cts.Token));
+            async () => await processor.SendAsync(query, cts.Token));
     }
 
     #endregion
@@ -290,7 +290,7 @@ public sealed class QueryProcessorTests : IDisposable
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentNullException>(
-            async () => await processor.Send((IQuery<string>)null!));
+            async () => await processor.SendAsync((IQuery<string>)null!));
     }
 
     #endregion
@@ -331,7 +331,7 @@ public sealed class QueryProcessorTests : IDisposable
             });
 
         // Act
-        await processor.Send(query);
+        await processor.SendAsync(query);
 
         // Assert
         var metrics = processor.GetMetrics();
@@ -351,15 +351,15 @@ public sealed class QueryProcessorTests : IDisposable
             .ReturnsAsync("Result");
 
         // Act
-        await processor.Send(new TestQuery());
-        await processor.Send(new TestQuery());
+        await processor.SendAsync(new TestQuery());
+        await processor.SendAsync(new TestQuery());
 
         try
         {
             handlerMock
                 .Setup(h => h.Handle(It.IsAny<TestQuery>(), It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new InvalidOperationException());
-            await processor.Send(new TestQuery());
+            await processor.SendAsync(new TestQuery());
         }
         catch (InvalidOperationException)
         {

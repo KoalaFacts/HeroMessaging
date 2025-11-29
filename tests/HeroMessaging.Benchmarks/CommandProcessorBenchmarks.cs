@@ -47,7 +47,7 @@ public class CommandProcessorBenchmarks
     [Benchmark(Description = "Process single command")]
     public async Task ProcessCommand_SingleMessage()
     {
-        await _processor.Send(_testCommand);
+        await _processor.SendAsync(_testCommand);
     }
 
     /// <summary>
@@ -59,7 +59,7 @@ public class CommandProcessorBenchmarks
     {
         for (int i = 0; i < 100; i++)
         {
-            await _processor.Send(_testCommand);
+            await _processor.SendAsync(_testCommand);
         }
     }
 
@@ -70,7 +70,7 @@ public class CommandProcessorBenchmarks
     public async Task ProcessCommand_WithResponse()
     {
         var command = new TestCommandWithResponse { Id = 1, Name = "Test" };
-        await _processor.Send<int>(command);
+        await _processor.SendAsync<int>(command);
     }
 }
 

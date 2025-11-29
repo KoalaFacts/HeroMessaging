@@ -62,25 +62,25 @@ public class HeroMessagingService(
     public async Task SendAsync(ICommand command, CancellationToken cancellationToken = default)
     {
         Interlocked.Increment(ref _commandsSent);
-        await _commandProcessor.Send(command, cancellationToken).ConfigureAwait(false);
+        await _commandProcessor.SendAsync(command, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<TResponse> SendAsync<TResponse>(ICommand<TResponse> command, CancellationToken cancellationToken = default)
     {
         Interlocked.Increment(ref _commandsSent);
-        return await _commandProcessor.Send(command, cancellationToken).ConfigureAwait(false);
+        return await _commandProcessor.SendAsync(command, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<TResponse> SendAsync<TResponse>(IQuery<TResponse> query, CancellationToken cancellationToken = default)
     {
         Interlocked.Increment(ref _queriesSent);
-        return await _queryProcessor.Send(query, cancellationToken).ConfigureAwait(false);
+        return await _queryProcessor.SendAsync(query, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task PublishAsync(IEvent @event, CancellationToken cancellationToken = default)
     {
         Interlocked.Increment(ref _eventsPublished);
-        await _eventBus.Publish(@event, cancellationToken).ConfigureAwait(false);
+        await _eventBus.PublishAsync(@event, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<IReadOnlyList<bool>> SendBatchAsync(IReadOnlyList<ICommand> commands, CancellationToken cancellationToken = default)
@@ -95,7 +95,7 @@ public class HeroMessagingService(
         {
             try
             {
-                await _commandProcessor.Send(command, cancellationToken).ConfigureAwait(false);
+                await _commandProcessor.SendAsync(command, cancellationToken).ConfigureAwait(false);
                 results.Add(true);
             }
             catch (OperationCanceledException)
@@ -124,7 +124,7 @@ public class HeroMessagingService(
 
         foreach (var command in commands)
         {
-            var result = await _commandProcessor.Send(command, cancellationToken).ConfigureAwait(false);
+            var result = await _commandProcessor.SendAsync(command, cancellationToken).ConfigureAwait(false);
             results.Add(result);
         }
 
@@ -143,7 +143,7 @@ public class HeroMessagingService(
         {
             try
             {
-                await _eventBus.Publish(@event, cancellationToken).ConfigureAwait(false);
+                await _eventBus.PublishAsync(@event, cancellationToken).ConfigureAwait(false);
                 results.Add(true);
             }
             catch (OperationCanceledException)

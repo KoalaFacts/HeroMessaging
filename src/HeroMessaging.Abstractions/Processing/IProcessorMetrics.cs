@@ -14,14 +14,14 @@ public interface IProcessorMetrics
 
 public interface ICommandProcessor : IProcessor
 {
-    Task Send(ICommand command, CancellationToken cancellationToken = default);
-    Task<TResponse> Send<TResponse>(ICommand<TResponse> command, CancellationToken cancellationToken = default);
+    Task SendAsync(ICommand command, CancellationToken cancellationToken = default);
+    Task<TResponse> SendAsync<TResponse>(ICommand<TResponse> command, CancellationToken cancellationToken = default);
     IProcessorMetrics GetMetrics();
 }
 
 public interface IQueryProcessor : IProcessor
 {
-    Task<TResponse> Send<TResponse>(IQuery<TResponse> query, CancellationToken cancellationToken = default);
+    Task<TResponse> SendAsync<TResponse>(IQuery<TResponse> query, CancellationToken cancellationToken = default);
     IQueryProcessorMetrics GetMetrics();
 }
 

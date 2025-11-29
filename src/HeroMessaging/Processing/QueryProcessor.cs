@@ -27,7 +27,7 @@ public class QueryProcessor : IQueryProcessor, IProcessor, IAsyncDisposable
         _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<QueryProcessor>.Instance;
     }
 
-    public async Task<TResponse> Send<TResponse>(IQuery<TResponse> query, CancellationToken cancellationToken = default)
+    public async Task<TResponse> SendAsync<TResponse>(IQuery<TResponse> query, CancellationToken cancellationToken = default)
     {
         CompatibilityHelpers.ThrowIfNull(query, nameof(query));
 

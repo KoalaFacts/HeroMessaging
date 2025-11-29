@@ -27,7 +27,7 @@ public class CommandProcessor : ICommandProcessor, IProcessor, IAsyncDisposable
         _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<CommandProcessor>.Instance;
     }
 
-    public async Task Send(ICommand command, CancellationToken cancellationToken = default)
+    public async Task SendAsync(ICommand command, CancellationToken cancellationToken = default)
     {
         CompatibilityHelpers.ThrowIfNull(command, nameof(command));
 
@@ -74,7 +74,7 @@ public class CommandProcessor : ICommandProcessor, IProcessor, IAsyncDisposable
         }
     }
 
-    public async Task<TResponse> Send<TResponse>(ICommand<TResponse> command, CancellationToken cancellationToken = default)
+    public async Task<TResponse> SendAsync<TResponse>(ICommand<TResponse> command, CancellationToken cancellationToken = default)
     {
         CompatibilityHelpers.ThrowIfNull(command, nameof(command));
 

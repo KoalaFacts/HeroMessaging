@@ -46,7 +46,7 @@ public class QueryProcessorBenchmarks
     [Benchmark(Description = "Process single query")]
     public async Task ProcessQuery_SingleMessage()
     {
-        await _processor.Send(_testQuery);
+        await _processor.SendAsync(_testQuery);
     }
 
     /// <summary>
@@ -58,7 +58,7 @@ public class QueryProcessorBenchmarks
     {
         for (int i = 0; i < 100; i++)
         {
-            await _processor.Send(_testQuery);
+            await _processor.SendAsync(_testQuery);
         }
     }
 }

@@ -68,7 +68,7 @@ public class EventBusBenchmarks
     [Benchmark(Description = "Publish single event")]
     public async Task PublishEvent_SingleMessage()
     {
-        await _eventBus.Publish(_testEvent);
+        await _eventBus.PublishAsync(_testEvent);
     }
 
     /// <summary>
@@ -80,7 +80,7 @@ public class EventBusBenchmarks
     {
         for (int i = 0; i < 100; i++)
         {
-            await _eventBus.Publish(_testEvent);
+            await _eventBus.PublishAsync(_testEvent);
         }
     }
 
@@ -90,7 +90,7 @@ public class EventBusBenchmarks
     [Benchmark(Description = "Publish event with multiple handlers")]
     public async Task PublishEvent_MultipleHandlers()
     {
-        await _multiHandlerEventBus.Publish(_testEvent);
+        await _multiHandlerEventBus.PublishAsync(_testEvent);
     }
 }
 

@@ -49,11 +49,11 @@ public sealed class TransactionCommandProcessorDecoratorTests
                 async (operation, name, level, ct) => await operation(ct));
 
         _innerMock
-            .Setup(p => p.Send(command, It.IsAny<CancellationToken>()))
+            .Setup(p => p.SendAsync(command, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act
-        await decorator.Send(command);
+        await decorator.SendAsync(command);
 
         // Assert
         _transactionExecutorMock.Verify(
@@ -82,14 +82,14 @@ public sealed class TransactionCommandProcessorDecoratorTests
                 async (operation, name, level, ct) => await operation(ct));
 
         _innerMock
-            .Setup(p => p.Send(command, It.IsAny<CancellationToken>()))
+            .Setup(p => p.SendAsync(command, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act
-        await decorator.Send(command);
+        await decorator.SendAsync(command);
 
         // Assert
-        _innerMock.Verify(p => p.Send(command, It.IsAny<CancellationToken>()), Times.Once);
+        _innerMock.Verify(p => p.SendAsync(command, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -109,11 +109,11 @@ public sealed class TransactionCommandProcessorDecoratorTests
                 async (operation, name, level, ct) => await operation(ct));
 
         _innerMock
-            .Setup(p => p.Send(command, It.IsAny<CancellationToken>()))
+            .Setup(p => p.SendAsync(command, It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act
-        await decorator.Send(command);
+        await decorator.SendAsync(command);
 
         // Assert
         _transactionExecutorMock.Verify(
@@ -144,11 +144,11 @@ public sealed class TransactionCommandProcessorDecoratorTests
                 async (operation, name, level, ct) => await operation(ct));
 
         _innerMock
-            .Setup(p => p.Send(command, cancellationToken))
+            .Setup(p => p.SendAsync(command, cancellationToken))
             .Returns(Task.CompletedTask);
 
         // Act
-        await decorator.Send(command, cancellationToken);
+        await decorator.SendAsync(command, cancellationToken);
 
         // Assert
         _transactionExecutorMock.Verify(
@@ -182,11 +182,11 @@ public sealed class TransactionCommandProcessorDecoratorTests
                 async (operation, name, level, ct) => await operation(ct));
 
         _innerMock
-            .Setup(p => p.Send<TestResponse>(command, It.IsAny<CancellationToken>()))
+            .Setup(p => p.SendAsync<TestResponse>(command, It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedResponse);
 
         // Act
-        var result = await decorator.Send<TestResponse>(command);
+        var result = await decorator.SendAsync<TestResponse>(command);
 
         // Assert
         Assert.Equal(expectedResponse, result);
@@ -217,15 +217,15 @@ public sealed class TransactionCommandProcessorDecoratorTests
                 async (operation, name, level, ct) => await operation(ct));
 
         _innerMock
-            .Setup(p => p.Send<TestResponse>(command, It.IsAny<CancellationToken>()))
+            .Setup(p => p.SendAsync<TestResponse>(command, It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedResponse);
 
         // Act
-        var result = await decorator.Send<TestResponse>(command);
+        var result = await decorator.SendAsync<TestResponse>(command);
 
         // Assert
         Assert.Equal(expectedResponse, result);
-        _innerMock.Verify(p => p.Send<TestResponse>(command, It.IsAny<CancellationToken>()), Times.Once);
+        _innerMock.Verify(p => p.SendAsync<TestResponse>(command, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -246,11 +246,11 @@ public sealed class TransactionCommandProcessorDecoratorTests
                 async (operation, name, level, ct) => await operation(ct));
 
         _innerMock
-            .Setup(p => p.Send<TestResponse>(command, It.IsAny<CancellationToken>()))
+            .Setup(p => p.SendAsync<TestResponse>(command, It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedResponse);
 
         // Act
-        var result = await decorator.Send<TestResponse>(command);
+        var result = await decorator.SendAsync<TestResponse>(command);
 
         // Assert
         Assert.Equal(99, result.Value);
@@ -278,7 +278,7 @@ public sealed class TransactionCommandProcessorDecoratorTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await decorator.Send(command));
+            async () => await decorator.SendAsync(command));
 
         Assert.Equal("Test error", exception.Message);
     }
@@ -301,7 +301,7 @@ public sealed class TransactionCommandProcessorDecoratorTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await decorator.Send<TestResponse>(command));
+            async () => await decorator.SendAsync<TestResponse>(command));
 
         Assert.Equal("Test error", exception.Message);
     }
@@ -398,11 +398,11 @@ public sealed class TransactionQueryProcessorDecoratorTests
                 async (operation, name, level, ct) => await operation(ct));
 
         _innerMock
-            .Setup(p => p.Send<TestQueryResponse>(query, It.IsAny<CancellationToken>()))
+            .Setup(p => p.SendAsync<TestQueryResponse>(query, It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedResponse);
 
         // Act
-        var result = await decorator.Send<TestQueryResponse>(query);
+        var result = await decorator.SendAsync<TestQueryResponse>(query);
 
         // Assert
         Assert.Equal(expectedResponse, result);
@@ -433,15 +433,15 @@ public sealed class TransactionQueryProcessorDecoratorTests
                 async (operation, name, level, ct) => await operation(ct));
 
         _innerMock
-            .Setup(p => p.Send<TestQueryResponse>(query, It.IsAny<CancellationToken>()))
+            .Setup(p => p.SendAsync<TestQueryResponse>(query, It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedResponse);
 
         // Act
-        var result = await decorator.Send<TestQueryResponse>(query);
+        var result = await decorator.SendAsync<TestQueryResponse>(query);
 
         // Assert
         Assert.Equal(expectedResponse, result);
-        _innerMock.Verify(p => p.Send<TestQueryResponse>(query, It.IsAny<CancellationToken>()), Times.Once);
+        _innerMock.Verify(p => p.SendAsync<TestQueryResponse>(query, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -462,11 +462,11 @@ public sealed class TransactionQueryProcessorDecoratorTests
                 async (operation, name, level, ct) => await operation(ct));
 
         _innerMock
-            .Setup(p => p.Send<TestQueryResponse>(query, It.IsAny<CancellationToken>()))
+            .Setup(p => p.SendAsync<TestQueryResponse>(query, It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedResponse);
 
         // Act
-        var result = await decorator.Send<TestQueryResponse>(query);
+        var result = await decorator.SendAsync<TestQueryResponse>(query);
 
         // Assert
         Assert.Equal("Expected data", result.Data);
@@ -490,11 +490,11 @@ public sealed class TransactionQueryProcessorDecoratorTests
                 async (operation, name, level, ct) => await operation(ct));
 
         _innerMock
-            .Setup(p => p.Send<TestQueryResponse>(query, It.IsAny<CancellationToken>()))
+            .Setup(p => p.SendAsync<TestQueryResponse>(query, It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedResponse);
 
         // Act
-        await decorator.Send<TestQueryResponse>(query);
+        await decorator.SendAsync<TestQueryResponse>(query);
 
         // Assert - Verified by mock setup
         _transactionExecutorMock.Verify(
@@ -526,11 +526,11 @@ public sealed class TransactionQueryProcessorDecoratorTests
                 async (operation, name, level, ct) => await operation(ct));
 
         _innerMock
-            .Setup(p => p.Send<TestQueryResponse>(query, cancellationToken))
+            .Setup(p => p.SendAsync<TestQueryResponse>(query, cancellationToken))
             .ReturnsAsync(expectedResponse);
 
         // Act
-        await decorator.Send<TestQueryResponse>(query, cancellationToken);
+        await decorator.SendAsync<TestQueryResponse>(query, cancellationToken);
 
         // Assert
         _transactionExecutorMock.Verify(
@@ -564,7 +564,7 @@ public sealed class TransactionQueryProcessorDecoratorTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await decorator.Send<TestQueryResponse>(query));
+            async () => await decorator.SendAsync<TestQueryResponse>(query));
 
         Assert.Equal("Query failed", exception.Message);
     }

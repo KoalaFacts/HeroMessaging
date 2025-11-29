@@ -26,7 +26,9 @@ public class TransactionEventBusDecorator(
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1823:Avoid unused private fields", Justification = "Reserved for future transaction support implementation")]
     private readonly IsolationLevel _defaultIsolationLevel = defaultIsolationLevel;
 
-    public async Task Publish(IEvent @event, CancellationToken cancellationToken = default)
+    public bool IsRunning => _inner.IsRunning;
+
+    public async Task PublishAsync(IEvent @event, CancellationToken cancellationToken = default)
     {
         // Note: For events, we might want to handle transactions per handler instead of per event
         // This ensures that if one handler fails, others can still succeed
@@ -35,7 +37,7 @@ public class TransactionEventBusDecorator(
         _logger.LogDebug("Publishing event {EventType} with ID {EventId}",
             @event.GetType().Name, @event.MessageId);
 
-        await _inner.Publish(@event, cancellationToken).ConfigureAwait(false);
+        await _inner.PublishAsync(@event, cancellationToken).ConfigureAwait(false);
 
         _logger.LogDebug("Event {EventType} with ID {EventId} published successfully",
             @event.GetType().Name, @event.MessageId);
