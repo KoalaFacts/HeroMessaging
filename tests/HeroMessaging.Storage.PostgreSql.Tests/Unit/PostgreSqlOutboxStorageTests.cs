@@ -171,7 +171,7 @@ public sealed class PostgreSqlOutboxStorageTests : IDisposable
     {
         // Arrange
         var storage = CreateStorage();
-        var query = new OutboxQuery { Status = OutboxEntryStatus.Pending, Limit = 100 };
+        var query = new OutboxQuery { Status = OutboxStatus.Pending, Limit = 100 };
 
         // Act
         var result = await storage.GetPendingAsync(query);
@@ -186,7 +186,7 @@ public sealed class PostgreSqlOutboxStorageTests : IDisposable
     {
         // Arrange
         var storage = CreateStorage();
-        var query = new OutboxQuery { Status = OutboxEntryStatus.Pending, Limit = 100 };
+        var query = new OutboxQuery { Status = OutboxStatus.Pending, Limit = 100 };
 
         // Act
         var result = await storage.GetPendingAsync(query);

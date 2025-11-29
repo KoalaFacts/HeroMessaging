@@ -1,6 +1,6 @@
 using System.Text;
 using HeroMessaging.Abstractions.Serialization;
-using CompressionLevel = HeroMessaging.Abstractions.Serialization.CompressionLevel;
+using CompressionLevel = HeroMessaging.Abstractions.Configuration.CompressionLevel;
 
 namespace HeroMessaging.Abstractions.Tests.Serialization;
 

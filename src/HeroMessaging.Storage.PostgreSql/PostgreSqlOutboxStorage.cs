@@ -247,7 +247,7 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
     {
         var query = new OutboxQuery
         {
-            Status = OutboxEntryStatus.Pending,
+            Status = OutboxStatus.Pending,
             Limit = limit
         };
 
@@ -363,7 +363,7 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
     {
         var query = new OutboxQuery
         {
-            Status = OutboxEntryStatus.Failed,
+            Status = OutboxStatus.Failed,
             Limit = limit
         };
 

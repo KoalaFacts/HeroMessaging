@@ -46,7 +46,7 @@ public enum InboxStatus
     Duplicate
 }
 
-// InboxEntryStatus removed - use InboxStatus instead
+// InboxStatus removed - use InboxStatus instead
 
 public class InboxQuery
 {

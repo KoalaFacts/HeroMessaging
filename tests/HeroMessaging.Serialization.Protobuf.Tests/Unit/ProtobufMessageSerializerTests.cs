@@ -1,4 +1,5 @@
 using HeroMessaging.Abstractions.Serialization;
+using HeroMessaging.Abstractions.Configuration;
 using HeroMessaging.Serialization.Protobuf;
 using ProtoBuf;
 using Moq;

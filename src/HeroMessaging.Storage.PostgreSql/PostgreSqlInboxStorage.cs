@@ -407,7 +407,7 @@ public class PostgreSqlInboxStorage : IInboxStorage
     {
         var query = new InboxQuery
         {
-            Status = InboxEntryStatus.Pending,
+            Status = InboxStatus.Pending,
             Limit = limit
         };
 

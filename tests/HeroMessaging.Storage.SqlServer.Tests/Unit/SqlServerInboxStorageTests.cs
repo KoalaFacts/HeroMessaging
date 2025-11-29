@@ -215,7 +215,7 @@ public sealed class SqlServerInboxStorageTests : IDisposable
     {
         // Arrange
         var storage = CreateStorage();
-        var query = new InboxQuery { Status = InboxEntryStatus.Pending, Limit = 100 };
+        var query = new InboxQuery { Status = InboxStatus.Pending, Limit = 100 };
 
         // Act
         var result = await storage.GetPendingAsync(query);

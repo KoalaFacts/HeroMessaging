@@ -655,7 +655,7 @@ public sealed class StorageBuilderTests
     public class TestInboxStorage : IInboxStorage
     {
         public Task<InboxEntry?> AddAsync(IMessage message, InboxOptions options, CancellationToken cancellationToken = default)
-            => Task.FromResult<InboxEntry?>(new InboxEntry { Message = message, Options = options });
+            => Task.FromResult<InboxEntry?>(new InboxEntry { Id = Guid.NewGuid().ToString(), Message = message, Options = options });
 
         public Task<bool> IsDuplicateAsync(string messageId, TimeSpan? window = null, CancellationToken cancellationToken = default)
             => Task.FromResult(false);

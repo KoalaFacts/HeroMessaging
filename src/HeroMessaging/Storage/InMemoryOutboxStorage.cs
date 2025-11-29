@@ -38,10 +38,10 @@ public class InMemoryOutboxStorage : IOutboxStorage
         {
             var status = query.Status.Value switch
             {
-                OutboxEntryStatus.Pending => OutboxStatus.Pending,
-                OutboxEntryStatus.Processing => OutboxStatus.Processing,
-                OutboxEntryStatus.Processed => OutboxStatus.Processed,
-                OutboxEntryStatus.Failed => OutboxStatus.Failed,
+                OutboxStatus.Pending => OutboxStatus.Pending,
+                OutboxStatus.Processing => OutboxStatus.Processing,
+                OutboxStatus.Processed => OutboxStatus.Processed,
+                OutboxStatus.Failed => OutboxStatus.Failed,
                 _ => OutboxStatus.Pending
             };
             pending = pending.Where(e => e.Status == status);

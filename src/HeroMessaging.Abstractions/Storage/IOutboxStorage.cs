@@ -45,7 +45,7 @@ public enum OutboxStatus
     Failed
 }
 
-// OutboxEntryStatus removed - use OutboxStatus instead
+// OutboxStatus removed - use OutboxStatus instead
 
 public class OutboxQuery
 {

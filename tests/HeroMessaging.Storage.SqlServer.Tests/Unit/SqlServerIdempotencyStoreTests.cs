@@ -46,7 +46,7 @@ public sealed class SqlServerIdempotencyStoreTests : IDisposable
     {
         Assert.Throws<ArgumentNullException>(() =>
             new SqlServerIdempotencyStore(
-                null!,
+                (string)null!,
                 _mockTimeProvider.Object,
                 _mockJsonSerializer.Object));
     }

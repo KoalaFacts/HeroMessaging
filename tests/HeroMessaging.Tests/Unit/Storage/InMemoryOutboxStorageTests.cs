@@ -164,7 +164,7 @@ public sealed class InMemoryOutboxStorageTests
         await storage.MarkProcessedAsync(entry2.Id);
         await storage.MarkFailedAsync(entry3.Id, "Test error");
 
-        var query = new OutboxQuery { Status = OutboxEntryStatus.Failed };
+        var query = new OutboxQuery { Status = OutboxStatus.Failed };
 
         // Act
         var results = await storage.GetPendingAsync(query);

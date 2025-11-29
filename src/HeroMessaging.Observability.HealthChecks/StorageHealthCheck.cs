@@ -72,7 +72,7 @@ public class OutboxStorageHealthCheck(IOutboxStorage storage, string name = "out
             // Just check if we can query the storage
             var query = new OutboxQuery
             {
-                Status = OutboxEntryStatus.Pending,
+                Status = OutboxStatus.Pending,
                 Limit = 1
             };
 
@@ -108,7 +108,7 @@ public class InboxStorageHealthCheck(IInboxStorage storage, string name = "inbox
             // Just check if we can query the storage
             var query = new InboxQuery
             {
-                Status = InboxEntryStatus.Pending,
+                Status = InboxStatus.Pending,
                 Limit = 1
             };
 

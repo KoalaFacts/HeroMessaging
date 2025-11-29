@@ -428,7 +428,7 @@ public sealed class InMemoryInboxStorageTests
         await storage.MarkProcessedAsync(message2.MessageId.ToString());
         await storage.MarkFailedAsync(message3.MessageId.ToString(), "Error");
 
-        var query = new InboxQuery { Status = InboxEntryStatus.Failed };
+        var query = new InboxQuery { Status = InboxStatus.Failed };
 
         // Act
         var results = await storage.GetPendingAsync(query);

@@ -36,7 +36,7 @@ public sealed class SqlServerIdempotencyStoreTests
     {
         // Act & Assert
         var exception = Assert.Throws<ArgumentNullException>(() =>
-            new SqlServerIdempotencyStore(null!, _timeProvider, _jsonSerializer));
+            new SqlServerIdempotencyStore((string)null!, _timeProvider, _jsonSerializer));
 
         Assert.Equal("connectionString", exception.ParamName);
     }

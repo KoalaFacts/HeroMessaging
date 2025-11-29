@@ -94,11 +94,11 @@ public class InMemoryInboxStorage : IInboxStorage
         {
             var status = query.Status.Value switch
             {
-                InboxEntryStatus.Pending => InboxStatus.Pending,
-                InboxEntryStatus.Processing => InboxStatus.Processing,
-                InboxEntryStatus.Processed => InboxStatus.Processed,
-                InboxEntryStatus.Failed => InboxStatus.Failed,
-                InboxEntryStatus.Duplicate => InboxStatus.Duplicate,
+                InboxStatus.Pending => InboxStatus.Pending,
+                InboxStatus.Processing => InboxStatus.Processing,
+                InboxStatus.Processed => InboxStatus.Processed,
+                InboxStatus.Failed => InboxStatus.Failed,
+                InboxStatus.Duplicate => InboxStatus.Duplicate,
                 _ => InboxStatus.Pending
             };
             pending = pending.Where(e => e.Status == status);

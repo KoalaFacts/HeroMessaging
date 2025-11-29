@@ -141,10 +141,10 @@ public class MessagePackMessageSerializer(SerializationOptions? options = null, 
 
         var compressionLevel = _options.CompressionLevel switch
         {
-            Abstractions.Serialization.CompressionLevel.None => System.IO.Compression.CompressionLevel.NoCompression,
-            Abstractions.Serialization.CompressionLevel.Fastest => System.IO.Compression.CompressionLevel.Fastest,
-            Abstractions.Serialization.CompressionLevel.Optimal => System.IO.Compression.CompressionLevel.Optimal,
-            Abstractions.Serialization.CompressionLevel.Maximum => System.IO.Compression.CompressionLevel.Optimal,
+            Abstractions.Configuration.CompressionLevel.None => System.IO.Compression.CompressionLevel.NoCompression,
+            Abstractions.Configuration.CompressionLevel.Fastest => System.IO.Compression.CompressionLevel.Fastest,
+            Abstractions.Configuration.CompressionLevel.Optimal => System.IO.Compression.CompressionLevel.Optimal,
+            Abstractions.Configuration.CompressionLevel.Maximum => System.IO.Compression.CompressionLevel.Optimal,
             _ => System.IO.Compression.CompressionLevel.Optimal
         };
 
@@ -300,10 +300,10 @@ public class ContractMessagePackSerializer(SerializationOptions? options = null,
 
         var compressionLevel = _options.CompressionLevel switch
         {
-            Abstractions.Serialization.CompressionLevel.None => System.IO.Compression.CompressionLevel.NoCompression,
-            Abstractions.Serialization.CompressionLevel.Fastest => System.IO.Compression.CompressionLevel.Fastest,
-            Abstractions.Serialization.CompressionLevel.Optimal => System.IO.Compression.CompressionLevel.Optimal,
-            Abstractions.Serialization.CompressionLevel.Maximum => System.IO.Compression.CompressionLevel.Optimal,
+            Abstractions.Configuration.CompressionLevel.None => System.IO.Compression.CompressionLevel.NoCompression,
+            Abstractions.Configuration.CompressionLevel.Fastest => System.IO.Compression.CompressionLevel.Fastest,
+            Abstractions.Configuration.CompressionLevel.Optimal => System.IO.Compression.CompressionLevel.Optimal,
+            Abstractions.Configuration.CompressionLevel.Maximum => System.IO.Compression.CompressionLevel.Optimal,
             _ => System.IO.Compression.CompressionLevel.Optimal
         };
 

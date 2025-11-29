@@ -94,7 +94,7 @@ public sealed class SqlServerOutboxStorageTests : IDisposable
     public async Task GetPendingAsync_WithValidQuery_ReturnsOutboxEntries()
     {
         var storage = CreateStorage();
-        var query = new OutboxQuery { Status = OutboxEntryStatus.Pending, Limit = 100 };
+        var query = new OutboxQuery { Status = OutboxStatus.Pending, Limit = 100 };
         var result = await storage.GetPendingAsync(query);
         Assert.NotNull(result);
         Assert.Empty(result);

@@ -36,7 +36,7 @@ public sealed class PostgreSqlIdempotencyStoreTests
     {
         // Act & Assert
         var exception = Assert.Throws<ArgumentNullException>(() =>
-            new PostgreSqlIdempotencyStore(null!, _timeProvider, _jsonSerializer));
+            new PostgreSqlIdempotencyStore((string)null!, _timeProvider, _jsonSerializer));
 
         Assert.Equal("connectionString", exception.ParamName);
     }

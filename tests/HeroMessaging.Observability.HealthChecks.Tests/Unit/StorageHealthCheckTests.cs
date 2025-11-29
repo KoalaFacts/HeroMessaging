@@ -236,7 +236,7 @@ public class StorageHealthCheckTests
         Assert.Contains("operational", result.Description, StringComparison.OrdinalIgnoreCase);
 
         mockStorage.Verify(s => s.GetPendingAsync(
-            It.Is<OutboxQuery>(q => q.Status == OutboxEntryStatus.Pending && q.Limit == 1),
+            It.Is<OutboxQuery>(q => q.Status == OutboxStatus.Pending && q.Limit == 1),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -323,7 +323,7 @@ public class StorageHealthCheckTests
         Assert.Contains("operational", result.Description, StringComparison.OrdinalIgnoreCase);
 
         mockStorage.Verify(s => s.GetPendingAsync(
-            It.Is<InboxQuery>(q => q.Status == InboxEntryStatus.Pending && q.Limit == 1),
+            It.Is<InboxQuery>(q => q.Status == InboxStatus.Pending && q.Limit == 1),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
