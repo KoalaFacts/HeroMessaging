@@ -5,6 +5,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Text;
 
 namespace HeroMessaging.SourceGenerators.Generators;
@@ -210,6 +211,7 @@ public class TestDataBuilderGenerator : IIncrementalGenerator
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 
 namespace {info.Namespace};
 
@@ -218,7 +220,7 @@ namespace {info.Namespace};
 /// </summary>
 public static partial class TestData
 {{
-    private static readonly Random _random = new Random();
+    private static readonly Random _random = Random.Shared; // Thread-safe
 
     /// <summary>
     /// Creates a new builder for {info.TypeName}.
@@ -230,7 +232,7 @@ public static partial class TestData
 
     public class {info.TypeName}Builder
     {{
-        private static int _sequence = 0;");
+        private static int _sequence; // Thread-safe via Interlocked");
 
         // Generate fields
         foreach (var prop in info.Properties)
@@ -241,7 +243,7 @@ public static partial class TestData
         sb.AppendLine();
         sb.AppendLine($"        public {info.TypeName}Builder()");
         sb.AppendLine("        {");
-        sb.AppendLine("            _sequence++;");
+        sb.AppendLine("            Interlocked.Increment(ref _sequence);");
 
         // Initialize with defaults
         foreach (var prop in info.Properties)
