@@ -23,7 +23,7 @@ public class MessageConverterRegistry(ILogger<MessageConverterRegistry> logger) 
         if (converter == null) throw new ArgumentNullException(nameof(converter));
 
         var messageType = typeof(TMessage);
-        var converterList = _converters.GetOrAdd(messageType, _ => new List<IMessageConverter>());
+        var converterList = _converters.GetOrAdd(messageType, _ => []);
 
         lock (converterList)
         {
@@ -84,7 +84,7 @@ public class MessageConverterRegistry(ILogger<MessageConverterRegistry> logger) 
             }
         }
 
-        return Enumerable.Empty<IMessageConverter>();
+        return [];
     }
 
     /// <summary>

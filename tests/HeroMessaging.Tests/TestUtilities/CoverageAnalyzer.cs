@@ -120,7 +120,7 @@ public class CoverageReport
     public decimal OverallCoverage { get; set; }
     public decimal LineCoverage { get; set; }
     public decimal BranchCoverage { get; set; }
-    public Dictionary<string, decimal> AssemblyCoverage { get; set; } = new();
+    public Dictionary<string, decimal> AssemblyCoverage { get; set; } = [];
     public IReadOnlyList<string> ExcludedPaths { get; set; } = Array.Empty<string>();
     public DateTimeOffset Timestamp { get; set; }
     public string Framework { get; set; } = string.Empty;

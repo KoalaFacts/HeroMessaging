@@ -425,7 +425,7 @@ public sealed class CommandProcessorTests : IDisposable
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
         public string? CorrelationId { get; set; }
         public string? CausationId { get; set; }
-        public Dictionary<string, object>? Metadata { get; set; } = new();
+        public Dictionary<string, object>? Metadata { get; set; } = [];
     }
 
     public class TestCommandWithResponse : ICommand<string>
@@ -434,7 +434,7 @@ public sealed class CommandProcessorTests : IDisposable
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
         public string? CorrelationId { get; set; }
         public string? CausationId { get; set; }
-        public Dictionary<string, object>? Metadata { get; set; } = new();
+        public Dictionary<string, object>? Metadata { get; set; } = [];
     }
 
     #endregion

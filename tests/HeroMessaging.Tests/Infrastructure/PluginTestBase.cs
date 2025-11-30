@@ -12,7 +12,7 @@ public abstract class PluginTestBase<TPlugin> : IAsyncDisposable where TPlugin :
 {
     protected readonly ITestOutputHelper Output;
     protected readonly PluginTestContext<TPlugin> Context;
-    private readonly List<IAsyncDisposable> _disposables = new();
+    private readonly List<IAsyncDisposable> _disposables = [];
     private bool _disposed = false;
 
     protected PluginTestBase(ITestOutputHelper output)
@@ -62,7 +62,7 @@ public abstract class PluginTestBase<TPlugin> : IAsyncDisposable where TPlugin :
         Dictionary<Type, object>? mockDependencies = null)
         where TImplementation : class, TPlugin
     {
-        var mockContainer = new MockDependencyContainer(mockDependencies ?? new Dictionary<Type, object>());
+        var mockContainer = new MockDependencyContainer(mockDependencies ?? []);
 
         var plugin = mockContainer.CreateInstance<TImplementation>();
 
@@ -422,7 +422,7 @@ public abstract class PluginTestBase<TPlugin> : IAsyncDisposable where TPlugin :
 public class PluginTestContext<TPlugin> : IAsyncDisposable
 {
     private readonly ITestOutputHelper _output;
-    private readonly List<IPluginWithLifecycle> _lifecyclePlugins = new();
+    private readonly List<IPluginWithLifecycle> _lifecyclePlugins = [];
     private bool _disposed = false;
 
     public PluginTestContext(ITestOutputHelper output)
@@ -581,8 +581,8 @@ public class PluginAttribute : Attribute
 public class PluginContractValidation
 {
     public bool IsValid { get; set; }
-    public List<string> Errors { get; set; } = new();
-    public List<string> Warnings { get; set; } = new();
+    public List<string> Errors { get; set; } = [];
+    public List<string> Warnings { get; set; } = [];
     public string? PluginName { get; set; }
     public string? PluginVersion { get; set; }
     public bool HasLifecycleSupport { get; set; }
@@ -612,7 +612,7 @@ public class PluginConfigurationTestResults
     public bool Success { get; set; }
     public string? ErrorMessage { get; set; }
     public string? Message { get; set; }
-    public List<ConfigurationTestResult> ConfigurationResults { get; set; } = new();
+    public List<ConfigurationTestResult> ConfigurationResults { get; set; } = [];
 }
 
 public class ConfigurationTestResult

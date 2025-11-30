@@ -12,7 +12,7 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
 {
     private readonly IConnection _connection;
     private readonly ILogger<RabbitMqChannelPool> _logger;
-    private readonly ConcurrentBag<PooledChannel> _channels = new();
+    private readonly ConcurrentBag<PooledChannel> _channels = [];
     private readonly SemaphoreSlim _createChannelLock = new(1, 1);
     private readonly int _maxChannels;
     private readonly TimeSpan _channelLifetime;

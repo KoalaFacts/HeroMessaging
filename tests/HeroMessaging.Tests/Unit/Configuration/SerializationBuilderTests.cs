@@ -551,7 +551,7 @@ public sealed class SerializationBuilderTests
         public string ContentType => "application/test";
 
         public ValueTask<byte[]> SerializeAsync<T>(T message, CancellationToken cancellationToken = default)
-            => new ValueTask<byte[]>(Array.Empty<byte>());
+            => new ValueTask<byte[]>([]);
 
         public int Serialize<T>(T message, Span<byte> destination)
             => 0;

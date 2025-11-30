@@ -45,6 +45,16 @@ public class ImmutabilityTests
             .Where(t => !t.IsAbstract && !t.IsInterface)
             .ToList();
 
+        // IMessage infrastructure properties that all events must have
+        var messageInterfaceProperties = new HashSet<string>
+        {
+            nameof(Abstractions.Messages.IMessage.MessageId),
+            nameof(Abstractions.Messages.IMessage.Timestamp),
+            nameof(Abstractions.Messages.IMessage.CorrelationId),
+            nameof(Abstractions.Messages.IMessage.CausationId),
+            nameof(Abstractions.Messages.IMessage.Metadata)
+        };
+
         // Act & Assert
         foreach (var @event in events)
         {
@@ -52,6 +62,7 @@ public class ImmutabilityTests
                 .Where(p => p.CanWrite && p.SetMethod?.IsPublic == true)
                 .Where(p => p.SetMethod?.ReturnParameter?.GetRequiredCustomModifiers()
                     .All(m => m.Name != "IsExternalInit") == true) // Exclude init-only setters
+                .Where(p => !messageInterfaceProperties.Contains(p.Name)) // Exclude IMessage infrastructure properties
                 .ToList();
 
             Assert.Empty(mutableProperties);
@@ -99,7 +110,7 @@ public class ImmutabilityTests
         {
             var violations = result.FailingTypeNames?
                 .Where(t => !t.Contains("Base") && !t.Contains("Test"))
-                .ToList() ?? new List<string>();
+                .ToList() ?? [];
 
             Assert.Empty(violations);
         }

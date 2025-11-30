@@ -24,7 +24,7 @@ public sealed record DeadLetterContext
     public string Component { get; init; } = string.Empty;
     public int RetryCount { get; init; }
     public DateTimeOffset FailureTime { get; init; } = TimeProvider.System.GetUtcNow();
-    public Dictionary<string, object> Metadata { get; init; } = new();
+    public Dictionary<string, object> Metadata { get; init; } = [];
 }
 
 /// <summary>
@@ -65,8 +65,8 @@ public sealed record DeadLetterStatistics
     public long ActiveCount { get; init; }
     public long RetriedCount { get; init; }
     public long DiscardedCount { get; init; }
-    public Dictionary<string, long> CountByComponent { get; init; } = new();
-    public Dictionary<string, long> CountByReason { get; init; } = new();
+    public Dictionary<string, long> CountByComponent { get; init; } = [];
+    public Dictionary<string, long> CountByReason { get; init; } = [];
     public DateTimeOffset? OldestEntry { get; init; }
     public DateTimeOffset? NewestEntry { get; init; }
 }

@@ -13,7 +13,7 @@ public class ConfigurationValidator : IConfigurationValidator
 {
     private readonly IServiceCollection _services;
     private readonly ILogger<ConfigurationValidator>? _logger;
-    private readonly List<ValidationResult> _results = new();
+    private readonly List<ValidationResult> _results = [];
 
     public ConfigurationValidator(IServiceCollection services, ILogger<ConfigurationValidator>? logger = null)
     {
@@ -197,7 +197,7 @@ public class ValidationReport : IValidationReport
 
     public ValidationReport(IEnumerable<ValidationResult> results)
     {
-        _results = results?.ToList() ?? new List<ValidationResult>();
+        _results = results?.ToList() ?? [];
     }
 
     public override string ToString()

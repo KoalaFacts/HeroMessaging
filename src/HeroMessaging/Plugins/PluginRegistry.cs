@@ -95,7 +95,7 @@ public class PluginRegistry : IPluginRegistry
     public IEnumerable<IPluginDescriptor> GetByFeature(string feature)
     {
         if (string.IsNullOrEmpty(feature))
-            return Enumerable.Empty<IPluginDescriptor>();
+            return [];
 
         return _plugins.Values
             .Where(p => p.ProvidedFeatures.Contains(feature))

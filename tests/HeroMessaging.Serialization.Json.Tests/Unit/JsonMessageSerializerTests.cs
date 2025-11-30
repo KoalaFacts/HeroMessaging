@@ -26,7 +26,7 @@ public class JsonMessageSerializerTests
         public decimal Value { get; set; }
 
         [JsonPropertyName("tags")]
-        public string[] Tags { get; set; } = Array.Empty<string>();
+        public string[] Tags { get; set; } = [];
     }
 
     private class ComplexTestMessage
@@ -146,11 +146,11 @@ public class JsonMessageSerializerTests
         {
             Id = "test-id",
             Nested = new TestMessage { Id = 1, Name = "Nested", Value = 10.5m },
-            Items = new List<TestMessage>
-            {
+            Items =
+            [
                 new() { Id = 2, Name = "Item1", Value = 20.0m },
                 new() { Id = 3, Name = "Item2", Value = 30.0m }
-            }
+            ]
         };
 
         // Act
@@ -572,11 +572,11 @@ public class JsonMessageSerializerTests
         {
             Id = "complex-id",
             Nested = new TestMessage { Id = 1, Name = "Nested", Value = 10.5m },
-            Items = new List<TestMessage>
-            {
+            Items =
+            [
                 new() { Id = 2, Name = "Item1", Value = 20.0m },
                 new() { Id = 3, Name = "Item2", Value = 30.0m }
-            }
+            ]
         };
 
         // Act

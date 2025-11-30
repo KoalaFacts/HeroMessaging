@@ -14,7 +14,7 @@ namespace HeroMessaging.Observability.HealthChecks.Tests.Integration;
 /// </summary>
 public class MultipleTransportHealthCheckTests : IAsyncDisposable
 {
-    private readonly List<IAsyncDisposable> _disposables = new();
+    private readonly List<IAsyncDisposable> _disposables = [];
 
     [Fact]
     [Trait("Category", "Integration")]

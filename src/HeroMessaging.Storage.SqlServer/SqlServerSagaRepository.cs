@@ -132,8 +132,8 @@ public class SqlServerSagaRepository<TSaga> : ISagaRepository<TSaga>, IDisposabl
                     CorrelationId UNIQUEIDENTIFIER PRIMARY KEY,
                     SagaType NVARCHAR(500) NOT NULL,
                     CurrentState NVARCHAR(100) NOT NULL,
-                    CreatedAt DATETIME2 NOT NULL,
-                    UpdatedAt DATETIME2 NOT NULL,
+                    CreatedAt DATETIMEOFFSET NOT NULL,
+                    UpdatedAt DATETIMEOFFSET NOT NULL,
                     IsCompleted BIT NOT NULL DEFAULT 0,
                     Version INT NOT NULL DEFAULT 0,
                     SagaData NVARCHAR(MAX) NOT NULL,
@@ -265,8 +265,8 @@ public class SqlServerSagaRepository<TSaga> : ISagaRepository<TSaga>, IDisposabl
         command.Parameters.Add("@CorrelationId", SqlDbType.UniqueIdentifier).Value = saga.CorrelationId;
         command.Parameters.Add("@SagaType", SqlDbType.NVarChar, 500).Value = _sagaTypeName;
         command.Parameters.Add("@CurrentState", SqlDbType.NVarChar, 100).Value = saga.CurrentState;
-        command.Parameters.Add("@CreatedAt", SqlDbType.DateTime2).Value = saga.CreatedAt;
-        command.Parameters.Add("@UpdatedAt", SqlDbType.DateTime2).Value = saga.UpdatedAt;
+        command.Parameters.Add("@CreatedAt", SqlDbType.DateTimeOffset).Value = saga.CreatedAt;
+        command.Parameters.Add("@UpdatedAt", SqlDbType.DateTimeOffset).Value = saga.UpdatedAt;
         command.Parameters.Add("@IsCompleted", SqlDbType.Bit).Value = saga.IsCompleted;
         command.Parameters.Add("@Version", SqlDbType.Int).Value = saga.Version;
         command.Parameters.Add("@SagaData", SqlDbType.NVarChar, -1).Value = _jsonSerializer.SerializeToString(saga, SharedJsonOptions);
@@ -357,7 +357,7 @@ public class SqlServerSagaRepository<TSaga> : ISagaRepository<TSaga>, IDisposabl
             updateCommand.Parameters.Add("@CorrelationId", SqlDbType.UniqueIdentifier).Value = saga.CorrelationId;
             updateCommand.Parameters.Add("@SagaType", SqlDbType.NVarChar, 500).Value = _sagaTypeName;
             updateCommand.Parameters.Add("@CurrentState", SqlDbType.NVarChar, 100).Value = saga.CurrentState;
-            updateCommand.Parameters.Add("@UpdatedAt", SqlDbType.DateTime2).Value = saga.UpdatedAt;
+            updateCommand.Parameters.Add("@UpdatedAt", SqlDbType.DateTimeOffset).Value = saga.UpdatedAt;
             updateCommand.Parameters.Add("@IsCompleted", SqlDbType.Bit).Value = saga.IsCompleted;
             updateCommand.Parameters.Add("@Version", SqlDbType.Int).Value = saga.Version;
             updateCommand.Parameters.Add("@SagaData", SqlDbType.NVarChar, -1).Value = _jsonSerializer.SerializeToString(saga, SharedJsonOptions);
@@ -432,7 +432,7 @@ public class SqlServerSagaRepository<TSaga> : ISagaRepository<TSaga>, IDisposabl
         using var command = new SqlCommand(sql, connection);
         command.CommandTimeout = _options.CommandTimeout;
         command.Parameters.Add("@SagaType", SqlDbType.NVarChar, 500).Value = _sagaTypeName;
-        command.Parameters.Add("@CutoffTime", SqlDbType.DateTime2).Value = cutoffTime;
+        command.Parameters.Add("@CutoffTime", SqlDbType.DateTimeOffset).Value = cutoffTime;
 
         var sagas = new List<TSaga>();
         using var reader = await command.ExecuteReaderAsync(cancellationToken);

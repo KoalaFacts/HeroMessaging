@@ -11,7 +11,7 @@ public sealed class PostgreSqlUnitOfWorkTests : IAsyncDisposable
 {
     private const string ValidConnectionString = "Host=localhost;Database=test;Username=user;Password=pass";
     private readonly FakeTimeProvider _timeProvider;
-    private readonly List<IAsyncDisposable> _disposables = new();
+    private readonly List<IAsyncDisposable> _disposables = [];
 
     public PostgreSqlUnitOfWorkTests()
     {

@@ -41,7 +41,7 @@ public class GZipCompressionProvider : ICompressionProvider
     {
         if (data == null || data.Length == 0)
         {
-            return Array.Empty<byte>();
+            return [];
         }
 
         using var output = new MemoryStream();
@@ -63,7 +63,7 @@ public class GZipCompressionProvider : ICompressionProvider
     {
         if (data == null || data.Length == 0)
         {
-            return Array.Empty<byte>();
+            return [];
         }
 
         using var input = new MemoryStream(data);

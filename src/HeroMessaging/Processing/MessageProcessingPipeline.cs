@@ -16,7 +16,7 @@ namespace HeroMessaging.Processing;
 public class MessageProcessingPipelineBuilder(IServiceProvider serviceProvider)
 {
     private readonly IServiceProvider _serviceProvider = serviceProvider;
-    private readonly List<Func<IMessageProcessor, IMessageProcessor>> _decorators = new();
+    private readonly List<Func<IMessageProcessor, IMessageProcessor>> _decorators = [];
 
 
     /// <summary>

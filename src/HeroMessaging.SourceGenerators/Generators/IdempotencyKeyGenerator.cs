@@ -51,14 +51,14 @@ public class IdempotencyKeyGenerator : IIncrementalGenerator
         var typeDecl = (TypeDeclarationSyntax)context.Node;
         var symbol = context.SemanticModel.GetDeclaredSymbol(typeDecl) as INamedTypeSymbol;
 
-        if (symbol is null) return (null, Array.Empty<string>());
+        if (symbol is null) return (null, []);
 
         // Check for [GenerateIdempotencyKey] attribute
         var attribute = symbol.GetAttributes()
             .FirstOrDefault(attr => attr.AttributeClass?.Name == "GenerateIdempotencyKeyAttribute" ||
                                    attr.AttributeClass?.Name == "GenerateIdempotencyKey");
 
-        if (attribute is null) return (null, Array.Empty<string>());
+        if (attribute is null) return (null, []);
 
         // Extract property names from attribute
         var propertyNames = attribute.ConstructorArguments

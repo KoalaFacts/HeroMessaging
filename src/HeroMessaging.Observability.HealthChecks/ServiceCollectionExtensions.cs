@@ -12,9 +12,9 @@ public static class ExtensionsToIHealthChecksBuilderForHeroMessaging
 {
     public static IHealthChecksBuilder AddHeroMessagingHealthChecks(
         this IHealthChecksBuilder builder,
-        Action<HeroMessagingHealthCheckOptions>? configure = null)
+        Action<HeroMessaging.Observability.HealthChecks.HeroMessagingHealthCheckOptions>? configure = null)
     {
-        var options = new HeroMessagingHealthCheckOptions();
+        var options = new HeroMessaging.Observability.HealthChecks.HeroMessagingHealthCheckOptions();
         configure?.Invoke(options);
 
         if (options.CheckStorage)
@@ -32,7 +32,7 @@ public static class ExtensionsToIHealthChecksBuilderForHeroMessaging
 
     private static IHealthChecksBuilder AddStorageHealthChecks(
         this IHealthChecksBuilder builder,
-        HeroMessagingHealthCheckOptions options)
+        HeroMessaging.Observability.HealthChecks.HeroMessagingHealthCheckOptions options)
     {
         if (options.CheckMessageStorage)
         {
@@ -99,7 +99,7 @@ public static class ExtensionsToIHealthChecksBuilderForHeroMessaging
 
     private static IHealthChecksBuilder AddTransportHealthChecks(
         this IHealthChecksBuilder builder,
-        HeroMessagingHealthCheckOptions options)
+        HeroMessaging.Observability.HealthChecks.HeroMessagingHealthCheckOptions options)
     {
         // Register a health check that will enumerate all transports at runtime
         builder.Add(new HealthCheckRegistration(
@@ -153,16 +153,4 @@ public static class ExtensionsToIHealthChecksBuilderForHeroMessaging
             return Task.FromResult(HealthCheckResult.Healthy(_description));
         }
     }
-}
-
-public class HeroMessagingHealthCheckOptions
-{
-    public bool CheckStorage { get; set; } = true;
-    public bool CheckMessageStorage { get; set; } = true;
-    public bool CheckOutboxStorage { get; set; } = true;
-    public bool CheckInboxStorage { get; set; } = true;
-    public bool CheckQueueStorage { get; set; } = true;
-    public bool CheckTransport { get; set; } = false;
-    public Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus? FailureStatus { get; set; } = Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Unhealthy;
-    public IReadOnlyCollection<string>? Tags { get; set; }
 }

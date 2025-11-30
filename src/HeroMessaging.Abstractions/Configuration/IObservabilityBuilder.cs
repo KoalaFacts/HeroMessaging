@@ -65,7 +65,7 @@ public class OpenTelemetryOptions
     public bool EnableTracing { get; set; } = true;
     public bool EnableMetrics { get; set; } = true;
     public bool EnableLogging { get; set; } = false;
-    public Dictionary<string, string> ResourceAttributes { get; set; } = new();
+    public Dictionary<string, string> ResourceAttributes { get; set; } = [];
 }
 
 public class MetricsOptions
@@ -89,5 +89,5 @@ public class LoggingOptions
 {
     public bool IncludeScopes { get; set; } = true;
     public bool IncludeTraceContext { get; set; } = true;
-    public Dictionary<string, string> GlobalProperties { get; set; } = new();
+    public Dictionary<string, string> GlobalProperties { get; set; } = [];
 }

@@ -27,6 +27,6 @@ public sealed class GenerateIdempotencyKeyAttribute : Attribute
 
     public GenerateIdempotencyKeyAttribute(params string[] propertyNames)
     {
-        PropertyNames = propertyNames ?? Array.Empty<string>();
+        PropertyNames = propertyNames ?? [];
     }
 }

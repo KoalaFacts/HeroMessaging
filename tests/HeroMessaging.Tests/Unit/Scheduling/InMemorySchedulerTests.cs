@@ -451,8 +451,8 @@ public class InMemorySchedulerTests : IAsyncLifetime
 /// </summary>
 public class TestMessageDeliveryHandler : IMessageDeliveryHandler
 {
-    private readonly System.Collections.Concurrent.ConcurrentBag<IMessage> _deliveredMessages = new();
-    private readonly System.Collections.Concurrent.ConcurrentBag<(Guid ScheduleId, Exception Exception)> _failedDeliveries = new();
+    private readonly System.Collections.Concurrent.ConcurrentBag<IMessage> _deliveredMessages = [];
+    private readonly System.Collections.Concurrent.ConcurrentBag<(Guid ScheduleId, Exception Exception)> _failedDeliveries = [];
 
     public List<IMessage> DeliveredMessages => _deliveredMessages.ToList();
     public List<(Guid ScheduleId, Exception Exception)> FailedDeliveries => _failedDeliveries.ToList();

@@ -24,7 +24,7 @@ public class EventBus : IEventBus, IAsyncDisposable
     private readonly ConcurrentDictionary<Type, Func<EventEnvelope, IMessageProcessor>> _pipelineFactoryCache = new();
 
     // Lightweight object pool for EventEnvelope using ConcurrentBag (zero dependencies)
-    private readonly ConcurrentBag<EventEnvelope> _envelopePool = new();
+    private readonly ConcurrentBag<EventEnvelope> _envelopePool = [];
     private const int MaxPoolSize = 64;
     private const int DefaultTaskArraySize = 8; // Most events have <8 handlers
 

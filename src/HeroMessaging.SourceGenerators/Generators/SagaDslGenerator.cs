@@ -303,7 +303,7 @@ public class SagaDslGenerator : IIncrementalGenerator
     {
         public string ClassName { get; set; } = string.Empty;
         public string Namespace { get; set; } = string.Empty;
-        public List<SagaStateInfo> States { get; set; } = new();
+        public List<SagaStateInfo> States { get; set; } = [];
         public string InitialState { get; set; } = string.Empty;
         public string DataType { get; set; } = "object";
     }
@@ -313,7 +313,7 @@ public class SagaDslGenerator : IIncrementalGenerator
         public string StateName { get; set; } = string.Empty;
         public string ClassName { get; set; } = string.Empty;
         public bool IsInitial { get; set; }
-        public List<EventHandlerInfo> EventHandlers { get; set; } = new();
+        public List<EventHandlerInfo> EventHandlers { get; set; } = [];
         public string? CompensationMethod { get; set; }
         public TimeoutHandlerInfo? TimeoutHandler { get; set; }
     }

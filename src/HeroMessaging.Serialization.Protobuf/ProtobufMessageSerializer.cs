@@ -73,16 +73,27 @@ public class ProtobufMessageSerializer(
     ICompressionProvider? compressionProvider = null) : IMessageSerializer
 {
     private readonly SerializationOptions _options = options ?? new SerializationOptions();
-    private readonly RuntimeTypeModel _typeModel = typeModel ?? RuntimeTypeModel.Default;
+    private readonly RuntimeTypeModel _typeModel = typeModel ?? CreateDefaultTypeModel();
     private readonly ICompressionProvider _compressionProvider = compressionProvider ?? new GZipCompressionProvider();
+
+    private static RuntimeTypeModel CreateDefaultTypeModel()
+    {
+        var model = RuntimeTypeModel.Create();
+        // Add DateTimeOffset surrogate support
+        model.Add(typeof(DateTimeOffset), false)
+            .SetSurrogate(typeof(DateTimeOffsetSurrogate));
+        return model;
+    }
 
     public string ContentType => "application/x-protobuf";
 
     public async ValueTask<byte[]> SerializeAsync<T>(T message, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (message == null)
         {
-            return Array.Empty<byte>();
+            return [];
         }
 
         using var stream = new MemoryStream();
@@ -203,17 +214,28 @@ public class TypedProtobufMessageSerializer(
     ProtobufTypeRegistry? typeRegistry = null) : IMessageSerializer
 {
     private readonly SerializationOptions _options = options ?? new SerializationOptions();
-    private readonly RuntimeTypeModel _typeModel = typeModel ?? RuntimeTypeModel.Default;
+    private readonly RuntimeTypeModel _typeModel = typeModel ?? CreateDefaultTypeModel();
     private readonly ICompressionProvider _compressionProvider = compressionProvider ?? new GZipCompressionProvider();
     private readonly ProtobufTypeRegistry _typeRegistry = typeRegistry ?? ProtobufTypeRegistry.CreateDefault();
+
+    private static RuntimeTypeModel CreateDefaultTypeModel()
+    {
+        var model = RuntimeTypeModel.Create();
+        // Add DateTimeOffset surrogate support
+        model.Add(typeof(DateTimeOffset), false)
+            .SetSurrogate(typeof(DateTimeOffsetSurrogate));
+        return model;
+    }
 
     public string ContentType => "application/x-protobuf-typed";
 
     public async ValueTask<byte[]> SerializeAsync<T>(T message, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (message == null)
         {
-            return Array.Empty<byte>();
+            return [];
         }
 
         using var stream = new MemoryStream();

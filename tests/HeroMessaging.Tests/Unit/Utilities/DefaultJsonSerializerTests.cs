@@ -94,7 +94,7 @@ public class DefaultJsonSerializerTests
             {
                 Id = 1,
                 Name = "Complex",
-                Tags = new List<string> { "tag1", "tag2" },
+                Tags = ["tag1", "tag2"],
                 Metadata = new Dictionary<string, object> { { "key1", "value1" } }
             };
 
@@ -596,7 +596,7 @@ public class DefaultJsonSerializerTests
             {
                 Id = 1,
                 Name = "Complex",
-                Tags = new List<string> { "tag1", "tag2" },
+                Tags = ["tag1", "tag2"],
                 Metadata = new Dictionary<string, object> { { "key1", "value1" } }
             };
 
@@ -695,7 +695,7 @@ public class DefaultJsonSerializerTests
             {
                 Id = 1,
                 Name = "Complex",
-                Tags = new List<string> { "tag1", "tag2", "tag3" },
+                Tags = ["tag1", "tag2", "tag3"],
                 Metadata = new Dictionary<string, object> { { "key1", "value1" }, { "key2", 42 } }
             };
 

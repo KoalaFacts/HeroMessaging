@@ -71,6 +71,6 @@ public sealed record SecurityContext
     /// </summary>
     public IEnumerable<Claim> GetClaims(string claimType)
     {
-        return Principal?.FindAll(claimType) ?? Enumerable.Empty<Claim>();
+        return Principal?.FindAll(claimType) ?? [];
     }
 }

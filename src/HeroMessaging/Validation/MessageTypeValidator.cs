@@ -17,7 +17,7 @@ public class MessageTypeValidator : IMessageValidator
     {
         _allowedTypes = allowedTypes?.Any() == true
             ? new HashSet<Type>(allowedTypes)
-            : new HashSet<Type> { typeof(ICommand), typeof(IEvent) };
+            : [typeof(ICommand), typeof(IEvent)];
     }
 
     public ValueTask<ValidationResult> ValidateAsync(IMessage message, CancellationToken cancellationToken = default)

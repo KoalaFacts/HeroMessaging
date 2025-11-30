@@ -466,8 +466,8 @@ public sealed class ClaimsAuthenticationProviderTests
         var key1 = "valid-key-1";
         var key2 = "valid-key-2";
 
-        provider.RegisterApiKey(key1, "User1", Array.Empty<Claim>());
-        provider.RegisterApiKey(key2, "User2", Array.Empty<Claim>());
+        provider.RegisterApiKey(key1, "User1", []);
+        provider.RegisterApiKey(key2, "User2", []);
 
         // Act
         var result = await provider.ValidateTokenAsync("invalid-key");
@@ -518,7 +518,7 @@ public sealed class ClaimsAuthenticationProviderTests
         var apiKey = "test-key";
 
         // Act & Assert - Should not throw, empty claims should be handled
-        provider.RegisterApiKey(apiKey, "TestUser", Array.Empty<Claim>());
+        provider.RegisterApiKey(apiKey, "TestUser", []);
         var result = await provider.ValidateTokenAsync(apiKey);
 
         Assert.NotNull(result);

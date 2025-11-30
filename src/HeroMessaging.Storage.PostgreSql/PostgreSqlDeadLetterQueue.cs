@@ -71,7 +71,7 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
                 exception_message TEXT NULL,
                 metadata JSONB NULL
             );
-            
+
             CREATE INDEX IF NOT EXISTS idx_{_options.DeadLetterTableName}_status ON {_tableName} (status);
             CREATE INDEX IF NOT EXISTS idx_{_options.DeadLetterTableName}_message_type ON {_tableName} (message_type);
             CREATE INDEX IF NOT EXISTS idx_{_options.DeadLetterTableName}_failure_time ON {_tableName} (failure_time DESC);
@@ -96,8 +96,8 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
 
         var sql = $"""
             INSERT INTO {_tableName} (
-                id, message_payload, message_type, reason, component, 
-                retry_count, failure_time, status, created_at, 
+                id, message_payload, message_type, reason, component,
+                retry_count, failure_time, status, created_at,
                 exception_message, metadata
             )
             VALUES (
@@ -166,8 +166,8 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
             {
                 var metadataJson = reader.IsDBNull(11) ? null : reader.GetString(11);
                 var metadata = !string.IsNullOrEmpty(metadataJson)
-                    ? _jsonSerializer.DeserializeFromString<Dictionary<string, object>>(metadataJson, _jsonOptions) ?? new()
-                    : new Dictionary<string, object>();
+                    ? _jsonSerializer.DeserializeFromString<Dictionary<string, object>>(metadataJson, _jsonOptions) ?? []
+                    : [];
 
                 entries.Add(new DeadLetterEntry<T>
                 {

@@ -204,7 +204,7 @@ public class MessageVersioningOptions
     /// <summary>
     /// Registered converters
     /// </summary>
-    internal List<Action<IMessageConverterRegistry>> ConverterRegistrations { get; } = new();
+    internal List<Action<IMessageConverterRegistry>> ConverterRegistrations { get; } = [];
 
     /// <summary>
     /// Registers a converter with the options

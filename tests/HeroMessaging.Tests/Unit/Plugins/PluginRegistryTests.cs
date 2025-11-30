@@ -126,7 +126,7 @@ namespace HeroMessaging.Tests.Unit.Plugins
             var registry = CreateRegistry();
 
             // Act
-            registry.RegisterRange(Enumerable.Empty<IPluginDescriptor>());
+            registry.RegisterRange([]);
 
             // Assert
             Assert.Empty(registry.GetAll());

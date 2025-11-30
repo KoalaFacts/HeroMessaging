@@ -498,7 +498,7 @@ public sealed class IdempotencyPipelineIntegrationTests
 
     private sealed class TestIdempotencyStore : IIdempotencyStore
     {
-        private readonly Dictionary<string, IdempotencyResponse> _store = new();
+        private readonly Dictionary<string, IdempotencyResponse> _store = [];
 
         public ValueTask<IdempotencyResponse?> GetAsync(string key, CancellationToken cancellationToken = default)
         {

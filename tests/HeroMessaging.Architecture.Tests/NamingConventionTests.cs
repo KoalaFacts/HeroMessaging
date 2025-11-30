@@ -58,7 +58,7 @@ public class NamingConventionTests
         {
             var violations = result.FailingTypeNames?
                 .Where(t => !t.Contains("Test") && !t.Contains("Example"))
-                .ToList() ?? new List<string>();
+                .ToList() ?? [];
 
             Assert.Empty(violations);
         }
@@ -79,7 +79,7 @@ public class NamingConventionTests
         {
             var violations = result.FailingTypeNames?
                 .Where(t => !t.Contains("Test") && !t.Contains("Example"))
-                .ToList() ?? new List<string>();
+                .ToList() ?? [];
 
             Assert.Empty(violations);
         }

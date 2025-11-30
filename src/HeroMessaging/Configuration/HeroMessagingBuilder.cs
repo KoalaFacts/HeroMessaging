@@ -21,8 +21,8 @@ public class HeroMessagingBuilder(IServiceCollection services) : IHeroMessagingB
     private readonly IServiceCollection _services = services;
 
     public IServiceCollection Services => _services;
-    private readonly List<Assembly> _assemblies = new();
-    private readonly List<IMessagingPlugin> _plugins = new();
+    private readonly List<Assembly> _assemblies = [];
+    private readonly List<IMessagingPlugin> _plugins = [];
     private ProcessingOptions _processingOptions = new();
 
     private bool _withMediator;

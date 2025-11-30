@@ -386,7 +386,7 @@ public sealed class PropertyMappingConverterTests
         var message = new TestMessage
         {
             MessageId = Guid.NewGuid(),
-            Metadata = new Dictionary<string, object>()
+            Metadata = []
         };
 
         // Act

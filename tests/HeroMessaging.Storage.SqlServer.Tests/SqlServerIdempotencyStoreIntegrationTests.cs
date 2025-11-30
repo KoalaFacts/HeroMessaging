@@ -22,7 +22,7 @@ public sealed class SqlServerIdempotencyStoreIntegrationTests : IAsyncDisposable
     private readonly SqlServerIdempotencyStoreFixture _fixture;
     private readonly SqlServerIdempotencyStore _store;
     private readonly FakeTimeProvider _timeProvider;
-    private readonly List<string> _keysToCleanup = new();
+    private readonly List<string> _keysToCleanup = [];
     private readonly IJsonSerializer _jsonSerializer;
 
     public SqlServerIdempotencyStoreIntegrationTests(SqlServerIdempotencyStoreFixture fixture)

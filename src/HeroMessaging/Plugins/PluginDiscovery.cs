@@ -76,7 +76,7 @@ public class PluginDiscovery : IPluginDiscovery
         if (!Directory.Exists(directory))
         {
             _logger?.LogWarning("Plugin directory does not exist: {Directory}", directory);
-            return Enumerable.Empty<IPluginDescriptor>();
+            return [];
         }
 
         _logger?.LogInformation("Discovering plugins in directory: {Directory} with pattern: {Pattern}", directory, searchPattern);

@@ -21,7 +21,7 @@ public sealed class PostgreSqlIdempotencyStoreIntegrationTests : IAsyncDisposabl
     private readonly PostgreSqlIdempotencyStoreFixture _fixture;
     private readonly PostgreSqlIdempotencyStore _store;
     private readonly FakeTimeProvider _timeProvider;
-    private readonly List<string> _keysToCleanup = new();
+    private readonly List<string> _keysToCleanup = [];
     private readonly IJsonSerializer _jsonSerializer;
 
     public PostgreSqlIdempotencyStoreIntegrationTests(PostgreSqlIdempotencyStoreFixture fixture)

@@ -11,7 +11,7 @@ namespace HeroMessaging.Tests.Integration;
 /// </summary>
 public class PipelineTests : IAsyncDisposable
 {
-    private readonly List<IAsyncDisposable> _disposables = new();
+    private readonly List<IAsyncDisposable> _disposables = [];
 
     [Fact]
     [Trait("Category", "Integration")]
@@ -419,14 +419,14 @@ public class PipelineTests : IAsyncDisposable
 #else
         private readonly object _metricsLock = new();
 #endif
-        private readonly List<string> _processingSteps = new();
-        private readonly HashSet<string> _executedSteps = new();
+        private readonly List<string> _processingSteps = [];
+        private readonly HashSet<string> _executedSteps = [];
 #if NET9_0_OR_GREATER
         private readonly Lock _executedStepsLock = new();
 #else
         private readonly object _executedStepsLock = new();
 #endif
-        private readonly Dictionary<Guid, IMessage> _storage = new();
+        private readonly Dictionary<Guid, IMessage> _storage = [];
 #if NET9_0_OR_GREATER
         private readonly Lock _storageLock = new();
 #else
@@ -733,7 +733,7 @@ public class PipelineTests : IAsyncDisposable
         public bool Success { get; set; }
         public Guid ProcessedMessageId { get; set; }
         public Guid? StoredMessageId { get; set; }
-        public byte[] SerializedData { get; set; } = Array.Empty<byte>();
+        public byte[] SerializedData { get; set; } = [];
         public TimeSpan ProcessingDuration { get; set; }
         public string? ErrorMessage { get; set; }
     }
@@ -748,7 +748,7 @@ public class PipelineTests : IAsyncDisposable
     private class HealthReport
     {
         public HealthStatus OverallStatus { get; set; }
-        public Dictionary<string, HealthStatus> Components { get; set; } = new();
+        public Dictionary<string, HealthStatus> Components { get; set; } = [];
     }
 
     private enum HealthStatus

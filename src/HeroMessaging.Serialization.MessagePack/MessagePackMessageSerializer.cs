@@ -20,9 +20,11 @@ public class MessagePackMessageSerializer(SerializationOptions? options = null, 
     ///<inheritdoc/>
     public async ValueTask<byte[]> SerializeAsync<T>(T message, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (message == null)
         {
-            return Array.Empty<byte>();
+            return [];
         }
 
         var data = MessagePackSerializer.Serialize(message, _messagePackOptions, cancellationToken);
@@ -180,9 +182,11 @@ public class ContractMessagePackSerializer(SerializationOptions? options = null,
 
     public async ValueTask<byte[]> SerializeAsync<T>(T message, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (message == null)
         {
-            return Array.Empty<byte>();
+            return [];
         }
 
         var data = MessagePackSerializer.Serialize(message, _messagePackOptions, cancellationToken);

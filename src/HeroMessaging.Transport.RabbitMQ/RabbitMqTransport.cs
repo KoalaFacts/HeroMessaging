@@ -372,7 +372,7 @@ public sealed class RabbitMqTransport : IMessageTransport
             {
                 _logger.LogDebug("Declaring queue: {QueueName}", queue.Name);
 
-                var arguments = queue.Arguments ?? new Dictionary<string, object>();
+                var arguments = queue.Arguments ?? [];
 
                 // Add dead letter exchange if specified
                 if (!string.IsNullOrEmpty(queue.DeadLetterExchange))

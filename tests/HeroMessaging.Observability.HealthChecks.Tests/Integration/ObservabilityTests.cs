@@ -11,7 +11,7 @@ namespace HeroMessaging.Observability.HealthChecks.Tests.Integration;
 /// </summary>
 public class ObservabilityTests : IAsyncDisposable
 {
-    private readonly List<IAsyncDisposable> _disposables = new();
+    private readonly List<IAsyncDisposable> _disposables = [];
 
     [Fact]
     [Trait("Category", "Integration")]
@@ -332,7 +332,7 @@ public class ObservabilityTests : IAsyncDisposable
     // Test implementation classes
     private class TestHealthCheckRegistry : IAsyncDisposable
     {
-        private readonly Dictionary<string, IHealthCheck> _healthChecks = new();
+        private readonly Dictionary<string, IHealthCheck> _healthChecks = [];
 
         public void RegisterHealthCheck(string name, IHealthCheck healthCheck)
         {
@@ -435,7 +435,7 @@ public class ObservabilityTests : IAsyncDisposable
                     {
                         Name = name,
                         Value = 0,
-                        Tags = tags != null ? new Dictionary<string, string>(tags) : new Dictionary<string, string>(),
+                        Tags = tags != null ? new Dictionary<string, string>(tags) : [],
                         Timestamp = DateTimeOffset.UtcNow
                     };
                     _metrics[name] = metric;
@@ -496,7 +496,7 @@ public class ObservabilityTests : IAsyncDisposable
 
     private class TestTracer : IAsyncDisposable
     {
-        private readonly List<Trace> _traces = new();
+        private readonly List<Trace> _traces = [];
 
         public TraceContext StartTrace(string operationName)
         {
@@ -621,7 +621,7 @@ public class ObservabilityTests : IAsyncDisposable
     private class HealthReport
     {
         public HealthStatus OverallStatus { get; set; }
-        public Dictionary<string, HealthEntry> Entries { get; set; } = new();
+        public Dictionary<string, HealthEntry> Entries { get; set; } = [];
     }
 
     private class HealthEntry
@@ -635,7 +635,7 @@ public class ObservabilityTests : IAsyncDisposable
     {
         public string Name { get; set; } = "";
         public double Value { get; set; }
-        public Dictionary<string, string> Tags { get; set; } = new();
+        public Dictionary<string, string> Tags { get; set; } = [];
         public DateTimeOffset Timestamp { get; set; }
     }
 
@@ -646,7 +646,7 @@ public class ObservabilityTests : IAsyncDisposable
         public string OperationName { get; set; } = "";
         public DateTimeOffset StartTime { get; set; }
         public TimeSpan Duration { get; set; }
-        public Dictionary<string, string> Tags { get; set; } = new();
+        public Dictionary<string, string> Tags { get; set; } = [];
     }
 
     private class TraceContext
@@ -655,22 +655,22 @@ public class ObservabilityTests : IAsyncDisposable
         public string? ParentTraceId { get; set; }
         public string OperationName { get; set; } = "";
         public DateTimeOffset StartTime { get; set; }
-        public Dictionary<string, string> Tags { get; set; } = new();
+        public Dictionary<string, string> Tags { get; set; } = [];
     }
 
     // Additional test classes for remaining functionality
     private class TestCustomMetrics : IAsyncDisposable
     {
-        private readonly Dictionary<string, long> _counters = new();
-        private readonly Dictionary<string, List<double>> _histograms = new();
-        private readonly Dictionary<string, double> _gauges = new();
+        private readonly Dictionary<string, long> _counters = [];
+        private readonly Dictionary<string, List<double>> _histograms = [];
+        private readonly Dictionary<string, double> _gauges = [];
 
         public void IncrementCounter(string name) => _counters[name] = _counters.GetValueOrDefault(name, 0) + 1;
         public void RecordValue(string name, double value) => _histograms.GetOrAdd(name, []).Add(value);
         public void SetGauge(string name, double value) => _gauges[name] = value;
 
         public long GetCounterValue(string name) => _counters.GetValueOrDefault(name, 0);
-        public List<double> GetHistogramValues(string name) => _histograms.GetValueOrDefault(name, new List<double>());
+        public List<double> GetHistogramValues(string name) => _histograms.GetValueOrDefault(name, []);
         public double GetGaugeValue(string name) => _gauges.GetValueOrDefault(name, 0);
 
         public async ValueTask DisposeAsync() => await Task.CompletedTask;
@@ -678,7 +678,7 @@ public class ObservabilityTests : IAsyncDisposable
 
     private class TestMetricsAggregator : IAsyncDisposable
     {
-        private readonly List<double> _values = new();
+        private readonly List<double> _values = [];
 
         public void RecordProcessingTime(double milliseconds) => _values.Add(milliseconds);
 
@@ -701,7 +701,7 @@ public class ObservabilityTests : IAsyncDisposable
     private class TestAlertingSystem : IAsyncDisposable
     {
         private readonly Dictionary<string, AlertRule> _alertRules = new(StringComparer.OrdinalIgnoreCase);
-        private readonly List<TriggeredAlert> _triggeredAlerts = new();
+        private readonly List<TriggeredAlert> _triggeredAlerts = [];
 
         private sealed class AlertRule
         {

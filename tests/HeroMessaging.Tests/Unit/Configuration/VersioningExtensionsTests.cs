@@ -20,7 +20,7 @@ public class VersioningExtensionsTests
 
     public VersioningExtensionsTests()
     {
-        _services = new ServiceCollection();
+        _services = [];
         // Add NullLoggerFactory so services requiring ILogger<T> can be resolved
         _services.AddSingleton<ILoggerFactory, NullLoggerFactory>();
         _services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
@@ -526,7 +526,7 @@ public class VersioningExtensionsTests
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
         public string? CorrelationId { get; set; }
         public string? CausationId { get; set; }
-        public Dictionary<string, object>? Metadata { get; set; } = new();
+        public Dictionary<string, object>? Metadata { get; set; } = [];
     }
 
     #endregion

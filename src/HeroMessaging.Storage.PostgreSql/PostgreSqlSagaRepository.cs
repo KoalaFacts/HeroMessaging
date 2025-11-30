@@ -123,8 +123,8 @@ public class PostgreSqlSagaRepository<TSaga> : ISagaRepository<TSaga>, IDisposab
                 correlation_id UUID PRIMARY KEY,
                 saga_type VARCHAR(500) NOT NULL,
                 current_state VARCHAR(100) NOT NULL,
-                created_at TIMESTAMP NOT NULL,
-                updated_at TIMESTAMP NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL,
+                updated_at TIMESTAMPTZ NOT NULL,
                 is_completed BOOLEAN NOT NULL DEFAULT FALSE,
                 version INTEGER NOT NULL DEFAULT 0,
                 saga_data JSONB NOT NULL

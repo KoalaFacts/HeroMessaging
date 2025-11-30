@@ -34,7 +34,7 @@ public class VersionedMessageServiceTests
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
         public string? CorrelationId { get; set; }
         public string? CausationId { get; set; }
-        public Dictionary<string, object>? Metadata { get; set; } = new();
+        public Dictionary<string, object>? Metadata { get; set; } = [];
         public string Data { get; set; } = string.Empty;
     }
 

@@ -30,7 +30,7 @@ internal class InMemoryQueue : IDisposable, IAsyncDisposable
     private readonly bool _dropWhenFull;
 
     // Performance optimization: Cache consumer array to avoid allocation on every message
-    private InMemoryConsumer[] _consumerCache = Array.Empty<InMemoryConsumer>();
+    private InMemoryConsumer[] _consumerCache = [];
     private volatile int _consumerVersion; // Increment when consumers change
 
     public long MessageCount => Interlocked.Read(ref _messageCount);

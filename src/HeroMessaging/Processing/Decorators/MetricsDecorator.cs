@@ -67,14 +67,14 @@ public class InMemoryMetricsCollector : IMetricsCollector
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void RecordDuration(string name, TimeSpan duration)
     {
-        var bag = _durations.GetOrAdd(name, _ => new ConcurrentBag<TimeSpan>());
+        var bag = _durations.GetOrAdd(name, _ => []);
         bag.Add(duration);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void RecordValue(string name, double value)
     {
-        var bag = _values.GetOrAdd(name, _ => new ConcurrentBag<double>());
+        var bag = _values.GetOrAdd(name, _ => []);
         bag.Add(value);
     }
 

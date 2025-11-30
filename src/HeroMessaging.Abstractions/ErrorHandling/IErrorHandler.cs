@@ -13,7 +13,7 @@ public sealed record ErrorContext
     public int MaxRetries { get; init; }
     public string Component { get; init; } = string.Empty;
     public string? QueueName { get; init; }
-    public Dictionary<string, object> Metadata { get; init; } = new();
+    public Dictionary<string, object> Metadata { get; init; } = [];
     public DateTimeOffset FirstFailureTime { get; init; }
     public DateTimeOffset LastFailureTime { get; init; }
 }

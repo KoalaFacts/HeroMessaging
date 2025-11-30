@@ -125,6 +125,6 @@ public class HandlerRegistrationGenerator : IIncrementalGenerator
         public string TypeName { get; set; } = string.Empty;
         public string ClassName { get; set; } = string.Empty;
         public string Namespace { get; set; } = string.Empty;
-        public string[] Interfaces { get; set; } = Array.Empty<string>();
+        public string[] Interfaces { get; set; } = [];
     }
 }

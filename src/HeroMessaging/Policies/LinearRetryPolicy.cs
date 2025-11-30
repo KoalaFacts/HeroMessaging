@@ -20,7 +20,7 @@ public class LinearRetryPolicy : IRetryPolicy
         _delay = delay ?? TimeSpan.FromSeconds(1);
         _retryableExceptions = retryableExceptions?.Length > 0
             ? new HashSet<Type>(retryableExceptions)
-            : new HashSet<Type> { typeof(TimeoutException), typeof(TaskCanceledException) };
+            : [typeof(TimeoutException), typeof(TaskCanceledException)];
     }
 
     public bool ShouldRetry(Exception? exception, int attemptNumber)

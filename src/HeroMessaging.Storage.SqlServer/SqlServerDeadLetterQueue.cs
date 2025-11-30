@@ -98,8 +98,8 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
 
         var sql = $"""
             INSERT INTO {_tableName} (
-                Id, MessagePayload, MessageType, Reason, Component, 
-                RetryCount, FailureTime, Status, CreatedAt, 
+                Id, MessagePayload, MessageType, Reason, Component,
+                RetryCount, FailureTime, Status, CreatedAt,
                 ExceptionMessage, Metadata
             )
             VALUES (
@@ -160,8 +160,8 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
             {
                 var metadataJson = reader.IsDBNull(11) ? null : reader.GetString(11);
                 var metadata = !string.IsNullOrEmpty(metadataJson)
-                    ? _jsonSerializer.DeserializeFromString<Dictionary<string, object>>(metadataJson, _jsonOptions) ?? new()
-                    : new Dictionary<string, object>();
+                    ? _jsonSerializer.DeserializeFromString<Dictionary<string, object>>(metadataJson, _jsonOptions) ?? []
+                    : [];
 
                 entries.Add(new DeadLetterEntry<T>
                 {

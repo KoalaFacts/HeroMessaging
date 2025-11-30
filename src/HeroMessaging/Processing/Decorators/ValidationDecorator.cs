@@ -36,7 +36,7 @@ public class ValidationDecorator(
 
 public class CompositeValidator : IMessageValidator
 {
-    private readonly List<IMessageValidator> _validators = new();
+    private readonly List<IMessageValidator> _validators = [];
 
     public CompositeValidator(params IMessageValidator[] validators)
     {

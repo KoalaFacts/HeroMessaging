@@ -185,7 +185,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
             // Build transport envelope with headers including trace context
             var headers = ea.BasicProperties.Headers?.ToDictionary(
                 kvp => kvp.Key,
-                kvp => kvp.Value) ?? new Dictionary<string, object>();
+                kvp => kvp.Value) ?? [];
 
             var envelope = new TransportEnvelope
             {

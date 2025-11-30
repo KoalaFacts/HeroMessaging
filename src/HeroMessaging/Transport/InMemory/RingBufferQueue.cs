@@ -15,7 +15,7 @@ namespace HeroMessaging.Transport.InMemory;
 internal class RingBufferQueue : IDisposable, IAsyncDisposable
 {
     private readonly RingBuffer<MessageEvent> _ringBuffer;
-    private readonly List<ConsumerProcessor> _consumers = new();
+    private readonly List<ConsumerProcessor> _consumers = [];
     private readonly CancellationTokenSource _cts = new();
     private long _messageCount;
     private long _depth;

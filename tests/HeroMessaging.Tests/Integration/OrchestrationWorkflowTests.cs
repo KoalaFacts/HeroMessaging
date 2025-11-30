@@ -41,10 +41,10 @@ public class OrchestrationWorkflowTests
             orderId,
             customerId,
             TotalAmount: 99.99m,
-            Items: new List<OrderItem>
-            {
+            Items:
+            [
                 new() { ProductId = "PROD-1", Quantity = 2, Price = 49.99m }
-            })
+            ])
         {
             CorrelationId = correlationId.ToString()
         };
@@ -107,7 +107,7 @@ public class OrchestrationWorkflowTests
             orderId,
             CustomerId: "CUST-123",
             TotalAmount: 99.99m,
-            Items: new List<OrderItem>())
+            Items: [])
         {
             CorrelationId = correlationId.ToString()
         };
@@ -144,7 +144,7 @@ public class OrchestrationWorkflowTests
 
         // Act - Order created, payment processed, inventory fails
         await orchestrator.ProcessAsync(new OrderCreatedEvent(
-            orderId, "CUST-123", 99.99m, new List<OrderItem>())
+            orderId, "CUST-123", 99.99m, [])
         { CorrelationId = correlationId.ToString() });
 
         await orchestrator.ProcessAsync(new PaymentProcessedEvent(
@@ -179,7 +179,7 @@ public class OrchestrationWorkflowTests
 
         // Act - Complete workflow until shipment fails
         await orchestrator.ProcessAsync(new OrderCreatedEvent(
-            orderId, "CUST-123", 99.99m, new List<OrderItem>())
+            orderId, "CUST-123", 99.99m, [])
         { CorrelationId = correlationId.ToString() });
 
         await orchestrator.ProcessAsync(new PaymentProcessedEvent(
@@ -187,7 +187,7 @@ public class OrchestrationWorkflowTests
         { CorrelationId = correlationId.ToString() });
 
         await orchestrator.ProcessAsync(new InventoryReservedEvent(
-            orderId, "RES-456", new List<OrderItem>())
+            orderId, "RES-456", [])
         { CorrelationId = correlationId.ToString() });
 
         await orchestrator.ProcessAsync(new ShipmentFailedEvent(
@@ -219,7 +219,7 @@ public class OrchestrationWorkflowTests
 
         // Act
         await orchestrator.ProcessAsync(new OrderCreatedEvent(
-            orderId, "CUST-123", 99.99m, new List<OrderItem>())
+            orderId, "CUST-123", 99.99m, [])
         { CorrelationId = correlationId.ToString() });
 
         await orchestrator.ProcessAsync(new OrderCancelledEvent(
@@ -249,7 +249,7 @@ public class OrchestrationWorkflowTests
 
         // Act
         await orchestrator.ProcessAsync(new OrderCreatedEvent(
-            orderId, "CUST-123", 99.99m, new List<OrderItem>())
+            orderId, "CUST-123", 99.99m, [])
         { CorrelationId = correlationId.ToString() });
 
         await orchestrator.ProcessAsync(new PaymentProcessedEvent(
@@ -325,7 +325,7 @@ public class OrchestrationWorkflowTests
 
         // Act
         await orchestrator.ProcessAsync(new OrderCreatedEvent(
-            orderId, "CUST-123", 99.99m, new List<OrderItem>())
+            orderId, "CUST-123", 99.99m, [])
         { CorrelationId = correlationId.ToString() });
 
         var sagaAfterCreation = await repository.FindAsync(correlationId);
@@ -350,7 +350,7 @@ public class OrchestrationWorkflowTests
         string orderId)
     {
         await orchestrator.ProcessAsync(new OrderCreatedEvent(
-            orderId, "CUST-123", 99.99m, new List<OrderItem>())
+            orderId, "CUST-123", 99.99m, [])
         { CorrelationId = correlationId.ToString() });
 
         await orchestrator.ProcessAsync(new PaymentProcessedEvent(
@@ -358,7 +358,7 @@ public class OrchestrationWorkflowTests
         { CorrelationId = correlationId.ToString() });
 
         await orchestrator.ProcessAsync(new InventoryReservedEvent(
-            orderId, $"RES-{orderId}", new List<OrderItem>())
+            orderId, $"RES-{orderId}", [])
         { CorrelationId = correlationId.ToString() });
 
         await orchestrator.ProcessAsync(new OrderShippedEvent(
@@ -471,7 +471,7 @@ public class OrchestrationWorkflowTests
             orderId,
             "CUST-123",
             99.99m,
-            new List<OrderItem>())
+            [])
         { CorrelationId = correlationId.ToString() });
 
         // Advance time by 2 hours to make saga stale

@@ -68,7 +68,7 @@ public class HandlerDesignTests
         {
             var violations = result.FailingTypeNames?
                 .Where(t => !t.Contains("Decorator"))
-                .ToList() ?? new List<string>();
+                .ToList() ?? [];
 
             Assert.Empty(violations);
         }

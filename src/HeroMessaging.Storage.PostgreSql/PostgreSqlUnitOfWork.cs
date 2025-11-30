@@ -12,7 +12,7 @@ public class PostgreSqlUnitOfWork : IUnitOfWork
 {
     private readonly NpgsqlConnection _connection;
     private NpgsqlTransaction? _transaction;
-    private readonly List<string> _savepoints = new();
+    private readonly List<string> _savepoints = [];
     private readonly TimeProvider _timeProvider;
     private readonly IJsonSerializer _jsonSerializer;
     private bool _disposed;

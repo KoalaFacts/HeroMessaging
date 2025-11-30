@@ -356,7 +356,7 @@ public sealed class PropertyAdditionConverterTests
         var message = new TestMessage
         {
             MessageId = Guid.NewGuid(),
-            Metadata = new Dictionary<string, object>()
+            Metadata = []
         };
 
         // Act

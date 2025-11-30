@@ -528,7 +528,7 @@ public sealed class MessageProcessingPipelineTests : IDisposable
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
         public string? CorrelationId { get; set; }
         public string? CausationId { get; set; }
-        public Dictionary<string, object>? Metadata { get; set; } = new();
+        public Dictionary<string, object>? Metadata { get; set; } = [];
     }
 
     public class CustomTestDecorator : IMessageProcessor

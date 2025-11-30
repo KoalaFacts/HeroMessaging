@@ -11,7 +11,7 @@ public sealed class SqlServerUnitOfWorkTests : IAsyncDisposable
 {
     private const string ValidConnectionString = "Server=localhost;Database=test;User Id=user;Password=pass;TrustServerCertificate=true";
     private readonly FakeTimeProvider _timeProvider;
-    private readonly List<IAsyncDisposable> _disposables = new();
+    private readonly List<IAsyncDisposable> _disposables = [];
 
     public SqlServerUnitOfWorkTests()
     {

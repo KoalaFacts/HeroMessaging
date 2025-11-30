@@ -504,8 +504,8 @@ internal class TestRunner
 /// </summary>
 internal class TestRunnerConfiguration
 {
-    public List<string> DefaultCategories { get; set; } = new() { "Unit", "Integration" };
-    public List<string> TestAssemblyPatterns { get; set; } = new() { "*.Tests.dll", "*.Test.dll" };
+    public List<string> DefaultCategories { get; set; } = ["Unit", "Integration"];
+    public List<string> TestAssemblyPatterns { get; set; } = ["*.Tests.dll", "*.Test.dll"];
     public int MaxParallelism { get; set; } = Environment.ProcessorCount;
     public bool GenerateCoverageReport { get; set; } = true;
     public bool GenerateDetailedReport { get; set; } = true;
@@ -524,7 +524,7 @@ internal class TestExecutionResults
     public bool Success { get; set; }
     public string? ErrorMessage { get; set; }
     public TestRunnerConfiguration Configuration { get; set; } = new();
-    public Dictionary<string, CategoryTestResults> CategoryResults { get; set; } = new();
+    public Dictionary<string, CategoryTestResults> CategoryResults { get; set; } = [];
     public CoverageReport? CoverageReport { get; set; }
 }
 
@@ -543,7 +543,7 @@ internal class CategoryTestResults
     public int PassedTests { get; set; }
     public int FailedTests { get; set; }
     public int SkippedTests { get; set; }
-    public List<TestGroupResults> TestGroupResults { get; set; } = new();
+    public List<TestGroupResults> TestGroupResults { get; set; } = [];
 }
 
 /// <summary>
@@ -559,9 +559,9 @@ internal class TestGroupResults
     public int PassedTests { get; set; }
     public int FailedTests { get; set; }
     public int SkippedTests { get; set; }
-    public List<string> PassedTestNames { get; set; } = new();
-    public List<string> FailedTestNames { get; set; } = new();
-    public Dictionary<string, string> TestFailures { get; set; } = new();
+    public List<string> PassedTestNames { get; set; } = [];
+    public List<string> FailedTestNames { get; set; } = [];
+    public Dictionary<string, string> TestFailures { get; set; } = [];
 }
 
 /// <summary>
@@ -580,6 +580,6 @@ internal class CoverageReport
 internal class TestConfigurationValidation
 {
     public bool IsValid { get; set; }
-    public List<string> Errors { get; set; } = new();
-    public List<string> Warnings { get; set; } = new();
+    public List<string> Errors { get; set; } = [];
+    public List<string> Warnings { get; set; } = [];
 }

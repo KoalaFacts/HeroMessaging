@@ -22,9 +22,11 @@ public class JsonMessageSerializer(
 
     public async ValueTask<byte[]> SerializeAsync<T>(T message, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (message == null)
         {
-            return Array.Empty<byte>();
+            return [];
         }
 
         var json = JsonSerializer.Serialize(message, _jsonOptions);

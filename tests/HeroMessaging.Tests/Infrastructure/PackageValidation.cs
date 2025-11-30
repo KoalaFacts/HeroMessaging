@@ -683,7 +683,7 @@ internal class PackageValidation
     private List<string> DetectVersionConflicts(Dictionary<string, List<string>> dependencyGraph)
     {
         // Simplified version conflict detection
-        return new List<string>();
+        return [];
     }
 
     private List<string> DetectMissingDependencies(Dictionary<string, List<string>> dependencyGraph, List<PackageValidationResult> packageResults)
@@ -740,10 +740,10 @@ internal class PackageValidation
 
 internal class PackageValidationConfiguration
 {
-    public List<string> RequiredTargetFrameworks { get; set; } = new() { "netstandard2.0", "net6.0", "net8.0", "net10.0" };
-    public List<string> RequiredPackages { get; set; } = new() { "HeroMessaging", "HeroMessaging.Abstractions" };
-    public List<string> CorePackageNames { get; set; } = new() { "HeroMessaging" };
-    public List<string> ExternalDependencies { get; set; } = new() { "Microsoft.Extensions", "System" };
+    public List<string> RequiredTargetFrameworks { get; set; } = ["netstandard2.0", "net6.0", "net8.0", "net10.0"];
+    public List<string> RequiredPackages { get; set; } = ["HeroMessaging", "HeroMessaging.Abstractions"];
+    public List<string> CorePackageNames { get; set; } = ["HeroMessaging"];
+    public List<string> ExternalDependencies { get; set; } = ["Microsoft.Extensions", "System"];
     public bool RequireStrongNaming { get; set; } = false;
     public bool RequireXmlDocumentation { get; set; } = true;
 }
@@ -759,7 +759,7 @@ internal class PackageValidationResults
     public int TotalPackagesFound { get; set; }
     public int ValidPackagesCount { get; set; }
     public int InvalidPackagesCount { get; set; }
-    public List<PackageValidationResult> PackageResults { get; set; } = new();
+    public List<PackageValidationResult> PackageResults { get; set; } = [];
     public PackageDependencyValidation DependencyValidation { get; set; } = new();
     public ConstitutionalComplianceValidation ConstitutionalValidation { get; set; } = new();
     public string ValidationReport { get; set; } = string.Empty;
@@ -770,7 +770,7 @@ internal class PackageValidationResult
     public string PackagePath { get; set; } = string.Empty;
     public string PackageName { get; set; } = string.Empty;
     public bool IsValid { get; set; }
-    public List<string> ValidationErrors { get; set; } = new();
+    public List<string> ValidationErrors { get; set; } = [];
     public PackageStructureValidation StructureValidation { get; set; } = new();
     public PackageMetadataValidation MetadataValidation { get; set; } = new();
     public TargetFrameworkValidation FrameworkValidation { get; set; } = new();
@@ -782,31 +782,31 @@ internal class PackageValidationResult
 internal class PackageStructureValidation
 {
     public bool IsValid { get; set; }
-    public List<string> Errors { get; set; } = new();
-    public List<string> Warnings { get; set; } = new();
+    public List<string> Errors { get; set; } = [];
+    public List<string> Warnings { get; set; } = [];
 }
 
 internal class PackageMetadataValidation
 {
     public bool IsValid { get; set; }
-    public List<string> Errors { get; set; } = new();
-    public List<string> Warnings { get; set; } = new();
+    public List<string> Errors { get; set; } = [];
+    public List<string> Warnings { get; set; } = [];
 }
 
 internal class TargetFrameworkValidation
 {
     public bool IsValid { get; set; }
-    public List<string> Errors { get; set; } = new();
-    public List<string> Warnings { get; set; } = new();
-    public List<string> SupportedFrameworks { get; set; } = new();
+    public List<string> Errors { get; set; } = [];
+    public List<string> Warnings { get; set; } = [];
+    public List<string> SupportedFrameworks { get; set; } = [];
 }
 
 internal class AssemblyValidation
 {
     public bool IsValid { get; set; }
-    public List<string> Errors { get; set; } = new();
-    public List<string> Warnings { get; set; } = new();
-    public List<AssemblyInfo> Assemblies { get; set; } = new();
+    public List<string> Errors { get; set; } = [];
+    public List<string> Warnings { get; set; } = [];
+    public List<AssemblyInfo> Assemblies { get; set; } = [];
 }
 
 internal class AssemblyInfo
@@ -820,9 +820,9 @@ internal class AssemblyInfo
 internal class PackageDependencyValidationResult
 {
     public bool IsValid { get; set; }
-    public List<string> Errors { get; set; } = new();
-    public List<string> Warnings { get; set; } = new();
-    public List<PackageDependency> Dependencies { get; set; } = new();
+    public List<string> Errors { get; set; } = [];
+    public List<string> Warnings { get; set; } = [];
+    public List<PackageDependency> Dependencies { get; set; } = [];
 }
 
 internal class PackageDependency
@@ -834,21 +834,21 @@ internal class PackageDependency
 internal class DocumentationValidation
 {
     public bool IsValid { get; set; }
-    public List<string> Errors { get; set; } = new();
-    public List<string> Warnings { get; set; } = new();
+    public List<string> Errors { get; set; } = [];
+    public List<string> Warnings { get; set; } = [];
 }
 
 internal class PackageDependencyValidation
 {
     public bool IsValid { get; set; }
-    public List<string> Errors { get; set; } = new();
-    public List<string> Warnings { get; set; } = new();
-    public Dictionary<string, List<string>> DependencyGraph { get; set; } = new();
+    public List<string> Errors { get; set; } = [];
+    public List<string> Warnings { get; set; } = [];
+    public Dictionary<string, List<string>> DependencyGraph { get; set; } = [];
 }
 
 internal class ConstitutionalComplianceValidation
 {
     public bool IsValid { get; set; }
-    public List<string> Errors { get; set; } = new();
-    public List<string> Warnings { get; set; } = new();
+    public List<string> Errors { get; set; } = [];
+    public List<string> Warnings { get; set; } = [];
 }

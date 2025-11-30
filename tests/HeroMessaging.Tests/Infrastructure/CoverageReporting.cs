@@ -492,6 +492,7 @@ internal class CoverageReporting
 
         var summary = new List<string>
         {
+
             "# Code Coverage Summary",
             "",
             $"**Overall Coverage:** {coverageData.OverallCoverage.LinePercentage:F1}%",
@@ -499,11 +500,11 @@ internal class CoverageReporting
             $"**Generated:** {DateTimeOffset.UtcNow:yyyy-MM-dd HH:mm:ss} UTC",
             "",
             "## Assembly Coverage",
-            ""
-        };
+            "",
+            "| Assembly | Line Coverage | Branch Coverage |",
+            "|----------|---------------|-----------------|"
 
-        summary.Add("| Assembly | Line Coverage | Branch Coverage |");
-        summary.Add("|----------|---------------|-----------------|");
+        };
 
         foreach (var assembly in coverageData.Assemblies.OrderByDescending(a => a.LinePercentage))
         {
@@ -551,17 +552,17 @@ internal class CoverageReporting
     {
         if (!File.Exists(filePath))
         {
-            return new List<CoverageDataPoint>();
+            return [];
         }
 
         try
         {
             var json = await File.ReadAllTextAsync(filePath);
-            return JsonSerializer.Deserialize<List<CoverageDataPoint>>(json) ?? new List<CoverageDataPoint>();
+            return JsonSerializer.Deserialize<List<CoverageDataPoint>>(json) ?? [];
         }
         catch
         {
-            return new List<CoverageDataPoint>();
+            return [];
         }
     }
 
@@ -651,7 +652,7 @@ internal class CoverageReportResults
 internal class CoverageData
 {
     public CoverageMetrics OverallCoverage { get; set; } = new();
-    public List<AssemblyCoverage> Assemblies { get; set; } = new();
+    public List<AssemblyCoverage> Assemblies { get; set; } = [];
 }
 
 internal class CoverageMetrics
@@ -665,7 +666,7 @@ internal class AssemblyCoverage
     public string Name { get; set; } = string.Empty;
     public double LinePercentage { get; set; }
     public double BranchPercentage { get; set; }
-    public List<ClassCoverage> Classes { get; set; } = new();
+    public List<ClassCoverage> Classes { get; set; } = [];
 }
 
 internal class ClassCoverage
@@ -681,8 +682,8 @@ internal class CoverageThresholdValidation
     public string? ErrorMessage { get; set; }
     public double OverallCoveragePercent { get; set; }
     public bool PassesMinimumThreshold { get; set; }
-    public List<AssemblyCoverageValidation> AssemblyValidations { get; set; } = new();
-    public List<CriticalPathValidation> CriticalPathValidations { get; set; } = new();
+    public List<AssemblyCoverageValidation> AssemblyValidations { get; set; } = [];
+    public List<CriticalPathValidation> CriticalPathValidations { get; set; } = [];
 }
 
 internal class AssemblyCoverageValidation
@@ -727,8 +728,8 @@ internal class DiffCoverageAnalysis
     public double BaselineCoverage { get; set; }
     public double CurrentCoverage { get; set; }
     public double CoverageChange { get; set; }
-    public List<AssemblyCoverageDiff> AssemblyDiffs { get; set; } = new();
-    public List<AssemblyCoverageDiff> SignificantChanges { get; set; } = new();
+    public List<AssemblyCoverageDiff> AssemblyDiffs { get; set; } = [];
+    public List<AssemblyCoverageDiff> SignificantChanges { get; set; } = [];
     public string? ReportPath { get; set; }
 }
 
@@ -744,13 +745,13 @@ internal class CoverageDataPoint
 {
     public DateTimeOffset Date { get; set; }
     public double OverallCoverage { get; set; }
-    public Dictionary<string, double> AssemblyCoverages { get; set; } = new();
+    public Dictionary<string, double> AssemblyCoverages { get; set; } = [];
 }
 
 internal class TrendChartData
 {
-    public List<string> Labels { get; set; } = new();
-    public List<double> CoverageValues { get; set; } = new();
+    public List<string> Labels { get; set; } = [];
+    public List<double> CoverageValues { get; set; } = [];
 }
 
 internal enum CoverageTrendDirection

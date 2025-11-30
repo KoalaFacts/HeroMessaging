@@ -60,14 +60,14 @@ public class MessagingMetrics
     public long MessagesQueued { get; set; }
     public long OutboxMessages { get; set; }
     public long InboxMessages { get; set; }
-    public Dictionary<string, long> QueueDepths { get; set; } = new();
-    public Dictionary<string, double> AverageProcessingTime { get; set; } = new();
+    public Dictionary<string, long> QueueDepths { get; set; } = [];
+    public Dictionary<string, double> AverageProcessingTime { get; set; } = [];
 }
 
 public class MessagingHealth
 {
     public bool IsHealthy { get; set; }
-    public Dictionary<string, ComponentHealth> Components { get; set; } = new();
+    public Dictionary<string, ComponentHealth> Components { get; set; } = [];
 }
 
 public class ComponentHealth

@@ -265,7 +265,7 @@ public class ConnectionHealthReport
 {
     public ConnectionHealthStatus OverallStatus { get; set; }
     public DateTimeOffset Timestamp { get; set; }
-    public Dictionary<string, OperationHealthData> OperationMetrics { get; set; } = new();
+    public Dictionary<string, OperationHealthData> OperationMetrics { get; set; } = [];
 }
 
 /// <summary>

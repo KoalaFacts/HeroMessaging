@@ -247,7 +247,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
                 {
                     // Only return stale sagas on first call
                     callCount++;
-                    return callCount == 1 ? new[] { staleSaga1, staleSaga2, staleSaga3 } : Array.Empty<TestSaga>();
+                    return callCount == 1 ? new[] { staleSaga1, staleSaga2, staleSaga3 } : [];
                 });
             repositoryMock.Setup(r => r.UpdateAsync(It.IsAny<TestSaga>(), It.IsAny<CancellationToken>()))
                 .Callback(() =>

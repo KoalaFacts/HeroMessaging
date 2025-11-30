@@ -17,7 +17,7 @@ public class OrderSaga : SagaBase
     public string? OrderId { get; set; }
     public string? CustomerId { get; set; }
     public decimal TotalAmount { get; set; }
-    public List<OrderItem> Items { get; set; } = new();
+    public List<OrderItem> Items { get; set; } = [];
 
     // Tracking data
     public string? PaymentTransactionId { get; set; }

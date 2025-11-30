@@ -50,7 +50,7 @@ public sealed class RequiredFieldsValidatorTests
         {
             MessageId = Guid.NewGuid(),
             Timestamp = DateTimeOffset.UtcNow,
-            Metadata = new Dictionary<string, object>()
+            Metadata = []
         };
 
         // Act
@@ -71,7 +71,7 @@ public sealed class RequiredFieldsValidatorTests
             MessageId = Guid.NewGuid(),
             Timestamp = DateTimeOffset.UtcNow,
             RequiredField = "value",
-            Metadata = new Dictionary<string, object>()
+            Metadata = []
         };
 
         // Act
@@ -95,7 +95,7 @@ public sealed class RequiredFieldsValidatorTests
         {
             MessageId = Guid.Empty,
             Timestamp = DateTimeOffset.UtcNow,
-            Metadata = new Dictionary<string, object>()
+            Metadata = []
         };
 
         // Act
@@ -116,7 +116,7 @@ public sealed class RequiredFieldsValidatorTests
         {
             MessageId = Guid.Empty,
             Timestamp = DateTimeOffset.UtcNow,
-            Metadata = new Dictionary<string, object>()
+            Metadata = []
         };
 
         // Act
@@ -141,7 +141,7 @@ public sealed class RequiredFieldsValidatorTests
         {
             MessageId = Guid.NewGuid(),
             Timestamp = default,
-            Metadata = new Dictionary<string, object>()
+            Metadata = []
         };
 
         // Act
@@ -162,7 +162,7 @@ public sealed class RequiredFieldsValidatorTests
         {
             MessageId = Guid.NewGuid(),
             Timestamp = DateTimeOffset.MinValue,
-            Metadata = new Dictionary<string, object>()
+            Metadata = []
         };
 
         // Act
@@ -186,7 +186,7 @@ public sealed class RequiredFieldsValidatorTests
         {
             MessageId = Guid.Empty,
             Timestamp = default,
-            Metadata = new Dictionary<string, object>()
+            Metadata = []
         };
 
         // Act
@@ -209,7 +209,7 @@ public sealed class RequiredFieldsValidatorTests
             MessageId = Guid.Empty,
             Timestamp = default,
             RequiredField = null,
-            Metadata = new Dictionary<string, object>()
+            Metadata = []
         };
 
         // Act
@@ -237,7 +237,7 @@ public sealed class RequiredFieldsValidatorTests
             MessageId = Guid.NewGuid(),
             Timestamp = DateTimeOffset.UtcNow,
             RequiredField = null,
-            Metadata = new Dictionary<string, object>()
+            Metadata = []
         };
 
         // Act
@@ -258,7 +258,7 @@ public sealed class RequiredFieldsValidatorTests
             MessageId = Guid.NewGuid(),
             Timestamp = DateTimeOffset.UtcNow,
             RequiredField = string.Empty,
-            Metadata = new Dictionary<string, object>()
+            Metadata = []
         };
 
         // Act
@@ -279,7 +279,7 @@ public sealed class RequiredFieldsValidatorTests
             MessageId = Guid.NewGuid(),
             Timestamp = DateTimeOffset.UtcNow,
             RequiredField = "   ",
-            Metadata = new Dictionary<string, object>()
+            Metadata = []
         };
 
         // Act
@@ -300,7 +300,7 @@ public sealed class RequiredFieldsValidatorTests
             MessageId = Guid.NewGuid(),
             Timestamp = DateTimeOffset.UtcNow,
             RequiredField = "valid value",
-            Metadata = new Dictionary<string, object>()
+            Metadata = []
         };
 
         // Act
@@ -323,7 +323,7 @@ public sealed class RequiredFieldsValidatorTests
             RequiredField1 = null,
             RequiredField2 = string.Empty,
             RequiredField3 = "valid",
-            Metadata = new Dictionary<string, object>()
+            Metadata = []
         };
 
         // Act
@@ -350,7 +350,7 @@ public sealed class RequiredFieldsValidatorTests
             MessageId = Guid.NewGuid(),
             Timestamp = DateTimeOffset.UtcNow,
             OptionalField = null,
-            Metadata = new Dictionary<string, object>()
+            Metadata = []
         };
 
         // Act
@@ -371,7 +371,7 @@ public sealed class RequiredFieldsValidatorTests
             MessageId = Guid.NewGuid(),
             Timestamp = DateTimeOffset.UtcNow,
             OptionalField = null,
-            Metadata = new Dictionary<string, object>()
+            Metadata = []
         };
 
         // Act
@@ -414,7 +414,7 @@ public sealed class RequiredFieldsValidatorTests
             MessageId = Guid.NewGuid(),
             Timestamp = DateTimeOffset.UtcNow,
             CorrelationId = null,
-            Metadata = new Dictionary<string, object>()
+            Metadata = []
         };
 
         // Act
@@ -434,7 +434,7 @@ public sealed class RequiredFieldsValidatorTests
             MessageId = Guid.NewGuid(),
             Timestamp = DateTimeOffset.UtcNow,
             CausationId = null,
-            Metadata = new Dictionary<string, object>()
+            Metadata = []
         };
 
         // Act
@@ -453,7 +453,7 @@ public sealed class RequiredFieldsValidatorTests
         {
             MessageId = Guid.NewGuid(),
             Timestamp = DateTimeOffset.UtcNow.AddDays(1),
-            Metadata = new Dictionary<string, object>()
+            Metadata = []
         };
 
         // Act
@@ -472,7 +472,7 @@ public sealed class RequiredFieldsValidatorTests
         {
             MessageId = Guid.NewGuid(),
             Timestamp = DateTimeOffset.UtcNow.AddYears(-1),
-            Metadata = new Dictionary<string, object>()
+            Metadata = []
         };
 
         // Act
@@ -547,7 +547,7 @@ public sealed class RequiredFieldsValidatorTests
         {
             MessageId = Guid.Empty,
             Timestamp = default,
-            Metadata = new Dictionary<string, object>()
+            Metadata = []
         };
 
         // Act
@@ -573,7 +573,7 @@ public sealed class RequiredFieldsValidatorTests
             MessageId = Guid.NewGuid(),
             Timestamp = DateTimeOffset.UtcNow,
             RequiredNumber = null,
-            Metadata = new Dictionary<string, object>()
+            Metadata = []
         };
 
         // Act
@@ -594,7 +594,7 @@ public sealed class RequiredFieldsValidatorTests
             MessageId = Guid.NewGuid(),
             Timestamp = DateTimeOffset.UtcNow,
             RequiredNumber = 0,
-            Metadata = new Dictionary<string, object>()
+            Metadata = []
         };
 
         // Act

@@ -133,5 +133,5 @@ public class SerializationCompressionOptions : SerializationOptions
 
 public class SerializationTypeMapping
 {
-    public Dictionary<Type, Type> TypeSerializers { get; } = new();
+    public Dictionary<Type, Type> TypeSerializers { get; } = [];
 }

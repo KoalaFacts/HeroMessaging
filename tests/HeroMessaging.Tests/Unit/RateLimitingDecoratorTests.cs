@@ -23,13 +23,13 @@ public class RateLimitingDecoratorTests
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
         public string? CorrelationId { get; set; } = Guid.NewGuid().ToString();
         public string? CausationId { get; set; }
-        public Dictionary<string, object>? Metadata { get; set; } = new();
+        public Dictionary<string, object>? Metadata { get; set; } = [];
     }
 
     public class MockMessageProcessor : IMessageProcessor
     {
         public int CallCount { get; private set; }
-        public List<IMessage> ProcessedMessages { get; } = new();
+        public List<IMessage> ProcessedMessages { get; } = [];
         public bool ShouldFail { get; set; }
         public TimeSpan ProcessingDelay { get; set; } = TimeSpan.Zero;
 

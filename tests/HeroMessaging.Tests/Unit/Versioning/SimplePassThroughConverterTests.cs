@@ -389,7 +389,7 @@ public sealed class SimplePassThroughConverterTests
         var message = new TestMessage
         {
             MessageId = Guid.NewGuid(),
-            Metadata = new Dictionary<string, object>()
+            Metadata = []
         };
 
         // Act

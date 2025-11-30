@@ -159,7 +159,7 @@ public sealed class AuthorizationPolicy
         _name = name ?? throw new ArgumentNullException(nameof(name));
         _requiredRoles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         _requiredClaims = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
-        _customRequirements = new List<Func<ClaimsPrincipal, bool>>();
+        _customRequirements = [];
     }
 
     /// <summary>

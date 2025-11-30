@@ -10,9 +10,9 @@ namespace HeroMessaging.Orchestration;
 /// <typeparam name="TSaga">Type of saga this state machine coordinates</typeparam>
 public class StateMachineBuilder<TSaga> where TSaga : class, ISaga
 {
-    private readonly Dictionary<string, List<object>> _transitions = new();
-    private readonly List<Func<TSaga, IServiceProvider, Task>> _initialActions = new();
-    private readonly HashSet<State> _finalStates = new();
+    private readonly Dictionary<string, List<object>> _transitions = [];
+    private readonly List<Func<TSaga, IServiceProvider, Task>> _initialActions = [];
+    private readonly HashSet<State> _finalStates = [];
     private State? _initialState;
 
     /// <summary>
@@ -48,7 +48,7 @@ public class StateMachineBuilder<TSaga> where TSaga : class, ISaga
         var key = fromState.Name;
         if (!_transitions.ContainsKey(key))
         {
-            _transitions[key] = new List<object>();
+            _transitions[key] = [];
         }
         _transitions[key].Add(transition);
     }

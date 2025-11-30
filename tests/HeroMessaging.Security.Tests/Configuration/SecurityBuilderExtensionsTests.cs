@@ -281,7 +281,7 @@ public sealed class SecurityBuilderExtensionsTests
         var services = new ServiceCollection();
         Action<ClaimsAuthenticationProvider> configure = p =>
         {
-            p.RegisterApiKey("test-key", "TestUser", Array.Empty<Claim>());
+            p.RegisterApiKey("test-key", "TestUser", []);
         };
 
         // Act
@@ -302,7 +302,7 @@ public sealed class SecurityBuilderExtensionsTests
         var services = new ServiceCollection();
         Action<ClaimsAuthenticationProvider> configure = p =>
         {
-            p.RegisterApiKey("key1", "User1", Array.Empty<Claim>());
+            p.RegisterApiKey("key1", "User1", []);
         };
         var scheme = "CustomScheme";
 
@@ -580,7 +580,7 @@ public sealed class SecurityBuilderExtensionsTests
         {
             builder.WithClaimsAuthentication(auth =>
             {
-                auth.RegisterApiKey("key1", "User1", Array.Empty<Claim>());
+                auth.RegisterApiKey("key1", "User1", []);
             }, "ApiKey");
         });
 

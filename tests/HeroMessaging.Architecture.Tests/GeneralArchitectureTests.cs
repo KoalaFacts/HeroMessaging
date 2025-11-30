@@ -13,6 +13,7 @@ public class GeneralArchitectureTests
     public void PublicTypes_ShouldResideInProperNamespace()
     {
         // Ensure public types are in namespaces that match their assembly
+        // Exception: Extension classes following the "ExtensionsTo*" pattern should be in the target's namespace
 
         // Arrange
         var assemblies = new[]
@@ -41,6 +42,12 @@ public class GeneralArchitectureTests
 
             foreach (var type in publicTypes)
             {
+                // Extension classes following "ExtensionsTo*" pattern should be in the target's namespace
+                if (type.Name.StartsWith("ExtensionsTo", StringComparison.Ordinal))
+                {
+                    continue; // Skip namespace check for extension classes
+                }
+
                 Assert.True(
                     type.Namespace!.StartsWith(assemblyName, StringComparison.Ordinal),
                     $"Type {type.FullName} should be in namespace starting with {assemblyName}");
@@ -166,7 +173,7 @@ public class GeneralArchitectureTests
                 .Where(t => !t.Contains("+Options")) // Allow nested options
                 .Where(t => !t.Contains("PooledBuffer")) // Allow nested buffer types
                 .Where(t => !t.Contains("BufferPoolManager")) // Allow buffer pool manager nested types
-                .ToList() ?? new List<string>();
+                .ToList() ?? [];
 
             Assert.Empty(violations);
         }

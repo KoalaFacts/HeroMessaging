@@ -366,7 +366,7 @@ public class ProcessingContextTests
         Assert.Null(context.HandlerType);
         Assert.Equal(0, context.RetryCount);
         Assert.Null(context.FirstFailureTime);
-        Assert.Equal(ImmutableDictionary<string, object>.Empty, context.Metadata);
+        Assert.Equal([], context.Metadata);
     }
 
     [Fact]

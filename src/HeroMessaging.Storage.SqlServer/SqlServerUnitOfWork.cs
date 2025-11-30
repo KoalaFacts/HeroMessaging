@@ -12,7 +12,7 @@ public class SqlServerUnitOfWork : IUnitOfWork
 {
     private readonly SqlConnection _connection;
     private SqlTransaction? _transaction;
-    private readonly List<string> _savepoints = new();
+    private readonly List<string> _savepoints = [];
     private bool _disposed;
     private readonly TimeProvider _timeProvider;
     private readonly IJsonSerializer _jsonSerializer;

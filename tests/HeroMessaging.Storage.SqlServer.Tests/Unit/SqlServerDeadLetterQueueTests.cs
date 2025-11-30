@@ -38,7 +38,7 @@ public sealed class SqlServerDeadLetterQueueTests : IDisposable
 
         _mockJsonSerializer
             .Setup(x => x.DeserializeFromString<Dictionary<string, object>>(It.IsAny<string>(), It.IsAny<JsonSerializerOptions>()))
-            .Returns(new Dictionary<string, object>());
+            .Returns([]);
     }
 
     [Fact]
