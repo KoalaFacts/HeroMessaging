@@ -118,12 +118,12 @@ public class ConnectionHealthMonitor(
                 // Cleanup old metrics
                 CleanupOldMetrics();
 
-                await Task.Delay(_options.HealthCheckInterval, stoppingToken);
+                await Task.Delay(_options.HealthCheckInterval, _timeProvider, stoppingToken);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 _logger.LogError(ex, "Error during connection health monitoring");
-                await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+                await Task.Delay(TimeSpan.FromMinutes(1), _timeProvider, stoppingToken);
             }
         }
     }

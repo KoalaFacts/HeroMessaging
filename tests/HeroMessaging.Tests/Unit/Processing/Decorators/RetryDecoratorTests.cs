@@ -3,6 +3,7 @@ using HeroMessaging.Abstractions.Policies;
 using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Processing.Decorators;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using Xunit;
 
@@ -14,17 +15,19 @@ public sealed class RetryDecoratorTests
     private readonly Mock<IMessageProcessor> _innerMock;
     private readonly Mock<ILogger<RetryDecorator>> _loggerMock;
     private readonly Mock<IRetryPolicy> _retryPolicyMock;
+    private readonly FakeTimeProvider _fakeTimeProvider;
 
     public RetryDecoratorTests()
     {
         _innerMock = new Mock<IMessageProcessor>();
         _loggerMock = new Mock<ILogger<RetryDecorator>>();
         _retryPolicyMock = new Mock<IRetryPolicy>();
+        _fakeTimeProvider = new FakeTimeProvider(DateTimeOffset.UtcNow);
     }
 
-    private RetryDecorator CreateDecorator(IRetryPolicy? retryPolicy = null)
+    private RetryDecorator CreateDecorator(IRetryPolicy? retryPolicy = null, TimeProvider? timeProvider = null)
     {
-        return new RetryDecorator(_innerMock.Object, _loggerMock.Object, retryPolicy);
+        return new RetryDecorator(_innerMock.Object, _loggerMock.Object, timeProvider ?? _fakeTimeProvider, retryPolicy);
     }
 
     #region ProcessAsync - Success Cases
@@ -195,13 +198,15 @@ public sealed class RetryDecoratorTests
             .ReturnsAsync(ProcessingResult.Failed(new TimeoutException("Timeout")));
 
         // Act
-        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        await decorator.ProcessAsync(message, context);
-        stopwatch.Stop();
+        var processTask = decorator.ProcessAsync(message, context);
 
-        // Assert - Should have waited at least for the delay
-        Assert.True(stopwatch.ElapsedMilliseconds >= 100,
-            $"Expected at least 100ms delay, but was {stopwatch.ElapsedMilliseconds}ms");
+        // Advance time and complete the delay
+        _fakeTimeProvider.Advance(TimeSpan.FromMilliseconds(100));
+
+        await processTask;
+
+        // Assert - FakeTimeProvider should have advanced by the delay
+        Assert.Equal(TimeSpan.FromMilliseconds(100), _fakeTimeProvider.GetUtcNow() - _fakeTimeProvider.Start);
     }
 
     [Fact]

@@ -112,7 +112,7 @@ internal sealed class RabbitMqConnectionPool : IAsyncDisposable
             {
                 _logger.LogWarning("Connection pool is full ({MaxSize} connections). Waiting for available connection...", _options.MaxPoolSize);
             }
-            await Task.Delay(100, cancellationToken).ConfigureAwait(false);
+            await Task.Delay(TimeSpan.FromMilliseconds(100), _timeProvider, cancellationToken).ConfigureAwait(false);
         }
 
         throw new InvalidOperationException($"Unable to acquire connection from pool after {MaxGetConnectionRetries} attempts. Pool may be exhausted.");

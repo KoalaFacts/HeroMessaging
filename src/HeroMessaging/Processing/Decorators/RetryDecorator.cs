@@ -14,9 +14,11 @@ namespace HeroMessaging.Processing.Decorators;
 public class RetryDecorator(
     IMessageProcessor inner,
     ILogger<RetryDecorator> logger,
+    TimeProvider timeProvider,
     IRetryPolicy? retryPolicy = null) : MessageProcessorDecorator(inner)
 {
     private readonly ILogger<RetryDecorator> _logger = logger;
+    private readonly TimeProvider _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     private readonly IRetryPolicy _retryPolicy = retryPolicy ?? new ExponentialBackoffRetryPolicy();
 
     public override async ValueTask<ProcessingResult> ProcessAsync(IMessage message, ProcessingContext context, CancellationToken cancellationToken = default)
@@ -56,7 +58,7 @@ public class RetryDecorator(
 
                 context = context.WithRetry(retryCount + 1, context.FirstFailureTime);
 
-                await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(delay, _timeProvider, cancellationToken).ConfigureAwait(false);
             }
 
             retryCount++;

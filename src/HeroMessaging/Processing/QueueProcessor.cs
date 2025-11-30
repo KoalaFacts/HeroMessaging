@@ -10,11 +10,13 @@ namespace HeroMessaging.Processing;
 public class QueueProcessor(
     IServiceProvider serviceProvider,
     IQueueStorage queueStorage,
-    ILogger<QueueProcessor> logger) : IQueueProcessor
+    ILogger<QueueProcessor> logger,
+    TimeProvider? timeProvider = null) : IQueueProcessor
 {
     private readonly IServiceProvider _serviceProvider = serviceProvider;
     private readonly IQueueStorage _queueStorage = queueStorage;
     private readonly ILogger<QueueProcessor> _logger = logger;
+    private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
     private readonly ConcurrentDictionary<string, QueueWorker> _workers = new();
 
     public async Task EnqueueAsync(IMessage message, string queueName, EnqueueOptions? options = null, CancellationToken cancellationToken = default)
@@ -39,7 +41,8 @@ public class QueueProcessor(
             queueName,
             _queueStorage,
             _serviceProvider,
-            _logger));
+            _logger,
+            _timeProvider));
 
         await worker.StartAsync(cancellationToken);
     }

@@ -15,6 +15,7 @@ internal sealed class QueueWorker
     private readonly IQueueStorage _storage;
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger _logger;
+    private readonly TimeProvider _timeProvider;
     private readonly ActionBlock<QueueEntry> _processingBlock;
     private CancellationTokenSource? _cancellationTokenSource;
     private Task? _pollingTask;
@@ -26,16 +27,19 @@ internal sealed class QueueWorker
     /// <param name="storage">The queue storage to poll from.</param>
     /// <param name="serviceProvider">The service provider for resolving handlers.</param>
     /// <param name="logger">The logger for diagnostic output.</param>
+    /// <param name="timeProvider">The time provider for time-related operations.</param>
     public QueueWorker(
         string queueName,
         IQueueStorage storage,
         IServiceProvider serviceProvider,
-        ILogger logger)
+        ILogger logger,
+        TimeProvider? timeProvider = null)
     {
         _queueName = queueName ?? throw new ArgumentNullException(nameof(queueName));
         _storage = storage ?? throw new ArgumentNullException(nameof(storage));
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _timeProvider = timeProvider ?? TimeProvider.System;
 
         _processingBlock = new ActionBlock<QueueEntry>(
             ProcessMessage,
@@ -106,7 +110,7 @@ internal sealed class QueueWorker
                 }
                 else
                 {
-                    await Task.Delay(ProcessingConstants.EmptyQueuePollDelayMs, cancellationToken);
+                    await Task.Delay(TimeSpan.FromMilliseconds(ProcessingConstants.EmptyQueuePollDelayMs), _timeProvider, cancellationToken);
                 }
             }
             catch (OperationCanceledException)
@@ -118,7 +122,7 @@ internal sealed class QueueWorker
                 _logger.LogError(ex, "Error polling queue {QueueName}", _queueName);
                 try
                 {
-                    await Task.Delay(ProcessingConstants.ErrorRecoveryDelayMs, cancellationToken);
+                    await Task.Delay(TimeSpan.FromMilliseconds(ProcessingConstants.ErrorRecoveryDelayMs), _timeProvider, cancellationToken);
                 }
                 catch (OperationCanceledException)
                 {

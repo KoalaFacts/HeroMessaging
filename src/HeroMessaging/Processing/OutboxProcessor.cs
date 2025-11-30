@@ -121,7 +121,7 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxEntry>, IOutbo
             entry.Message.MessageId, entry.Options.Destination);
 
         // Simulate network call
-        await Task.Delay(100);
+        await Task.Delay(TimeSpan.FromMilliseconds(100), _timeProvider, CancellationToken.None);
 
         // Simulate occasional failures for testing
         if (RandomHelper.Instance.Next(10) == 0)

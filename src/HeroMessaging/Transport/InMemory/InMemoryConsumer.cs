@@ -257,7 +257,7 @@ internal class InMemoryConsumer : ITransportConsumer
                 {
                     try
                     {
-                        await Task.Delay(delay, cancellationToken);
+                        await Task.Delay(delay, _timeProvider, cancellationToken);
                         await DeliverMessageAsync(retryEnvelope, cancellationToken);
                     }
                     catch (OperationCanceledException)

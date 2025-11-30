@@ -81,7 +81,7 @@ public class ErrorHandlingDecorator(
                         if (errorResult.RetryDelay.HasValue)
                         {
                             _logger.LogDebug("Waiting {Delay}ms before retry", errorResult.RetryDelay.Value.TotalMilliseconds);
-                            await Task.Delay(errorResult.RetryDelay.Value, cancellationToken).ConfigureAwait(false);
+                            await Task.Delay(errorResult.RetryDelay.Value, _timeProvider, cancellationToken).ConfigureAwait(false);
                         }
                         continue;
 

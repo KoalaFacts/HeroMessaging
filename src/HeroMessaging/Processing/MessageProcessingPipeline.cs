@@ -62,7 +62,8 @@ public class MessageProcessingPipelineBuilder(IServiceProvider serviceProvider)
         {
             var logger = _serviceProvider.GetService<ILogger<RetryDecorator>>()
                 ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<RetryDecorator>.Instance;
-            return new RetryDecorator(processor, logger, retryPolicy);
+            var timeProvider = _serviceProvider.GetRequiredService<TimeProvider>();
+            return new RetryDecorator(processor, logger, timeProvider, retryPolicy);
         });
         return this;
     }

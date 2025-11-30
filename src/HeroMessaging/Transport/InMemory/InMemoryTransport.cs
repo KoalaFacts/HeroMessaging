@@ -57,7 +57,7 @@ public class InMemoryTransport(
             if (_options.SimulateNetworkDelay)
             {
                 ChangeState(TransportState.Connecting, "Connecting to in-memory transport");
-                await Task.Delay(_options.SimulatedDelayMin, cancellationToken);
+                await Task.Delay(_options.SimulatedDelayMin, _timeProvider, cancellationToken);
                 ChangeState(TransportState.Connected, "Connected to in-memory transport");
             }
             else
@@ -114,7 +114,7 @@ public class InMemoryTransport(
                 var delay = GetRandom().Next(
                     (int)_options.SimulatedDelayMin.TotalMilliseconds,
                     (int)_options.SimulatedDelayMax.TotalMilliseconds);
-                await Task.Delay(delay, cancellationToken);
+                await Task.Delay(TimeSpan.FromMilliseconds(delay), _timeProvider, cancellationToken);
             }
 
             var queue = _queues.GetOrAdd(destination.Name, name => new InMemoryQueue(name, _options.MaxQueueLength, _options.DropWhenFull));
@@ -161,7 +161,7 @@ public class InMemoryTransport(
                 var delay = GetRandom().Next(
                     (int)_options.SimulatedDelayMin.TotalMilliseconds,
                     (int)_options.SimulatedDelayMax.TotalMilliseconds);
-                await Task.Delay(delay, cancellationToken);
+                await Task.Delay(TimeSpan.FromMilliseconds(delay), _timeProvider, cancellationToken);
             }
 
             var inMemoryTopic = _topics.GetOrAdd(topic.Name, name => new InMemoryTopic(name));

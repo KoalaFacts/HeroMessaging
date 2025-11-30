@@ -3,6 +3,7 @@ using HeroMessaging.Orchestration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using Xunit;
 
@@ -12,10 +13,12 @@ namespace HeroMessaging.Tests.Unit.Orchestration
     public sealed class SagaTimeoutHandlerTests
     {
         private readonly Mock<ILogger<SagaTimeoutHandler<TestSaga>>> _loggerMock;
+        private readonly FakeTimeProvider _fakeTimeProvider;
 
         public SagaTimeoutHandlerTests()
         {
             _loggerMock = new Mock<ILogger<SagaTimeoutHandler<TestSaga>>>();
+            _fakeTimeProvider = new FakeTimeProvider(DateTimeOffset.UtcNow);
         }
 
         #region Constructor Tests
@@ -157,11 +160,15 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             {
                 CorrelationId = Guid.NewGuid(),
                 CurrentState = "Processing",
-                UpdatedAt = DateTimeOffset.UtcNow.AddHours(-25)
+                UpdatedAt = _fakeTimeProvider.GetUtcNow().AddHours(-25)
             };
 
+            var processingComplete = new TaskCompletionSource<bool>();
             repositoryMock.Setup(r => r.FindStaleAsync(It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new[] { staleSaga });
+            repositoryMock.Setup(r => r.UpdateAsync(It.IsAny<TestSaga>(), It.IsAny<CancellationToken>()))
+                .Callback(() => processingComplete.TrySetResult(true))
+                .Returns(Task.CompletedTask);
 
             var services = CreateServiceProviderWithRepository(repositoryMock.Object);
             var options = new SagaTimeoutOptions
@@ -170,22 +177,18 @@ namespace HeroMessaging.Tests.Unit.Orchestration
                 DefaultTimeout = TimeSpan.FromHours(24)
             };
 
-            var handler = new SagaTimeoutHandler<TestSaga>(services, options, _loggerMock.Object);
+            var handler = new SagaTimeoutHandler<TestSaga>(services, options, _loggerMock.Object, _fakeTimeProvider);
             var cts = new CancellationTokenSource();
 
             // Act
-            var executeTask = handler.StartAsync(cts.Token);
-            await Task.Delay(100); // Give it time to process
-            cts.Cancel();
+            await handler.StartAsync(cts.Token);
 
-            try
-            {
-                await executeTask;
-            }
-            catch (OperationCanceledException)
-            {
-                // Expected
-            }
+            // Wait for processing to complete with timeout
+            var completedTask = await Task.WhenAny(processingComplete.Task, Task.Delay(1000));
+            Assert.Same(processingComplete.Task, completedTask);
+
+            await cts.CancelAsync();
+            await handler.StopAsync(CancellationToken.None);
 
             // Assert
             repositoryMock.Verify(r => r.UpdateAsync(
@@ -198,7 +201,9 @@ namespace HeroMessaging.Tests.Unit.Orchestration
         {
             // Arrange
             var repositoryMock = new Mock<ISagaRepository<TestSaga>>();
+            var findCalled = new TaskCompletionSource<bool>();
             repositoryMock.Setup(r => r.FindStaleAsync(It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
+                .Callback(() => findCalled.TrySetResult(true))
                 .ReturnsAsync(new List<TestSaga>());
 
             var services = CreateServiceProviderWithRepository(repositoryMock.Object);
@@ -208,22 +213,18 @@ namespace HeroMessaging.Tests.Unit.Orchestration
                 DefaultTimeout = TimeSpan.FromHours(24)
             };
 
-            var handler = new SagaTimeoutHandler<TestSaga>(services, options, _loggerMock.Object);
+            var handler = new SagaTimeoutHandler<TestSaga>(services, options, _loggerMock.Object, _fakeTimeProvider);
             var cts = new CancellationTokenSource();
 
             // Act
-            var executeTask = handler.StartAsync(cts.Token);
-            await Task.Delay(100);
-            cts.Cancel();
+            await handler.StartAsync(cts.Token);
 
-            try
-            {
-                await executeTask;
-            }
-            catch (OperationCanceledException)
-            {
-                // Expected
-            }
+            // Wait for at least one check to complete
+            var completedTask = await Task.WhenAny(findCalled.Task, Task.Delay(1000));
+            Assert.Same(findCalled.Task, completedTask);
+
+            await cts.CancelAsync();
+            await handler.StopAsync(CancellationToken.None);
 
             // Assert
             repositoryMock.Verify(r => r.UpdateAsync(It.IsAny<TestSaga>(), It.IsAny<CancellationToken>()), Times.Never);
@@ -238,6 +239,8 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             var staleSaga2 = new TestSaga { CorrelationId = Guid.NewGuid(), CurrentState = "Pending" };
             var staleSaga3 = new TestSaga { CorrelationId = Guid.NewGuid(), CurrentState = "Active" };
 
+            var updateCount = 0;
+            var allUpdated = new TaskCompletionSource<bool>();
             var callCount = 0;
             repositoryMock.Setup(r => r.FindStaleAsync(It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(() =>
@@ -246,6 +249,13 @@ namespace HeroMessaging.Tests.Unit.Orchestration
                     callCount++;
                     return callCount == 1 ? new[] { staleSaga1, staleSaga2, staleSaga3 } : Array.Empty<TestSaga>();
                 });
+            repositoryMock.Setup(r => r.UpdateAsync(It.IsAny<TestSaga>(), It.IsAny<CancellationToken>()))
+                .Callback(() =>
+                {
+                    if (Interlocked.Increment(ref updateCount) == 3)
+                        allUpdated.TrySetResult(true);
+                })
+                .Returns(Task.CompletedTask);
 
             var services = CreateServiceProviderWithRepository(repositoryMock.Object);
             var options = new SagaTimeoutOptions
@@ -254,22 +264,18 @@ namespace HeroMessaging.Tests.Unit.Orchestration
                 DefaultTimeout = TimeSpan.FromHours(24)
             };
 
-            var handler = new SagaTimeoutHandler<TestSaga>(services, options, _loggerMock.Object);
+            var handler = new SagaTimeoutHandler<TestSaga>(services, options, _loggerMock.Object, _fakeTimeProvider);
             var cts = new CancellationTokenSource();
 
             // Act
-            var executeTask = handler.StartAsync(cts.Token);
-            await Task.Delay(100);
-            cts.Cancel();
+            await handler.StartAsync(cts.Token);
 
-            try
-            {
-                await executeTask;
-            }
-            catch (OperationCanceledException)
-            {
-                // Expected
-            }
+            // Wait for all updates to complete
+            var completedTask = await Task.WhenAny(allUpdated.Task, Task.Delay(1000));
+            Assert.Same(allUpdated.Task, completedTask);
+
+            await cts.CancelAsync();
+            await handler.StopAsync(CancellationToken.None);
 
             // Assert
             repositoryMock.Verify(r => r.UpdateAsync(
@@ -292,10 +298,12 @@ namespace HeroMessaging.Tests.Unit.Orchestration
                 CurrentState = "Processing"
             };
 
+            var updateAttempted = new TaskCompletionSource<bool>();
             repositoryMock.Setup(r => r.FindStaleAsync(It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new[] { staleSaga });
 
             repositoryMock.Setup(r => r.UpdateAsync(It.IsAny<TestSaga>(), It.IsAny<CancellationToken>()))
+                .Callback(() => updateAttempted.TrySetResult(true))
                 .ThrowsAsync(new SagaConcurrencyException(staleSaga.CorrelationId, 1, 0));
 
             var services = CreateServiceProviderWithRepository(repositoryMock.Object);
@@ -305,22 +313,18 @@ namespace HeroMessaging.Tests.Unit.Orchestration
                 DefaultTimeout = TimeSpan.FromHours(24)
             };
 
-            var handler = new SagaTimeoutHandler<TestSaga>(services, options, _loggerMock.Object);
+            var handler = new SagaTimeoutHandler<TestSaga>(services, options, _loggerMock.Object, _fakeTimeProvider);
             var cts = new CancellationTokenSource();
 
             // Act - Should not throw
-            var executeTask = handler.StartAsync(cts.Token);
-            await Task.Delay(100);
-            cts.Cancel();
+            await handler.StartAsync(cts.Token);
 
-            try
-            {
-                await executeTask;
-            }
-            catch (OperationCanceledException)
-            {
-                // Expected
-            }
+            // Wait for update attempt
+            var completedTask = await Task.WhenAny(updateAttempted.Task, Task.Delay(1000));
+            Assert.Same(updateAttempted.Task, completedTask);
+
+            await cts.CancelAsync();
+            await handler.StopAsync(CancellationToken.None);
 
             // Assert - Should have attempted update
             repositoryMock.Verify(r => r.UpdateAsync(It.IsAny<TestSaga>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
@@ -338,10 +342,13 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             };
 
             var callCount = 0;
+            var secondCallComplete = new TaskCompletionSource<bool>();
             repositoryMock.Setup(r => r.FindStaleAsync(It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(() =>
                 {
-                    callCount++;
+                    var count = Interlocked.Increment(ref callCount);
+                    if (count >= 2)
+                        secondCallComplete.TrySetResult(true);
                     return new[] { staleSaga };
                 });
 
@@ -355,22 +362,21 @@ namespace HeroMessaging.Tests.Unit.Orchestration
                 DefaultTimeout = TimeSpan.FromHours(24)
             };
 
-            var handler = new SagaTimeoutHandler<TestSaga>(services, options, _loggerMock.Object);
+            var handler = new SagaTimeoutHandler<TestSaga>(services, options, _loggerMock.Object, _fakeTimeProvider);
             var cts = new CancellationTokenSource();
 
             // Act
-            var executeTask = handler.StartAsync(cts.Token);
-            await Task.Delay(150); // Allow multiple checks
-            cts.Cancel();
+            await handler.StartAsync(cts.Token);
 
-            try
-            {
-                await executeTask;
-            }
-            catch (OperationCanceledException)
-            {
-                // Expected
-            }
+            // Advance time to trigger multiple checks
+            _fakeTimeProvider.Advance(TimeSpan.FromMilliseconds(100));
+
+            // Wait for at least 2 calls
+            var completedTask = await Task.WhenAny(secondCallComplete.Task, Task.Delay(1000));
+            Assert.Same(secondCallComplete.Task, completedTask);
+
+            await cts.CancelAsync();
+            await handler.StopAsync(CancellationToken.None);
 
             // Assert - Should have attempted multiple checks despite errors
             Assert.True(callCount >= 2, $"Expected at least 2 checks, got {callCount}");
@@ -385,7 +391,9 @@ namespace HeroMessaging.Tests.Unit.Orchestration
         {
             // Arrange
             var repositoryMock = new Mock<ISagaRepository<TestSaga>>();
+            var findCalled = new TaskCompletionSource<bool>();
             repositoryMock.Setup(r => r.FindStaleAsync(It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
+                .Callback(() => findCalled.TrySetResult(true))
                 .ReturnsAsync(new List<TestSaga>());
 
             var services = CreateServiceProviderWithRepository(repositoryMock.Object);
@@ -395,13 +403,16 @@ namespace HeroMessaging.Tests.Unit.Orchestration
                 DefaultTimeout = TimeSpan.FromHours(24)
             };
 
-            var handler = new SagaTimeoutHandler<TestSaga>(services, options, _loggerMock.Object);
+            var handler = new SagaTimeoutHandler<TestSaga>(services, options, _loggerMock.Object, _fakeTimeProvider);
             var cts = new CancellationTokenSource();
 
             // Act
             await handler.StartAsync(cts.Token);
-            await Task.Delay(50); // Short delay
-            cts.Cancel();
+
+            // Wait for first check to start
+            await Task.WhenAny(findCalled.Task, Task.Delay(500));
+
+            await cts.CancelAsync();
 
             // BackgroundService should stop gracefully when StopAsync is called
             await handler.StopAsync(CancellationToken.None);
@@ -415,7 +426,9 @@ namespace HeroMessaging.Tests.Unit.Orchestration
         {
             // Arrange
             var repositoryMock = new Mock<ISagaRepository<TestSaga>>();
+            var findCalled = new TaskCompletionSource<bool>();
             repositoryMock.Setup(r => r.FindStaleAsync(It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
+                .Callback(() => findCalled.TrySetResult(true))
                 .ReturnsAsync(new List<TestSaga>());
 
             var services = CreateServiceProviderWithRepository(repositoryMock.Object);
@@ -425,11 +438,14 @@ namespace HeroMessaging.Tests.Unit.Orchestration
                 DefaultTimeout = TimeSpan.FromHours(24)
             };
 
-            var handler = new SagaTimeoutHandler<TestSaga>(services, options, _loggerMock.Object);
+            var handler = new SagaTimeoutHandler<TestSaga>(services, options, _loggerMock.Object, _fakeTimeProvider);
 
             // Act
             await handler.StartAsync(CancellationToken.None);
-            await Task.Delay(100);
+
+            // Wait for first check
+            await Task.WhenAny(findCalled.Task, Task.Delay(500));
+
             await handler.StopAsync(CancellationToken.None);
 
             // Assert - Should complete without error
@@ -452,8 +468,12 @@ namespace HeroMessaging.Tests.Unit.Orchestration
                 IsCompleted = false
             };
 
+            var updateCalled = new TaskCompletionSource<bool>();
             repositoryMock.Setup(r => r.FindStaleAsync(It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new[] { staleSaga });
+            repositoryMock.Setup(r => r.UpdateAsync(It.IsAny<TestSaga>(), It.IsAny<CancellationToken>()))
+                .Callback(() => updateCalled.TrySetResult(true))
+                .Returns(Task.CompletedTask);
 
             var services = CreateServiceProviderWithRepository(repositoryMock.Object);
             var options = new SagaTimeoutOptions
@@ -462,22 +482,18 @@ namespace HeroMessaging.Tests.Unit.Orchestration
                 DefaultTimeout = TimeSpan.FromHours(24)
             };
 
-            var handler = new SagaTimeoutHandler<TestSaga>(services, options, _loggerMock.Object);
+            var handler = new SagaTimeoutHandler<TestSaga>(services, options, _loggerMock.Object, _fakeTimeProvider);
             var cts = new CancellationTokenSource();
 
             // Act
-            var executeTask = handler.StartAsync(cts.Token);
-            await Task.Delay(100);
-            cts.Cancel();
+            await handler.StartAsync(cts.Token);
 
-            try
-            {
-                await executeTask;
-            }
-            catch (OperationCanceledException)
-            {
-                // Expected
-            }
+            // Wait for update to complete
+            var completedTask = await Task.WhenAny(updateCalled.Task, Task.Delay(1000));
+            Assert.Same(updateCalled.Task, completedTask);
+
+            await cts.CancelAsync();
+            await handler.StopAsync(CancellationToken.None);
 
             // Assert
             Assert.True(staleSaga.IsCompleted);
@@ -494,8 +510,12 @@ namespace HeroMessaging.Tests.Unit.Orchestration
                 CurrentState = "Processing"
             };
 
+            var updateCalled = new TaskCompletionSource<bool>();
             repositoryMock.Setup(r => r.FindStaleAsync(It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new[] { staleSaga });
+            repositoryMock.Setup(r => r.UpdateAsync(It.IsAny<TestSaga>(), It.IsAny<CancellationToken>()))
+                .Callback(() => updateCalled.TrySetResult(true))
+                .Returns(Task.CompletedTask);
 
             var services = CreateServiceProviderWithRepository(repositoryMock.Object);
             var options = new SagaTimeoutOptions
@@ -504,22 +524,18 @@ namespace HeroMessaging.Tests.Unit.Orchestration
                 DefaultTimeout = TimeSpan.FromHours(24)
             };
 
-            var handler = new SagaTimeoutHandler<TestSaga>(services, options, _loggerMock.Object);
+            var handler = new SagaTimeoutHandler<TestSaga>(services, options, _loggerMock.Object, _fakeTimeProvider);
             var cts = new CancellationTokenSource();
 
             // Act
-            var executeTask = handler.StartAsync(cts.Token);
-            await Task.Delay(100);
-            cts.Cancel();
+            await handler.StartAsync(cts.Token);
 
-            try
-            {
-                await executeTask;
-            }
-            catch (OperationCanceledException)
-            {
-                // Expected
-            }
+            // Wait for update to complete
+            var completedTask = await Task.WhenAny(updateCalled.Task, Task.Delay(1000));
+            Assert.Same(updateCalled.Task, completedTask);
+
+            await cts.CancelAsync();
+            await handler.StopAsync(CancellationToken.None);
 
             // Assert
             Assert.Equal("TimedOut", staleSaga.CurrentState);

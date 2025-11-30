@@ -16,15 +16,18 @@ public class SagaTimeoutHandler<TSaga> : BackgroundService
     private readonly IServiceProvider _serviceProvider;
     private readonly SagaTimeoutOptions _options;
     private readonly ILogger<SagaTimeoutHandler<TSaga>> _logger;
+    private readonly TimeProvider _timeProvider;
 
     public SagaTimeoutHandler(
         IServiceProvider serviceProvider,
         SagaTimeoutOptions options,
-        ILogger<SagaTimeoutHandler<TSaga>> logger)
+        ILogger<SagaTimeoutHandler<TSaga>> logger,
+        TimeProvider? timeProvider = null)
     {
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -40,7 +43,7 @@ public class SagaTimeoutHandler<TSaga> : BackgroundService
             try
             {
                 await CheckForTimedOutSagas(stoppingToken);
-                await Task.Delay(_options.CheckInterval, stoppingToken);
+                await Task.Delay(_options.CheckInterval, _timeProvider, stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
