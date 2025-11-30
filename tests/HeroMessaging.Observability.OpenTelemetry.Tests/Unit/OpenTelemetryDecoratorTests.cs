@@ -1,6 +1,7 @@
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Observability.OpenTelemetry;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using System.Diagnostics;
 using Xunit;
@@ -12,11 +13,13 @@ public class OpenTelemetryDecoratorTests
     private readonly Mock<IMessageProcessor> _innerProcessor;
     private readonly ActivityListener _activityListener;
     private readonly List<Activity> _activities;
+    private readonly FakeTimeProvider _fakeTimeProvider;
 
     public OpenTelemetryDecoratorTests()
     {
         _innerProcessor = new Mock<IMessageProcessor>();
         _activities = new List<Activity>();
+        _fakeTimeProvider = new FakeTimeProvider(DateTimeOffset.UtcNow);
 
         // Set up activity listener to capture activities
         _activityListener = new ActivityListener
@@ -41,7 +44,7 @@ public class OpenTelemetryDecoratorTests
             .Setup(x => x.ProcessAsync(message, context, It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedResult);
 
-        var decorator = new OpenTelemetryDecorator(_innerProcessor.Object);
+        var decorator = new OpenTelemetryDecorator(_innerProcessor.Object, _fakeTimeProvider);
 
         // Act
         var result = await decorator.ProcessAsync(message, context);
@@ -74,7 +77,7 @@ public class OpenTelemetryDecoratorTests
             .Setup(x => x.ProcessAsync(message, context, It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedResult);
 
-        var decorator = new OpenTelemetryDecorator(_innerProcessor.Object);
+        var decorator = new OpenTelemetryDecorator(_innerProcessor.Object, _fakeTimeProvider);
 
         // Act
         var result = await decorator.ProcessAsync(message, context);
@@ -101,7 +104,7 @@ public class OpenTelemetryDecoratorTests
             .Setup(x => x.ProcessAsync(message, context, It.IsAny<CancellationToken>()))
             .ThrowsAsync(exception);
 
-        var decorator = new OpenTelemetryDecorator(_innerProcessor.Object);
+        var decorator = new OpenTelemetryDecorator(_innerProcessor.Object, _fakeTimeProvider);
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
@@ -135,7 +138,7 @@ public class OpenTelemetryDecoratorTests
             .Setup(x => x.ProcessAsync(message, context, It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedResult);
 
-        var decorator = new OpenTelemetryDecorator(_innerProcessor.Object);
+        var decorator = new OpenTelemetryDecorator(_innerProcessor.Object, _fakeTimeProvider);
 
         // Act
         await decorator.ProcessAsync(message, context);
@@ -160,7 +163,7 @@ public class OpenTelemetryDecoratorTests
             .Setup(x => x.ProcessAsync(message, context, It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedResult);
 
-        var decorator = new OpenTelemetryDecorator(_innerProcessor.Object);
+        var decorator = new OpenTelemetryDecorator(_innerProcessor.Object, _fakeTimeProvider);
 
         // Act
         await decorator.ProcessAsync(message, context);
@@ -176,7 +179,7 @@ public class OpenTelemetryDecoratorTests
     public async Task ProcessAsync_NullInnerProcessor_ThrowsArgumentNullException()
     {
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => new OpenTelemetryDecorator(null!));
+        Assert.Throws<ArgumentNullException>(() => new OpenTelemetryDecorator(null!, _fakeTimeProvider));
     }
 
     [Fact]
@@ -192,7 +195,7 @@ public class OpenTelemetryDecoratorTests
             .Setup(x => x.ProcessAsync(message, context, It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedResult);
 
-        var decorator = new OpenTelemetryDecorator(_innerProcessor.Object);
+        var decorator = new OpenTelemetryDecorator(_innerProcessor.Object, _fakeTimeProvider);
 
         // Act
         var result = await decorator.ProcessAsync(message, context);
@@ -216,7 +219,7 @@ public class OpenTelemetryDecoratorTests
             .Setup(x => x.ProcessAsync(message, context, It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedResult);
 
-        var decorator = new OpenTelemetryDecorator(_innerProcessor.Object);
+        var decorator = new OpenTelemetryDecorator(_innerProcessor.Object, _fakeTimeProvider);
 
         // Act
         await decorator.ProcessAsync(message, context);
@@ -240,7 +243,7 @@ public class OpenTelemetryDecoratorTests
             .Setup(x => x.ProcessAsync(message, context, It.IsAny<CancellationToken>()))
             .ThrowsAsync(new OperationCanceledException());
 
-        var decorator = new OpenTelemetryDecorator(_innerProcessor.Object);
+        var decorator = new OpenTelemetryDecorator(_innerProcessor.Object, _fakeTimeProvider);
 
         // Act & Assert
         await Assert.ThrowsAsync<OperationCanceledException>(() =>

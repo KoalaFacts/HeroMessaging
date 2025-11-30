@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using HeroMessaging.Abstractions.Processing;
 
 namespace HeroMessaging.Processing;
@@ -9,6 +8,7 @@ namespace HeroMessaging.Processing;
 /// </summary>
 internal sealed class ProcessorMetricsCollector
 {
+    private readonly TimeProvider _timeProvider;
     private readonly int _metricsHistorySize;
     private readonly List<long> _durations;
     private long _processedCount;
@@ -23,9 +23,11 @@ internal sealed class ProcessorMetricsCollector
     /// <summary>
     /// Initializes a new instance of the <see cref="ProcessorMetricsCollector"/> class.
     /// </summary>
+    /// <param name="timeProvider">The time provider for timing measurements.</param>
     /// <param name="metricsHistorySize">Maximum number of duration samples to keep. Defaults to 100.</param>
-    public ProcessorMetricsCollector(int metricsHistorySize = ProcessingConstants.DefaultMetricsHistorySize)
+    public ProcessorMetricsCollector(TimeProvider timeProvider, int metricsHistorySize = ProcessingConstants.DefaultMetricsHistorySize)
     {
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         _metricsHistorySize = metricsHistorySize;
         _durations = new List<long>(metricsHistorySize);
     }
@@ -65,16 +67,15 @@ internal sealed class ProcessorMetricsCollector
     /// <returns>A task representing the asynchronous operation.</returns>
     public async Task ExecuteWithMetricsAsync(Func<Task> action)
     {
-        var sw = Stopwatch.StartNew();
+        var startTime = _timeProvider.GetTimestamp();
         try
         {
             await action().ConfigureAwait(false);
-            sw.Stop();
-            RecordSuccess(sw.ElapsedMilliseconds);
+            var elapsedMs = _timeProvider.GetElapsedTime(startTime).TotalMilliseconds;
+            RecordSuccess((long)elapsedMs);
         }
         catch
         {
-            sw.Stop();
             RecordFailure();
             throw;
         }
@@ -88,17 +89,16 @@ internal sealed class ProcessorMetricsCollector
     /// <returns>The result of the function.</returns>
     public async Task<T> ExecuteWithMetricsAsync<T>(Func<Task<T>> func)
     {
-        var sw = Stopwatch.StartNew();
+        var startTime = _timeProvider.GetTimestamp();
         try
         {
             var result = await func().ConfigureAwait(false);
-            sw.Stop();
-            RecordSuccess(sw.ElapsedMilliseconds);
+            var elapsedMs = _timeProvider.GetElapsedTime(startTime).TotalMilliseconds;
+            RecordSuccess((long)elapsedMs);
             return result;
         }
         catch
         {
-            sw.Stop();
             RecordFailure();
             throw;
         }

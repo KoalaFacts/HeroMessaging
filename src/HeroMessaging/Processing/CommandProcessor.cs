@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using HeroMessaging.Abstractions.Commands;
 using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Utilities;
@@ -15,16 +14,19 @@ public class CommandProcessor : ICommandProcessor, IProcessor, IAsyncDisposable
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<CommandProcessor> _logger;
+    private readonly TimeProvider _timeProvider;
     private readonly SemaphoreSlim _processingLock = new(1, 1);
-    private readonly ProcessorMetricsCollector _metrics = new();
+    private readonly ProcessorMetricsCollector _metrics;
     private volatile bool _isRunning = true;
 
     public bool IsRunning => _isRunning;
 
-    public CommandProcessor(IServiceProvider serviceProvider, ILogger<CommandProcessor>? logger = null)
+    public CommandProcessor(IServiceProvider serviceProvider, ILogger<CommandProcessor>? logger = null, TimeProvider? timeProvider = null)
     {
         _serviceProvider = serviceProvider;
         _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<CommandProcessor>.Instance;
+        _timeProvider = timeProvider ?? TimeProvider.System;
+        _metrics = new ProcessorMetricsCollector(_timeProvider);
     }
 
     public async Task SendAsync(ICommand command, CancellationToken cancellationToken = default)
@@ -52,11 +54,11 @@ public class CommandProcessor : ICommandProcessor, IProcessor, IAsyncDisposable
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var sw = Stopwatch.StartNew();
+            var startTime = _timeProvider.GetTimestamp();
             await ((Task)handleMethod.Invoke(handler, [command, cancellationToken])!).ConfigureAwait(false);
-            sw.Stop();
+            var elapsedMs = _timeProvider.GetElapsedTime(startTime).TotalMilliseconds;
 
-            _metrics.RecordSuccess(sw.ElapsedMilliseconds);
+            _metrics.RecordSuccess((long)elapsedMs);
         }
         catch (OperationCanceledException)
         {
@@ -99,11 +101,11 @@ public class CommandProcessor : ICommandProcessor, IProcessor, IAsyncDisposable
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var sw = Stopwatch.StartNew();
+            var startTime = _timeProvider.GetTimestamp();
             var result = await ((Task<TResponse>)handleMethod.Invoke(handler, [command, cancellationToken])!).ConfigureAwait(false);
-            sw.Stop();
+            var elapsedMs = _timeProvider.GetElapsedTime(startTime).TotalMilliseconds;
 
-            _metrics.RecordSuccess(sw.ElapsedMilliseconds);
+            _metrics.RecordSuccess((long)elapsedMs);
             return result;
         }
         catch (OperationCanceledException)

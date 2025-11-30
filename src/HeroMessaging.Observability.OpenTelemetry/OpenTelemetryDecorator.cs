@@ -8,14 +8,15 @@ namespace HeroMessaging.Observability.OpenTelemetry;
 /// <summary>
 /// Decorator that adds OpenTelemetry instrumentation to message processing
 /// </summary>
-public class OpenTelemetryDecorator(IMessageProcessor inner) : MessageProcessorDecorator(inner)
+public class OpenTelemetryDecorator(IMessageProcessor inner, TimeProvider timeProvider) : MessageProcessorDecorator(inner)
 {
     private readonly IMessageProcessor _innerProcessor = inner ?? throw new ArgumentNullException(nameof(inner));
+    private readonly TimeProvider _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
     public override async ValueTask<ProcessingResult> ProcessAsync(IMessage message, ProcessingContext context, CancellationToken cancellationToken = default)
     {
         var messageType = message.GetType().Name;
-        var stopwatch = Stopwatch.StartNew();
+        var startTime = _timeProvider.GetTimestamp();
 
         // Start OpenTelemetry activity for message processing
         using var activity = HeroMessagingInstrumentation.StartProcessActivity(message, context.Component);
@@ -29,10 +30,10 @@ public class OpenTelemetryDecorator(IMessageProcessor inner) : MessageProcessorD
         try
         {
             var result = await _innerProcessor.ProcessAsync(message, context, cancellationToken).ConfigureAwait(false);
-            stopwatch.Stop();
+            var elapsedMs = _timeProvider.GetElapsedTime(startTime).TotalMilliseconds;
 
             // Record processing duration metric
-            HeroMessagingInstrumentation.RecordProcessingDuration(messageType, stopwatch.Elapsed.TotalMilliseconds);
+            HeroMessagingInstrumentation.RecordProcessingDuration(messageType, elapsedMs);
 
             if (!result.Success)
             {
@@ -54,14 +55,14 @@ public class OpenTelemetryDecorator(IMessageProcessor inner) : MessageProcessorD
         }
         catch (Exception ex)
         {
-            stopwatch.Stop();
+            var elapsedMs = _timeProvider.GetElapsedTime(startTime).TotalMilliseconds;
 
             // Record failure and set activity error status
             HeroMessagingInstrumentation.RecordMessageFailed(messageType, ex.Message);
             HeroMessagingInstrumentation.SetError(activity, ex);
 
             // Record processing duration even for failures
-            HeroMessagingInstrumentation.RecordProcessingDuration(messageType, stopwatch.Elapsed.TotalMilliseconds);
+            HeroMessagingInstrumentation.RecordProcessingDuration(messageType, elapsedMs);
 
             throw;
         }

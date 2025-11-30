@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Abstractions.Queries;
 using HeroMessaging.Utilities;
@@ -15,16 +14,19 @@ public class QueryProcessor : IQueryProcessor, IProcessor, IAsyncDisposable
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<QueryProcessor> _logger;
+    private readonly TimeProvider _timeProvider;
     private readonly SemaphoreSlim _processingLock = new(1, 1);
-    private readonly ProcessorMetricsCollector _metrics = new();
+    private readonly ProcessorMetricsCollector _metrics;
     private volatile bool _isRunning = true;
 
     public bool IsRunning => _isRunning;
 
-    public QueryProcessor(IServiceProvider serviceProvider, ILogger<QueryProcessor>? logger = null)
+    public QueryProcessor(IServiceProvider serviceProvider, ILogger<QueryProcessor>? logger = null, TimeProvider? timeProvider = null)
     {
         _serviceProvider = serviceProvider;
         _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<QueryProcessor>.Instance;
+        _timeProvider = timeProvider ?? TimeProvider.System;
+        _metrics = new ProcessorMetricsCollector(_timeProvider);
     }
 
     public async Task<TResponse> SendAsync<TResponse>(IQuery<TResponse> query, CancellationToken cancellationToken = default)
@@ -52,11 +54,11 @@ public class QueryProcessor : IQueryProcessor, IProcessor, IAsyncDisposable
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var sw = Stopwatch.StartNew();
+            var startTime = _timeProvider.GetTimestamp();
             var result = await ((Task<TResponse>)handleMethod.Invoke(handler, [query, cancellationToken])!).ConfigureAwait(false);
-            sw.Stop();
+            var elapsedMs = _timeProvider.GetElapsedTime(startTime).TotalMilliseconds;
 
-            _metrics.RecordSuccess(sw.ElapsedMilliseconds);
+            _metrics.RecordSuccess((long)elapsedMs);
             return result;
         }
         catch (OperationCanceledException)

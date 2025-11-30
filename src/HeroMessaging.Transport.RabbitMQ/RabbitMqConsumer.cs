@@ -175,7 +175,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
 
         _logger.LogTrace("Received message {MessageId} from {Queue}", messageId, Source.Name);
 
-        var startTime = Stopwatch.GetTimestamp();
+        var startTime = _timeProvider.GetTimestamp();
         Activity? activity = null;
 
         try
@@ -264,7 +264,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
             Interlocked.Increment(ref _messagesProcessed);
 
             // Record successful operation
-            var durationMs = GetElapsedMilliseconds(startTime);
+            var durationMs = _timeProvider.GetElapsedTime(startTime).TotalMilliseconds;
             _instrumentation.RecordReceiveDuration(_transport.Name, Source.Name, envelope.MessageType, durationMs);
             _instrumentation.RecordOperation(_transport.Name, "receive", "success");
 
@@ -298,14 +298,5 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
 
         _isActive = false;
         return Task.CompletedTask;
-    }
-
-    /// <summary>
-    /// Calculate elapsed milliseconds from timestamp (compatible with netstandard2.0)
-    /// </summary>
-    private static double GetElapsedMilliseconds(long startTimestamp)
-    {
-        var elapsedTicks = Stopwatch.GetTimestamp() - startTimestamp;
-        return (elapsedTicks * 1000.0) / Stopwatch.Frequency;
     }
 }
