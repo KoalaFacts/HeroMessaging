@@ -289,7 +289,7 @@ public static partial class TestData
 
         foreach (var prop in info.Properties)
         {
-                sb.AppendLine($"                {prop.Name} = _{ToCamelCase(prop.Name)},");
+            sb.AppendLine($"                {prop.Name} = _{ToCamelCase(prop.Name)},");
         }
 
         sb.AppendLine($@"            }};

@@ -1,4 +1,4 @@
-﻿namespace HeroMessaging.SourceGenerators.Tests;
+namespace HeroMessaging.SourceGenerators.Tests;
 
 public class UnitTest1
 {

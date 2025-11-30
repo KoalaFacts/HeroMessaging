@@ -150,7 +150,8 @@ public class DelegateCompensatingAction : ICompensatingAction
         {
             compensateAction();
             return Task.CompletedTask;
-        } : throw new ArgumentNullException(nameof(compensateAction)))
+        }
+    : throw new ArgumentNullException(nameof(compensateAction)))
     {
     }
 

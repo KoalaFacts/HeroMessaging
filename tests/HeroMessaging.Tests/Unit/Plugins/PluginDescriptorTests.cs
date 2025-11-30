@@ -7,312 +7,312 @@ namespace HeroMessaging.Tests.Unit.Plugins
     [Trait("Category", "Unit")]
     public sealed class PluginDescriptorTests
     {
-    #region Constructor Tests - Parameterless
+        #region Constructor Tests - Parameterless
 
-    [Fact]
-    public void Constructor_Parameterless_CreatesInstanceWithDefaults()
-    {
-        // Act
-        var descriptor = new PluginDescriptor();
-
-        // Assert
-        Assert.NotNull(descriptor);
-        Assert.Equal(string.Empty, descriptor.Name);
-        Assert.Equal(new Version(1, 0, 0), descriptor.Version);
-        // Category is set by the parameterless constructor's property initializer
-        // which uses default(PluginCategory) = Storage (enum's first value)
-        Assert.True(Enum.IsDefined(typeof(PluginCategory), descriptor.Category));
-        Assert.Null(descriptor.Description);
-        Assert.Equal(string.Empty, descriptor.AssemblyName);
-        Assert.Equal(typeof(object), descriptor.PluginType);
-        Assert.Empty(descriptor.Dependencies);
-        Assert.Empty(descriptor.ConfigurationOptions);
-        Assert.Empty(descriptor.ProvidedFeatures);
-    }
-
-    #endregion
-
-    #region Constructor Tests - With Type
-
-    [Fact]
-    public void Constructor_WithNullType_ThrowsArgumentNullException()
-    {
-        // Act & Assert
-        var ex = Assert.Throws<ArgumentNullException>(() =>
-            new PluginDescriptor(null!));
-
-        Assert.Equal("pluginType", ex.ParamName);
-    }
-
-    [Fact]
-    public void Constructor_WithTypeOnly_ExtractsBasicMetadata()
-    {
-        // Act
-        var descriptor = new PluginDescriptor(typeof(TestPlugin));
-
-        // Assert
-        Assert.Equal(nameof(TestPlugin), descriptor.Name);
-        Assert.NotNull(descriptor.AssemblyName);
-        Assert.Equal(typeof(TestPlugin), descriptor.PluginType);
-        Assert.Equal(new Version(1, 0, 0), descriptor.Version);
-    }
-
-    [Fact]
-    public void Constructor_WithStoragePluginType_DeterminesStorageCategory()
-    {
-        // Act
-        var descriptor = new PluginDescriptor(typeof(TestHelpers.Storage.TestStoragePlugin));
-
-        // Assert
-        Assert.Equal(PluginCategory.Storage, descriptor.Category);
-    }
-
-    [Fact]
-    public void Constructor_WithSerializationPluginType_DeterminesSerializationCategory()
-    {
-        // Act
-        var descriptor = new PluginDescriptor(typeof(TestHelpers.Serialization.TestSerializationPlugin));
-
-        // Assert
-        Assert.Equal(PluginCategory.Serialization, descriptor.Category);
-    }
-
-    [Fact]
-    public void Constructor_WithObservabilityPluginType_DeterminesObservabilityCategory()
-    {
-        // Act
-        var descriptor = new PluginDescriptor(typeof(TestHelpers.Observability.TestObservabilityPlugin));
-
-        // Assert
-        Assert.Equal(PluginCategory.Observability, descriptor.Category);
-    }
-
-    [Fact]
-    public void Constructor_WithSecurityPluginType_DeterminesSecurityCategory()
-    {
-        // Act
-        var descriptor = new PluginDescriptor(typeof(TestHelpers.Security.TestSecurityPlugin));
-
-        // Assert
-        Assert.Equal(PluginCategory.Security, descriptor.Category);
-    }
-
-    [Fact]
-    public void Constructor_WithResiliencePluginType_DeterminesResilienceCategory()
-    {
-        // Act
-        var descriptor = new PluginDescriptor(typeof(TestHelpers.Resilience.TestResiliencePlugin));
-
-        // Assert
-        Assert.Equal(PluginCategory.Resilience, descriptor.Category);
-    }
-
-    [Fact]
-    public void Constructor_WithValidationPluginType_DeterminesValidationCategory()
-    {
-        // Act
-        var descriptor = new PluginDescriptor(typeof(TestHelpers.Validation.TestValidationPlugin));
-
-        // Assert
-        Assert.Equal(PluginCategory.Validation, descriptor.Category);
-    }
-
-    [Fact]
-    public void Constructor_WithTransformationPluginType_DeterminesTransformationCategory()
-    {
-        // Act
-        var descriptor = new PluginDescriptor(typeof(TestHelpers.Transformation.TestTransformationPlugin));
-
-        // Assert
-        Assert.Equal(PluginCategory.Transformation, descriptor.Category);
-    }
-
-    [Fact]
-    public void Constructor_WithUnknownPluginType_DeterminesCustomCategory()
-    {
-        // Act
-        var descriptor = new PluginDescriptor(typeof(TestPlugin));
-
-        // Assert
-        Assert.Equal(PluginCategory.Custom, descriptor.Category);
-    }
-
-    #endregion
-
-    #region Constructor Tests - With Attribute
-
-    [Fact]
-    public void Constructor_WithAttribute_UsesAttributeMetadata()
-    {
-        // Arrange
-        var attribute = new HeroMessagingPluginAttribute("CustomName", PluginCategory.Observability)
+        [Fact]
+        public void Constructor_Parameterless_CreatesInstanceWithDefaults()
         {
-            Description = "Test description",
-            Version = "2.1.0"
-        };
+            // Act
+            var descriptor = new PluginDescriptor();
 
-        // Act
-        var descriptor = new PluginDescriptor(typeof(TestPlugin), attribute);
+            // Assert
+            Assert.NotNull(descriptor);
+            Assert.Equal(string.Empty, descriptor.Name);
+            Assert.Equal(new Version(1, 0, 0), descriptor.Version);
+            // Category is set by the parameterless constructor's property initializer
+            // which uses default(PluginCategory) = Storage (enum's first value)
+            Assert.True(Enum.IsDefined(typeof(PluginCategory), descriptor.Category));
+            Assert.Null(descriptor.Description);
+            Assert.Equal(string.Empty, descriptor.AssemblyName);
+            Assert.Equal(typeof(object), descriptor.PluginType);
+            Assert.Empty(descriptor.Dependencies);
+            Assert.Empty(descriptor.ConfigurationOptions);
+            Assert.Empty(descriptor.ProvidedFeatures);
+        }
 
-        // Assert
-        Assert.Equal("CustomName", descriptor.Name);
-        Assert.Equal(PluginCategory.Observability, descriptor.Category);
-        Assert.Equal("Test description", descriptor.Description);
-        Assert.Equal(new Version(2, 1, 0), descriptor.Version);
-    }
+        #endregion
 
-    [Fact]
-    public void Constructor_WithAttributeWithInvalidVersion_UsesDefaultVersion()
-    {
-        // Arrange
-        var attribute = new HeroMessagingPluginAttribute("TestPlugin", PluginCategory.Storage)
+        #region Constructor Tests - With Type
+
+        [Fact]
+        public void Constructor_WithNullType_ThrowsArgumentNullException()
         {
-            Version = "invalid-version"
-        };
+            // Act & Assert
+            var ex = Assert.Throws<ArgumentNullException>(() =>
+                new PluginDescriptor(null!));
 
-        // Act
-        var descriptor = new PluginDescriptor(typeof(TestPlugin), attribute);
+            Assert.Equal("pluginType", ex.ParamName);
+        }
 
-        // Assert
-        Assert.Equal(new Version(1, 0, 0), descriptor.Version);
-    }
-
-    [Fact]
-    public void Constructor_WithAttributeWithEmptyVersion_UsesDefaultVersion()
-    {
-        // Arrange
-        var attribute = new HeroMessagingPluginAttribute("TestPlugin", PluginCategory.Storage)
+        [Fact]
+        public void Constructor_WithTypeOnly_ExtractsBasicMetadata()
         {
-            Version = ""
-        };
+            // Act
+            var descriptor = new PluginDescriptor(typeof(TestPlugin));
 
-        // Act
-        var descriptor = new PluginDescriptor(typeof(TestPlugin), attribute);
+            // Assert
+            Assert.Equal(nameof(TestPlugin), descriptor.Name);
+            Assert.NotNull(descriptor.AssemblyName);
+            Assert.Equal(typeof(TestPlugin), descriptor.PluginType);
+            Assert.Equal(new Version(1, 0, 0), descriptor.Version);
+        }
 
-        // Assert
-        Assert.Equal(new Version(1, 0, 0), descriptor.Version);
-    }
-
-    [Fact]
-    public void Constructor_WithAttributeWithNullVersion_UsesDefaultVersion()
-    {
-        // Arrange
-        var attribute = new HeroMessagingPluginAttribute("TestPlugin", PluginCategory.Storage)
+        [Fact]
+        public void Constructor_WithStoragePluginType_DeterminesStorageCategory()
         {
-            Version = null
-        };
+            // Act
+            var descriptor = new PluginDescriptor(typeof(TestHelpers.Storage.TestStoragePlugin));
 
-        // Act
-        var descriptor = new PluginDescriptor(typeof(TestPlugin), attribute);
+            // Assert
+            Assert.Equal(PluginCategory.Storage, descriptor.Category);
+        }
 
-        // Assert
-        Assert.Equal(new Version(1, 0, 0), descriptor.Version);
-    }
+        [Fact]
+        public void Constructor_WithSerializationPluginType_DeterminesSerializationCategory()
+        {
+            // Act
+            var descriptor = new PluginDescriptor(typeof(TestHelpers.Serialization.TestSerializationPlugin));
 
-    #endregion
+            // Assert
+            Assert.Equal(PluginCategory.Serialization, descriptor.Category);
+        }
 
-    #region Metadata Extraction Tests
+        [Fact]
+        public void Constructor_WithObservabilityPluginType_DeterminesObservabilityCategory()
+        {
+            // Act
+            var descriptor = new PluginDescriptor(typeof(TestHelpers.Observability.TestObservabilityPlugin));
 
-    [Fact]
-    public void Constructor_WithInterfaceImplementation_ExtractsProvidedFeatures()
-    {
-        // Act
-        var descriptor = new PluginDescriptor(typeof(TestPluginWithInterfaces));
+            // Assert
+            Assert.Equal(PluginCategory.Observability, descriptor.Category);
+        }
 
-        // Assert
-        // The test interface is not in HeroMessaging.Abstractions namespace, so it won't be extracted
-        // Let's verify that ProvidedFeatures collection is initialized (may be empty)
-        Assert.NotNull(descriptor.ProvidedFeatures);
-    }
+        [Fact]
+        public void Constructor_WithSecurityPluginType_DeterminesSecurityCategory()
+        {
+            // Act
+            var descriptor = new PluginDescriptor(typeof(TestHelpers.Security.TestSecurityPlugin));
 
-    [Fact]
-    public void Constructor_WithConstructorDependencies_ExtractsDependencies()
-    {
-        // Act
-        var descriptor = new PluginDescriptor(typeof(TestPluginWithDependencies));
+            // Assert
+            Assert.Equal(PluginCategory.Security, descriptor.Category);
+        }
 
-        // Assert
-        // The dependency is an interface, so it should be extracted
-        Assert.Contains("ITestDependency", descriptor.Dependencies);
-    }
+        [Fact]
+        public void Constructor_WithResiliencePluginType_DeterminesResilienceCategory()
+        {
+            // Act
+            var descriptor = new PluginDescriptor(typeof(TestHelpers.Resilience.TestResiliencePlugin));
 
-    [Fact]
-    public void Constructor_WithPublicWritableProperties_ExtractsConfigurationOptions()
-    {
-        // Act
-        var descriptor = new PluginDescriptor(typeof(TestPluginWithConfiguration));
+            // Assert
+            Assert.Equal(PluginCategory.Resilience, descriptor.Category);
+        }
 
-        // Assert
-        Assert.True(descriptor.ConfigurationOptions.ContainsKey("MaxRetries"));
-        Assert.Equal(typeof(int), descriptor.ConfigurationOptions["MaxRetries"]);
-        Assert.True(descriptor.ConfigurationOptions.ContainsKey("ConnectionString"));
-        Assert.Equal(typeof(string), descriptor.ConfigurationOptions["ConnectionString"]);
-    }
+        [Fact]
+        public void Constructor_WithValidationPluginType_DeterminesValidationCategory()
+        {
+            // Act
+            var descriptor = new PluginDescriptor(typeof(TestHelpers.Validation.TestValidationPlugin));
 
-    [Fact]
-    public void Constructor_WithReadOnlyProperty_DoesNotIncludeInConfigurationOptions()
-    {
-        // Act
-        var descriptor = new PluginDescriptor(typeof(TestPluginWithReadOnlyProperty));
+            // Assert
+            Assert.Equal(PluginCategory.Validation, descriptor.Category);
+        }
 
-        // Assert
-        Assert.False(descriptor.ConfigurationOptions.ContainsKey("ReadOnlyProperty"));
-    }
+        [Fact]
+        public void Constructor_WithTransformationPluginType_DeterminesTransformationCategory()
+        {
+            // Act
+            var descriptor = new PluginDescriptor(typeof(TestHelpers.Transformation.TestTransformationPlugin));
 
-    [Fact]
-    public void Constructor_WithNonPublicProperty_DoesNotIncludeInConfigurationOptions()
-    {
-        // Act
-        var descriptor = new PluginDescriptor(typeof(TestPluginWithPrivateProperty));
+            // Assert
+            Assert.Equal(PluginCategory.Transformation, descriptor.Category);
+        }
 
-        // Assert
-        Assert.False(descriptor.ConfigurationOptions.ContainsKey("PrivateProperty"));
-    }
+        [Fact]
+        public void Constructor_WithUnknownPluginType_DeterminesCustomCategory()
+        {
+            // Act
+            var descriptor = new PluginDescriptor(typeof(TestPlugin));
 
-    #endregion
+            // Assert
+            Assert.Equal(PluginCategory.Custom, descriptor.Category);
+        }
 
-    #region Test Helper Classes
+        #endregion
 
-    public class TestPlugin
-    {
-    }
+        #region Constructor Tests - With Attribute
 
-    public interface ITestInterface
-    {
-    }
+        [Fact]
+        public void Constructor_WithAttribute_UsesAttributeMetadata()
+        {
+            // Arrange
+            var attribute = new HeroMessagingPluginAttribute("CustomName", PluginCategory.Observability)
+            {
+                Description = "Test description",
+                Version = "2.1.0"
+            };
 
-    public interface ITestDependency
-    {
-    }
+            // Act
+            var descriptor = new PluginDescriptor(typeof(TestPlugin), attribute);
 
-    public class TestPluginWithInterfaces : ITestInterface
-    {
-    }
+            // Assert
+            Assert.Equal("CustomName", descriptor.Name);
+            Assert.Equal(PluginCategory.Observability, descriptor.Category);
+            Assert.Equal("Test description", descriptor.Description);
+            Assert.Equal(new Version(2, 1, 0), descriptor.Version);
+        }
 
-    public class TestPluginWithDependencies
-    {
-        public TestPluginWithDependencies(ITestDependency dependency)
+        [Fact]
+        public void Constructor_WithAttributeWithInvalidVersion_UsesDefaultVersion()
+        {
+            // Arrange
+            var attribute = new HeroMessagingPluginAttribute("TestPlugin", PluginCategory.Storage)
+            {
+                Version = "invalid-version"
+            };
+
+            // Act
+            var descriptor = new PluginDescriptor(typeof(TestPlugin), attribute);
+
+            // Assert
+            Assert.Equal(new Version(1, 0, 0), descriptor.Version);
+        }
+
+        [Fact]
+        public void Constructor_WithAttributeWithEmptyVersion_UsesDefaultVersion()
+        {
+            // Arrange
+            var attribute = new HeroMessagingPluginAttribute("TestPlugin", PluginCategory.Storage)
+            {
+                Version = ""
+            };
+
+            // Act
+            var descriptor = new PluginDescriptor(typeof(TestPlugin), attribute);
+
+            // Assert
+            Assert.Equal(new Version(1, 0, 0), descriptor.Version);
+        }
+
+        [Fact]
+        public void Constructor_WithAttributeWithNullVersion_UsesDefaultVersion()
+        {
+            // Arrange
+            var attribute = new HeroMessagingPluginAttribute("TestPlugin", PluginCategory.Storage)
+            {
+                Version = null
+            };
+
+            // Act
+            var descriptor = new PluginDescriptor(typeof(TestPlugin), attribute);
+
+            // Assert
+            Assert.Equal(new Version(1, 0, 0), descriptor.Version);
+        }
+
+        #endregion
+
+        #region Metadata Extraction Tests
+
+        [Fact]
+        public void Constructor_WithInterfaceImplementation_ExtractsProvidedFeatures()
+        {
+            // Act
+            var descriptor = new PluginDescriptor(typeof(TestPluginWithInterfaces));
+
+            // Assert
+            // The test interface is not in HeroMessaging.Abstractions namespace, so it won't be extracted
+            // Let's verify that ProvidedFeatures collection is initialized (may be empty)
+            Assert.NotNull(descriptor.ProvidedFeatures);
+        }
+
+        [Fact]
+        public void Constructor_WithConstructorDependencies_ExtractsDependencies()
+        {
+            // Act
+            var descriptor = new PluginDescriptor(typeof(TestPluginWithDependencies));
+
+            // Assert
+            // The dependency is an interface, so it should be extracted
+            Assert.Contains("ITestDependency", descriptor.Dependencies);
+        }
+
+        [Fact]
+        public void Constructor_WithPublicWritableProperties_ExtractsConfigurationOptions()
+        {
+            // Act
+            var descriptor = new PluginDescriptor(typeof(TestPluginWithConfiguration));
+
+            // Assert
+            Assert.True(descriptor.ConfigurationOptions.ContainsKey("MaxRetries"));
+            Assert.Equal(typeof(int), descriptor.ConfigurationOptions["MaxRetries"]);
+            Assert.True(descriptor.ConfigurationOptions.ContainsKey("ConnectionString"));
+            Assert.Equal(typeof(string), descriptor.ConfigurationOptions["ConnectionString"]);
+        }
+
+        [Fact]
+        public void Constructor_WithReadOnlyProperty_DoesNotIncludeInConfigurationOptions()
+        {
+            // Act
+            var descriptor = new PluginDescriptor(typeof(TestPluginWithReadOnlyProperty));
+
+            // Assert
+            Assert.False(descriptor.ConfigurationOptions.ContainsKey("ReadOnlyProperty"));
+        }
+
+        [Fact]
+        public void Constructor_WithNonPublicProperty_DoesNotIncludeInConfigurationOptions()
+        {
+            // Act
+            var descriptor = new PluginDescriptor(typeof(TestPluginWithPrivateProperty));
+
+            // Assert
+            Assert.False(descriptor.ConfigurationOptions.ContainsKey("PrivateProperty"));
+        }
+
+        #endregion
+
+        #region Test Helper Classes
+
+        public class TestPlugin
         {
         }
-    }
 
-    public class TestPluginWithConfiguration
-    {
-        public int MaxRetries { get; set; }
-        public string? ConnectionString { get; set; }
-    }
+        public interface ITestInterface
+        {
+        }
 
-    public class TestPluginWithReadOnlyProperty
-    {
-        public int ReadOnlyProperty => 42;
-    }
+        public interface ITestDependency
+        {
+        }
 
-    public class TestPluginWithPrivateProperty
-    {
-        private int PrivateProperty { get; set; }
-    }
+        public class TestPluginWithInterfaces : ITestInterface
+        {
+        }
 
-    #endregion
+        public class TestPluginWithDependencies
+        {
+            public TestPluginWithDependencies(ITestDependency dependency)
+            {
+            }
+        }
+
+        public class TestPluginWithConfiguration
+        {
+            public int MaxRetries { get; set; }
+            public string? ConnectionString { get; set; }
+        }
+
+        public class TestPluginWithReadOnlyProperty
+        {
+            public int ReadOnlyProperty => 42;
+        }
+
+        public class TestPluginWithPrivateProperty
+        {
+            private int PrivateProperty { get; set; }
+        }
+
+        #endregion
     }
 }
 
