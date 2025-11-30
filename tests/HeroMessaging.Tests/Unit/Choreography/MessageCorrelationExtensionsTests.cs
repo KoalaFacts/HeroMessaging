@@ -125,7 +125,7 @@ public sealed class MessageCorrelationExtensionsTests
     {
         // Arrange
         var message = new TestMessage { MessageId = Guid.NewGuid() };
-        var state = new CorrelationState("correlation-id", "message-id");
+        _ = new CorrelationState("correlation-id", "message-id");
 
         // Act
         TestMessage result;
@@ -373,11 +373,11 @@ public sealed class MessageCorrelationExtensionsTests
         };
 
         // Act
-        var correlation = message.GetCorrelation();
+        var (CorrelationId, CausationId) = message.GetCorrelation();
 
         // Assert
-        Assert.Equal("deconstruct-correlation", correlation.CorrelationId);
-        Assert.Equal("deconstruct-causation", correlation.CausationId);
+        Assert.Equal("deconstruct-correlation", CorrelationId);
+        Assert.Equal("deconstruct-causation", CausationId);
     }
 
     #endregion

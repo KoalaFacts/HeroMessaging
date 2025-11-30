@@ -102,7 +102,7 @@ public class DefaultConnectionResiliencePolicy(
     private readonly ConnectionResilienceOptions _options = options ?? throw new ArgumentNullException(nameof(options));
     private readonly ILogger<DefaultConnectionResiliencePolicy> _logger = logger;
     private readonly TimeProvider _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
-    private readonly ConnectionCircuitBreaker _circuitBreaker = new ConnectionCircuitBreaker(options.CircuitBreakerOptions, logger, timeProvider);
+    private readonly ConnectionCircuitBreaker _circuitBreaker = new(options.CircuitBreakerOptions, logger, timeProvider);
     private readonly ConnectionHealthMonitor? _healthMonitor = healthMonitor;
 
     public async Task ExecuteAsync(Func<Task> operation, string operationName, CancellationToken cancellationToken = default)
@@ -278,6 +278,12 @@ internal class ConnectionCircuitBreaker(CircuitBreakerOptions options, ILogger l
                 case ConnectionCircuitState.HalfOpen:
                     _state = ConnectionCircuitState.Open;
                     _logger.LogWarning("Circuit breaker reopened after failure in half-open state");
+                    break;
+                case ConnectionCircuitState.Closed:
+                    break;
+                case ConnectionCircuitState.Open:
+                    break;
+                default:
                     break;
             }
         }

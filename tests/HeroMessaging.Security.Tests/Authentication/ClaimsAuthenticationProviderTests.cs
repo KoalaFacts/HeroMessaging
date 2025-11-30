@@ -667,7 +667,7 @@ public sealed class ClaimsAuthenticationProviderTests
         var provider = new ClaimsAuthenticationProvider();
 
         // Act & Assert
-        provider.RegisterApiKey("test-key", "TestUser", new Claim[] { });
+        provider.RegisterApiKey("test-key", "TestUser", []);
     }
 
     #endregion

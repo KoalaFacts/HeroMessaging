@@ -27,7 +27,7 @@ public sealed class MessageTypeValidatorTests
     public void Constructor_WithEmptyAllowedTypes_UsesDefaultTypesCommandAndEvent()
     {
         // Arrange & Act
-        var validator = new MessageTypeValidator(Array.Empty<Type>());
+        var validator = new MessageTypeValidator([]);
 
         // Assert
         Assert.NotNull(validator);
@@ -57,7 +57,7 @@ public sealed class MessageTypeValidatorTests
     public void Constructor_WithNullAllowedTypes_UsesDefaultTypesCommandAndEvent()
     {
         // Arrange & Act
-        var validator = new MessageTypeValidator((IEnumerable<Type>)null!);
+        var validator = new MessageTypeValidator(null!);
 
         // Assert
         Assert.NotNull(validator);

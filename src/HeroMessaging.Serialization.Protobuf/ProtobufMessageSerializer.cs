@@ -117,7 +117,7 @@ public class ProtobufMessageSerializer(
     {
         if (data == null || data.Length == 0)
         {
-            return default(T)!;
+            return default!;
         }
 
         if (_options.EnableCompression)
@@ -187,7 +187,7 @@ public class ProtobufMessageSerializer(
 
     public T Deserialize<T>(ReadOnlySpan<byte> data) where T : class
     {
-        if (data.IsEmpty) return default(T)!;
+        if (data.IsEmpty) return default!;
 
         using var stream = new MemoryStream(data.ToArray());
         return _typeModel.Deserialize<T>(stream)!;
@@ -269,7 +269,7 @@ public class TypedProtobufMessageSerializer(
     {
         if (data == null || data.Length == 0)
         {
-            return default(T)!;
+            return default!;
         }
 
         if (_options.EnableCompression)
@@ -366,7 +366,7 @@ public class TypedProtobufMessageSerializer(
 
     public T Deserialize<T>(ReadOnlySpan<byte> data) where T : class
     {
-        if (data.IsEmpty) return default(T)!;
+        if (data.IsEmpty) return default!;
 
         using var stream = new MemoryStream(data.ToArray());
 

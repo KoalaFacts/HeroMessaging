@@ -35,16 +35,16 @@ public class ObservabilityBuilder : IObservabilityBuilder
         return this;
     }
 
-    public IObservabilityBuilder AddOpenTelemetry(Action<Abstractions.Configuration.OpenTelemetryOptions>? configure = null)
+    public IObservabilityBuilder AddOpenTelemetry(Action<OpenTelemetryOptions>? configure = null)
     {
-        var options = new Abstractions.Configuration.OpenTelemetryOptions();
+        var options = new OpenTelemetryOptions();
         configure?.Invoke(options);
 
         _services.AddSingleton(options);
 
         // When OpenTelemetry plugin is available, it would be registered here
         // This is a placeholder for the actual implementation
-        _services.Configure<Abstractions.Configuration.OpenTelemetryOptions>(o =>
+        _services.Configure<OpenTelemetryOptions>(o =>
         {
             o.ServiceName = options.ServiceName;
             o.OtlpEndpoint = options.OtlpEndpoint;
@@ -57,15 +57,15 @@ public class ObservabilityBuilder : IObservabilityBuilder
         return this;
     }
 
-    public IObservabilityBuilder AddMetrics(Action<Abstractions.Configuration.MetricsOptions>? configure = null)
+    public IObservabilityBuilder AddMetrics(Action<MetricsOptions>? configure = null)
     {
-        var options = new Abstractions.Configuration.MetricsOptions();
+        var options = new MetricsOptions();
         configure?.Invoke(options);
 
         _services.AddSingleton(options);
 
         // Configure metrics collection
-        _services.Configure<Abstractions.Configuration.MetricsOptions>(o =>
+        _services.Configure<MetricsOptions>(o =>
         {
             o.EnableHistograms = options.EnableHistograms;
             o.EnableCounters = options.EnableCounters;
@@ -76,15 +76,15 @@ public class ObservabilityBuilder : IObservabilityBuilder
         return this;
     }
 
-    public IObservabilityBuilder AddTracing(Action<Abstractions.Configuration.TracingOptions>? configure = null)
+    public IObservabilityBuilder AddTracing(Action<TracingOptions>? configure = null)
     {
-        var options = new Abstractions.Configuration.TracingOptions();
+        var options = new TracingOptions();
         configure?.Invoke(options);
 
         _services.AddSingleton(options);
 
         // Configure distributed tracing
-        _services.Configure<Abstractions.Configuration.TracingOptions>(o =>
+        _services.Configure<TracingOptions>(o =>
         {
             o.SamplingRate = options.SamplingRate;
             o.RecordExceptions = options.RecordExceptions;
@@ -94,15 +94,15 @@ public class ObservabilityBuilder : IObservabilityBuilder
         return this;
     }
 
-    public IObservabilityBuilder AddLoggingEnrichment(Action<Abstractions.Configuration.LoggingOptions>? configure = null)
+    public IObservabilityBuilder AddLoggingEnrichment(Action<LoggingOptions>? configure = null)
     {
-        var options = new Abstractions.Configuration.LoggingOptions();
+        var options = new LoggingOptions();
         configure?.Invoke(options);
 
         _services.AddSingleton(options);
 
         // Configure logging enrichment
-        _services.Configure<Abstractions.Configuration.LoggingOptions>(o =>
+        _services.Configure<LoggingOptions>(o =>
         {
             o.IncludeScopes = options.IncludeScopes;
             o.IncludeTraceContext = options.IncludeTraceContext;
@@ -145,7 +145,7 @@ public class ObservabilityBuilder : IObservabilityBuilder
         if (rate < 0 || rate > 1)
             throw new ArgumentOutOfRangeException(nameof(rate), "Sampling rate must be between 0 and 1");
 
-        _services.Configure<Abstractions.Configuration.TracingOptions>(options =>
+        _services.Configure<TracingOptions>(options =>
         {
             options.SamplingRate = rate;
         });

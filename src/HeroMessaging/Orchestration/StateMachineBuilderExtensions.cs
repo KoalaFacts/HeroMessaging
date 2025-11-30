@@ -81,8 +81,7 @@ public static class ExtensionsToStateMachineBuilderForSagas
     {
         return configurator.Then(async ctx =>
         {
-            var messagingService = ctx.Services.GetService(typeof(IHeroMessaging)) as IHeroMessaging;
-            if (messagingService != null)
+            if (ctx.Services.GetService(typeof(IHeroMessaging)) is IHeroMessaging messagingService)
             {
                 var eventToPublish = eventFactory(ctx);
                 await messagingService.PublishAsync(eventToPublish);

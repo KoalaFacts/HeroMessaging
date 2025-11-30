@@ -131,7 +131,7 @@ internal class TestRunner
                 await semaphore.WaitAsync(cancellationToken);
                 try
                 {
-                    return await ExecuteTestGroupAsync(group.Key!, group.ToList(), cancellationToken);
+                    return await ExecuteTestGroupAsync(group.Key!, [.. group], cancellationToken);
                 }
                 finally
                 {
@@ -315,7 +315,7 @@ internal class TestRunner
             }
         }
 
-        return assemblies.Distinct().ToList();
+        return [.. assemblies.Distinct()];
     }
 
     private List<MethodInfo> DiscoverTestsInCategory(List<Assembly> assemblies, string category)

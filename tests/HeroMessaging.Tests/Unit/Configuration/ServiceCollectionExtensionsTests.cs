@@ -83,7 +83,7 @@ public class ServiceCollectionExtensionsTests
         var services = new ServiceCollection();
 
         // Act
-        var result = services.AddHeroMessagingDevelopment(Array.Empty<Assembly>());
+        var result = services.AddHeroMessagingDevelopment([]);
 
         // Assert
         Assert.NotNull(result);
@@ -132,7 +132,7 @@ public class ServiceCollectionExtensionsTests
         var connectionString = "Server=localhost;Database=test;";
 
         // Act
-        var result = services.AddHeroMessagingProduction(connectionString, Array.Empty<Assembly>());
+        var result = services.AddHeroMessagingProduction(connectionString, []);
 
         // Assert
         Assert.NotNull(result);
@@ -166,7 +166,7 @@ public class ServiceCollectionExtensionsTests
         var connectionString = "Server=localhost;Database=test;";
 
         // Act
-        var result = services.AddHeroMessagingMicroservice(connectionString, Array.Empty<Assembly>());
+        var result = services.AddHeroMessagingMicroservice(connectionString, []);
 
         // Assert
         Assert.NotNull(result);
@@ -218,7 +218,7 @@ public class ServiceCollectionExtensionsTests
         var services = new ServiceCollection();
 
         // Act
-        var result = services.AddHeroMessagingCustom(builder => { }, Array.Empty<Assembly>());
+        var result = services.AddHeroMessagingCustom(builder => { }, []);
 
         // Assert
         Assert.NotNull(result);
@@ -235,7 +235,7 @@ public class ServiceCollectionExtensionsTests
         services.AddHeroMessagingCustom(builder =>
         {
             capturedBuilder = builder;
-        }, Array.Empty<Assembly>());
+        }, []);
 
         // Assert
         Assert.NotNull(capturedBuilder);
@@ -335,7 +335,7 @@ public class ServiceCollectionExtensionsTests
         // Arrange
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddHeroMessagingDevelopment(Array.Empty<Assembly>());
+        services.AddHeroMessagingDevelopment([]);
 
         // Act
         using var provider = services.BuildServiceProvider();
@@ -376,7 +376,7 @@ public class ServiceCollectionExtensionsTests
             builder.Development()
                    .UseInMemoryStorage()
                    .WithErrorHandling();
-        }, new[] { Assembly.GetExecutingAssembly() });
+        }, [Assembly.GetExecutingAssembly()]);
 
         using var provider = services.BuildServiceProvider();
 
@@ -407,7 +407,7 @@ public class ServiceCollectionExtensionsTests
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
-            services.AddHeroMessagingCustom(null!, Array.Empty<Assembly>()));
+            services.AddHeroMessagingCustom(null!, []));
     }
 
     #endregion
@@ -438,7 +438,7 @@ public class ServiceCollectionExtensionsTests
         var services = new ServiceCollection();
 
         // Act
-        services.AddHeroMessagingDevelopment(Array.Empty<Assembly>());
+        services.AddHeroMessagingDevelopment([]);
 
         // Assert
         Assert.True(services.Count > 0, "Development services should be registered");
@@ -452,7 +452,7 @@ public class ServiceCollectionExtensionsTests
         var connectionString = "Server=localhost;Database=test;";
 
         // Act
-        services.AddHeroMessagingProduction(connectionString, Array.Empty<Assembly>());
+        services.AddHeroMessagingProduction(connectionString, []);
 
         // Assert
         Assert.True(services.Count > 0, "Production services should be registered");
@@ -466,7 +466,7 @@ public class ServiceCollectionExtensionsTests
         var connectionString = "Server=localhost;Database=test;";
 
         // Act
-        services.AddHeroMessagingMicroservice(connectionString, Array.Empty<Assembly>());
+        services.AddHeroMessagingMicroservice(connectionString, []);
 
         // Assert
         Assert.True(services.Count > 0, "Microservice services should be registered");

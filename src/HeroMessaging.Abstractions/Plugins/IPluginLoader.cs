@@ -43,9 +43,9 @@ public interface IPluginLoader
 public sealed record PluginValidationResult
 {
     public bool IsValid { get; init; }
-    public IReadOnlyCollection<string> Errors { get; init; } = Array.Empty<string>();
-    public IReadOnlyCollection<string> Warnings { get; init; } = Array.Empty<string>();
-    public IReadOnlyCollection<string> MissingDependencies { get; init; } = Array.Empty<string>();
+    public IReadOnlyCollection<string> Errors { get; init; } = [];
+    public IReadOnlyCollection<string> Warnings { get; init; } = [];
+    public IReadOnlyCollection<string> MissingDependencies { get; init; } = [];
 }
 
 /// <summary>

@@ -18,7 +18,7 @@ public readonly record struct TransportEnvelope
         MessageType = string.Empty;
         Body = Array.Empty<byte>();
         ContentType = "application/octet-stream";
-        Headers = ImmutableDictionary<string, object>.Empty;
+        Headers = [];
         Timestamp = TimeProvider.System.GetUtcNow();
         ExpiresAt = null;
         Priority = 0;
@@ -38,7 +38,7 @@ public readonly record struct TransportEnvelope
         MessageType = messageType;
         Body = body;
         ContentType = "application/octet-stream";
-        Headers = ImmutableDictionary<string, object>.Empty;
+        Headers = [];
         Timestamp = TimeProvider.System.GetUtcNow();
         ExpiresAt = null;
         Priority = 0;

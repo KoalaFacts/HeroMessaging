@@ -57,7 +57,7 @@ public class StorageHealthCheckTests
 
             // Return the actual stored message if ID matches and type is compatible
             if (messageId == _lastStoredId && _lastStoredMessage is T typedMessage)
-                return Task.FromResult<T?>(typedMessage);
+                return Task.FromResult(typedMessage);
 
             return Task.FromResult<T?>(default);
         }
@@ -224,7 +224,7 @@ public class StorageHealthCheckTests
 
         mockStorage
             .Setup(s => s.GetPendingAsync(It.IsAny<OutboxQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<OutboxEntry>());
+            .ReturnsAsync([]);
 
         var healthCheck = new OutboxStorageHealthCheck(mockStorage.Object);
 
@@ -277,7 +277,7 @@ public class StorageHealthCheckTests
 
         mockStorage
             .Setup(s => s.GetPendingAsync(It.IsAny<OutboxQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<OutboxEntry>());
+            .ReturnsAsync([]);
 
         var healthCheck = new OutboxStorageHealthCheck(mockStorage.Object, customName);
 
@@ -311,7 +311,7 @@ public class StorageHealthCheckTests
 
         mockStorage
             .Setup(s => s.GetPendingAsync(It.IsAny<InboxQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<InboxEntry>());
+            .ReturnsAsync([]);
 
         var healthCheck = new InboxStorageHealthCheck(mockStorage.Object);
 
@@ -364,7 +364,7 @@ public class StorageHealthCheckTests
 
         mockStorage
             .Setup(s => s.GetPendingAsync(It.IsAny<InboxQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<InboxEntry>());
+            .ReturnsAsync([]);
 
         var healthCheck = new InboxStorageHealthCheck(mockStorage.Object, customName);
 

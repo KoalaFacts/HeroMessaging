@@ -308,9 +308,9 @@ public sealed class ClaimsAuthenticationProviderEdgeCasesTests
         var results = await Task.WhenAll(tasks);
 
         // Assert - All should match
-        foreach (var result in results)
+        foreach (var (ExpectedName, ActualName) in results)
         {
-            Assert.Equal(result.ExpectedName, result.ActualName);
+            Assert.Equal(ExpectedName, ActualName);
         }
     }
 

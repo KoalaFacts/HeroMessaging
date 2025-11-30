@@ -210,7 +210,7 @@ public class BatchProcessingTests
         };
 
         // Act & Assert
-        var exception = Assert.Throws<ArgumentException>(() => options.Validate());
+        var exception = Assert.Throws<ArgumentException>(options.Validate);
         Assert.Contains("MaxBatchSize must be greater than 0", exception.Message);
     }
 
@@ -225,7 +225,7 @@ public class BatchProcessingTests
         };
 
         // Act & Assert
-        var exception = Assert.Throws<ArgumentException>(() => options.Validate());
+        var exception = Assert.Throws<ArgumentException>(options.Validate);
         Assert.Contains("BatchTimeout must be greater than zero", exception.Message);
     }
 
@@ -240,7 +240,7 @@ public class BatchProcessingTests
         };
 
         // Act & Assert
-        var exception = Assert.Throws<ArgumentException>(() => options.Validate());
+        var exception = Assert.Throws<ArgumentException>(options.Validate);
         Assert.Contains("MinBatchSize must be at least 1", exception.Message);
     }
 
@@ -256,7 +256,7 @@ public class BatchProcessingTests
         };
 
         // Act & Assert
-        var exception = Assert.Throws<ArgumentException>(() => options.Validate());
+        var exception = Assert.Throws<ArgumentException>(options.Validate);
         Assert.Contains("MinBatchSize cannot be greater than MaxBatchSize", exception.Message);
     }
 
@@ -271,7 +271,7 @@ public class BatchProcessingTests
         };
 
         // Act & Assert
-        var exception = Assert.Throws<ArgumentException>(() => options.Validate());
+        var exception = Assert.Throws<ArgumentException>(options.Validate);
         Assert.Contains("MaxDegreeOfParallelism must be greater than 0", exception.Message);
     }
 

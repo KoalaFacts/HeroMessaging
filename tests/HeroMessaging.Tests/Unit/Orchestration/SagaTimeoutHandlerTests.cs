@@ -112,10 +112,11 @@ namespace HeroMessaging.Tests.Unit.Orchestration
         public void SagaTimeoutOptions_CanSetCheckInterval()
         {
             // Arrange
-            var options = new SagaTimeoutOptions();
-
-            // Act
-            options.CheckInterval = TimeSpan.FromMinutes(5);
+            var options = new SagaTimeoutOptions
+            {
+                // Act
+                CheckInterval = TimeSpan.FromMinutes(5)
+            };
 
             // Assert
             Assert.Equal(TimeSpan.FromMinutes(5), options.CheckInterval);
@@ -125,10 +126,11 @@ namespace HeroMessaging.Tests.Unit.Orchestration
         public void SagaTimeoutOptions_CanSetDefaultTimeout()
         {
             // Arrange
-            var options = new SagaTimeoutOptions();
-
-            // Act
-            options.DefaultTimeout = TimeSpan.FromHours(48);
+            var options = new SagaTimeoutOptions
+            {
+                // Act
+                DefaultTimeout = TimeSpan.FromHours(48)
+            };
 
             // Assert
             Assert.Equal(TimeSpan.FromHours(48), options.DefaultTimeout);
@@ -138,10 +140,11 @@ namespace HeroMessaging.Tests.Unit.Orchestration
         public void SagaTimeoutOptions_CanSetEnabled()
         {
             // Arrange
-            var options = new SagaTimeoutOptions();
-
-            // Act
-            options.Enabled = false;
+            var options = new SagaTimeoutOptions
+            {
+                // Act
+                Enabled = false
+            };
 
             // Assert
             Assert.False(options.Enabled);
@@ -165,7 +168,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
 
             var processingComplete = new TaskCompletionSource<bool>();
             repositoryMock.Setup(r => r.FindStaleAsync(It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new[] { staleSaga });
+                .ReturnsAsync([staleSaga]);
             repositoryMock.Setup(r => r.UpdateAsync(It.IsAny<TestSaga>(), It.IsAny<CancellationToken>()))
                 .Callback(() => processingComplete.TrySetResult(true))
                 .Returns(Task.CompletedTask);
@@ -204,7 +207,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             var findCalled = new TaskCompletionSource<bool>();
             repositoryMock.Setup(r => r.FindStaleAsync(It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
                 .Callback(() => findCalled.TrySetResult(true))
-                .ReturnsAsync(new List<TestSaga>());
+                .ReturnsAsync([]);
 
             var services = CreateServiceProviderWithRepository(repositoryMock.Object);
             var options = new SagaTimeoutOptions
@@ -300,7 +303,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
 
             var updateAttempted = new TaskCompletionSource<bool>();
             repositoryMock.Setup(r => r.FindStaleAsync(It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new[] { staleSaga });
+                .ReturnsAsync([staleSaga]);
 
             repositoryMock.Setup(r => r.UpdateAsync(It.IsAny<TestSaga>(), It.IsAny<CancellationToken>()))
                 .Callback(() => updateAttempted.TrySetResult(true))
@@ -349,7 +352,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
                     var count = Interlocked.Increment(ref callCount);
                     if (count >= 2)
                         secondCallComplete.TrySetResult(true);
-                    return new[] { staleSaga };
+                    return [staleSaga];
                 });
 
             repositoryMock.Setup(r => r.UpdateAsync(It.IsAny<TestSaga>(), It.IsAny<CancellationToken>()))
@@ -394,7 +397,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             var findCalled = new TaskCompletionSource<bool>();
             repositoryMock.Setup(r => r.FindStaleAsync(It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
                 .Callback(() => findCalled.TrySetResult(true))
-                .ReturnsAsync(new List<TestSaga>());
+                .ReturnsAsync([]);
 
             var services = CreateServiceProviderWithRepository(repositoryMock.Object);
             var options = new SagaTimeoutOptions
@@ -429,7 +432,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             var findCalled = new TaskCompletionSource<bool>();
             repositoryMock.Setup(r => r.FindStaleAsync(It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
                 .Callback(() => findCalled.TrySetResult(true))
-                .ReturnsAsync(new List<TestSaga>());
+                .ReturnsAsync([]);
 
             var services = CreateServiceProviderWithRepository(repositoryMock.Object);
             var options = new SagaTimeoutOptions
@@ -470,7 +473,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
 
             var updateCalled = new TaskCompletionSource<bool>();
             repositoryMock.Setup(r => r.FindStaleAsync(It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new[] { staleSaga });
+                .ReturnsAsync([staleSaga]);
             repositoryMock.Setup(r => r.UpdateAsync(It.IsAny<TestSaga>(), It.IsAny<CancellationToken>()))
                 .Callback(() => updateCalled.TrySetResult(true))
                 .Returns(Task.CompletedTask);
@@ -512,7 +515,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
 
             var updateCalled = new TaskCompletionSource<bool>();
             repositoryMock.Setup(r => r.FindStaleAsync(It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new[] { staleSaga });
+                .ReturnsAsync([staleSaga]);
             repositoryMock.Setup(r => r.UpdateAsync(It.IsAny<TestSaga>(), It.IsAny<CancellationToken>()))
                 .Callback(() => updateCalled.TrySetResult(true))
                 .Returns(Task.CompletedTask);
@@ -548,7 +551,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
         private IServiceProvider CreateServiceProviderWithRepository(ISagaRepository<TestSaga> repository)
         {
             var services = new ServiceCollection();
-            services.AddScoped<ISagaRepository<TestSaga>>(_ => repository);
+            services.AddScoped(_ => repository);
             return services.BuildServiceProvider();
         }
 

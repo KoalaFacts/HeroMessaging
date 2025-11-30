@@ -52,7 +52,7 @@ public class SqlServerSagaRepositoryTests : IAsyncLifetime
         {
             throw new InvalidOperationException("Test not initialized");
         }
-        var jsonSerializer = new HeroMessaging.Utilities.DefaultJsonSerializer(new HeroMessaging.Utilities.DefaultBufferPoolManager());
+        var jsonSerializer = new Utilities.DefaultJsonSerializer(new Utilities.DefaultBufferPoolManager());
         return new SqlServerSagaRepository<TestSaga>(_options, timeProvider ?? TimeProvider.System, jsonSerializer);
     }
 

@@ -20,7 +20,6 @@ internal class InMemoryConsumer : ITransportConsumer
     private readonly Channel<TransportEnvelope> _messageChannel;
     private readonly CancellationTokenSource _cts = new();
     private Task? _processingTask;
-    private bool _isActive;
     private readonly TimeProvider _timeProvider;
 
     private readonly ConsumerMetrics _metrics = new();
@@ -33,7 +32,7 @@ internal class InMemoryConsumer : ITransportConsumer
     public TransportAddress Source { get; }
 
     /// <inheritdoc/>
-    public bool IsActive => _isActive;
+    public bool IsActive { get; private set; }
 
     public InMemoryConsumer(
         string consumerId,
@@ -67,10 +66,10 @@ internal class InMemoryConsumer : ITransportConsumer
 
     public Task StartAsync(CancellationToken cancellationToken = default)
     {
-        if (_isActive)
+        if (IsActive)
             return Task.CompletedTask;
 
-        _isActive = true;
+        IsActive = true;
         _processingTask = ProcessMessagesAsync(_cts.Token);
 
         return Task.CompletedTask;
@@ -79,10 +78,10 @@ internal class InMemoryConsumer : ITransportConsumer
     /// <inheritdoc/>
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
-        if (!_isActive)
+        if (!IsActive)
             return;
 
-        _isActive = false;
+        IsActive = false;
         _messageChannel.Writer.Complete();
         _cts.Cancel();
 
@@ -108,7 +107,7 @@ internal class InMemoryConsumer : ITransportConsumer
 
     internal async Task DeliverMessageAsync(TransportEnvelope envelope, CancellationToken cancellationToken = default)
     {
-        if (!_isActive)
+        if (!IsActive)
             return;
 
         await _messageChannel.Writer.WriteAsync(envelope, cancellationToken);
@@ -206,10 +205,10 @@ internal class InMemoryConsumer : ITransportConsumer
                 {
                     messageHandled = true;
                     _metrics.MessagesDeadLettered++;
-                    _instrumentation.AddEvent(activity, "deadletter", new[]
-                    {
+                    _instrumentation.AddEvent(activity, "deadletter",
+                    [
                         new KeyValuePair<string, object?>("reason", reason ?? "unknown")
-                    });
+                    ]);
                     await Task.CompletedTask;
                 }
             };

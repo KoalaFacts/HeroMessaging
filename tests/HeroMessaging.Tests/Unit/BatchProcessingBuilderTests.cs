@@ -237,7 +237,7 @@ public class BatchProcessingBuilderTests
         };
 
         // Act & Assert
-        var exception = Assert.Throws<ArgumentException>(() => options.Validate());
+        var exception = Assert.Throws<ArgumentException>(options.Validate);
         Assert.Contains("MinBatchSize cannot be greater than MaxBatchSize", exception.Message);
     }
 

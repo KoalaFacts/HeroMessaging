@@ -63,7 +63,7 @@ public sealed class MessageSizeValidatorTests
         var message = TestMessageBuilder.CreateValidMessage();
 
         _jsonSerializerMock
-            .Setup(s => s.GetJsonByteCount<IMessage>(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()))
+            .Setup(s => s.GetJsonByteCount(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()))
             .Returns(500);
 
         // Act
@@ -82,7 +82,7 @@ public sealed class MessageSizeValidatorTests
         var message = TestMessageBuilder.CreateValidMessage();
 
         _jsonSerializerMock
-            .Setup(s => s.GetJsonByteCount<IMessage>(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()))
+            .Setup(s => s.GetJsonByteCount(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()))
             .Returns(1024);
 
         // Act
@@ -101,7 +101,7 @@ public sealed class MessageSizeValidatorTests
         var message = TestMessageBuilder.CreateValidMessage(content: "a");
 
         _jsonSerializerMock
-            .Setup(s => s.GetJsonByteCount<IMessage>(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()))
+            .Setup(s => s.GetJsonByteCount(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()))
             .Returns(1);
 
         // Act
@@ -124,7 +124,7 @@ public sealed class MessageSizeValidatorTests
         var message = TestMessageBuilder.CreateValidMessage();
 
         _jsonSerializerMock
-            .Setup(s => s.GetJsonByteCount<IMessage>(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()))
+            .Setup(s => s.GetJsonByteCount(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()))
             .Returns(2048);
 
         // Act
@@ -144,7 +144,7 @@ public sealed class MessageSizeValidatorTests
         var message = TestMessageBuilder.CreateValidMessage();
 
         _jsonSerializerMock
-            .Setup(s => s.GetJsonByteCount<IMessage>(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()))
+            .Setup(s => s.GetJsonByteCount(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()))
             .Returns(1025);
 
         // Act
@@ -164,7 +164,7 @@ public sealed class MessageSizeValidatorTests
         var message = TestMessageBuilder.CreateValidMessage();
 
         _jsonSerializerMock
-            .Setup(s => s.GetJsonByteCount<IMessage>(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()))
+            .Setup(s => s.GetJsonByteCount(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()))
             .Returns(1000);
 
         // Act
@@ -188,7 +188,7 @@ public sealed class MessageSizeValidatorTests
         var message = TestMessageBuilder.CreateValidMessage();
 
         _jsonSerializerMock
-            .Setup(s => s.GetJsonByteCount<IMessage>(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()))
+            .Setup(s => s.GetJsonByteCount(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()))
             .Returns(1);
 
         // Act
@@ -207,7 +207,7 @@ public sealed class MessageSizeValidatorTests
         var message = TestMessageBuilder.CreateLargeMessage(1000000);
 
         _jsonSerializerMock
-            .Setup(s => s.GetJsonByteCount<IMessage>(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()))
+            .Setup(s => s.GetJsonByteCount(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()))
             .Returns(5 * 1024 * 1024); // 5MB
 
         // Act
@@ -225,14 +225,14 @@ public sealed class MessageSizeValidatorTests
         IMessage? message = null;
 
         _jsonSerializerMock
-            .Setup(s => s.GetJsonByteCount<IMessage>(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()))
+            .Setup(s => s.GetJsonByteCount(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()))
             .Returns(10);
 
         // Act
         var result = await validator.ValidateAsync(message!);
 
         // Assert
-        _jsonSerializerMock.Verify(s => s.GetJsonByteCount<IMessage>(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()), Times.Once);
+        _jsonSerializerMock.Verify(s => s.GetJsonByteCount(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()), Times.Once);
     }
 
     #endregion
@@ -247,7 +247,7 @@ public sealed class MessageSizeValidatorTests
         var message = TestMessageBuilder.CreateValidMessage();
 
         _jsonSerializerMock
-            .Setup(s => s.GetJsonByteCount<IMessage>(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()))
+            .Setup(s => s.GetJsonByteCount(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()))
             .Throws(new InvalidOperationException("Serialization error"));
 
         // Act
@@ -268,7 +268,7 @@ public sealed class MessageSizeValidatorTests
         var message = TestMessageBuilder.CreateValidMessage();
 
         _jsonSerializerMock
-            .Setup(s => s.GetJsonByteCount<IMessage>(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()))
+            .Setup(s => s.GetJsonByteCount(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()))
             .Throws(new ArgumentException("Invalid argument"));
 
         // Act
@@ -292,7 +292,7 @@ public sealed class MessageSizeValidatorTests
         var cts = new CancellationTokenSource();
 
         _jsonSerializerMock
-            .Setup(s => s.GetJsonByteCount<IMessage>(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()))
+            .Setup(s => s.GetJsonByteCount(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()))
             .Returns(500);
 
         // Act
@@ -312,7 +312,7 @@ public sealed class MessageSizeValidatorTests
         cts.Cancel();
 
         _jsonSerializerMock
-            .Setup(s => s.GetJsonByteCount<IMessage>(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()))
+            .Setup(s => s.GetJsonByteCount(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()))
             .Returns(500);
 
         // Act
@@ -335,7 +335,7 @@ public sealed class MessageSizeValidatorTests
         var message = TestMessageBuilder.CreateValidMessage();
 
         _jsonSerializerMock
-            .Setup(s => s.GetJsonByteCount<IMessage>(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()))
+            .Setup(s => s.GetJsonByteCount(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()))
             .Returns(1500);
 
         // Act
@@ -354,7 +354,7 @@ public sealed class MessageSizeValidatorTests
 
         // Default is 1MB (1024 * 1024 = 1048576 bytes)
         _jsonSerializerMock
-            .Setup(s => s.GetJsonByteCount<IMessage>(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()))
+            .Setup(s => s.GetJsonByteCount(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()))
             .Returns(1048576);
 
         // Act
@@ -372,7 +372,7 @@ public sealed class MessageSizeValidatorTests
         var message = TestMessageBuilder.CreateValidMessage();
 
         _jsonSerializerMock
-            .Setup(s => s.GetJsonByteCount<IMessage>(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()))
+            .Setup(s => s.GetJsonByteCount(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()))
             .Returns(1048577); // 1 byte over 1MB
 
         // Act
@@ -396,7 +396,7 @@ public sealed class MessageSizeValidatorTests
         var message2 = TestMessageBuilder.CreateValidMessage("Message 2");
 
         _jsonSerializerMock
-            .Setup(s => s.GetJsonByteCount<IMessage>(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()))
+            .Setup(s => s.GetJsonByteCount(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()))
             .Returns(500);
 
         // Act
@@ -404,7 +404,7 @@ public sealed class MessageSizeValidatorTests
         await validator.ValidateAsync(message2);
 
         // Assert
-        _jsonSerializerMock.Verify(s => s.GetJsonByteCount<IMessage>(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()), Times.Exactly(2));
+        _jsonSerializerMock.Verify(s => s.GetJsonByteCount(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()), Times.Exactly(2));
     }
 
     [Fact]
@@ -418,7 +418,7 @@ public sealed class MessageSizeValidatorTests
         // Setup different return values for different calls using callback
         var callCount = 0;
         _jsonSerializerMock
-            .Setup(s => s.GetJsonByteCount<IMessage>(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()))
+            .Setup(s => s.GetJsonByteCount(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()))
             .Returns(() => callCount++ == 0 ? 100 : 2000);
 
         // Act

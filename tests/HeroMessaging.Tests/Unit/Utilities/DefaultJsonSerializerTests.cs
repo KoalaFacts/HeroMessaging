@@ -169,7 +169,7 @@ public class DefaultJsonSerializerTests
             var obj = new TestModel { Id = 42, Name = "Generic Test" };
 
             // Act
-            var json = _serializer.SerializeToString<TestModel>(obj);
+            var json = _serializer.SerializeToString(obj);
 
             // Assert
             Assert.Contains("\"Id\":42", json);
@@ -180,9 +180,9 @@ public class DefaultJsonSerializerTests
         public void SerializesPrimitiveTypes()
         {
             // Act
-            var intJson = _serializer.SerializeToString<int>(123);
-            var stringJson = _serializer.SerializeToString<string>("test");
-            var boolJson = _serializer.SerializeToString<bool>(true);
+            var intJson = _serializer.SerializeToString(123);
+            var stringJson = _serializer.SerializeToString("test");
+            var boolJson = _serializer.SerializeToString(true);
 
             // Assert
             Assert.Equal("123", intJson);
@@ -197,7 +197,7 @@ public class DefaultJsonSerializerTests
             var list = new List<int> { 1, 2, 3 };
 
             // Act
-            var json = _serializer.SerializeToString<List<int>>(list);
+            var json = _serializer.SerializeToString(list);
 
             // Assert
             Assert.Equal("[1,2,3]", json);
@@ -210,7 +210,7 @@ public class DefaultJsonSerializerTests
             var dict = new Dictionary<string, int> { { "one", 1 }, { "two", 2 } };
 
             // Act
-            var json = _serializer.SerializeToString<Dictionary<string, int>>(dict);
+            var json = _serializer.SerializeToString(dict);
 
             // Assert
             Assert.Contains("\"one\":1", json);
@@ -225,7 +225,7 @@ public class DefaultJsonSerializerTests
             var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
             // Act
-            var json = _serializer.SerializeToString<TestModel>(obj, options);
+            var json = _serializer.SerializeToString(obj, options);
 
             // Assert
             Assert.Contains("\"id\":1", json);
@@ -366,7 +366,7 @@ public class DefaultJsonSerializerTests
         public void DeserializesSimpleObject_Successfully()
         {
             // Arrange
-            var json = "{\"Id\":1,\"Name\":\"Test\"}";
+            var json = /*lang=json,strict*/ "{\"Id\":1,\"Name\":\"Test\"}";
 
             // Act
             var obj = _serializer.DeserializeFromString<TestModel>(json);
@@ -381,7 +381,7 @@ public class DefaultJsonSerializerTests
         public void DeserializesComplexObject_Successfully()
         {
             // Arrange
-            var json = "{\"Id\":1,\"Name\":\"Complex\",\"Tags\":[\"tag1\",\"tag2\"],\"Metadata\":{\"key1\":\"value1\"}}";
+            var json = /*lang=json,strict*/ "{\"Id\":1,\"Name\":\"Complex\",\"Tags\":[\"tag1\",\"tag2\"],\"Metadata\":{\"key1\":\"value1\"}}";
 
             // Act
             var obj = _serializer.DeserializeFromString<ComplexModel>(json);
@@ -447,7 +447,7 @@ public class DefaultJsonSerializerTests
         public void DeserializesWithCustomOptions()
         {
             // Arrange
-            var json = "{\"id\":1,\"name\":\"Test\"}";
+            var json = /*lang=json,strict*/ "{\"id\":1,\"name\":\"Test\"}";
             var options = new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true
@@ -470,7 +470,7 @@ public class DefaultJsonSerializerTests
             {
                 Id = 1,
                 Name = new string('X', 2000),
-                Tags = Enumerable.Range(0, 100).Select(i => $"tag{i}").ToList()
+                Tags = [.. Enumerable.Range(0, 100).Select(i => $"tag{i}")]
             };
             var json = _serializer.SerializeToString(largeObject);
 
@@ -500,7 +500,7 @@ public class DefaultJsonSerializerTests
         public void DeserializesWithRuntimeType_Successfully()
         {
             // Arrange
-            var json = "{\"Id\":1,\"Name\":\"Test\"}";
+            var json = /*lang=json,strict*/ "{\"Id\":1,\"Name\":\"Test\"}";
             var type = typeof(TestModel);
 
             // Act
@@ -544,7 +544,7 @@ public class DefaultJsonSerializerTests
         public void DeserializesWithCustomOptions()
         {
             // Arrange
-            var json = "{\"id\":1,\"name\":\"Test\"}";
+            var json = /*lang=json,strict*/ "{\"id\":1,\"name\":\"Test\"}";
             var type = typeof(TestModel);
             var options = new JsonSerializerOptions
             {
@@ -647,7 +647,7 @@ public class DefaultJsonSerializerTests
             {
                 Id = 1,
                 Name = new string('X', 1000),
-                Tags = Enumerable.Range(0, 50).Select(i => $"tag{i}").ToList()
+                Tags = [.. Enumerable.Range(0, 50).Select(i => $"tag{i}")]
             };
 
             // Act

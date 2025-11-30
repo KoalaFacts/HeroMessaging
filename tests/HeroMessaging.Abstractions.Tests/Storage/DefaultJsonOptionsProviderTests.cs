@@ -163,7 +163,7 @@ public class DefaultJsonOptionsProviderTests
         // Act
         for (int i = 0; i < 10; i++)
         {
-            tasks.Add(Task.Run(() => provider.GetOptions()));
+            tasks.Add(Task.Run(provider.GetOptions));
         }
         Task.WaitAll(tasks.ToArray());
 

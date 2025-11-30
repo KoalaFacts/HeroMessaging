@@ -102,7 +102,7 @@ public static class ExtensionsToIServiceCollectionForPipeline
         services.AddSingleton<IMetricsCollector, InMemoryMetricsCollector>();
 
         // Register pipeline builder as factory
-        services.AddTransient<MessageProcessingPipelineBuilder>(provider =>
+        services.AddTransient(provider =>
             new MessageProcessingPipelineBuilder(provider));
 
         return services;

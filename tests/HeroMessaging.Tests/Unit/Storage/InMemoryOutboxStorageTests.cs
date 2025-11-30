@@ -156,8 +156,7 @@ public sealed class InMemoryOutboxStorageTests
         // Arrange
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryOutboxStorage(timeProvider);
-
-        var entry1 = await storage.AddAsync(new TestMessage(), new OutboxOptions());
+        _ = await storage.AddAsync(new TestMessage(), new OutboxOptions());
         var entry2 = await storage.AddAsync(new TestMessage(), new OutboxOptions());
         var entry3 = await storage.AddAsync(new TestMessage(), new OutboxOptions());
 
@@ -205,8 +204,7 @@ public sealed class InMemoryOutboxStorageTests
         // Arrange
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryOutboxStorage(timeProvider);
-
-        var entry1 = await storage.AddAsync(new TestMessage(), new OutboxOptions());
+        _ = await storage.AddAsync(new TestMessage(), new OutboxOptions());
         var entry2 = await storage.AddAsync(new TestMessage(), new OutboxOptions());
 
         var pastRetry = timeProvider.GetUtcNow().AddMinutes(-10);
@@ -235,7 +233,7 @@ public sealed class InMemoryOutboxStorageTests
         var cutoffTime = timeProvider.GetUtcNow();
 
         timeProvider.Advance(TimeSpan.FromMinutes(5));
-        var entry2 = await storage.AddAsync(new TestMessage(), new OutboxOptions());
+        _ = await storage.AddAsync(new TestMessage(), new OutboxOptions());
 
         var query = new OutboxQuery { OlderThan = cutoffTime };
 
@@ -254,8 +252,7 @@ public sealed class InMemoryOutboxStorageTests
         // Arrange
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryOutboxStorage(timeProvider);
-
-        var entry1 = await storage.AddAsync(new TestMessage(), new OutboxOptions());
+        _ = await storage.AddAsync(new TestMessage(), new OutboxOptions());
 
         timeProvider.Advance(TimeSpan.FromMinutes(10));
         var cutoffTime = timeProvider.GetUtcNow();
@@ -354,10 +351,9 @@ public sealed class InMemoryOutboxStorageTests
         // Arrange
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryOutboxStorage(timeProvider);
-
-        var entry1 = await storage.AddAsync(new TestMessage(), new OutboxOptions());
+        _ = await storage.AddAsync(new TestMessage(), new OutboxOptions());
         var entry2 = await storage.AddAsync(new TestMessage(), new OutboxOptions());
-        var entry3 = await storage.AddAsync(new TestMessage(), new OutboxOptions());
+        _ = await storage.AddAsync(new TestMessage(), new OutboxOptions());
 
         await storage.MarkProcessedAsync(entry2.Id);
 
@@ -654,10 +650,9 @@ public sealed class InMemoryOutboxStorageTests
         // Arrange
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryOutboxStorage(timeProvider);
-
-        var entry1 = await storage.AddAsync(new TestMessage(), new OutboxOptions());
+        _ = await storage.AddAsync(new TestMessage(), new OutboxOptions());
         var entry2 = await storage.AddAsync(new TestMessage(), new OutboxOptions());
-        var entry3 = await storage.AddAsync(new TestMessage(), new OutboxOptions());
+        _ = await storage.AddAsync(new TestMessage(), new OutboxOptions());
 
         await storage.MarkProcessedAsync(entry2.Id);
 
@@ -674,8 +669,7 @@ public sealed class InMemoryOutboxStorageTests
         // Arrange
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryOutboxStorage(timeProvider);
-
-        var entry1 = await storage.AddAsync(new TestMessage(), new OutboxOptions());
+        _ = await storage.AddAsync(new TestMessage(), new OutboxOptions());
         var entry2 = await storage.AddAsync(new TestMessage(), new OutboxOptions());
 
         await storage.MarkFailedAsync(entry2.Id, "Error");

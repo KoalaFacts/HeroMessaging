@@ -149,9 +149,6 @@ public class ConnectionHealthMetrics
     private long _totalRequests;
     private long _successfulRequests;
     private long _failedRequests;
-    private DateTimeOffset _lastFailureTime;
-    private string _lastFailureReason = string.Empty;
-    private bool _circuitBreakerOpen;
 
     public ConnectionHealthMetrics(TimeProvider timeProvider)
     {
@@ -162,9 +159,9 @@ public class ConnectionHealthMetrics
     public long SuccessfulRequests => _successfulRequests;
     public long FailedRequests => _failedRequests;
     public double FailureRate => TotalRequests == 0 ? 0 : (double)FailedRequests / TotalRequests;
-    public DateTimeOffset LastFailureTime => _lastFailureTime;
-    public string LastFailureReason => _lastFailureReason;
-    public bool IsCircuitBreakerOpen => _circuitBreakerOpen;
+    public DateTimeOffset LastFailureTime { get; private set; }
+    public string LastFailureReason { get; private set; } = string.Empty;
+    public bool IsCircuitBreakerOpen { get; private set; }
 
     public TimeSpan AverageResponseTime
     {
@@ -189,7 +186,7 @@ public class ConnectionHealthMetrics
             Timestamp = _timeProvider.GetUtcNow()
         });
 
-        _circuitBreakerOpen = false;
+        IsCircuitBreakerOpen = false;
     }
 
     public void RecordFailure(Exception exception, TimeSpan duration)
@@ -198,8 +195,8 @@ public class ConnectionHealthMetrics
         Interlocked.Increment(ref _failedRequests);
 
         var now = _timeProvider.GetUtcNow();
-        _lastFailureTime = now;
-        _lastFailureReason = exception.Message;
+        LastFailureTime = now;
+        LastFailureReason = exception.Message;
 
         _recentResults.Enqueue(new OperationResult
         {
@@ -212,7 +209,7 @@ public class ConnectionHealthMetrics
 
     public void SetCircuitBreakerState(bool isOpen)
     {
-        _circuitBreakerOpen = isOpen;
+        IsCircuitBreakerOpen = isOpen;
     }
 
     public bool IsUnhealthy(double failureThreshold)

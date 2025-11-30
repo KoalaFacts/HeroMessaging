@@ -102,7 +102,7 @@ public class InMemoryDeadLetterQueue(ILogger<InMemoryDeadLetterQueue> logger, Ti
 
         var countByReason = allEntries
             .GroupBy(e => e.Context.Reason.Length > 50
-                ? e.Context.Reason.Substring(0, 50) + "..."
+                ? e.Context.Reason[..50] + "..."
                 : e.Context.Reason)
             .ToDictionary(g => g.Key, g => (long)g.Count());
 

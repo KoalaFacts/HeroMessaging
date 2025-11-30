@@ -264,15 +264,16 @@ public class SchedulingBuilderTests
     public void StorageBackedSchedulerOptions_AllProperties_CanBeSet()
     {
         // Arrange
-        var options = new StorageBackedSchedulerOptions();
-
-        // Act
-        options.PollingInterval = TimeSpan.FromMilliseconds(500);
-        options.BatchSize = 200;
-        options.MaxConcurrency = 50;
-        options.AutoCleanup = false;
-        options.CleanupAge = TimeSpan.FromDays(7);
-        options.CleanupInterval = TimeSpan.FromMinutes(30);
+        var options = new StorageBackedSchedulerOptions
+        {
+            // Act
+            PollingInterval = TimeSpan.FromMilliseconds(500),
+            BatchSize = 200,
+            MaxConcurrency = 50,
+            AutoCleanup = false,
+            CleanupAge = TimeSpan.FromDays(7),
+            CleanupInterval = TimeSpan.FromMinutes(30)
+        };
 
         // Assert
         Assert.Equal(TimeSpan.FromMilliseconds(500), options.PollingInterval);

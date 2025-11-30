@@ -385,16 +385,14 @@ public sealed class IdempotencyPipelineIntegrationTests
 
     private sealed class TestHeroMessagingBuilder : IHeroMessagingBuilder
     {
-        private readonly IServiceCollection _services;
-
         public TestHeroMessagingBuilder(IServiceCollection services)
         {
-            _services = services;
+            Services = services;
         }
 
-        public IServiceCollection Services => _services;
+        public IServiceCollection Services { get; }
 
-        public IServiceCollection Build() => _services;
+        public IServiceCollection Build() => Services;
 
         public IHeroMessagingBuilder WithMediator() => this;
         public IHeroMessagingBuilder WithEventBus() => this;

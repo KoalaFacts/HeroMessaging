@@ -21,7 +21,7 @@ public class PostgreSqlStorageIntegrationTests : PostgreSqlIntegrationTestBase
 
         // Act
         await storage.StoreAsync(message, (IStorageTransaction?)null);
-        var retrievedMessage = await storage.RetrieveAsync(message.MessageId, (IStorageTransaction?)null);
+        var retrievedMessage = await storage.RetrieveAsync(message.MessageId, null);
 
         // Assert
         Assert.NotNull(retrievedMessage);
@@ -76,12 +76,12 @@ public class PostgreSqlStorageIntegrationTests : PostgreSqlIntegrationTestBase
         var storeTasks = messages.Select(msg => storage.StoreAsync(msg, (IStorageTransaction?)null)).ToArray();
         await Task.WhenAll(storeTasks);
 
-        var retrieveTasks = messages.Select(msg => storage.RetrieveAsync(msg.MessageId, (IStorageTransaction?)null)).ToArray();
+        var retrieveTasks = messages.Select(msg => storage.RetrieveAsync(msg.MessageId, null)).ToArray();
         var retrievedMessages = await Task.WhenAll(retrieveTasks);
 
         // Assert
         Assert.Equal(concurrentOperations, retrievedMessages.Length);
-        Assert.All(retrievedMessages, msg => Assert.NotNull(msg));
+        Assert.All(retrievedMessages, Assert.NotNull);
 
         // Verify all messages were stored and retrieved correctly
         for (int i = 0; i < concurrentOperations; i++)
@@ -140,7 +140,7 @@ public class PostgreSqlStorageIntegrationTests : PostgreSqlIntegrationTestBase
         await storage.StoreAsync(message, (IStorageTransaction?)null);
 
         // Verify it exists
-        var retrievedBeforeDelete = await storage.RetrieveAsync(message.MessageId, (IStorageTransaction?)null);
+        var retrievedBeforeDelete = await storage.RetrieveAsync(message.MessageId, null);
         Assert.NotNull(retrievedBeforeDelete);
 
         // Delete it

@@ -309,7 +309,6 @@ namespace HeroMessaging.Tests.Unit.Plugins
 
         public class TestPluginWithPrivateProperty
         {
-            private int PrivateProperty { get; set; }
         }
 
         #endregion

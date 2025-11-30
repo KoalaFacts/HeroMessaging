@@ -112,7 +112,7 @@ public class InMemorySchedulerTests : IAsyncLifetime
         var delay = TimeSpan.FromMilliseconds(100);
 
         // Act
-        var result = await _scheduler!.ScheduleAsync(message, delay);
+        _ = await _scheduler!.ScheduleAsync(message, delay);
 
         // Assert - message should not be delivered yet
         Assert.Empty(_deliveryHandler!.DeliveredMessages);
@@ -454,8 +454,8 @@ public class TestMessageDeliveryHandler : IMessageDeliveryHandler
     private readonly System.Collections.Concurrent.ConcurrentBag<IMessage> _deliveredMessages = [];
     private readonly System.Collections.Concurrent.ConcurrentBag<(Guid ScheduleId, Exception Exception)> _failedDeliveries = [];
 
-    public List<IMessage> DeliveredMessages => _deliveredMessages.ToList();
-    public List<(Guid ScheduleId, Exception Exception)> FailedDeliveries => _failedDeliveries.ToList();
+    public List<IMessage> DeliveredMessages => [.. _deliveredMessages];
+    public List<(Guid ScheduleId, Exception Exception)> FailedDeliveries => [.. _failedDeliveries];
 
     public Task DeliverAsync(ScheduledMessage scheduledMessage, CancellationToken cancellationToken = default)
     {

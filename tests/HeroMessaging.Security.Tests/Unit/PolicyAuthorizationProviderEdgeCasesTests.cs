@@ -89,7 +89,7 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
         var provider = new PolicyAuthorizationProvider();
         provider.RequireRole("TestMessage", "Send", "admin");
 
-        var identity = new ClaimsIdentity(new[] { new Claim(ClaimTypes.Role, "admin") }, "TestAuth");
+        var identity = new ClaimsIdentity([new Claim(ClaimTypes.Role, "admin")], "TestAuth");
         var principal = new ClaimsPrincipal(identity);
 
         // Act - Try with different casing
@@ -110,7 +110,7 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
         // Act
         provider.RequireRole("Message", "Op", "admin", "  ", "manager", "");
 
-        var identity = new ClaimsIdentity(new[] { new Claim(ClaimTypes.Role, "manager") }, "TestAuth");
+        var identity = new ClaimsIdentity([new Claim(ClaimTypes.Role, "manager")], "TestAuth");
         var principal = new ClaimsPrincipal(identity);
         var result = provider.AuthorizeAsync(principal, "Message", "Op").Result;
 
@@ -127,7 +127,7 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
         // Act
         provider.RequireClaim("Message", "Op", "permission", "read", "  ", "write", "");
 
-        var identity = new ClaimsIdentity(new[] { new Claim("permission", "write") }, "TestAuth");
+        var identity = new ClaimsIdentity([new Claim("permission", "write")], "TestAuth");
         var principal = new ClaimsPrincipal(identity);
         var result = provider.AuthorizeAsync(principal, "Message", "Op").Result;
 
@@ -164,10 +164,10 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
     {
         // Arrange
         var provider = new PolicyAuthorizationProvider();
-        var identity = new ClaimsIdentity(new[]
-        {
+        var identity = new ClaimsIdentity(
+        [
             new Claim("permission", "delete-orders")
-        }, "TestAuth");
+        ], "TestAuth");
         var principal = new ClaimsPrincipal(identity);
 
         // Act
@@ -187,10 +187,10 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
             .RequireAuthenticatedUser()
             .RequireRole("Admin", "Manager");
 
-        var identity = new ClaimsIdentity(new[]
-        {
+        var identity = new ClaimsIdentity(
+        [
             new Claim(ClaimTypes.Role, "admin") // lowercase
-        }, "TestAuth");
+        ], "TestAuth");
         var principal = new ClaimsPrincipal(identity);
 
         // Act
@@ -208,16 +208,16 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
             .RequireAuthenticatedUser()
             .RequireClaim("custom-claim"); // No specific values
 
-        var identity1 = new ClaimsIdentity(new[]
-        {
+        var identity1 = new ClaimsIdentity(
+        [
             new Claim("custom-claim", "any-value")
-        }, "TestAuth");
+        ], "TestAuth");
         var principal1 = new ClaimsPrincipal(identity1);
 
-        var identity2 = new ClaimsIdentity(new[]
-        {
+        var identity2 = new ClaimsIdentity(
+        [
             new Claim("other-claim", "value")
-        }, "TestAuth");
+        ], "TestAuth");
         var principal2 = new ClaimsPrincipal(identity2);
 
         // Act
@@ -291,10 +291,10 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
             .RequireAuthenticatedUser()
             .RequireRole("admin", "manager", "supervisor");
 
-        var identity = new ClaimsIdentity(new[]
-        {
+        var identity = new ClaimsIdentity(
+        [
             new Claim(ClaimTypes.Role, "supervisor") // One of the roles
-        }, "TestAuth");
+        ], "TestAuth");
         var principal = new ClaimsPrincipal(identity);
 
         // Act
@@ -313,18 +313,18 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
             .RequireClaim("department", "IT")
             .RequireClaim("level", "senior");
 
-        var identity1 = new ClaimsIdentity(new[]
-        {
+        var identity1 = new ClaimsIdentity(
+        [
             new Claim("department", "IT"),
             new Claim("level", "senior")
-        }, "TestAuth");
+        ], "TestAuth");
         var principal1 = new ClaimsPrincipal(identity1);
 
-        var identity2 = new ClaimsIdentity(new[]
-        {
+        var identity2 = new ClaimsIdentity(
+        [
             new Claim("department", "IT")
             // Missing level claim
-        }, "TestAuth");
+        ], "TestAuth");
         var principal2 = new ClaimsPrincipal(identity2);
 
         // Act
@@ -344,12 +344,12 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
             .RequireAuthenticatedUser()
             .RequireRole("admin");
 
-        var identity = new ClaimsIdentity(new[]
-        {
+        var identity = new ClaimsIdentity(
+        [
             new Claim(ClaimTypes.Role, "user"),
             new Claim(ClaimTypes.Role, "manager"),
             new Claim(ClaimTypes.Role, "admin") // This one matches
-        }, "TestAuth");
+        ], "TestAuth");
         var principal = new ClaimsPrincipal(identity);
 
         // Act
@@ -368,18 +368,18 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
             .RequireAssertion(p => p.HasClaim("claim1", "value1"))
             .RequireAssertion(p => p.HasClaim("claim2", "value2"));
 
-        var identity1 = new ClaimsIdentity(new[]
-        {
+        var identity1 = new ClaimsIdentity(
+        [
             new Claim("claim1", "value1"),
             new Claim("claim2", "value2")
-        }, "TestAuth");
+        ], "TestAuth");
         var principal1 = new ClaimsPrincipal(identity1);
 
-        var identity2 = new ClaimsIdentity(new[]
-        {
+        var identity2 = new ClaimsIdentity(
+        [
             new Claim("claim1", "value1")
             // Missing claim2
-        }, "TestAuth");
+        ], "TestAuth");
         var principal2 = new ClaimsPrincipal(identity2);
 
         // Act
@@ -399,16 +399,16 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
         provider.RequireRole("SpecificMessage", "Send", "admin");
         provider.RequireRole("*", "Send", "user"); // Wildcard
 
-        var adminIdentity = new ClaimsIdentity(new[]
-        {
+        var adminIdentity = new ClaimsIdentity(
+        [
             new Claim(ClaimTypes.Role, "admin")
-        }, "TestAuth");
+        ], "TestAuth");
         var adminPrincipal = new ClaimsPrincipal(adminIdentity);
 
-        var userIdentity = new ClaimsIdentity(new[]
-        {
+        var userIdentity = new ClaimsIdentity(
+        [
             new Claim(ClaimTypes.Role, "user")
-        }, "TestAuth");
+        ], "TestAuth");
         var userPrincipal = new ClaimsPrincipal(userIdentity);
 
         // Act
@@ -427,10 +427,10 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
         var provider = new PolicyAuthorizationProvider();
         provider.RequireRole("*", "Send", "sender");
 
-        var identity = new ClaimsIdentity(new[]
-        {
+        var identity = new ClaimsIdentity(
+        [
             new Claim(ClaimTypes.Role, "sender")
-        }, "TestAuth");
+        ], "TestAuth");
         var principal = new ClaimsPrincipal(identity);
 
         // Act
@@ -449,7 +449,7 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
     {
         // Arrange
         var provider = new PolicyAuthorizationProvider();
-        var identity = new ClaimsIdentity(Array.Empty<Claim>(), "TestAuth");
+        var identity = new ClaimsIdentity([], "TestAuth");
         var principal = new ClaimsPrincipal(identity);
         var cts = new CancellationTokenSource();
 
@@ -465,10 +465,10 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
     {
         // Arrange
         var provider = new PolicyAuthorizationProvider();
-        var identity = new ClaimsIdentity(new[]
-        {
+        var identity = new ClaimsIdentity(
+        [
             new Claim("permission", "test")
-        }, "TestAuth");
+        ], "TestAuth");
         var principal = new ClaimsPrincipal(identity);
         var cts = new CancellationTokenSource();
 
@@ -510,14 +510,14 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
             .RequireAssertion(p => p.HasClaim("verified", "true"))
             .RequireAssertion(p => int.Parse(p.FindFirst("years")?.Value ?? "0") >= 5);
 
-        var identity = new ClaimsIdentity(new[]
-        {
+        var identity = new ClaimsIdentity(
+        [
             new Claim(ClaimTypes.Role, "manager"),
             new Claim("department", "Engineering"),
             new Claim("level", "senior"),
             new Claim("verified", "true"),
             new Claim("years", "7")
-        }, "TestAuth");
+        ], "TestAuth");
         var principal = new ClaimsPrincipal(identity);
 
         // Act
@@ -554,12 +554,12 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
             .RequireRole("admin");
 
         var identity1 = new ClaimsIdentity(); // Not authenticated
-        var identity2 = new ClaimsIdentity(new[]
-        {
+        var identity2 = new ClaimsIdentity(
+        [
             new Claim(ClaimTypes.Role, "admin")
-        }, "TestAuth"); // Authenticated
+        ], "TestAuth"); // Authenticated
 
-        var principal = new ClaimsPrincipal(new[] { identity1, identity2 });
+        var principal = new ClaimsPrincipal([identity1, identity2]);
 
         // Act
         var result = policy.Evaluate(principal);

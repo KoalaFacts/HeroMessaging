@@ -339,7 +339,7 @@ public class RateLimiterStatisticsTests
         Assert.Equal(0, stats.AvailablePermits);
         Assert.Equal(0, stats.Capacity);
         Assert.Equal(0.0, stats.RefillRate);
-        Assert.Equal(default(DateTimeOffset), stats.LastRefillTime);
+        Assert.Equal(default, stats.LastRefillTime);
         Assert.Equal(0, stats.TotalAcquired);
         Assert.Equal(0, stats.TotalThrottled);
         Assert.Equal(0.0, stats.ThrottleRate);

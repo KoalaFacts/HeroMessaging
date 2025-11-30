@@ -268,7 +268,7 @@ public sealed class DefaultIdempotencyPolicyTests
     {
         // Arrange
         var policy = new DefaultIdempotencyPolicy();
-        var exception = new System.IO.IOException("I/O error");
+        var exception = new IOException("I/O error");
 
         // Act
         var result = policy.IsIdempotentFailure(exception);

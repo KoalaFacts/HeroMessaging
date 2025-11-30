@@ -14,8 +14,8 @@ public abstract class Sequencer
     protected readonly IWaitStrategy _waitStrategy;
 
     // Use volatile array reference for lock-free reads in hot path
-    private volatile ISequence[] _gatingSequencesArray = Array.Empty<ISequence>();
-    private readonly object _gatingLock = new();
+    private volatile ISequence[] _gatingSequencesArray = [];
+    private readonly Lock _gatingLock = new();
 
     /// <summary>
     /// Creates a new sequencer

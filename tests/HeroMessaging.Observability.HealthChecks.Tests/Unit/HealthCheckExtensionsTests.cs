@@ -274,16 +274,17 @@ public class HealthCheckExtensionsTests
     public void HeroMessagingHealthCheckOptions_CanBeModified()
     {
         // Arrange
-        var options = new HeroMessagingHealthCheckOptions();
-
-        // Act
-        options.CheckStorage = false;
-        options.CheckMessageStorage = false;
-        options.CheckOutboxStorage = false;
-        options.CheckInboxStorage = false;
-        options.CheckQueueStorage = false;
-        options.FailureStatus = HealthStatus.Degraded;
-        options.Tags = new[] { "custom" };
+        var options = new HeroMessagingHealthCheckOptions
+        {
+            // Act
+            CheckStorage = false,
+            CheckMessageStorage = false,
+            CheckOutboxStorage = false,
+            CheckInboxStorage = false,
+            CheckQueueStorage = false,
+            FailureStatus = HealthStatus.Degraded,
+            Tags = ["custom"]
+        };
 
         // Assert
         Assert.False(options.CheckStorage);

@@ -132,6 +132,7 @@ dotnet_diagnostic.IDE0061.severity = none
 
 # C# style rules
 csharp_style_namespace_declarations = file_scoped:warning
+csharp_style_collection_expression = when_possible:warning
 
 # XML documentation
 [*.cs]

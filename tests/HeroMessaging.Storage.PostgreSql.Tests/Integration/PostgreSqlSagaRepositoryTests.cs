@@ -52,7 +52,7 @@ public class PostgreSqlSagaRepositoryTests : IAsyncLifetime
         {
             throw new InvalidOperationException("Test not initialized");
         }
-        var jsonSerializer = new HeroMessaging.Utilities.DefaultJsonSerializer(new HeroMessaging.Utilities.DefaultBufferPoolManager());
+        var jsonSerializer = new Utilities.DefaultJsonSerializer(new Utilities.DefaultBufferPoolManager());
         return new PostgreSqlSagaRepository<TestSaga>(_options, timeProvider ?? TimeProvider.System, jsonSerializer);
     }
 

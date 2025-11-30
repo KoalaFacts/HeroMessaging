@@ -54,7 +54,7 @@ public sealed class SerializationBuilderTests
         builder.UseJson();
 
         // Assert
-        Assert.Contains(_services, s => s.ServiceType == typeof(Abstractions.Configuration.JsonSerializationOptions));
+        Assert.Contains(_services, s => s.ServiceType == typeof(JsonSerializationOptions));
         Assert.Contains(_services, s => s.ServiceType == typeof(IMessageSerializer));
     }
 
@@ -97,8 +97,7 @@ public sealed class SerializationBuilderTests
         var provider = _services.BuildServiceProvider();
 
         // Act & Assert
-        var exception = Assert.Throws<NotImplementedException>(() =>
-            provider.GetRequiredService<IMessageSerializer>());
+        var exception = Assert.Throws<NotImplementedException>(provider.GetRequiredService<IMessageSerializer>);
 
         Assert.Contains("JSON serializer plugin not installed", exception.Message);
     }
@@ -117,7 +116,7 @@ public sealed class SerializationBuilderTests
         builder.UseProtobuf();
 
         // Assert
-        Assert.Contains(_services, s => s.ServiceType == typeof(Abstractions.Configuration.ProtobufSerializationOptions));
+        Assert.Contains(_services, s => s.ServiceType == typeof(ProtobufSerializationOptions));
         Assert.Contains(_services, s => s.ServiceType == typeof(IMessageSerializer));
     }
 
@@ -160,8 +159,7 @@ public sealed class SerializationBuilderTests
         var provider = _services.BuildServiceProvider();
 
         // Act & Assert
-        var exception = Assert.Throws<NotImplementedException>(() =>
-            provider.GetRequiredService<IMessageSerializer>());
+        var exception = Assert.Throws<NotImplementedException>(provider.GetRequiredService<IMessageSerializer>);
 
         Assert.Contains("Protobuf serializer plugin not installed", exception.Message);
     }
@@ -180,7 +178,7 @@ public sealed class SerializationBuilderTests
         builder.UseMessagePack();
 
         // Assert
-        Assert.Contains(_services, s => s.ServiceType == typeof(Abstractions.Configuration.MessagePackSerializationOptions));
+        Assert.Contains(_services, s => s.ServiceType == typeof(MessagePackSerializationOptions));
         Assert.Contains(_services, s => s.ServiceType == typeof(IMessageSerializer));
     }
 
@@ -223,8 +221,7 @@ public sealed class SerializationBuilderTests
         var provider = _services.BuildServiceProvider();
 
         // Act & Assert
-        var exception = Assert.Throws<NotImplementedException>(() =>
-            provider.GetRequiredService<IMessageSerializer>());
+        var exception = Assert.Throws<NotImplementedException>(provider.GetRequiredService<IMessageSerializer>);
 
         Assert.Contains("MessagePack serializer plugin not installed", exception.Message);
     }
@@ -389,7 +386,7 @@ public sealed class SerializationBuilderTests
     {
         // Arrange
         var builder = new SerializationBuilder(_services);
-        builder.WithCompression(Abstractions.Configuration.CompressionLevel.Fastest);
+        builder.WithCompression(CompressionLevel.Fastest);
         var provider = _services.BuildServiceProvider();
 
         // Act
@@ -499,7 +496,7 @@ public sealed class SerializationBuilderTests
 
         // Assert
         Assert.False(options.EnableCompression);
-        Assert.Equal(Abstractions.Configuration.CompressionLevel.Optimal, options.CompressionLevel);
+        Assert.Equal(CompressionLevel.Optimal, options.CompressionLevel);
         Assert.Equal(1024 * 1024 * 10, options.MaxMessageSize);
     }
 
@@ -528,7 +525,7 @@ public sealed class SerializationBuilderTests
         var result = builder
             .UseCustom<TestMessageSerializer>()
             .AddTypeSerializer<TestMessage, TestMessageSerializer>()
-            .WithCompression(Abstractions.Configuration.CompressionLevel.Fastest)
+            .WithCompression(CompressionLevel.Fastest)
             .WithMaxMessageSize(5 * 1024 * 1024)
             .Build();
 
@@ -551,7 +548,7 @@ public sealed class SerializationBuilderTests
         public string ContentType => "application/test";
 
         public ValueTask<byte[]> SerializeAsync<T>(T message, CancellationToken cancellationToken = default)
-            => new ValueTask<byte[]>([]);
+            => new([]);
 
         public int Serialize<T>(T message, Span<byte> destination)
             => 0;
@@ -566,13 +563,13 @@ public sealed class SerializationBuilderTests
             => 0;
 
         public ValueTask<T> DeserializeAsync<T>(byte[] data, CancellationToken cancellationToken = default) where T : class
-            => new ValueTask<T>(Activator.CreateInstance<T>());
+            => new(Activator.CreateInstance<T>());
 
         public T Deserialize<T>(ReadOnlySpan<byte> data) where T : class
             => Activator.CreateInstance<T>();
 
         public ValueTask<object?> DeserializeAsync(byte[] data, Type messageType, CancellationToken cancellationToken = default)
-            => new ValueTask<object?>(Activator.CreateInstance(messageType));
+            => new(Activator.CreateInstance(messageType));
 
         public object? Deserialize(ReadOnlySpan<byte> data, Type messageType)
             => Activator.CreateInstance(messageType);

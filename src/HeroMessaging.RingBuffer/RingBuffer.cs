@@ -17,7 +17,6 @@ public sealed class RingBuffer<T> where T : class
     private readonly int _bufferMask;
     private readonly Sequencer _sequencer;
     private readonly IEventFactory<T> _eventFactory;
-    private readonly int _bufferSize;
 
     /// <summary>
     /// Creates a new ring buffer
@@ -47,7 +46,7 @@ public sealed class RingBuffer<T> where T : class
                 nameof(bufferSize));
         }
 
-        _bufferSize = bufferSize;
+        BufferSize = bufferSize;
         _entries = new T[bufferSize];
         _bufferMask = bufferSize - 1;
         _eventFactory = eventFactory ?? throw new ArgumentNullException(nameof(eventFactory));
@@ -67,7 +66,7 @@ public sealed class RingBuffer<T> where T : class
     /// <summary>
     /// Gets the buffer size
     /// </summary>
-    public int BufferSize => _bufferSize;
+    public int BufferSize { get; }
 
     /// <summary>
     /// Claim the next sequence number for publishing.
@@ -187,7 +186,7 @@ public sealed class RingBuffer<T> where T : class
     {
         long consumed = GetMinimumGatingSequence();
         long produced = GetCursor();
-        return _bufferSize - (produced - consumed);
+        return BufferSize - (produced - consumed);
     }
 
     private static bool IsPowerOf2(int value)

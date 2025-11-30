@@ -47,7 +47,7 @@ public class MessagePackMessageSerializer(SerializationOptions? options = null, 
     {
         if (data == null || data.Length == 0)
         {
-            return default(T)!;
+            return default!;
         }
 
         if (_options.EnableCompression)
@@ -115,7 +115,7 @@ public class MessagePackMessageSerializer(SerializationOptions? options = null, 
 
     public T Deserialize<T>(ReadOnlySpan<byte> data) where T : class
     {
-        if (data.IsEmpty) return default(T)!;
+        if (data.IsEmpty) return default!;
 
         var memory = new ReadOnlyMemory<byte>(data.ToArray());
         return MessagePackSerializer.Deserialize<T>(memory, _messagePackOptions)!;
@@ -143,11 +143,11 @@ public class MessagePackMessageSerializer(SerializationOptions? options = null, 
 
         var compressionLevel = _options.CompressionLevel switch
         {
-            Abstractions.Configuration.CompressionLevel.None => System.IO.Compression.CompressionLevel.NoCompression,
-            Abstractions.Configuration.CompressionLevel.Fastest => System.IO.Compression.CompressionLevel.Fastest,
-            Abstractions.Configuration.CompressionLevel.Optimal => System.IO.Compression.CompressionLevel.Optimal,
-            Abstractions.Configuration.CompressionLevel.Maximum => System.IO.Compression.CompressionLevel.Optimal,
-            _ => System.IO.Compression.CompressionLevel.Optimal
+            Abstractions.Configuration.CompressionLevel.None => CompressionLevel.NoCompression,
+            Abstractions.Configuration.CompressionLevel.Fastest => CompressionLevel.Fastest,
+            Abstractions.Configuration.CompressionLevel.Optimal => CompressionLevel.Optimal,
+            Abstractions.Configuration.CompressionLevel.Maximum => CompressionLevel.Optimal,
+            _ => CompressionLevel.Optimal
         };
 
         using (var gzip = new GZipStream(output, compressionLevel))
@@ -208,7 +208,7 @@ public class ContractMessagePackSerializer(SerializationOptions? options = null,
     {
         if (data == null || data.Length == 0)
         {
-            return default(T)!;
+            return default!;
         }
 
         if (_options.EnableCompression)
@@ -275,7 +275,7 @@ public class ContractMessagePackSerializer(SerializationOptions? options = null,
 
     public T Deserialize<T>(ReadOnlySpan<byte> data) where T : class
     {
-        if (data.IsEmpty) return default(T)!;
+        if (data.IsEmpty) return default!;
 
         var memory = new ReadOnlyMemory<byte>(data.ToArray());
         return MessagePackSerializer.Deserialize<T>(memory, _messagePackOptions)!;
@@ -304,11 +304,11 @@ public class ContractMessagePackSerializer(SerializationOptions? options = null,
 
         var compressionLevel = _options.CompressionLevel switch
         {
-            Abstractions.Configuration.CompressionLevel.None => System.IO.Compression.CompressionLevel.NoCompression,
-            Abstractions.Configuration.CompressionLevel.Fastest => System.IO.Compression.CompressionLevel.Fastest,
-            Abstractions.Configuration.CompressionLevel.Optimal => System.IO.Compression.CompressionLevel.Optimal,
-            Abstractions.Configuration.CompressionLevel.Maximum => System.IO.Compression.CompressionLevel.Optimal,
-            _ => System.IO.Compression.CompressionLevel.Optimal
+            Abstractions.Configuration.CompressionLevel.None => CompressionLevel.NoCompression,
+            Abstractions.Configuration.CompressionLevel.Fastest => CompressionLevel.Fastest,
+            Abstractions.Configuration.CompressionLevel.Optimal => CompressionLevel.Optimal,
+            Abstractions.Configuration.CompressionLevel.Maximum => CompressionLevel.Optimal,
+            _ => CompressionLevel.Optimal
         };
 
         using (var gzip = new GZipStream(output, compressionLevel))

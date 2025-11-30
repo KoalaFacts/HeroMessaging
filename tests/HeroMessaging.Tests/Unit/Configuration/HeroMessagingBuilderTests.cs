@@ -703,7 +703,7 @@ public sealed class HeroMessagingBuilderTests
             => Task.CompletedTask;
 
         public Task<IStorageTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
-            => Task.FromResult<IStorageTransaction>(Mock.Of<IStorageTransaction>());
+            => Task.FromResult(Mock.Of<IStorageTransaction>());
     }
 
     public class TestPlugin : IMessagingPlugin

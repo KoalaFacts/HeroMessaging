@@ -81,7 +81,7 @@ public class JsonMessageSerializer(
 
     public T Deserialize<T>(ReadOnlySpan<byte> data) where T : class
     {
-        if (data.IsEmpty) return default(T)!;
+        if (data.IsEmpty) return default!;
 
         var reader = new Utf8JsonReader(data);
         return JsonSerializer.Deserialize<T>(ref reader, _jsonOptions)!;
@@ -99,7 +99,7 @@ public class JsonMessageSerializer(
     {
         if (data == null || data.Length == 0)
         {
-            return default(T)!;
+            return default!;
         }
 
         if (_options.EnableCompression)

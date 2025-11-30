@@ -71,23 +71,6 @@ public class SqlServerMessageStorage : IMessageStorage
         };
     }
 
-    private async Task<SqlConnection> GetConnectionAsync()
-    {
-        if (_sharedConnection != null)
-        {
-            return _sharedConnection;
-        }
-
-        var connection = new SqlConnection(_connectionString);
-        await connection.OpenAsync();
-        return connection;
-    }
-
-    private SqlTransaction? GetTransaction()
-    {
-        return _sharedTransaction;
-    }
-
     /// <summary>
     /// Validates that a SQL identifier (schema/table name) is safe to use in SQL statements.
     /// Prevents SQL injection by rejecting unsafe characters.
@@ -284,7 +267,7 @@ public class SqlServerMessageStorage : IMessageStorage
         var messages = new List<T>();
 
         using var command = new SqlCommand(sql, connection);
-        command.Parameters.AddRange(parameters.ToArray());
+        command.Parameters.AddRange([.. parameters]);
         command.Parameters.Add("@Offset", SqlDbType.Int).Value = offset;
         command.Parameters.Add("@Limit", SqlDbType.Int).Value = limit;
 
@@ -400,7 +383,7 @@ public class SqlServerMessageStorage : IMessageStorage
         var sql = $"SELECT COUNT(*) FROM {_tableName} WHERE {whereClause}";
 
         using var command = new SqlCommand(sql, connection);
-        command.Parameters.AddRange(parameters.ToArray());
+        command.Parameters.AddRange([.. parameters]);
 
         var result = await command.ExecuteScalarAsync(cancellationToken);
         return Convert.ToInt64(result ?? 0);
@@ -500,12 +483,7 @@ public class SqlServerMessageStorage : IMessageStorage
                 var messageTypeName = reader.GetString(1);
 
                 // Deserialize using the concrete type stored in the database
-                var messageType = Type.GetType(messageTypeName);
-                if (messageType == null)
-                {
-                    throw new InvalidOperationException($"Unable to resolve message type: {messageTypeName}");
-                }
-
+                var messageType = Type.GetType(messageTypeName) ?? throw new InvalidOperationException($"Unable to resolve message type: {messageTypeName}");
                 var message = _jsonSerializer.DeserializeFromString(payload, messageType, _jsonOptions);
                 return message as IMessage;
             }
@@ -578,12 +556,7 @@ public class SqlServerMessageStorage : IMessageStorage
             var messageTypeName = reader.GetString(1);
 
             // Deserialize using the concrete type stored in the database
-            var messageType = Type.GetType(messageTypeName);
-            if (messageType == null)
-            {
-                throw new InvalidOperationException($"Unable to resolve message type: {messageTypeName}");
-            }
-
+            var messageType = Type.GetType(messageTypeName) ?? throw new InvalidOperationException($"Unable to resolve message type: {messageTypeName}");
             var message = JsonSerializer.Deserialize(payload, messageType, _jsonOptions);
             if (message is IMessage imessage)
             {

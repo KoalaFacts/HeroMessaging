@@ -197,7 +197,7 @@ namespace HeroMessaging.Tests.Unit.Transport
             // Act
             var result = services
                 .AddInMemoryTransport()
-                .AddSingleton<string>("test");
+                .AddSingleton("test");
 
             // Assert
             Assert.Same(services, result);
@@ -213,7 +213,7 @@ namespace HeroMessaging.Tests.Unit.Transport
             // Act
             var result = services
                 .AddInMemoryTransport("Transport1")
-                .AddSingleton<string>("test");
+                .AddSingleton("test");
 
             // Assert
             Assert.Same(services, result);

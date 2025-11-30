@@ -7,9 +7,6 @@ namespace HeroMessaging.Policies;
 internal sealed class CircuitState
 {
     private readonly TimeProvider _timeProvider;
-    private int _failureCount;
-    private DateTimeOffset _openedAt;
-    private bool _isOpen;
 
 #if NET9_0_OR_GREATER
     private readonly Lock _lock = new();
@@ -29,17 +26,17 @@ internal sealed class CircuitState
     /// <summary>
     /// Gets the current failure count.
     /// </summary>
-    public int FailureCount => _failureCount;
+    public int FailureCount { get; private set; }
 
     /// <summary>
     /// Gets the time when the circuit was opened.
     /// </summary>
-    public DateTimeOffset OpenedAt => _openedAt;
+    public DateTimeOffset OpenedAt { get; private set; }
 
     /// <summary>
     /// Gets a value indicating whether the circuit is open.
     /// </summary>
-    public bool IsOpen => _isOpen;
+    public bool IsOpen { get; private set; }
 
     /// <summary>
     /// Records a failure in the circuit.
@@ -48,7 +45,7 @@ internal sealed class CircuitState
     {
         lock (_lock)
         {
-            _failureCount++;
+            FailureCount++;
         }
     }
 
@@ -59,8 +56,8 @@ internal sealed class CircuitState
     {
         lock (_lock)
         {
-            _isOpen = true;
-            _openedAt = _timeProvider.GetUtcNow();
+            IsOpen = true;
+            OpenedAt = _timeProvider.GetUtcNow();
         }
     }
 
@@ -71,9 +68,9 @@ internal sealed class CircuitState
     {
         lock (_lock)
         {
-            _failureCount = 0;
-            _isOpen = false;
-            _openedAt = default;
+            FailureCount = 0;
+            IsOpen = false;
+            OpenedAt = default;
         }
     }
 }

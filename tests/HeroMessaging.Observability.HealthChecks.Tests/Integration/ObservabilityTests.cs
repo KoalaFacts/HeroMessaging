@@ -423,7 +423,7 @@ public class ObservabilityTests : IAsyncDisposable
     private class TestMetricsCollector : IAsyncDisposable
     {
         private readonly Dictionary<string, Metric> _metrics = new(StringComparer.OrdinalIgnoreCase);
-        private readonly object _syncRoot = new();
+        private readonly Lock _syncRoot = new();
 
         public void RecordMetric(string name, double value, Dictionary<string, string>? tags = null)
         {
@@ -457,15 +457,14 @@ public class ObservabilityTests : IAsyncDisposable
         {
             lock (_syncRoot)
             {
-                return _metrics.Values
+                return [.. _metrics.Values
                     .Select(metric => new Metric
                     {
                         Name = metric.Name,
                         Value = metric.Value,
                         Tags = new Dictionary<string, string>(metric.Tags),
                         Timestamp = metric.Timestamp
-                    })
-                    .ToList();
+                    })];
             }
         }
 
@@ -522,7 +521,7 @@ public class ObservabilityTests : IAsyncDisposable
             });
         }
 
-        public List<Trace> GetCollectedTraces() => _traces.ToList();
+        public List<Trace> GetCollectedTraces() => [.. _traces];
 
         public async ValueTask DisposeAsync()
         {
@@ -705,7 +704,10 @@ public class ObservabilityTests : IAsyncDisposable
 
         private sealed class AlertRule
         {
-            public AlertRule(Func<Metric, bool> condition) => Condition = condition;
+            public AlertRule(Func<Metric, bool> condition)
+            {
+                Condition = condition;
+            }
 
             public Func<Metric, bool> Condition { get; }
             public HashSet<string> TargetMetricNames { get; } = new(StringComparer.OrdinalIgnoreCase);
@@ -746,7 +748,7 @@ public class ObservabilityTests : IAsyncDisposable
             }
         }
 
-        public List<TriggeredAlert> GetTriggeredAlerts() => _triggeredAlerts.ToList();
+        public List<TriggeredAlert> GetTriggeredAlerts() => [.. _triggeredAlerts];
 
         public async ValueTask DisposeAsync() => await Task.CompletedTask;
     }
@@ -755,7 +757,10 @@ public class ObservabilityTests : IAsyncDisposable
     {
         private readonly ObservabilityConfiguration _config;
 
-        public TestObservabilityProvider(ObservabilityConfiguration config) => _config = config;
+        public TestObservabilityProvider(ObservabilityConfiguration config)
+        {
+            _config = config;
+        }
 
         public async Task InitializeAsync() => await Task.Delay(50, TestContext.Current.CancellationToken);
 

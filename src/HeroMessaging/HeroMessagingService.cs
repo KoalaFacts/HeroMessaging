@@ -86,7 +86,7 @@ public class HeroMessagingService(
     public async Task<IReadOnlyList<bool>> SendBatchAsync(IReadOnlyList<ICommand> commands, CancellationToken cancellationToken = default)
     {
         if (commands == null || commands.Count == 0)
-            return Array.Empty<bool>();
+            return [];
 
         var results = new List<bool>(commands.Count);
         Interlocked.Add(ref _commandsSent, commands.Count);
@@ -117,7 +117,7 @@ public class HeroMessagingService(
     public async Task<IReadOnlyList<TResponse>> SendBatchAsync<TResponse>(IReadOnlyList<ICommand<TResponse>> commands, CancellationToken cancellationToken = default)
     {
         if (commands == null || commands.Count == 0)
-            return Array.Empty<TResponse>();
+            return [];
 
         var results = new List<TResponse>(commands.Count);
         Interlocked.Add(ref _commandsSent, commands.Count);
@@ -134,7 +134,7 @@ public class HeroMessagingService(
     public async Task<IReadOnlyList<bool>> PublishBatchAsync(IReadOnlyList<IEvent> events, CancellationToken cancellationToken = default)
     {
         if (events == null || events.Count == 0)
-            return Array.Empty<bool>();
+            return [];
 
         var results = new List<bool>(events.Count);
         Interlocked.Add(ref _eventsPublished, events.Count);

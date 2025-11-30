@@ -1046,7 +1046,7 @@ public sealed class InMemoryMessageStorageTests
         var results = await Task.WhenAll(updateTasks);
 
         // Assert
-        Assert.All(results, result => Assert.True(result));
+        Assert.All(results, Assert.True);
     }
 
     #endregion

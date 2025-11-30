@@ -58,7 +58,7 @@ public class TransportAddressTests
     public void Constructor_WithNullUri_ThrowsArgumentNullException()
     {
         // Arrange, Act & Assert
-        var exception = Assert.Throws<ArgumentNullException>(() => new TransportAddress((Uri)null!));
+        var exception = Assert.Throws<ArgumentNullException>(() => new TransportAddress(null!));
         Assert.Equal("uri", exception.ParamName);
     }
 

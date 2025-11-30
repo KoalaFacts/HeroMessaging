@@ -29,7 +29,7 @@ public readonly record struct TransportAddress
         Path = uri.AbsolutePath.TrimStart('/');
 
         // Parse the path to extract name and type
-        var segments = Path.Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
+        var segments = Path.Split(['/'], StringSplitOptions.RemoveEmptyEntries);
         if (segments.Length > 0)
         {
             var lastSegment = segments[^1];

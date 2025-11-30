@@ -46,12 +46,12 @@ public class PluginRegistry : IPluginRegistry
 
     public IEnumerable<IPluginDescriptor> GetAll()
     {
-        return _plugins.Values.ToList();
+        return [.. _plugins.Values];
     }
 
     public IEnumerable<IPluginDescriptor> GetByCategory(PluginCategory category)
     {
-        return _plugins.Values.Where(p => p.Category == category).ToList();
+        return [.. _plugins.Values.Where(p => p.Category == category)];
     }
 
     public IPluginDescriptor? GetByName(string name)
@@ -75,8 +75,7 @@ public class PluginRegistry : IPluginRegistry
     {
         if (string.IsNullOrEmpty(name))
             return false;
-
-        if (_plugins.TryRemove(name, out var descriptor))
+        if (_plugins.TryRemove(name, out _))
         {
             _logger?.LogInformation("Unregistered plugin: {PluginName}", name);
             return true;
@@ -97,8 +96,6 @@ public class PluginRegistry : IPluginRegistry
         if (string.IsNullOrEmpty(feature))
             return [];
 
-        return _plugins.Values
-            .Where(p => p.ProvidedFeatures.Contains(feature))
-            .ToList();
+        return [.. _plugins.Values.Where(p => p.ProvidedFeatures.Contains(feature))];
     }
 }

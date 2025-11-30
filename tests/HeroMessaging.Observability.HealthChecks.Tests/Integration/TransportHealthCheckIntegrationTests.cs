@@ -47,7 +47,7 @@ public class TransportHealthCheckIntegrationTests : IAsyncDisposable
             });
 
         var serviceProvider = services.BuildServiceProvider();
-        _disposables.Add(serviceProvider as IAsyncDisposable);
+        _disposables.Add(serviceProvider);
 
         var healthCheckService = serviceProvider.GetRequiredService<HealthCheckService>();
 
@@ -99,7 +99,7 @@ public class TransportHealthCheckIntegrationTests : IAsyncDisposable
             });
 
         var serviceProvider = services.BuildServiceProvider();
-        _disposables.Add(serviceProvider as IAsyncDisposable);
+        _disposables.Add(serviceProvider);
 
         var healthCheckService = serviceProvider.GetRequiredService<HealthCheckService>();
 
@@ -149,7 +149,7 @@ public class TransportHealthCheckIntegrationTests : IAsyncDisposable
             });
 
         var serviceProvider = services.BuildServiceProvider();
-        _disposables.Add(serviceProvider as IAsyncDisposable);
+        _disposables.Add(serviceProvider);
 
         var healthCheckService = serviceProvider.GetRequiredService<HealthCheckService>();
 
@@ -182,7 +182,7 @@ public class TransportHealthCheckIntegrationTests : IAsyncDisposable
             });
 
         var serviceProvider = services.BuildServiceProvider();
-        _disposables.Add(serviceProvider as IAsyncDisposable);
+        _disposables.Add(serviceProvider);
 
         var healthCheckService = serviceProvider.GetRequiredService<HealthCheckService>();
 
@@ -215,7 +215,7 @@ public class TransportHealthCheckIntegrationTests : IAsyncDisposable
             });
 
         var serviceProvider = services.BuildServiceProvider();
-        _disposables.Add(serviceProvider as IAsyncDisposable);
+        _disposables.Add(serviceProvider);
 
         var healthCheckService = serviceProvider.GetRequiredService<HealthCheckService>();
 
@@ -257,11 +257,11 @@ public class TransportHealthCheckIntegrationTests : IAsyncDisposable
             {
                 options.CheckStorage = false;
                 options.CheckTransport = true;
-                options.Tags = new[] { "messaging", "transport" };
+                options.Tags = ["messaging", "transport"];
             });
 
         var serviceProvider = services.BuildServiceProvider();
-        _disposables.Add(serviceProvider as IAsyncDisposable);
+        _disposables.Add(serviceProvider);
 
         var healthCheckService = serviceProvider.GetRequiredService<HealthCheckService>();
 

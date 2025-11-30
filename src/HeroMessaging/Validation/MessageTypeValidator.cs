@@ -16,7 +16,7 @@ public class MessageTypeValidator : IMessageValidator
     public MessageTypeValidator(params IEnumerable<Type> allowedTypes)
     {
         _allowedTypes = allowedTypes?.Any() == true
-            ? new HashSet<Type>(allowedTypes)
+            ? [.. allowedTypes]
             : [typeof(ICommand), typeof(IEvent)];
     }
 

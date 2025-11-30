@@ -40,12 +40,7 @@ public class QueryProcessor : IQueryProcessor, IProcessor, IAsyncDisposable
 
         // Use cached handler type - avoids MakeGenericType allocation after first call
         var handlerType = HandlerTypeCache.GetQueryHandlerType(query.GetType(), typeof(TResponse));
-        var handler = _serviceProvider.GetService(handlerType);
-
-        if (handler == null)
-        {
-            throw new InvalidOperationException($"No handler found for query type {query.GetType().Name}");
-        }
+        var handler = _serviceProvider.GetService(handlerType) ?? throw new InvalidOperationException($"No handler found for query type {query.GetType().Name}");
 
         // Cache the handle method to avoid reflection on each call
         var handleMethod = HandlerTypeCache.GetHandleMethod(handlerType);

@@ -113,7 +113,7 @@ namespace HeroMessaging.Tests.Unit.Plugins
             var service = CreateService();
             _discoveryMock
                 .Setup(d => d.DiscoverPluginsAsync(It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new List<IPluginDescriptor>());
+                .ReturnsAsync([]);
 
             // Act
             await service.DiscoverAndRegisterPluginsAsync();

@@ -25,10 +25,11 @@ public class BatchProcessingOptionsTests
     public void Enabled_CanBeSet()
     {
         // Arrange
-        var options = new BatchProcessingOptions();
-
-        // Act
-        options.Enabled = true;
+        var options = new BatchProcessingOptions
+        {
+            // Act
+            Enabled = true
+        };
 
         // Assert
         Assert.True(options.Enabled);
@@ -38,10 +39,11 @@ public class BatchProcessingOptionsTests
     public void MaxBatchSize_CanBeSet()
     {
         // Arrange
-        var options = new BatchProcessingOptions();
-
-        // Act
-        options.MaxBatchSize = 100;
+        var options = new BatchProcessingOptions
+        {
+            // Act
+            MaxBatchSize = 100
+        };
 
         // Assert
         Assert.Equal(100, options.MaxBatchSize);
@@ -51,10 +53,11 @@ public class BatchProcessingOptionsTests
     public void BatchTimeout_CanBeSet()
     {
         // Arrange
-        var options = new BatchProcessingOptions();
-
-        // Act
-        options.BatchTimeout = TimeSpan.FromSeconds(1);
+        var options = new BatchProcessingOptions
+        {
+            // Act
+            BatchTimeout = TimeSpan.FromSeconds(1)
+        };
 
         // Assert
         Assert.Equal(TimeSpan.FromSeconds(1), options.BatchTimeout);
@@ -64,10 +67,11 @@ public class BatchProcessingOptionsTests
     public void MinBatchSize_CanBeSet()
     {
         // Arrange
-        var options = new BatchProcessingOptions();
-
-        // Act
-        options.MinBatchSize = 5;
+        var options = new BatchProcessingOptions
+        {
+            // Act
+            MinBatchSize = 5
+        };
 
         // Assert
         Assert.Equal(5, options.MinBatchSize);
@@ -77,10 +81,11 @@ public class BatchProcessingOptionsTests
     public void FallbackToIndividualProcessing_CanBeDisabled()
     {
         // Arrange
-        var options = new BatchProcessingOptions();
-
-        // Act
-        options.FallbackToIndividualProcessing = false;
+        var options = new BatchProcessingOptions
+        {
+            // Act
+            FallbackToIndividualProcessing = false
+        };
 
         // Assert
         Assert.False(options.FallbackToIndividualProcessing);
@@ -90,10 +95,11 @@ public class BatchProcessingOptionsTests
     public void MaxDegreeOfParallelism_CanBeSet()
     {
         // Arrange
-        var options = new BatchProcessingOptions();
-
-        // Act
-        options.MaxDegreeOfParallelism = 4;
+        var options = new BatchProcessingOptions
+        {
+            // Act
+            MaxDegreeOfParallelism = 4
+        };
 
         // Assert
         Assert.Equal(4, options.MaxDegreeOfParallelism);
@@ -103,10 +109,11 @@ public class BatchProcessingOptionsTests
     public void ContinueOnFailure_CanBeDisabled()
     {
         // Arrange
-        var options = new BatchProcessingOptions();
-
-        // Act
-        options.ContinueOnFailure = false;
+        var options = new BatchProcessingOptions
+        {
+            // Act
+            ContinueOnFailure = false
+        };
 
         // Assert
         Assert.False(options.ContinueOnFailure);
@@ -135,7 +142,7 @@ public class BatchProcessingOptionsTests
         var options = new BatchProcessingOptions { MaxBatchSize = 0 };
 
         // Act & Assert
-        var exception = Assert.Throws<ArgumentException>(() => options.Validate());
+        var exception = Assert.Throws<ArgumentException>(options.Validate);
         Assert.Equal("MaxBatchSize", exception.ParamName);
         Assert.Contains("greater than 0", exception.Message);
     }
@@ -147,7 +154,7 @@ public class BatchProcessingOptionsTests
         var options = new BatchProcessingOptions { MaxBatchSize = -1 };
 
         // Act & Assert
-        var exception = Assert.Throws<ArgumentException>(() => options.Validate());
+        var exception = Assert.Throws<ArgumentException>(options.Validate);
         Assert.Equal("MaxBatchSize", exception.ParamName);
     }
 
@@ -158,7 +165,7 @@ public class BatchProcessingOptionsTests
         var options = new BatchProcessingOptions { BatchTimeout = TimeSpan.Zero };
 
         // Act & Assert
-        var exception = Assert.Throws<ArgumentException>(() => options.Validate());
+        var exception = Assert.Throws<ArgumentException>(options.Validate);
         Assert.Equal("BatchTimeout", exception.ParamName);
         Assert.Contains("greater than zero", exception.Message);
     }
@@ -170,7 +177,7 @@ public class BatchProcessingOptionsTests
         var options = new BatchProcessingOptions { BatchTimeout = TimeSpan.FromSeconds(-1) };
 
         // Act & Assert
-        var exception = Assert.Throws<ArgumentException>(() => options.Validate());
+        var exception = Assert.Throws<ArgumentException>(options.Validate);
         Assert.Equal("BatchTimeout", exception.ParamName);
     }
 
@@ -181,7 +188,7 @@ public class BatchProcessingOptionsTests
         var options = new BatchProcessingOptions { MinBatchSize = 0 };
 
         // Act & Assert
-        var exception = Assert.Throws<ArgumentException>(() => options.Validate());
+        var exception = Assert.Throws<ArgumentException>(options.Validate);
         Assert.Equal("MinBatchSize", exception.ParamName);
         Assert.Contains("at least 1", exception.Message);
     }
@@ -193,7 +200,7 @@ public class BatchProcessingOptionsTests
         var options = new BatchProcessingOptions { MinBatchSize = -1 };
 
         // Act & Assert
-        var exception = Assert.Throws<ArgumentException>(() => options.Validate());
+        var exception = Assert.Throws<ArgumentException>(options.Validate);
         Assert.Equal("MinBatchSize", exception.ParamName);
     }
 
@@ -208,7 +215,7 @@ public class BatchProcessingOptionsTests
         };
 
         // Act & Assert
-        var exception = Assert.Throws<ArgumentException>(() => options.Validate());
+        var exception = Assert.Throws<ArgumentException>(options.Validate);
         Assert.Equal("MinBatchSize", exception.ParamName);
         Assert.Contains("cannot be greater than MaxBatchSize", exception.Message);
     }
@@ -234,7 +241,7 @@ public class BatchProcessingOptionsTests
         var options = new BatchProcessingOptions { MaxDegreeOfParallelism = 0 };
 
         // Act & Assert
-        var exception = Assert.Throws<ArgumentException>(() => options.Validate());
+        var exception = Assert.Throws<ArgumentException>(options.Validate);
         Assert.Equal("MaxDegreeOfParallelism", exception.ParamName);
         Assert.Contains("greater than 0", exception.Message);
     }
@@ -246,7 +253,7 @@ public class BatchProcessingOptionsTests
         var options = new BatchProcessingOptions { MaxDegreeOfParallelism = -1 };
 
         // Act & Assert
-        var exception = Assert.Throws<ArgumentException>(() => options.Validate());
+        var exception = Assert.Throws<ArgumentException>(options.Validate);
         Assert.Equal("MaxDegreeOfParallelism", exception.ParamName);
     }
 

@@ -128,7 +128,7 @@ public sealed class DefaultJsonSerializer : IJsonSerializer
             Span<byte> utf8Bytes = stackalloc byte[maxByteCount];
             var bytesWritten = Encoding.UTF8.GetBytes(json, utf8Bytes);
 
-            var reader = new Utf8JsonReader(utf8Bytes.Slice(0, bytesWritten));
+            var reader = new Utf8JsonReader(utf8Bytes[..bytesWritten]);
             return JsonSerializer.Deserialize<T>(ref reader, options);
         }
         else
@@ -138,7 +138,7 @@ public sealed class DefaultJsonSerializer : IJsonSerializer
             var utf8Bytes = Encoding.UTF8.GetBytes(json);
             utf8Bytes.CopyTo(pooledBuffer.Span);
 
-            var reader = new Utf8JsonReader(pooledBuffer.Span.Slice(0, utf8Bytes.Length));
+            var reader = new Utf8JsonReader(pooledBuffer.Span[..utf8Bytes.Length]);
             return JsonSerializer.Deserialize<T>(ref reader, options);
         }
     }
@@ -160,7 +160,7 @@ public sealed class DefaultJsonSerializer : IJsonSerializer
             Span<byte> utf8Bytes = stackalloc byte[maxByteCount];
             var bytesWritten = Encoding.UTF8.GetBytes(json, utf8Bytes);
 
-            var reader = new Utf8JsonReader(utf8Bytes.Slice(0, bytesWritten));
+            var reader = new Utf8JsonReader(utf8Bytes[..bytesWritten]);
             return JsonSerializer.Deserialize(ref reader, type, options);
         }
         else
@@ -170,7 +170,7 @@ public sealed class DefaultJsonSerializer : IJsonSerializer
             var utf8Bytes = Encoding.UTF8.GetBytes(json);
             utf8Bytes.CopyTo(pooledBuffer.Span);
 
-            var reader = new Utf8JsonReader(pooledBuffer.Span.Slice(0, utf8Bytes.Length));
+            var reader = new Utf8JsonReader(pooledBuffer.Span[..utf8Bytes.Length]);
             return JsonSerializer.Deserialize(ref reader, type, options);
         }
     }

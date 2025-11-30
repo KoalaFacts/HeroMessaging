@@ -55,7 +55,7 @@ public sealed class EventBusTests : IDisposable
     {
         // Arrange
         var handlerMock = new Mock<IEventHandler<TestEvent>>();
-        _services.AddSingleton<IEventHandler<TestEvent>>(handlerMock.Object);
+        _services.AddSingleton(handlerMock.Object);
         var eventBus = CreateEventBus();
         var testEvent = new TestEvent();
 
@@ -92,9 +92,9 @@ public sealed class EventBusTests : IDisposable
         var handler2Mock = new Mock<IEventHandler<TestEvent>>();
         var handler3Mock = new Mock<IEventHandler<TestEvent>>();
 
-        _services.AddSingleton<IEventHandler<TestEvent>>(handler1Mock.Object);
-        _services.AddSingleton<IEventHandler<TestEvent>>(handler2Mock.Object);
-        _services.AddSingleton<IEventHandler<TestEvent>>(handler3Mock.Object);
+        _services.AddSingleton(handler1Mock.Object);
+        _services.AddSingleton(handler2Mock.Object);
+        _services.AddSingleton(handler3Mock.Object);
 
         var eventBus = CreateEventBus();
         var testEvent = new TestEvent();
@@ -120,7 +120,7 @@ public sealed class EventBusTests : IDisposable
     {
         // Arrange
         var handlerMock = new Mock<IEventHandler<TestEvent>>();
-        _services.AddSingleton<IEventHandler<TestEvent>>(handlerMock.Object);
+        _services.AddSingleton(handlerMock.Object);
         var eventBus = CreateEventBus();
 
         handlerMock
@@ -150,8 +150,8 @@ public sealed class EventBusTests : IDisposable
         var handler1Mock = new Mock<IEventHandler<TestEvent>>();
         var handler2Mock = new Mock<IEventHandler<TestEvent>>();
 
-        _services.AddSingleton<IEventHandler<TestEvent>>(handler1Mock.Object);
-        _services.AddSingleton<IEventHandler<TestEvent>>(handler2Mock.Object);
+        _services.AddSingleton(handler1Mock.Object);
+        _services.AddSingleton(handler2Mock.Object);
 
         var eventBus = CreateEventBus();
         var testEvent = new TestEvent();
@@ -179,7 +179,7 @@ public sealed class EventBusTests : IDisposable
     {
         // Arrange
         var handlerMock = new Mock<IEventHandler<TestEvent>>();
-        _services.AddSingleton<IEventHandler<TestEvent>>(handlerMock.Object);
+        _services.AddSingleton(handlerMock.Object);
         var eventBus = CreateEventBus();
         var testEvent = new TestEvent();
 
@@ -203,7 +203,7 @@ public sealed class EventBusTests : IDisposable
     {
         // Arrange
         var handlerMock = new Mock<IEventHandler<TestEvent>>();
-        _services.AddSingleton<IEventHandler<TestEvent>>(handlerMock.Object);
+        _services.AddSingleton(handlerMock.Object);
         var eventBus = CreateEventBus();
         var testEvent = new TestEvent();
 
@@ -237,7 +237,7 @@ public sealed class EventBusTests : IDisposable
     {
         // Arrange
         var handlerMock = new Mock<IEventHandler<TestEvent>>();
-        _services.AddSingleton<IEventHandler<TestEvent>>(handlerMock.Object);
+        _services.AddSingleton(handlerMock.Object);
         var eventBus = CreateEventBus();
         var testEvent = new TestEvent();
         var cts = new CancellationTokenSource();
@@ -261,7 +261,7 @@ public sealed class EventBusTests : IDisposable
     {
         // Arrange
         var handlerMock = new Mock<IEventHandler<TestEvent>>();
-        _services.AddSingleton<IEventHandler<TestEvent>>(handlerMock.Object);
+        _services.AddSingleton(handlerMock.Object);
         var eventBus = CreateEventBus();
         var testEvent = new TestEvent();
         var cts = new CancellationTokenSource();
@@ -295,7 +295,7 @@ public sealed class EventBusTests : IDisposable
     {
         // Arrange
         var handlerMock = new Mock<IEventHandler<TestEvent>>();
-        _services.AddSingleton<IEventHandler<TestEvent>>(handlerMock.Object);
+        _services.AddSingleton(handlerMock.Object);
         var eventBus = CreateEventBus();
         var testEvent = new TestEvent();
 
@@ -318,8 +318,8 @@ public sealed class EventBusTests : IDisposable
         var handler1Mock = new Mock<IEventHandler<TestEvent>>();
         var handler2Mock = new Mock<IEventHandler<TestEvent>>();
 
-        _services.AddSingleton<IEventHandler<TestEvent>>(handler1Mock.Object);
-        _services.AddSingleton<IEventHandler<TestEvent>>(handler2Mock.Object);
+        _services.AddSingleton(handler1Mock.Object);
+        _services.AddSingleton(handler2Mock.Object);
 
         var eventBus = CreateEventBus();
         var testEvent = new TestEvent();
@@ -340,7 +340,7 @@ public sealed class EventBusTests : IDisposable
     {
         // Arrange
         var handlerMock = new Mock<IEventHandler<TestEvent>>();
-        _services.AddSingleton<IEventHandler<TestEvent>>(handlerMock.Object);
+        _services.AddSingleton(handlerMock.Object);
         var eventBus = CreateEventBus();
 
         handlerMock
@@ -380,7 +380,7 @@ public sealed class EventBusTests : IDisposable
     {
         // Arrange
         var handlerMock = new Mock<IEventHandler<TestEvent>>();
-        _services.AddSingleton<IEventHandler<TestEvent>>(handlerMock.Object);
+        _services.AddSingleton(handlerMock.Object);
         var eventBus = CreateEventBus();
         var testEvent = new TestEvent();
 
@@ -412,8 +412,8 @@ public sealed class EventBusTests : IDisposable
         var handler1Mock = new Mock<IEventHandler<TestEvent>>();
         var handler2Mock = new Mock<IEventHandler<TestEvent>>();
 
-        _services.AddSingleton<IEventHandler<TestEvent>>(handler1Mock.Object);
-        _services.AddSingleton<IEventHandler<TestEvent>>(handler2Mock.Object);
+        _services.AddSingleton(handler1Mock.Object);
+        _services.AddSingleton(handler2Mock.Object);
 
         var eventBus = CreateEventBus();
         var testEvent = new TestEvent();
@@ -456,8 +456,8 @@ public sealed class EventBusTests : IDisposable
         var handler1Mock = new Mock<IEventHandler<TestEvent>>();
         var handler2Mock = new Mock<IEventHandler<AnotherTestEvent>>();
 
-        _services.AddSingleton<IEventHandler<TestEvent>>(handler1Mock.Object);
-        _services.AddSingleton<IEventHandler<AnotherTestEvent>>(handler2Mock.Object);
+        _services.AddSingleton(handler1Mock.Object);
+        _services.AddSingleton(handler2Mock.Object);
 
         var eventBus = CreateEventBus();
         var testEvent = new TestEvent();

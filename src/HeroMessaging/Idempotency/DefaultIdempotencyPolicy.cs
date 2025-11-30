@@ -42,7 +42,7 @@ namespace HeroMessaging.Idempotency;
 /// <item><description><see cref="TimeoutException"/> - Temporary timeout conditions</description></item>
 /// <item><description><see cref="TaskCanceledException"/> - Cancelled operations</description></item>
 /// <item><description><see cref="OperationCanceledException"/> - Cancelled operations</description></item>
-/// <item><description><see cref="System.IO.IOException"/> - I/O errors (network, disk)</description></item>
+/// <item><description><see cref="IOException"/> - I/O errors (network, disk)</description></item>
 /// <item><description><see cref="HttpRequestException"/> - Network communication errors</description></item>
 /// <item><description><see cref="System.Net.Sockets.SocketException"/> - Socket-level errors</description></item>
 /// </list>
@@ -119,7 +119,7 @@ public class DefaultIdempotencyPolicy : IIdempotencyPolicy
             TimeoutException => false,
 
             // I/O errors - transient (network, disk issues)
-            System.IO.IOException => false,
+            IOException => false,
 
             // Network errors - transient
             HttpRequestException => false,

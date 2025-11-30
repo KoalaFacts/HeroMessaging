@@ -111,19 +111,16 @@ public sealed class PostgreSqlStorageTests : IDisposable
 // Supporting classes for the tests
 public class PostgreSqlStorageConfiguration
 {
-    private string _host = string.Empty;
-    private int _port;
-
     public string Host
     {
-        get => _host;
-        set => _host = value ?? throw new ArgumentNullException(nameof(value));
-    }
+        get;
+        set => field = value ?? throw new ArgumentNullException(nameof(value));
+    } = string.Empty;
 
     public int Port
     {
-        get => _port;
-        set => _port = value > 0 ? value : throw new ArgumentOutOfRangeException(nameof(value), "Port must be greater than 0");
+        get;
+        set => field = value > 0 ? value : throw new ArgumentOutOfRangeException(nameof(value), "Port must be greater than 0");
     }
 
     public string Database { get; set; } = string.Empty;

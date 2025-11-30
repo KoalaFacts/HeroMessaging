@@ -58,7 +58,7 @@ public static class ExtensionsToIHeroMessagingBuilderForVersioning
     public static IHeroMessagingBuilder RegisterConverter<TMessage>(
         this IHeroMessagingBuilder builder,
         IMessageConverter<TMessage> converter)
-        where TMessage : class, HeroMessaging.Abstractions.Messages.IMessage
+        where TMessage : class, Messages.IMessage
     {
         if (builder is not HeroMessagingBuilder heroBuilder)
         {
@@ -85,7 +85,7 @@ public static class ExtensionsToIHeroMessagingBuilderForVersioning
     public static IHeroMessagingBuilder RegisterConverters<TMessage>(
         this IHeroMessagingBuilder builder,
         params IMessageConverter<TMessage>[] converters)
-        where TMessage : class, HeroMessaging.Abstractions.Messages.IMessage
+        where TMessage : class, Messages.IMessage
     {
         foreach (var converter in converters)
         {
@@ -210,7 +210,7 @@ public class MessageVersioningOptions
     /// Registers a converter with the options
     /// </summary>
     public void RegisterConverter<TMessage>(IMessageConverter<TMessage> converter)
-        where TMessage : class, HeroMessaging.Abstractions.Messages.IMessage
+        where TMessage : class, Messages.IMessage
     {
         ConverterRegistrations.Add(registry => registry.RegisterConverter(converter));
     }

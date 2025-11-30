@@ -12,9 +12,8 @@ namespace HeroMessaging.Security.Authentication;
 public sealed class ClaimsAuthenticationProvider : IAuthenticationProvider
 {
     private readonly ConcurrentDictionary<string, ClaimsPrincipal> _apiKeys;
-    private readonly string _scheme;
 
-    public string Scheme => _scheme;
+    public string Scheme { get; }
 
     /// <summary>
     /// Creates a new claims authentication provider
@@ -22,7 +21,7 @@ public sealed class ClaimsAuthenticationProvider : IAuthenticationProvider
     /// <param name="scheme">Authentication scheme name (e.g., "ApiKey", "Bearer")</param>
     public ClaimsAuthenticationProvider(string scheme = "ApiKey")
     {
-        _scheme = scheme ?? throw new ArgumentNullException(nameof(scheme));
+        Scheme = scheme ?? throw new ArgumentNullException(nameof(scheme));
         _apiKeys = new ConcurrentDictionary<string, ClaimsPrincipal>(StringComparer.Ordinal);
     }
 
@@ -33,11 +32,7 @@ public sealed class ClaimsAuthenticationProvider : IAuthenticationProvider
     {
         if (string.IsNullOrWhiteSpace(apiKey))
             throw new ArgumentException("API key cannot be empty", nameof(apiKey));
-
-        if (principal == null)
-            throw new ArgumentNullException(nameof(principal));
-
-        _apiKeys[apiKey] = principal;
+        _apiKeys[apiKey] = principal ?? throw new ArgumentNullException(nameof(principal));
     }
 
     /// <summary>
@@ -51,7 +46,7 @@ public sealed class ClaimsAuthenticationProvider : IAuthenticationProvider
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Name cannot be empty", nameof(name));
 
-        var identity = new ClaimsIdentity(claims.ToArray(), _scheme, ClaimTypes.Name, ClaimTypes.Role);
+        var identity = new ClaimsIdentity(claims.ToArray(), Scheme, ClaimTypes.Name, ClaimTypes.Role);
         identity.AddClaim(new Claim(ClaimTypes.Name, name));
 
         var principal = new ClaimsPrincipal(identity);
@@ -65,7 +60,7 @@ public sealed class ClaimsAuthenticationProvider : IAuthenticationProvider
         if (credentials == null)
             throw new ArgumentNullException(nameof(credentials));
 
-        if (credentials.Scheme != _scheme)
+        if (credentials.Scheme != Scheme)
             return Task.FromResult<ClaimsPrincipal?>(null);
 
         if (_apiKeys.TryGetValue(credentials.Value, out var principal))

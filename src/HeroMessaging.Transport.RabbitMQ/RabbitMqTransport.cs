@@ -21,7 +21,6 @@ public sealed class RabbitMqTransport : IMessageTransport
     private RabbitMqConnectionPool? _connectionPool;
     private readonly ConcurrentDictionary<string, RabbitMqChannelPool> _channelPools = new();
     private readonly ConcurrentDictionary<string, RabbitMqConsumer> _consumers = new();
-    private TransportState _state = TransportState.Disconnected;
 #if NET9_0_OR_GREATER
     private readonly Lock _stateLock = new();
 #else
@@ -34,7 +33,7 @@ public sealed class RabbitMqTransport : IMessageTransport
     public string Name => _options.Name;
 
     /// <inheritdoc/>
-    public TransportState State => _state;
+    public TransportState State { get; private set; } = TransportState.Disconnected;
 
     /// <inheritdoc/>
     public event EventHandler<TransportStateChangedEventArgs>? StateChanged;
@@ -65,7 +64,7 @@ public sealed class RabbitMqTransport : IMessageTransport
         await _connectLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            if (_state == TransportState.Connected)
+            if (State == TransportState.Connected)
                 return;
 
             ChangeState(TransportState.Connecting, "Connecting to RabbitMQ");
@@ -171,10 +170,10 @@ public sealed class RabbitMqTransport : IMessageTransport
                     properties.Headers = new Dictionary<string, object>(envelope.Headers);
                 }
 
-                _instrumentation.AddEvent(activity, "serialization.complete", new[]
-                {
+                _instrumentation.AddEvent(activity, "serialization.complete",
+                [
                     new KeyValuePair<string, object?>("size_bytes", envelope.Body.Length)
-                });
+                ]);
 
                 _instrumentation.AddEvent(activity, "publish.start");
 
@@ -233,12 +232,14 @@ public sealed class RabbitMqTransport : IMessageTransport
                 _instrumentation.AddEvent(activity, "serialization.start");
 
                 // Build message properties
-                var properties = new BasicProperties();
-                properties.Persistent = true;
-                properties.MessageId = envelope.MessageId;
-                properties.CorrelationId = envelope.CorrelationId;
-                properties.ContentType = envelope.ContentType ?? "application/octet-stream";
-                properties.Timestamp = new AmqpTimestamp(_timeProvider.GetUtcNow().ToUnixTimeSeconds());
+                var properties = new BasicProperties
+                {
+                    Persistent = true,
+                    MessageId = envelope.MessageId,
+                    CorrelationId = envelope.CorrelationId,
+                    ContentType = envelope.ContentType ?? "application/octet-stream",
+                    Timestamp = new AmqpTimestamp(_timeProvider.GetUtcNow().ToUnixTimeSeconds())
+                };
 
                 // Copy headers including trace context
                 if (envelope.Headers.Count > 0)
@@ -246,10 +247,10 @@ public sealed class RabbitMqTransport : IMessageTransport
                     properties.Headers = new Dictionary<string, object>(envelope.Headers);
                 }
 
-                _instrumentation.AddEvent(activity, "serialization.complete", new[]
-                {
+                _instrumentation.AddEvent(activity, "serialization.complete",
+                [
                     new KeyValuePair<string, object?>("size_bytes", envelope.Body.Length)
-                });
+                ]);
 
                 _instrumentation.AddEvent(activity, "publish.start");
 
@@ -351,10 +352,10 @@ public sealed class RabbitMqTransport : IMessageTransport
 
                 var exchangeType = exchange.Type switch
                 {
-                    HeroMessaging.Abstractions.Transport.ExchangeType.Direct => "direct",
-                    HeroMessaging.Abstractions.Transport.ExchangeType.Fanout => "fanout",
-                    HeroMessaging.Abstractions.Transport.ExchangeType.Topic => "topic",
-                    HeroMessaging.Abstractions.Transport.ExchangeType.Headers => "headers",
+                    Abstractions.Transport.ExchangeType.Direct => "direct",
+                    Abstractions.Transport.ExchangeType.Fanout => "fanout",
+                    Abstractions.Transport.ExchangeType.Topic => "topic",
+                    Abstractions.Transport.ExchangeType.Headers => "headers",
                     _ => "topic"
                 };
 
@@ -432,14 +433,14 @@ public sealed class RabbitMqTransport : IMessageTransport
     /// <inheritdoc/>
     public async Task<TransportHealth> GetHealthAsync(CancellationToken cancellationToken = default)
     {
-        var isHealthy = _state == TransportState.Connected && _connectionPool != null;
+        var isHealthy = State == TransportState.Connected && _connectionPool != null;
 
         var health = new TransportHealth
         {
             TransportName = Name,
             Status = isHealthy ? HealthStatus.Healthy : HealthStatus.Unhealthy,
-            State = _state,
-            StatusMessage = isHealthy ? "RabbitMQ transport is healthy" : $"Transport state: {_state}",
+            State = State,
+            StatusMessage = isHealthy ? "RabbitMQ transport is healthy" : $"Transport state: {State}",
             Timestamp = _timeProvider.GetUtcNow(),
             Duration = TimeSpan.Zero,
             ActiveConsumers = _consumers.Count,
@@ -454,10 +455,10 @@ public sealed class RabbitMqTransport : IMessageTransport
 
         if (_connectionPool != null)
         {
-            var stats = _connectionPool.GetStatistics();
-            health.ActiveConnections = stats.Total;
-            health.Data["ConnectionsActive"] = stats.Active;
-            health.Data["ConnectionsIdle"] = stats.Idle;
+            var (Total, Active, Idle) = _connectionPool.GetStatistics();
+            health.ActiveConnections = Total;
+            health.Data["ConnectionsActive"] = Active;
+            health.Data["ConnectionsIdle"] = Idle;
         }
 
         await Task.CompletedTask; // Keep async signature
@@ -495,9 +496,9 @@ public sealed class RabbitMqTransport : IMessageTransport
 
     private void EnsureConnected()
     {
-        if (_state != TransportState.Connected)
+        if (State != TransportState.Connected)
         {
-            throw new InvalidOperationException($"Transport is not connected. Current state: {_state}");
+            throw new InvalidOperationException($"Transport is not connected. Current state: {State}");
         }
     }
 
@@ -506,8 +507,8 @@ public sealed class RabbitMqTransport : IMessageTransport
         TransportState oldState;
         lock (_stateLock)
         {
-            oldState = _state;
-            _state = newState;
+            oldState = State;
+            State = newState;
         }
 
         if (oldState != newState)

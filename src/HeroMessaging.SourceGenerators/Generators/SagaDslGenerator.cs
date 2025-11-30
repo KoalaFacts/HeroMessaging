@@ -51,7 +51,7 @@ public class SagaDslGenerator : IIncrementalGenerator
     private static SagaInfo? GetSemanticTarget(GeneratorSyntaxContext context)
     {
         var classDecl = (ClassDeclarationSyntax)context.Node;
-        var symbol = context.SemanticModel.GetDeclaredSymbol(classDecl) as INamedTypeSymbol;
+        var symbol = context.SemanticModel.GetDeclaredSymbol(classDecl);
 
         if (symbol is null) return null;
 
@@ -227,7 +227,7 @@ public class SagaDslGenerator : IIncrementalGenerator
             // Event handlers
             foreach (var handler in state.EventHandlers)
             {
-                var eventTypeName = GetShortTypeName(handler.EventType);
+                _ = GetShortTypeName(handler.EventType);
                 sb.AppendLine($"            state.When<{handler.EventType}>()");
                 sb.AppendLine($"                 .Then(async (evt, ct) => await new {state.ClassName}().{handler.MethodName}(evt))");
                 if (handler.TransitionTo is not null)
@@ -296,7 +296,7 @@ public class SagaDslGenerator : IIncrementalGenerator
     private static string GetShortTypeName(string fullyQualifiedName)
     {
         var parts = fullyQualifiedName.Split('.');
-        return parts[parts.Length - 1];
+        return parts[^1];
     }
 
     private class SagaInfo

@@ -41,7 +41,7 @@ public class MultipleTransportHealthCheck(IEnumerable<IMessageTransport> transpo
                     TransportName: transport.Name,
                     Status: status,
                     Description: $"{transport.Name}: {statusMessage}",
-                    Exception: (Exception?)null
+                    Exception: null
                 );
             }
             catch (Exception ex)
@@ -55,7 +55,7 @@ public class MultipleTransportHealthCheck(IEnumerable<IMessageTransport> transpo
             }
         });
 
-        results = (await Task.WhenAll(tasks).ConfigureAwait(false)).ToList();
+        results = [.. (await Task.WhenAll(tasks).ConfigureAwait(false))];
 
         // Aggregate results
         var overallStatus = AggregateStatus(results.Select(r => r.Status));

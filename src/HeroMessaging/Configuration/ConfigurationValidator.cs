@@ -147,12 +147,6 @@ public class ConfigurationValidator : IConfigurationValidator
         _results.Add(new ValidationResult(ValidationSeverity.Warning, message));
         _logger?.LogWarning(message);
     }
-
-    private void AddInfo(string message)
-    {
-        _results.Add(new ValidationResult(ValidationSeverity.Info, message));
-        _logger?.LogInformation(message);
-    }
 }
 
 /// <summary>

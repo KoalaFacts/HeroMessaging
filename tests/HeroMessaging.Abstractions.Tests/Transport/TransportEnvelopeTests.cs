@@ -23,7 +23,7 @@ public class TransportEnvelopeTests
         Assert.Equal("application/octet-stream", envelope.ContentType);
         Assert.NotNull(envelope.Headers);
         Assert.Empty(envelope.Headers);
-        Assert.NotEqual(default(DateTimeOffset), envelope.Timestamp);
+        Assert.NotEqual(default, envelope.Timestamp);
         Assert.Null(envelope.ExpiresAt);
         Assert.Equal(0, envelope.Priority);
     }

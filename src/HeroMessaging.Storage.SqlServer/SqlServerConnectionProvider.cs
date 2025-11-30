@@ -10,14 +10,13 @@ public class SqlServerConnectionProvider : IDbConnectionProvider<SqlConnection, 
 {
     private readonly SqlConnection? _sharedConnection;
     private readonly SqlTransaction? _sharedTransaction;
-    private readonly string _connectionString;
 
     /// <summary>
     /// Creates a connection provider with a connection string (standalone mode)
     /// </summary>
     public SqlServerConnectionProvider(string connectionString)
     {
-        _connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
+        ConnectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
     }
 
     /// <summary>
@@ -27,7 +26,7 @@ public class SqlServerConnectionProvider : IDbConnectionProvider<SqlConnection, 
     {
         _sharedConnection = connection ?? throw new ArgumentNullException(nameof(connection));
         _sharedTransaction = transaction;
-        _connectionString = connection.ConnectionString ?? string.Empty;
+        ConnectionString = connection.ConnectionString ?? string.Empty;
     }
 
     /// <inheritdoc />
@@ -38,7 +37,7 @@ public class SqlServerConnectionProvider : IDbConnectionProvider<SqlConnection, 
             return _sharedConnection;
         }
 
-        var connection = new SqlConnection(_connectionString);
+        var connection = new SqlConnection(ConnectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
         return connection;
     }
@@ -50,5 +49,5 @@ public class SqlServerConnectionProvider : IDbConnectionProvider<SqlConnection, 
     public bool IsSharedConnection => _sharedConnection != null;
 
     /// <inheritdoc />
-    public string ConnectionString => _connectionString;
+    public string ConnectionString { get; }
 }

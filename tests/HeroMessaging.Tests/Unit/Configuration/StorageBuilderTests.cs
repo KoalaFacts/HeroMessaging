@@ -622,12 +622,12 @@ public sealed class StorageBuilderTests
             => Task.CompletedTask;
 
         public Task<IStorageTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
-            => Task.FromResult<IStorageTransaction>(Mock.Of<IStorageTransaction>());
+            => Task.FromResult(Mock.Of<IStorageTransaction>());
     }
 
     public class TestOutboxStorage : IOutboxStorage
     {
-        public Task<OutboxEntry> AddAsync(IMessage message, Abstractions.OutboxOptions options, CancellationToken cancellationToken = default)
+        public Task<OutboxEntry> AddAsync(IMessage message, OutboxOptions options, CancellationToken cancellationToken = default)
             => Task.FromResult(new OutboxEntry { Message = message, Options = options });
 
         public Task<IEnumerable<OutboxEntry>> GetPendingAsync(OutboxQuery query, CancellationToken cancellationToken = default)

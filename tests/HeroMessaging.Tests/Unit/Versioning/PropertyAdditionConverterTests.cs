@@ -315,7 +315,7 @@ public sealed class PropertyAdditionConverterTests
         var toVersion = new MessageVersion(2, 0, 0);
 
         // Act
-        var converter = MessageConverterBuilder.ForPropertyAddition<TestMessage>(fromVersion, toVersion, _logger);
+        var converter = MessageConverterBuilder.ForPropertyAddition(fromVersion, toVersion, _logger);
 
         // Assert
         Assert.NotNull(converter);

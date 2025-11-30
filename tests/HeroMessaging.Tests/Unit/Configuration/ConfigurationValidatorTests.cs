@@ -76,7 +76,7 @@ public sealed class ConfigurationValidatorTests
     public void Validate_WithIHeroMessaging_DoesNotReturnIHeroMessagingError()
     {
         // Arrange
-        _services.AddSingleton<Abstractions.IHeroMessaging>(Mock.Of<Abstractions.IHeroMessaging>());
+        _services.AddSingleton(Mock.Of<Abstractions.IHeroMessaging>());
         var validator = new ConfigurationValidator(_services, _loggerMock.Object);
 
         // Act
@@ -94,7 +94,7 @@ public sealed class ConfigurationValidatorTests
     public void Validate_WithOutboxProcessorButNoStorage_ReturnsErrorResult()
     {
         // Arrange
-        _services.AddSingleton<Abstractions.IHeroMessaging>(Mock.Of<Abstractions.IHeroMessaging>());
+        _services.AddSingleton(Mock.Of<Abstractions.IHeroMessaging>());
 
         // Add a service with the OutboxProcessor type name
         var descriptor = ServiceDescriptor.Singleton(
@@ -115,8 +115,8 @@ public sealed class ConfigurationValidatorTests
     public void Validate_WithOutboxProcessorAndStorage_DoesNotReturnStorageError()
     {
         // Arrange
-        _services.AddSingleton<Abstractions.IHeroMessaging>(Mock.Of<Abstractions.IHeroMessaging>());
-        _services.AddSingleton<IOutboxStorage>(Mock.Of<IOutboxStorage>());
+        _services.AddSingleton(Mock.Of<Abstractions.IHeroMessaging>());
+        _services.AddSingleton(Mock.Of<IOutboxStorage>());
         var descriptor = ServiceDescriptor.Singleton(
             Type.GetType("HeroMessaging.Processing.OutboxProcessor, HeroMessaging") ?? typeof(object),
             _ => new object());
@@ -135,7 +135,7 @@ public sealed class ConfigurationValidatorTests
     public void Validate_WithInboxProcessorButNoStorage_ReturnsErrorResult()
     {
         // Arrange
-        _services.AddSingleton<Abstractions.IHeroMessaging>(Mock.Of<Abstractions.IHeroMessaging>());
+        _services.AddSingleton(Mock.Of<Abstractions.IHeroMessaging>());
         var descriptor = ServiceDescriptor.Singleton(
             Type.GetType("HeroMessaging.Processing.InboxProcessor, HeroMessaging") ?? typeof(object),
             _ => new object());
@@ -154,8 +154,8 @@ public sealed class ConfigurationValidatorTests
     public void Validate_WithInboxProcessorAndStorage_DoesNotReturnStorageError()
     {
         // Arrange
-        _services.AddSingleton<Abstractions.IHeroMessaging>(Mock.Of<Abstractions.IHeroMessaging>());
-        _services.AddSingleton<IInboxStorage>(Mock.Of<IInboxStorage>());
+        _services.AddSingleton(Mock.Of<Abstractions.IHeroMessaging>());
+        _services.AddSingleton(Mock.Of<IInboxStorage>());
         var descriptor = ServiceDescriptor.Singleton(
             Type.GetType("HeroMessaging.Processing.InboxProcessor, HeroMessaging") ?? typeof(object),
             _ => new object());
@@ -174,7 +174,7 @@ public sealed class ConfigurationValidatorTests
     public void Validate_WithQueueProcessorButNoStorage_ReturnsWarningResult()
     {
         // Arrange
-        _services.AddSingleton<Abstractions.IHeroMessaging>(Mock.Of<Abstractions.IHeroMessaging>());
+        _services.AddSingleton(Mock.Of<Abstractions.IHeroMessaging>());
         var descriptor = ServiceDescriptor.Singleton(
             Type.GetType("HeroMessaging.Processing.QueueProcessor, HeroMessaging") ?? typeof(object),
             _ => new object());
@@ -198,8 +198,8 @@ public sealed class ConfigurationValidatorTests
     public void Validate_WithPersistenceButNoSerializer_ReturnsWarningResult()
     {
         // Arrange
-        _services.AddSingleton<Abstractions.IHeroMessaging>(Mock.Of<Abstractions.IHeroMessaging>());
-        _services.AddSingleton<IOutboxStorage>(Mock.Of<IOutboxStorage>());
+        _services.AddSingleton(Mock.Of<Abstractions.IHeroMessaging>());
+        _services.AddSingleton(Mock.Of<IOutboxStorage>());
         var descriptor = ServiceDescriptor.Singleton(
             Type.GetType("HeroMessaging.Processing.OutboxProcessor, HeroMessaging") ?? typeof(object),
             _ => new object());
@@ -219,9 +219,9 @@ public sealed class ConfigurationValidatorTests
     public void Validate_WithPersistenceAndSerializer_DoesNotReturnSerializerWarning()
     {
         // Arrange
-        _services.AddSingleton<Abstractions.IHeroMessaging>(Mock.Of<Abstractions.IHeroMessaging>());
-        _services.AddSingleton<IOutboxStorage>(Mock.Of<IOutboxStorage>());
-        _services.AddSingleton<IMessageSerializer>(Mock.Of<IMessageSerializer>());
+        _services.AddSingleton(Mock.Of<Abstractions.IHeroMessaging>());
+        _services.AddSingleton(Mock.Of<IOutboxStorage>());
+        _services.AddSingleton(Mock.Of<IMessageSerializer>());
         var descriptor = ServiceDescriptor.Singleton(
             Type.GetType("HeroMessaging.Processing.OutboxProcessor, HeroMessaging") ?? typeof(object),
             _ => new object());
@@ -244,9 +244,9 @@ public sealed class ConfigurationValidatorTests
     public void Validate_WithMultipleImplementationsOfSameInterface_ReturnsWarning()
     {
         // Arrange
-        _services.AddSingleton<Abstractions.IHeroMessaging>(Mock.Of<Abstractions.IHeroMessaging>());
-        _services.AddSingleton<IOutboxStorage>(Mock.Of<IOutboxStorage>());
-        _services.AddSingleton<IOutboxStorage>(Mock.Of<IOutboxStorage>());
+        _services.AddSingleton(Mock.Of<Abstractions.IHeroMessaging>());
+        _services.AddSingleton(Mock.Of<IOutboxStorage>());
+        _services.AddSingleton(Mock.Of<IOutboxStorage>());
 
         var validator = new ConfigurationValidator(_services, _loggerMock.Object);
 
@@ -262,7 +262,7 @@ public sealed class ConfigurationValidatorTests
     public void Validate_WithValidConfiguration_ReturnsValidReport()
     {
         // Arrange
-        _services.AddSingleton<Abstractions.IHeroMessaging>(Mock.Of<Abstractions.IHeroMessaging>());
+        _services.AddSingleton(Mock.Of<Abstractions.IHeroMessaging>());
 
         var validator = new ConfigurationValidator(_services, _loggerMock.Object);
 
@@ -308,8 +308,8 @@ public sealed class ConfigurationValidatorTests
         // Arrange
         var results = new List<ValidationResult>
         {
-            new ValidationResult(ValidationSeverity.Info, "Info message"),
-            new ValidationResult(ValidationSeverity.Warning, "Warning message")
+            new(ValidationSeverity.Info, "Info message"),
+            new(ValidationSeverity.Warning, "Warning message")
         };
 
         // Act
@@ -329,7 +329,7 @@ public sealed class ConfigurationValidatorTests
         // Arrange
         var results = new List<ValidationResult>
         {
-            new ValidationResult(ValidationSeverity.Error, "Error message")
+            new(ValidationSeverity.Error, "Error message")
         };
 
         // Act
@@ -356,7 +356,7 @@ public sealed class ConfigurationValidatorTests
     public void ValidationReport_ToString_WithNoIssues_ReturnsValidMessage()
     {
         // Arrange
-        var report = new ValidationReport(new List<ValidationResult>());
+        var report = new ValidationReport([]);
 
         // Act
         var result = report.ToString();
@@ -371,9 +371,9 @@ public sealed class ConfigurationValidatorTests
         // Arrange
         var results = new List<ValidationResult>
         {
-            new ValidationResult(ValidationSeverity.Error, "Error 1"),
-            new ValidationResult(ValidationSeverity.Error, "Error 2"),
-            new ValidationResult(ValidationSeverity.Warning, "Warning 1")
+            new(ValidationSeverity.Error, "Error 1"),
+            new(ValidationSeverity.Error, "Error 2"),
+            new(ValidationSeverity.Warning, "Warning 1")
         };
         var report = new ValidationReport(results);
 
@@ -391,9 +391,9 @@ public sealed class ConfigurationValidatorTests
         // Arrange
         var results = new List<ValidationResult>
         {
-            new ValidationResult(ValidationSeverity.Error, "Error message"),
-            new ValidationResult(ValidationSeverity.Warning, "Warning message"),
-            new ValidationResult(ValidationSeverity.Info, "Info message")
+            new(ValidationSeverity.Error, "Error message"),
+            new(ValidationSeverity.Warning, "Warning message"),
+            new(ValidationSeverity.Info, "Info message")
         };
         var report = new ValidationReport(results);
 
@@ -411,9 +411,9 @@ public sealed class ConfigurationValidatorTests
         // Arrange
         var results = new List<ValidationResult>
         {
-            new ValidationResult(ValidationSeverity.Error, "Error message"),
-            new ValidationResult(ValidationSeverity.Warning, "Warning message"),
-            new ValidationResult(ValidationSeverity.Info, "Info message")
+            new(ValidationSeverity.Error, "Error message"),
+            new(ValidationSeverity.Warning, "Warning message"),
+            new(ValidationSeverity.Info, "Info message")
         };
         var report = new ValidationReport(results);
 
@@ -431,9 +431,9 @@ public sealed class ConfigurationValidatorTests
         // Arrange
         var results = new List<ValidationResult>
         {
-            new ValidationResult(ValidationSeverity.Error, "Error message"),
-            new ValidationResult(ValidationSeverity.Warning, "Warning message"),
-            new ValidationResult(ValidationSeverity.Info, "Info message")
+            new(ValidationSeverity.Error, "Error message"),
+            new(ValidationSeverity.Warning, "Warning message"),
+            new(ValidationSeverity.Info, "Info message")
         };
         var report = new ValidationReport(results);
 

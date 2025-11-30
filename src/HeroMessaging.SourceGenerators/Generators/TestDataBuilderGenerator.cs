@@ -384,7 +384,7 @@ public static partial class TestData
     private static string ToCamelCase(string text)
     {
         if (string.IsNullOrEmpty(text)) return text;
-        return char.ToLowerInvariant(text[0]) + text.Substring(1);
+        return char.ToLowerInvariant(text[0]) + text[1..];
     }
 
     private struct TestDataBuilderInfo

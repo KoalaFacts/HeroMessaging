@@ -148,18 +148,13 @@ public class WhenConfigurator<TSaga, TEvent>
 
         // Compose with existing action instead of replacing
         var existingAction = _transition.Action;
-        if (existingAction == null)
-        {
-            _transition.Action = action;
-        }
-        else
-        {
-            _transition.Action = async context =>
+        _transition.Action = existingAction == null
+            ? action
+            : (async context =>
             {
                 await existingAction(context);
                 await action(context);
-            };
-        }
+            });
         return this;
     }
 

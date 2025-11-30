@@ -66,7 +66,7 @@ public class StateMachineBuilderExtensionsTests
         builder.Initially().When(testEvent).TransitionTo(new State("Pending"));
 
         // Act
-        var configurator = builder.InState("Processing").When(testEvent).TransitionTo(new State("Completed"));
+        _ = builder.InState("Processing").When(testEvent).TransitionTo(new State("Completed"));
 
         // Assert
         var definition = builder.Build();

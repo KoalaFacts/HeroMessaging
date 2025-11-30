@@ -377,7 +377,7 @@ public class SqlServerInboxStorage : IInboxStorage
                 {
                     Id = messageId,
                     Message = message!,
-                    Options = new Abstractions.InboxOptions
+                    Options = new InboxOptions
                     {
                         Source = source,
                         RequireIdempotency = requireIdempotency,

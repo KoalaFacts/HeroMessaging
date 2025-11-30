@@ -441,7 +441,7 @@ public class CircuitBreakerRetryPolicyTests
                 results.Add(result);
             }));
 
-        Task.WaitAll(tasks.ToArray());
+        Task.WaitAll([.. tasks]);
 
         // Assert - Some should succeed, some should fail after circuit opens
         Assert.True(results.Count(r => r) >= 3, "At least some attempts should succeed before circuit opens");

@@ -251,7 +251,7 @@ public sealed class InboxProcessorTests : IDisposable
 
         _storageMock
             .Setup(s => s.GetUnprocessedAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<InboxEntry>());
+            .ReturnsAsync([]);
 
         // Act
         await processor.StartAsync(cts.Token);
@@ -274,7 +274,7 @@ public sealed class InboxProcessorTests : IDisposable
 
         _storageMock
             .Setup(s => s.GetUnprocessedAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<InboxEntry>());
+            .ReturnsAsync([]);
 
         await processor.StartAsync();
         await Task.Delay(100);
@@ -297,8 +297,8 @@ public sealed class InboxProcessorTests : IDisposable
         var processor = CreateProcessor();
         var entries = new List<InboxEntry>
         {
-            new InboxEntry { Id = "1", Message = new TestMessage(), Status = InboxStatus.Pending },
-            new InboxEntry { Id = "2", Message = new TestMessage(), Status = InboxStatus.Pending }
+            new() { Id = "1", Message = new TestMessage(), Status = InboxStatus.Pending },
+            new() { Id = "2", Message = new TestMessage(), Status = InboxStatus.Pending }
         };
 
         _storageMock
@@ -328,7 +328,7 @@ public sealed class InboxProcessorTests : IDisposable
 
         _storageMock
             .Setup(s => s.GetUnprocessedAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<InboxEntry>());
+            .ReturnsAsync([]);
 
         _storageMock
             .Setup(s => s.CleanupOldEntriesAsync(It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
@@ -447,7 +447,7 @@ public sealed class InboxProcessorTests : IDisposable
         var processor = CreateProcessor();
         _storageMock
             .Setup(s => s.GetUnprocessedAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Array.Empty<InboxEntry>());
+            .ReturnsAsync([]);
 
         // Act
         await processor.StartAsync();
@@ -466,7 +466,7 @@ public sealed class InboxProcessorTests : IDisposable
         var processor = CreateProcessor();
         _storageMock
             .Setup(s => s.GetUnprocessedAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Array.Empty<InboxEntry>());
+            .ReturnsAsync([]);
 
         // Act
         await processor.StartAsync();

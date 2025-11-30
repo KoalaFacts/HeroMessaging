@@ -120,8 +120,8 @@ public class HandlerDesignTests
         // Act - Find classes that likely implement decorator pattern
         var decorators = coreAssembly.GetTypes()
             .Where(t => t.IsClass && !t.IsAbstract)
-            .Where(t => ImplementsHandlerInterface(t))
-            .Where(t => HasInnerHandlerField(t))
+            .Where(ImplementsHandlerInterface)
+            .Where(HasInnerHandlerField)
             .Where(t => !t.Name.Contains("Decorator"))
             .ToList();
 
@@ -152,10 +152,9 @@ public class HandlerDesignTests
 
     private static List<Type> GetHandlerTypes()
     {
-        return CoreAssembly.GetTypes()
+        return [.. CoreAssembly.GetTypes()
             .Where(t => t.IsClass)
-            .Where(t => ImplementsHandlerInterface(t))
-            .ToList();
+            .Where(ImplementsHandlerInterface)];
     }
 
     private static bool ImplementsHandlerInterface(Type type)
@@ -183,7 +182,7 @@ public class HandlerDesignTests
         if (result.IsSuccessful)
             return string.Empty;
 
-        var violations = string.Join(Environment.NewLine, result.FailingTypeNames ?? Array.Empty<string>());
+        var violations = string.Join(Environment.NewLine, result.FailingTypeNames ?? []);
         return $"Handler design violation:{Environment.NewLine}{violations}";
     }
 }

@@ -70,7 +70,7 @@ public class CommandProcessorBenchmarks
     public async Task ProcessCommand_WithResponse()
     {
         var command = new TestCommandWithResponse { Id = 1, Name = "Test" };
-        await _processor.SendAsync<int>(command);
+        await _processor.SendAsync(command);
     }
 }
 

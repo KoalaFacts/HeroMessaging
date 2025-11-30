@@ -319,13 +319,12 @@ internal sealed class RabbitMqConnectionPool : IAsyncDisposable
         private readonly TimeProvider _timeProvider;
         private readonly ILogger? _logger;
         private int _inUseCount;
-        private DateTimeOffset _lastUsed;
         private bool _disposed;
 
         public IConnection Connection { get; }
-        public DateTimeOffset LastUsed => _lastUsed;
+        public DateTimeOffset LastUsed { get; private set; }
         public bool IsHealthy => Connection.IsOpen && !_disposed;
-        public bool IsIdle => (_timeProvider.GetUtcNow() - _lastUsed) > _idleTimeout && _inUseCount == 0;
+        public bool IsIdle => (_timeProvider.GetUtcNow() - LastUsed) > _idleTimeout && _inUseCount == 0;
 
         public PooledConnection(IConnection connection, TimeSpan idleTimeout, TimeProvider timeProvider, ILogger? logger = null)
         {
@@ -333,7 +332,7 @@ internal sealed class RabbitMqConnectionPool : IAsyncDisposable
             _idleTimeout = idleTimeout;
             _timeProvider = timeProvider;
             _logger = logger;
-            _lastUsed = _timeProvider.GetUtcNow();
+            LastUsed = _timeProvider.GetUtcNow();
         }
 
         public bool TryAcquire()
@@ -341,14 +340,14 @@ internal sealed class RabbitMqConnectionPool : IAsyncDisposable
             if (!IsHealthy || _disposed) return false;
 
             Interlocked.Increment(ref _inUseCount);
-            _lastUsed = _timeProvider.GetUtcNow();
+            LastUsed = _timeProvider.GetUtcNow();
             return true;
         }
 
         public void Release()
         {
             Interlocked.Decrement(ref _inUseCount);
-            _lastUsed = _timeProvider.GetUtcNow();
+            LastUsed = _timeProvider.GetUtcNow();
         }
 
         public async ValueTask DisposeAsync()

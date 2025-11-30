@@ -23,11 +23,11 @@ public static class ExtensionsToIHeroMessagingBuilderForOpenTelemetry
     /// <param name="configure">Optional configuration action for OpenTelemetry</param>
     public static IHeroMessagingBuilder AddOpenTelemetry(
         this IHeroMessagingBuilder builder,
-        Action<HeroMessaging.Observability.OpenTelemetry.OpenTelemetryInstrumentationOptions>? configure = null)
+        Action<OpenTelemetryInstrumentationOptions>? configure = null)
     {
         var services = builder.Build();
 
-        var options = new HeroMessaging.Observability.OpenTelemetry.OpenTelemetryInstrumentationOptions();
+        var options = new OpenTelemetryInstrumentationOptions();
         configure?.Invoke(options);
 
         // Register transport instrumentation

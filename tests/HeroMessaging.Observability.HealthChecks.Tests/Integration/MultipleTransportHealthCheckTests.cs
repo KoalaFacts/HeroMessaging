@@ -54,8 +54,8 @@ public class MultipleTransportHealthCheckTests : IAsyncDisposable
         mockTransport2.Setup(t => t.Name).Returns("InMemory");
 
         // Register both transports as enumerable
-        services.AddSingleton<IMessageTransport>(mockTransport1.Object);
-        services.AddSingleton<IMessageTransport>(mockTransport2.Object);
+        services.AddSingleton(mockTransport1.Object);
+        services.AddSingleton(mockTransport2.Object);
 
         services.AddHealthChecks()
             .AddHeroMessagingHealthChecks(options =>
@@ -65,7 +65,7 @@ public class MultipleTransportHealthCheckTests : IAsyncDisposable
             });
 
         var serviceProvider = services.BuildServiceProvider();
-        _disposables.Add(serviceProvider as IAsyncDisposable);
+        _disposables.Add(serviceProvider);
 
         var healthCheckService = serviceProvider.GetRequiredService<HealthCheckService>();
 
@@ -124,8 +124,8 @@ public class MultipleTransportHealthCheckTests : IAsyncDisposable
             .ReturnsAsync(transport2Health);
         mockTransport2.Setup(t => t.Name).Returns("InMemory");
 
-        services.AddSingleton<IMessageTransport>(mockTransport1.Object);
-        services.AddSingleton<IMessageTransport>(mockTransport2.Object);
+        services.AddSingleton(mockTransport1.Object);
+        services.AddSingleton(mockTransport2.Object);
 
         services.AddHealthChecks()
             .AddHeroMessagingHealthChecks(options =>
@@ -135,7 +135,7 @@ public class MultipleTransportHealthCheckTests : IAsyncDisposable
             });
 
         var serviceProvider = services.BuildServiceProvider();
-        _disposables.Add(serviceProvider as IAsyncDisposable);
+        _disposables.Add(serviceProvider);
 
         var healthCheckService = serviceProvider.GetRequiredService<HealthCheckService>();
 
@@ -185,8 +185,8 @@ public class MultipleTransportHealthCheckTests : IAsyncDisposable
             .ReturnsAsync(transport2Health);
         mockTransport2.Setup(t => t.Name).Returns("InMemory");
 
-        services.AddSingleton<IMessageTransport>(mockTransport1.Object);
-        services.AddSingleton<IMessageTransport>(mockTransport2.Object);
+        services.AddSingleton(mockTransport1.Object);
+        services.AddSingleton(mockTransport2.Object);
 
         services.AddHealthChecks()
             .AddHeroMessagingHealthChecks(options =>
@@ -196,7 +196,7 @@ public class MultipleTransportHealthCheckTests : IAsyncDisposable
             });
 
         var serviceProvider = services.BuildServiceProvider();
-        _disposables.Add(serviceProvider as IAsyncDisposable);
+        _disposables.Add(serviceProvider);
 
         var healthCheckService = serviceProvider.GetRequiredService<HealthCheckService>();
 
@@ -241,8 +241,8 @@ public class MultipleTransportHealthCheckTests : IAsyncDisposable
                 StatusMessage = "Healthy"
             });
 
-        services.AddSingleton<IMessageTransport>(mockTransport1.Object);
-        services.AddSingleton<IMessageTransport>(mockTransport2.Object);
+        services.AddSingleton(mockTransport1.Object);
+        services.AddSingleton(mockTransport2.Object);
 
         services.AddHealthChecks()
             .AddHeroMessagingHealthChecks(options =>
@@ -252,7 +252,7 @@ public class MultipleTransportHealthCheckTests : IAsyncDisposable
             });
 
         var serviceProvider = services.BuildServiceProvider();
-        _disposables.Add(serviceProvider as IAsyncDisposable);
+        _disposables.Add(serviceProvider);
 
         var healthCheckService = serviceProvider.GetRequiredService<HealthCheckService>();
 

@@ -183,7 +183,7 @@ public class ServiceCollectionExtensionsTests
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddSingleton(TimeProvider.System);
-        services.AddSingleton(Mock.Of<HeroMessaging.Abstractions.Storage.IMessageStorage>());
+        services.AddSingleton(Mock.Of<Abstractions.Storage.IMessageStorage>());
 
         var mockTransport = CreateMockTransport("TestTransport", TransportHealthStatus.Healthy);
         services.AddSingleton(mockTransport.Object);
@@ -227,10 +227,11 @@ public class ServiceCollectionExtensionsTests
     public void HeroMessagingHealthCheckOptions_CanEnableTransportCheck()
     {
         // Arrange
-        var options = new HeroMessagingHealthCheckOptions();
-
-        // Act
-        options.CheckTransport = true;
+        var options = new HeroMessagingHealthCheckOptions
+        {
+            // Act
+            CheckTransport = true
+        };
 
         // Assert
         Assert.True(options.CheckTransport);

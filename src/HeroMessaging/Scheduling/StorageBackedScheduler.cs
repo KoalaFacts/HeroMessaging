@@ -163,12 +163,12 @@ public sealed class StorageBackedScheduler : IMessageScheduler, IAsyncDisposable
             query ??= new ScheduledMessageQuery { Status = ScheduledMessageStatus.Pending };
 
             var entries = await _storage.QueryAsync(query, cancellationToken);
-            return entries.Select(CreateMessageInfo).ToList();
+            return [.. entries.Select(CreateMessageInfo)];
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to get pending messages");
-            return Array.Empty<ScheduledMessageInfo>();
+            return [];
         }
     }
 

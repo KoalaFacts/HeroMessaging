@@ -30,7 +30,7 @@ public class TransactionCommandProcessorDecorator(
     public async Task<TResponse> SendAsync<TResponse>(ICommand<TResponse> command, CancellationToken cancellationToken = default)
     {
         return await _transactionExecutor.ExecuteInTransactionAsync(
-            async ct => await _inner.SendAsync<TResponse>(command, ct).ConfigureAwait(false),
+            async ct => await _inner.SendAsync(command, ct).ConfigureAwait(false),
             $"command {command.GetType().Name} with ID {command.MessageId}",
             _defaultIsolationLevel,
             cancellationToken).ConfigureAwait(false);
@@ -54,7 +54,7 @@ public class TransactionQueryProcessorDecorator(
     public async Task<TResponse> SendAsync<TResponse>(IQuery<TResponse> query, CancellationToken cancellationToken = default)
     {
         return await _transactionExecutor.ExecuteInTransactionAsync(
-            async ct => await _inner.SendAsync<TResponse>(query, ct).ConfigureAwait(false),
+            async ct => await _inner.SendAsync(query, ct).ConfigureAwait(false),
             $"query {query.GetType().Name} with ID {query.MessageId}",
             IsolationLevel.ReadCommitted,
             cancellationToken).ConfigureAwait(false);

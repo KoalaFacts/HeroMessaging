@@ -13,7 +13,7 @@ public class NamingConventionTests
     public void Interfaces_ShouldStartWithI()
     {
         // Arrange & Act
-        var result = Types.InAssemblies(new[] { AbstractionsAssembly, CoreAssembly })
+        var result = Types.InAssemblies([AbstractionsAssembly, CoreAssembly])
             .That().AreInterfaces()
             .Should().HaveNameStartingWith("I")
             .GetResult();
@@ -27,7 +27,7 @@ public class NamingConventionTests
     public void Commands_ShouldEndWithCommand()
     {
         // Arrange & Act - Find types that implement command interfaces but aren't themselves interfaces
-        var commandTypes = Types.InAssemblies(new[] { AbstractionsAssembly, CoreAssembly })
+        var commandTypes = Types.InAssemblies([AbstractionsAssembly, CoreAssembly])
             .That().AreNotInterfaces() // First filter out ALL interfaces
             .GetTypes()
             .Where(t => !t.IsInterface) // Double check to exclude interfaces
@@ -48,7 +48,7 @@ public class NamingConventionTests
     public void Events_ShouldEndWithEvent()
     {
         // Arrange & Act
-        var result = Types.InAssemblies(new[] { AbstractionsAssembly, CoreAssembly })
+        var result = Types.InAssemblies([AbstractionsAssembly, CoreAssembly])
             .That().ImplementInterface(typeof(Abstractions.Events.IEvent))
             .Should().HaveNameEndingWith("Event")
             .GetResult();
@@ -69,7 +69,7 @@ public class NamingConventionTests
     public void Queries_ShouldEndWithQuery()
     {
         // Arrange & Act
-        var result = Types.InAssemblies(new[] { AbstractionsAssembly, CoreAssembly })
+        var result = Types.InAssemblies([AbstractionsAssembly, CoreAssembly])
             .That().Inherit(typeof(Abstractions.Queries.IQuery<>))
             .Should().HaveNameEndingWith("Query")
             .GetResult();
@@ -109,7 +109,7 @@ public class NamingConventionTests
     public void Exceptions_ShouldEndWithException()
     {
         // Arrange & Act
-        var result = Types.InAssemblies(new[] { AbstractionsAssembly, CoreAssembly })
+        var result = Types.InAssemblies([AbstractionsAssembly, CoreAssembly])
             .That().Inherit(typeof(Exception))
             .Should().HaveNameEndingWith("Exception")
             .GetResult();
@@ -123,7 +123,7 @@ public class NamingConventionTests
     public void ExtensionClasses_ShouldHaveExtensionsInName()
     {
         // Arrange & Act - Get all static classes that end with Extensions
-        var extensionClasses = Types.InAssemblies(new[] { AbstractionsAssembly, CoreAssembly })
+        var extensionClasses = Types.InAssemblies([AbstractionsAssembly, CoreAssembly])
             .That().AreClasses()
             .And().AreStatic()
             .GetTypes()
@@ -200,7 +200,7 @@ public class NamingConventionTests
             // Extract the target type from the class name
             if (extensionClass.Name.StartsWith("ExtensionsTo", StringComparison.Ordinal))
             {
-                var targetTypeName = extensionClass.Name.Substring("ExtensionsTo".Length);
+                var targetTypeName = extensionClass.Name["ExtensionsTo".Length..];
 
                 // Validate namespace follows the target's namespace
                 // This is enforced by the constitutional naming convention:
@@ -249,7 +249,7 @@ public class NamingConventionTests
     public void AbstractClasses_ShouldEndWithBase_OrStartWithAbstract()
     {
         // Arrange & Act
-        var abstractClasses = Types.InAssemblies(new[] { AbstractionsAssembly, CoreAssembly })
+        var abstractClasses = Types.InAssemblies([AbstractionsAssembly, CoreAssembly])
             .That().AreAbstract()
             .And().AreClasses()
             .GetTypes()
@@ -274,7 +274,7 @@ public class NamingConventionTests
         // Handle generic types: MessageBase`1 should be considered as ending with "Base"
         if (typeName.Contains('`'))
         {
-            var nameWithoutArity = typeName.Substring(0, typeName.IndexOf('`'));
+            var nameWithoutArity = typeName[..typeName.IndexOf('`')];
             return nameWithoutArity.EndsWith("Base");
         }
         return typeName.EndsWith("Base");
@@ -285,7 +285,7 @@ public class NamingConventionTests
         if (result.IsSuccessful)
             return string.Empty;
 
-        var violations = string.Join(Environment.NewLine, result.FailingTypeNames ?? Array.Empty<string>());
+        var violations = string.Join(Environment.NewLine, result.FailingTypeNames ?? []);
         return $"{context}:{Environment.NewLine}{violations}";
     }
 }

@@ -159,7 +159,7 @@ public class GeneralArchitectureTests
         // Public classes should be top-level for better discoverability
 
         // Arrange & Act
-        var result = Types.InAssemblies(new[] { AbstractionsAssembly, CoreAssembly })
+        var result = Types.InAssemblies([AbstractionsAssembly, CoreAssembly])
             .That().ArePublic()
             .And().AreClasses()
             .ShouldNot().BeNested()
@@ -186,7 +186,7 @@ public class GeneralArchitectureTests
         // Sealed classes can't be inherited, so protected members are useless
 
         // Arrange
-        var sealedClasses = Types.InAssemblies(new[] { AbstractionsAssembly, CoreAssembly })
+        var sealedClasses = Types.InAssemblies([AbstractionsAssembly, CoreAssembly])
             .That().AreSealed()
             .And().AreClasses()
             .GetTypes()
@@ -235,14 +235,5 @@ public class GeneralArchitectureTests
 
             Assert.True(hasExtensions, $"{name} plugin should have ServiceCollection extension methods");
         }
-    }
-
-    private static string FormatFailureMessage(NetArchTestResult result)
-    {
-        if (result.IsSuccessful)
-            return string.Empty;
-
-        var violations = string.Join(Environment.NewLine, result.FailingTypeNames ?? Array.Empty<string>());
-        return $"Architecture violation:{Environment.NewLine}{violations}";
     }
 }

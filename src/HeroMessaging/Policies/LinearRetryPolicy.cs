@@ -19,7 +19,7 @@ public class LinearRetryPolicy : IRetryPolicy
         MaxRetries = maxRetries;
         _delay = delay ?? TimeSpan.FromSeconds(1);
         _retryableExceptions = retryableExceptions?.Length > 0
-            ? new HashSet<Type>(retryableExceptions)
+            ? [.. retryableExceptions]
             : [typeof(TimeoutException), typeof(TaskCanceledException)];
     }
 

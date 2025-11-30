@@ -106,7 +106,7 @@ public static class ExtensionsToIHeroMessagingBuilder
     /// </summary>
     public static IHeroMessagingBuilder UseJsonSerialization(
         this IHeroMessagingBuilder builder,
-        Action<Abstractions.Configuration.JsonSerializationOptions>? configure = null)
+        Action<JsonSerializationOptions>? configure = null)
     {
         return builder.ConfigureSerialization(serialization =>
         {
@@ -119,7 +119,7 @@ public static class ExtensionsToIHeroMessagingBuilder
     /// </summary>
     public static IHeroMessagingBuilder UseProtobufSerialization(
         this IHeroMessagingBuilder builder,
-        Action<Abstractions.Configuration.ProtobufSerializationOptions>? configure = null)
+        Action<ProtobufSerializationOptions>? configure = null)
     {
         return builder.ConfigureSerialization(serialization =>
         {
@@ -132,7 +132,7 @@ public static class ExtensionsToIHeroMessagingBuilder
     /// </summary>
     public static IHeroMessagingBuilder UseMessagePackSerialization(
         this IHeroMessagingBuilder builder,
-        Action<Abstractions.Configuration.MessagePackSerializationOptions>? configure = null)
+        Action<MessagePackSerializationOptions>? configure = null)
     {
         return builder.ConfigureSerialization(serialization =>
         {
@@ -160,57 +160,12 @@ public static class ExtensionsToIHeroMessagingBuilder
     /// </summary>
     public static IHeroMessagingBuilder AddOpenTelemetry(
         this IHeroMessagingBuilder builder,
-        Action<Abstractions.Configuration.OpenTelemetryOptions>? configure = null)
+        Action<OpenTelemetryOptions>? configure = null)
     {
         return builder.ConfigureObservability(observability =>
         {
             observability.AddOpenTelemetry(configure);
         });
-    }
-
-    private static void RegisterPluginByCategory(IServiceCollection services, IPluginDescriptor plugin)
-    {
-        switch (plugin.Category)
-        {
-            case PluginCategory.Storage:
-                RegisterStoragePlugin(services, plugin);
-                break;
-            case PluginCategory.Serialization:
-                RegisterSerializationPlugin(services, plugin);
-                break;
-            case PluginCategory.Observability:
-                RegisterObservabilityPlugin(services, plugin);
-                break;
-                // Add other categories as needed
-        }
-    }
-
-    private static void RegisterStoragePlugin(IServiceCollection services, IPluginDescriptor plugin)
-    {
-        var interfaces = plugin.PluginType.GetInterfaces();
-
-        if (interfaces.Contains(typeof(IMessageStorage)))
-            services.AddSingleton(typeof(IMessageStorage), plugin.PluginType);
-        if (interfaces.Contains(typeof(IOutboxStorage)))
-            services.AddSingleton(typeof(IOutboxStorage), plugin.PluginType);
-        if (interfaces.Contains(typeof(IInboxStorage)))
-            services.AddSingleton(typeof(IInboxStorage), plugin.PluginType);
-        if (interfaces.Contains(typeof(IQueueStorage)))
-            services.AddSingleton(typeof(IQueueStorage), plugin.PluginType);
-    }
-
-    private static void RegisterSerializationPlugin(IServiceCollection services, IPluginDescriptor plugin)
-    {
-        var interfaces = plugin.PluginType.GetInterfaces();
-
-        if (interfaces.Contains(typeof(IMessageSerializer)))
-            services.AddSingleton(typeof(IMessageSerializer), plugin.PluginType);
-    }
-
-    private static void RegisterObservabilityPlugin(IServiceCollection services, IPluginDescriptor plugin)
-    {
-        // Register observability plugins based on their specific interfaces
-        // This would be expanded based on actual observability interfaces
     }
 }
 

@@ -129,8 +129,7 @@ public sealed class PipelineExtensionsTests
         IServiceCollection services = null!;
 
         // Act & Assert
-        var ex = Assert.Throws<ArgumentNullException>(() =>
-            services.AddMessageProcessingPipeline());
+        var ex = Assert.Throws<ArgumentNullException>(services.AddMessageProcessingPipeline);
         Assert.Equal("services", ex.ParamName);
     }
 

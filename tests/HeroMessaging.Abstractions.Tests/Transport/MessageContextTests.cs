@@ -14,8 +14,8 @@ public class MessageContextTests
 
         // Assert
         Assert.Equal(string.Empty, context.TransportName);
-        Assert.Equal(default(TransportAddress), context.SourceAddress);
-        Assert.NotEqual(default(DateTimeOffset), context.ReceiveTimestamp);
+        Assert.Equal(default, context.SourceAddress);
+        Assert.NotEqual(default, context.ReceiveTimestamp);
         Assert.NotNull(context.Properties);
         Assert.Empty(context.Properties);
         Assert.Null(context.Acknowledge);
@@ -37,7 +37,7 @@ public class MessageContextTests
         // Assert
         Assert.Equal(transportName, context.TransportName);
         Assert.Equal(address, context.SourceAddress);
-        Assert.NotEqual(default(DateTimeOffset), context.ReceiveTimestamp);
+        Assert.NotEqual(default, context.ReceiveTimestamp);
         Assert.Empty(context.Properties);
     }
 

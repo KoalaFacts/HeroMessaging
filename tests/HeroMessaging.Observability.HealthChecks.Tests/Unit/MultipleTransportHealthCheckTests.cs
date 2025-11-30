@@ -35,7 +35,7 @@ public class MultipleTransportHealthCheckTests
     {
         // Arrange
         var mockTransport = CreateMockTransport("Transport1", TransportHealthStatus.Healthy, "All good");
-        var healthCheck = new MultipleTransportHealthCheck(new[] { mockTransport.Object });
+        var healthCheck = new MultipleTransportHealthCheck([mockTransport.Object]);
 
         // Act
         var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
@@ -60,7 +60,7 @@ public class MultipleTransportHealthCheckTests
         var transport1 = CreateMockTransport("Transport1", TransportHealthStatus.Healthy, "Good");
         var transport2 = CreateMockTransport("Transport2", TransportHealthStatus.Healthy, "Good");
         var transport3 = CreateMockTransport("Transport3", TransportHealthStatus.Healthy, "Good");
-        var healthCheck = new MultipleTransportHealthCheck(new[] { transport1.Object, transport2.Object, transport3.Object });
+        var healthCheck = new MultipleTransportHealthCheck([transport1.Object, transport2.Object, transport3.Object]);
 
         // Act
         var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
@@ -81,7 +81,7 @@ public class MultipleTransportHealthCheckTests
         // Arrange
         var transport1 = CreateMockTransport("Transport1", TransportHealthStatus.Healthy, "Good");
         var transport2 = CreateMockTransport("Transport2", TransportHealthStatus.Degraded, "Slow");
-        var healthCheck = new MultipleTransportHealthCheck(new[] { transport1.Object, transport2.Object });
+        var healthCheck = new MultipleTransportHealthCheck([transport1.Object, transport2.Object]);
 
         // Act
         var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
@@ -103,7 +103,7 @@ public class MultipleTransportHealthCheckTests
         // Arrange
         var transport1 = CreateMockTransport("Transport1", TransportHealthStatus.Healthy, "Good");
         var transport2 = CreateMockTransport("Transport2", TransportHealthStatus.Unhealthy, "Failed");
-        var healthCheck = new MultipleTransportHealthCheck(new[] { transport1.Object, transport2.Object });
+        var healthCheck = new MultipleTransportHealthCheck([transport1.Object, transport2.Object]);
 
         // Act
         var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
@@ -126,7 +126,7 @@ public class MultipleTransportHealthCheckTests
         var transport1 = CreateMockTransport("Transport1", TransportHealthStatus.Healthy, "Good");
         var transport2 = CreateMockTransport("Transport2", TransportHealthStatus.Degraded, "Slow");
         var transport3 = CreateMockTransport("Transport3", TransportHealthStatus.Unhealthy, "Failed");
-        var healthCheck = new MultipleTransportHealthCheck(new[] { transport1.Object, transport2.Object, transport3.Object });
+        var healthCheck = new MultipleTransportHealthCheck([transport1.Object, transport2.Object, transport3.Object]);
 
         // Act
         var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
@@ -150,7 +150,7 @@ public class MultipleTransportHealthCheckTests
         mockTransport2.Setup(t => t.GetHealthAsync(It.IsAny<CancellationToken>()))
             .ThrowsAsync(expectedException);
 
-        var healthCheck = new MultipleTransportHealthCheck(new[] { transport1.Object, mockTransport2.Object });
+        var healthCheck = new MultipleTransportHealthCheck([transport1.Object, mockTransport2.Object]);
 
         // Act
         var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
@@ -181,7 +181,7 @@ public class MultipleTransportHealthCheckTests
                 State = TransportState.Connected
             });
 
-        var healthCheck = new MultipleTransportHealthCheck(new[] { mockTransport.Object });
+        var healthCheck = new MultipleTransportHealthCheck([mockTransport.Object]);
 
         // Act
         var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
@@ -211,7 +211,7 @@ public class MultipleTransportHealthCheckTests
                 State = TransportState.Reconnecting
             });
 
-        var healthCheck = new MultipleTransportHealthCheck(new[] { mockTransport.Object });
+        var healthCheck = new MultipleTransportHealthCheck([mockTransport.Object]);
 
         // Act
         var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
@@ -231,7 +231,7 @@ public class MultipleTransportHealthCheckTests
         // Arrange
         var transport1 = CreateMockTransport("RabbitMQ", TransportHealthStatus.Healthy, "Good");
         var transport2 = CreateMockTransport("InMemory", TransportHealthStatus.Degraded, "Slow");
-        var healthCheck = new MultipleTransportHealthCheck(new[] { transport1.Object, transport2.Object });
+        var healthCheck = new MultipleTransportHealthCheck([transport1.Object, transport2.Object]);
 
         // Act
         var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
@@ -252,7 +252,7 @@ public class MultipleTransportHealthCheckTests
         // Arrange
         var transport1 = CreateMockTransport("Transport1", TransportHealthStatus.Healthy, "All good");
         var transport2 = CreateMockTransport("Transport2", TransportHealthStatus.Degraded, "Slow response");
-        var healthCheck = new MultipleTransportHealthCheck(new[] { transport1.Object, transport2.Object });
+        var healthCheck = new MultipleTransportHealthCheck([transport1.Object, transport2.Object]);
 
         // Act
         var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
@@ -284,7 +284,7 @@ public class MultipleTransportHealthCheckTests
                 State = TransportState.Connected
             });
 
-        var healthCheck = new MultipleTransportHealthCheck(new[] { mockTransport.Object });
+        var healthCheck = new MultipleTransportHealthCheck([mockTransport.Object]);
 
         // Act
         var result = await healthCheck.CheckHealthAsync(new HealthCheckContext(), cts.Token);
@@ -306,7 +306,7 @@ public class MultipleTransportHealthCheckTests
             transports.Add(transport);
         }
 
-        var healthCheck = new MultipleTransportHealthCheck(transports.Select(t => t.Object).ToArray());
+        var healthCheck = new MultipleTransportHealthCheck([.. transports.Select(t => t.Object)]);
 
         // Act
         var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
@@ -334,7 +334,7 @@ public class MultipleTransportHealthCheckTests
         mockTransport2.Setup(t => t.GetHealthAsync(It.IsAny<CancellationToken>()))
             .ThrowsAsync(exception2);
 
-        var healthCheck = new MultipleTransportHealthCheck(new[] { mockTransport1.Object, mockTransport2.Object });
+        var healthCheck = new MultipleTransportHealthCheck([mockTransport1.Object, mockTransport2.Object]);
 
         // Act
         var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
@@ -371,7 +371,7 @@ public class MultipleTransportHealthCheckTests
                 State = TransportState.Faulted
             });
 
-        var healthCheck = new MultipleTransportHealthCheck(new[] { mockTransport.Object });
+        var healthCheck = new MultipleTransportHealthCheck([mockTransport.Object]);
 
         // Act
         var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());

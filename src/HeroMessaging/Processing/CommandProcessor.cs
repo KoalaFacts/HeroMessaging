@@ -40,12 +40,7 @@ public class CommandProcessor : ICommandProcessor, IProcessor, IAsyncDisposable
 
         // Use cached handler type - avoids MakeGenericType allocation after first call
         var handlerType = HandlerTypeCache.GetCommandHandlerType(command.GetType());
-        var handler = _serviceProvider.GetService(handlerType);
-
-        if (handler == null)
-        {
-            throw new InvalidOperationException($"No handler found for command type {command.GetType().Name}");
-        }
+        var handler = _serviceProvider.GetService(handlerType) ?? throw new InvalidOperationException($"No handler found for command type {command.GetType().Name}");
 
         // Cache the handle method to avoid reflection on each call
         var handleMethod = HandlerTypeCache.GetHandleMethod(handlerType);
@@ -87,12 +82,7 @@ public class CommandProcessor : ICommandProcessor, IProcessor, IAsyncDisposable
 
         // Use cached handler type - avoids MakeGenericType allocation after first call
         var handlerType = HandlerTypeCache.GetCommandWithResponseHandlerType(command.GetType(), typeof(TResponse));
-        var handler = _serviceProvider.GetService(handlerType);
-
-        if (handler == null)
-        {
-            throw new InvalidOperationException($"No handler found for command type {command.GetType().Name}");
-        }
+        var handler = _serviceProvider.GetService(handlerType) ?? throw new InvalidOperationException($"No handler found for command type {command.GetType().Name}");
 
         // Cache the handle method to avoid reflection on each call
         var handleMethod = HandlerTypeCache.GetHandleMethod(handlerType);

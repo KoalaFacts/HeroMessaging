@@ -117,7 +117,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             var builder = new StateMachineBuilder<TestSaga>();
 
             // Act & Assert
-            var ex = Assert.Throws<InvalidOperationException>(() => builder.Build());
+            var ex = Assert.Throws<InvalidOperationException>(builder.Build);
             Assert.Contains("Initial state", ex.Message);
             Assert.Contains("Initially()", ex.Message);
         }
@@ -169,7 +169,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             var ex = Assert.Throws<ArgumentNullException>(() =>
                 builder.Initially()
                     .When(new Event<OrderStartedEvent>("OrderStartedEvent"))
-                    .Then((Func<StateContext<TestSaga, OrderStartedEvent>, Task>)null!));
+                    .Then(null!));
 
             Assert.Equal("action", ex.ParamName);
         }

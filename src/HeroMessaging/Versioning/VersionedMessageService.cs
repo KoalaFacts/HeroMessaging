@@ -113,13 +113,8 @@ public class VersionedMessageService(
         where TMessage : class, IMessage
     {
         // Find conversion path
-        var conversionPath = _converterRegistry.FindConversionPath(typeof(TMessage), fromVersion, toVersion);
-        if (conversionPath == null)
-        {
-            throw new MessageConversionException(
+        var conversionPath = _converterRegistry.FindConversionPath(typeof(TMessage), fromVersion, toVersion) ?? throw new MessageConversionException(
                 $"No conversion path found for {typeof(TMessage).Name} from version {fromVersion} to {toVersion}");
-        }
-
         _logger.LogDebug("Found conversion path for {MessageType} with {StepCount} steps",
             typeof(TMessage).Name, conversionPath.Steps.Count);
 

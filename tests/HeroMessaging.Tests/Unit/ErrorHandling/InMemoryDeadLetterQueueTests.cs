@@ -117,7 +117,7 @@ public class InMemoryDeadLetterQueueTests
         var context = new DeadLetterContext { Reason = "Test" };
 
         var id1 = await _queue.SendToDeadLetterAsync(message1, context);
-        var id2 = await _queue.SendToDeadLetterAsync(message2, context);
+        _ = await _queue.SendToDeadLetterAsync(message2, context);
 
         // Mark one as retried
         await _queue.RetryAsync<TestMessage>(id1);

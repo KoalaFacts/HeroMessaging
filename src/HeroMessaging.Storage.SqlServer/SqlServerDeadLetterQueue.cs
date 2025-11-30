@@ -121,7 +121,7 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
         command.Parameters.Add("@CreatedAt", SqlDbType.DateTime2).Value = _timeProvider.GetUtcNow();
         command.Parameters.Add("@ExceptionMessage", SqlDbType.NVarChar, -1).Value = (object?)context.Exception?.Message ?? DBNull.Value;
         command.Parameters.Add("@Metadata", SqlDbType.NVarChar, -1).Value =
-            context.Metadata.Any() ? _jsonSerializer.SerializeToString(context.Metadata, _jsonOptions) : (object)DBNull.Value;
+            context.Metadata.Any() ? _jsonSerializer.SerializeToString(context.Metadata, _jsonOptions) : DBNull.Value;
 
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         return deadLetterId;

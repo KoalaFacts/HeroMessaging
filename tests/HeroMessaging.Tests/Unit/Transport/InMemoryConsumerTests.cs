@@ -765,7 +765,7 @@ public class InMemoryConsumerTests : IDisposable
 
         if (method != null)
         {
-            var task = method.Invoke(consumer, new object[] { envelope, CancellationToken.None });
+            var task = method.Invoke(consumer, [envelope, CancellationToken.None]);
             if (task is Task asyncTask)
             {
                 await asyncTask;

@@ -30,11 +30,7 @@ public sealed class PolicyAuthorizationProvider : IAuthorizationProvider
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Policy name cannot be empty", nameof(name));
-
-        if (policy == null)
-            throw new ArgumentNullException(nameof(policy));
-
-        _policies[name] = policy;
+        _policies[name] = policy ?? throw new ArgumentNullException(nameof(policy));
     }
 
     /// <summary>
@@ -145,18 +141,17 @@ public sealed class PolicyAuthorizationProvider : IAuthorizationProvider
 /// </summary>
 public sealed class AuthorizationPolicy
 {
-    private readonly string _name;
     private bool _requireAuthentication = true;
     private bool _allowAnonymous;
     private readonly HashSet<string> _requiredRoles;
     private readonly Dictionary<string, HashSet<string>> _requiredClaims;
     private readonly List<Func<ClaimsPrincipal, bool>> _customRequirements;
 
-    public string Name => _name;
+    public string Name { get; }
 
     public AuthorizationPolicy(string name)
     {
-        _name = name ?? throw new ArgumentNullException(nameof(name));
+        Name = name ?? throw new ArgumentNullException(nameof(name));
         _requiredRoles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         _requiredClaims = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
         _customRequirements = [];
@@ -252,7 +247,7 @@ public sealed class AuthorizationPolicy
             if (!isAnyAuthenticated)
             {
                 return AuthorizationResult.Failure(
-                    $"Policy '{_name}' requires an authenticated user",
+                    $"Policy '{Name}' requires an authenticated user",
                     "Unauthenticated");
             }
         }
@@ -261,7 +256,7 @@ public sealed class AuthorizationPolicy
         if (_requiredRoles.Count > 0)
         {
             var userRoles = principal.Claims
-                .Where(c => c.Type == System.Security.Claims.ClaimTypes.Role)
+                .Where(c => c.Type == ClaimTypes.Role)
                 .Select(c => c.Value);
             var hasRequiredRole = _requiredRoles.Any(required =>
                 userRoles.Any(userRole => string.Equals(userRole, required, StringComparison.OrdinalIgnoreCase)));
@@ -309,7 +304,7 @@ public sealed class AuthorizationPolicy
                 if (!requirement(principal))
                 {
                     return AuthorizationResult.Failure(
-                        $"Custom authorization requirement failed for policy '{_name}'",
+                        $"Custom authorization requirement failed for policy '{Name}'",
                         "CustomRequirementFailed");
                 }
             }

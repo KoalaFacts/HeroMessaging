@@ -68,7 +68,7 @@ public sealed class AuthenticationCredentials
         if (string.IsNullOrWhiteSpace(headerValue))
             throw new ArgumentException("Header value cannot be empty", nameof(headerValue));
 
-        var parts = headerValue.Split(new[] { ' ' }, 2);
+        var parts = headerValue.Split([' '], 2);
         if (parts.Length != 2)
             throw new ArgumentException("Invalid authorization header format", nameof(headerValue));
 

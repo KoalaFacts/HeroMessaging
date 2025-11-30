@@ -35,7 +35,7 @@ public sealed class ClaimsAuthenticationProviderTests
         // Arrange
         var provider = new ClaimsAuthenticationProvider();
         var apiKey = "test-key-123";
-        var identity = new ClaimsIdentity(new[] { new Claim(ClaimTypes.Name, "TestUser") }, "ApiKey");
+        var identity = new ClaimsIdentity([new Claim(ClaimTypes.Name, "TestUser")], "ApiKey");
         var principal = new ClaimsPrincipal(identity);
 
         // Act

@@ -16,11 +16,7 @@ public static class ExtensionsToIServiceCollectionForDecorator
         where TService : class
     {
         // Find the existing service descriptor
-        var existingDescriptor = services.FirstOrDefault(x => x.ServiceType == typeof(TService));
-        if (existingDescriptor == null)
-        {
-            throw new InvalidOperationException($"Service of type {typeof(TService).Name} is not registered");
-        }
+        var existingDescriptor = services.FirstOrDefault(x => x.ServiceType == typeof(TService)) ?? throw new InvalidOperationException($"Service of type {typeof(TService).Name} is not registered");
 
         // Remove the existing registration
         services.Remove(existingDescriptor);
@@ -36,17 +32,13 @@ public static class ExtensionsToIServiceCollectionForDecorator
                 {
                     originalService = (TService)existingDescriptor.ImplementationFactory(serviceProvider);
                 }
-                else if (existingDescriptor.ImplementationInstance != null)
-                {
-                    originalService = (TService)existingDescriptor.ImplementationInstance;
-                }
-                else if (existingDescriptor.ImplementationType != null)
-                {
-                    originalService = (TService)ActivatorUtilities.CreateInstance(serviceProvider, existingDescriptor.ImplementationType);
-                }
                 else
                 {
-                    throw new InvalidOperationException($"Unable to resolve original service of type {typeof(TService).Name}");
+                    originalService = existingDescriptor.ImplementationInstance != null
+                        ? (TService)existingDescriptor.ImplementationInstance
+                        : existingDescriptor.ImplementationType != null
+                        ? (TService)ActivatorUtilities.CreateInstance(serviceProvider, existingDescriptor.ImplementationType)
+                        : throw new InvalidOperationException($"Unable to resolve original service of type {typeof(TService).Name}");
                 }
 
                 // Apply the decorator

@@ -45,9 +45,9 @@ public class OpenTelemetryDecorator(IMessageProcessor inner, TimeProvider timePr
                 {
                     HeroMessagingInstrumentation.SetError(activity, result.Exception);
                 }
-                else if (activity != null)
+                else
                 {
-                    activity.SetStatus(ActivityStatusCode.Error, reason);
+                    activity?.SetStatus(ActivityStatusCode.Error, reason);
                 }
             }
 

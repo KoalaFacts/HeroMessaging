@@ -279,10 +279,10 @@ public sealed class SecurityBuilderExtensionsTests
     {
         // Arrange
         var services = new ServiceCollection();
-        Action<ClaimsAuthenticationProvider> configure = p =>
+        static void configure(ClaimsAuthenticationProvider p)
         {
             p.RegisterApiKey("test-key", "TestUser", []);
-        };
+        }
 
         // Act
         var result = services.AddClaimsAuthentication(configure);
@@ -300,10 +300,10 @@ public sealed class SecurityBuilderExtensionsTests
     {
         // Arrange
         var services = new ServiceCollection();
-        Action<ClaimsAuthenticationProvider> configure = p =>
+        static void configure(ClaimsAuthenticationProvider p)
         {
             p.RegisterApiKey("key1", "User1", []);
-        };
+        }
         var scheme = "CustomScheme";
 
         // Act
@@ -396,10 +396,10 @@ public sealed class SecurityBuilderExtensionsTests
     {
         // Arrange
         var services = new ServiceCollection();
-        Action<PolicyAuthorizationProvider> configure = p =>
+        static void configure(PolicyAuthorizationProvider p)
         {
             p.AllowAnonymous("PublicMessage", "Receive");
-        };
+        }
 
         // Act
         var result = services.AddPolicyAuthorization(configure);
@@ -414,10 +414,10 @@ public sealed class SecurityBuilderExtensionsTests
     {
         // Arrange
         var services = new ServiceCollection();
-        Action<PolicyAuthorizationProvider> configure = p =>
+        static void configure(PolicyAuthorizationProvider p)
         {
             p.RequireRole("AdminMessage", "Send", "Admin");
-        };
+        }
 
         // Act
         var result = services.AddPolicyAuthorization(configure, requireAuthenticatedUser: true);
@@ -723,16 +723,16 @@ public sealed class SecurityBuilderExtensionsTests
                 .WithHmacSha256Signing()
                 .WithClaimsAuthentication(auth =>
                 {
-                    auth.RegisterApiKey("admin-key", "Administrator", new[]
-                    {
+                    auth.RegisterApiKey("admin-key", "Administrator",
+                    [
                         new Claim(ClaimTypes.Role, "Admin"),
                         new Claim("permission", "write")
-                    });
-                    auth.RegisterApiKey("user-key", "RegularUser", new[]
-                    {
+                    ]);
+                    auth.RegisterApiKey("user-key", "RegularUser",
+                    [
                         new Claim(ClaimTypes.Role, "User"),
                         new Claim("permission", "read")
-                    });
+                    ]);
                 })
                 .WithPolicyAuthorization(policy =>
                 {

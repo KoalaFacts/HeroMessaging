@@ -445,7 +445,7 @@ public class BatchProcessingBuilderTests
         var provider = _services.BuildServiceProvider();
 
         // Assert - validation happens when options are resolved (throws ArgumentException)
-        Assert.Throws<ArgumentException>(() => provider.GetRequiredService<BatchProcessingOptions>());
+        Assert.Throws<ArgumentException>(provider.GetRequiredService<BatchProcessingOptions>);
     }
 
     #endregion

@@ -106,10 +106,7 @@ internal class InMemoryQueue : IDisposable, IAsyncDisposable
     {
         lock (_processingTaskLock)
         {
-            if (_processingTask == null)
-            {
-                _processingTask = Task.Run(() => ProcessMessagesAsync(_cts.Token));
-            }
+            _processingTask ??= Task.Run(() => ProcessMessagesAsync(_cts.Token));
         }
     }
 
@@ -136,7 +133,7 @@ internal class InMemoryQueue : IDisposable, IAsyncDisposable
                     var currentVersion = _consumerVersion;
                     if (currentVersion != cachedVersion || cachedConsumers.Length == 0)
                     {
-                        cachedConsumers = _consumers.Values.ToArray();
+                        cachedConsumers = [.. _consumers.Values];
                         _consumerCache = cachedConsumers; // Update shared cache
                         cachedVersion = currentVersion;
                     }

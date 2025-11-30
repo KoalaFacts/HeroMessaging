@@ -313,7 +313,7 @@ public sealed class CommandProcessorTests : IDisposable
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentNullException>(
-            async () => await processor.SendAsync((ICommand)null!));
+            async () => await processor.SendAsync(null!));
     }
 
     [Fact]

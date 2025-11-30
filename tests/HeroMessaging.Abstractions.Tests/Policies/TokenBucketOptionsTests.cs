@@ -25,10 +25,11 @@ public class TokenBucketOptionsTests
     public void Capacity_CanBeSet()
     {
         // Arrange
-        var options = new TokenBucketOptions();
-
-        // Act
-        options.Capacity = 500;
+        var options = new TokenBucketOptions
+        {
+            // Act
+            Capacity = 500
+        };
 
         // Assert
         Assert.Equal(500, options.Capacity);
@@ -38,10 +39,11 @@ public class TokenBucketOptionsTests
     public void RefillRate_CanBeSet()
     {
         // Arrange
-        var options = new TokenBucketOptions();
-
-        // Act
-        options.RefillRate = 50.5;
+        var options = new TokenBucketOptions
+        {
+            // Act
+            RefillRate = 50.5
+        };
 
         // Assert
         Assert.Equal(50.5, options.RefillRate);
@@ -51,10 +53,11 @@ public class TokenBucketOptionsTests
     public void RefillPeriod_CanBeSet()
     {
         // Arrange
-        var options = new TokenBucketOptions();
-
-        // Act
-        options.RefillPeriod = TimeSpan.FromSeconds(1);
+        var options = new TokenBucketOptions
+        {
+            // Act
+            RefillPeriod = TimeSpan.FromSeconds(1)
+        };
 
         // Assert
         Assert.Equal(TimeSpan.FromSeconds(1), options.RefillPeriod);
@@ -64,10 +67,11 @@ public class TokenBucketOptionsTests
     public void Behavior_CanBeSetToReject()
     {
         // Arrange
-        var options = new TokenBucketOptions();
-
-        // Act
-        options.Behavior = RateLimitBehavior.Reject;
+        var options = new TokenBucketOptions
+        {
+            // Act
+            Behavior = RateLimitBehavior.Reject
+        };
 
         // Assert
         Assert.Equal(RateLimitBehavior.Reject, options.Behavior);
@@ -77,10 +81,11 @@ public class TokenBucketOptionsTests
     public void MaxQueueWait_CanBeSet()
     {
         // Arrange
-        var options = new TokenBucketOptions();
-
-        // Act
-        options.MaxQueueWait = TimeSpan.FromMinutes(5);
+        var options = new TokenBucketOptions
+        {
+            // Act
+            MaxQueueWait = TimeSpan.FromMinutes(5)
+        };
 
         // Assert
         Assert.Equal(TimeSpan.FromMinutes(5), options.MaxQueueWait);
@@ -90,10 +95,11 @@ public class TokenBucketOptionsTests
     public void EnableScoping_CanBeEnabled()
     {
         // Arrange
-        var options = new TokenBucketOptions();
-
-        // Act
-        options.EnableScoping = true;
+        var options = new TokenBucketOptions
+        {
+            // Act
+            EnableScoping = true
+        };
 
         // Assert
         Assert.True(options.EnableScoping);
@@ -103,10 +109,11 @@ public class TokenBucketOptionsTests
     public void MaxScopedKeys_CanBeSet()
     {
         // Arrange
-        var options = new TokenBucketOptions();
-
-        // Act
-        options.MaxScopedKeys = 5000;
+        var options = new TokenBucketOptions
+        {
+            // Act
+            MaxScopedKeys = 5000
+        };
 
         // Assert
         Assert.Equal(5000, options.MaxScopedKeys);
@@ -136,7 +143,7 @@ public class TokenBucketOptionsTests
         var options = new TokenBucketOptions { Capacity = 0 };
 
         // Act & Assert
-        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => options.Validate());
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(options.Validate);
         Assert.Equal("Capacity", exception.ParamName);
         Assert.Contains("must be positive", exception.Message);
     }
@@ -148,7 +155,7 @@ public class TokenBucketOptionsTests
         var options = new TokenBucketOptions { Capacity = -1 };
 
         // Act & Assert
-        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => options.Validate());
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(options.Validate);
         Assert.Equal("Capacity", exception.ParamName);
     }
 
@@ -159,7 +166,7 @@ public class TokenBucketOptionsTests
         var options = new TokenBucketOptions { RefillRate = 0 };
 
         // Act & Assert
-        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => options.Validate());
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(options.Validate);
         Assert.Equal("RefillRate", exception.ParamName);
         Assert.Contains("must be positive", exception.Message);
     }
@@ -171,7 +178,7 @@ public class TokenBucketOptionsTests
         var options = new TokenBucketOptions { RefillRate = -1.0 };
 
         // Act & Assert
-        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => options.Validate());
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(options.Validate);
         Assert.Equal("RefillRate", exception.ParamName);
     }
 
@@ -182,7 +189,7 @@ public class TokenBucketOptionsTests
         var options = new TokenBucketOptions { RefillPeriod = TimeSpan.Zero };
 
         // Act & Assert
-        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => options.Validate());
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(options.Validate);
         Assert.Equal("RefillPeriod", exception.ParamName);
         Assert.Contains("must be positive", exception.Message);
     }
@@ -194,7 +201,7 @@ public class TokenBucketOptionsTests
         var options = new TokenBucketOptions { RefillPeriod = TimeSpan.FromSeconds(-1) };
 
         // Act & Assert
-        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => options.Validate());
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(options.Validate);
         Assert.Equal("RefillPeriod", exception.ParamName);
     }
 
@@ -205,7 +212,7 @@ public class TokenBucketOptionsTests
         var options = new TokenBucketOptions { MaxQueueWait = TimeSpan.Zero };
 
         // Act & Assert
-        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => options.Validate());
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(options.Validate);
         Assert.Equal("MaxQueueWait", exception.ParamName);
         Assert.Contains("must be positive", exception.Message);
     }
@@ -217,7 +224,7 @@ public class TokenBucketOptionsTests
         var options = new TokenBucketOptions { MaxQueueWait = TimeSpan.FromSeconds(-1) };
 
         // Act & Assert
-        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => options.Validate());
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(options.Validate);
         Assert.Equal("MaxQueueWait", exception.ParamName);
     }
 
@@ -228,7 +235,7 @@ public class TokenBucketOptionsTests
         var options = new TokenBucketOptions { MaxScopedKeys = 0 };
 
         // Act & Assert
-        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => options.Validate());
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(options.Validate);
         Assert.Equal("MaxScopedKeys", exception.ParamName);
         Assert.Contains("must be positive", exception.Message);
     }
@@ -240,7 +247,7 @@ public class TokenBucketOptionsTests
         var options = new TokenBucketOptions { MaxScopedKeys = -1 };
 
         // Act & Assert
-        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => options.Validate());
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(options.Validate);
         Assert.Equal("MaxScopedKeys", exception.ParamName);
     }
 

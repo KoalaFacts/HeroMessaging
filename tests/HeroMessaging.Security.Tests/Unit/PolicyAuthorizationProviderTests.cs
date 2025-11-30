@@ -138,7 +138,7 @@ public sealed class PolicyAuthorizationProviderTests
         var provider = new PolicyAuthorizationProvider();
         provider.RequireRole("OrderCommand", MessageOperations.Send, "admin", "manager");
 
-        var identity = new ClaimsIdentity(new[] { new Claim(ClaimTypes.Role, "admin") }, "TestAuth");
+        var identity = new ClaimsIdentity([new Claim(ClaimTypes.Role, "admin")], "TestAuth");
         var principal = new ClaimsPrincipal(identity);
 
         // Act
@@ -155,7 +155,7 @@ public sealed class PolicyAuthorizationProviderTests
         var provider = new PolicyAuthorizationProvider();
         provider.RequireRole("OrderCommand", MessageOperations.Send, "admin");
 
-        var identity = new ClaimsIdentity(new[] { new Claim(ClaimTypes.Role, "user") }, "TestAuth");
+        var identity = new ClaimsIdentity([new Claim(ClaimTypes.Role, "user")], "TestAuth");
         var principal = new ClaimsPrincipal(identity);
 
         // Act
@@ -173,10 +173,10 @@ public sealed class PolicyAuthorizationProviderTests
         var provider = new PolicyAuthorizationProvider();
         provider.RequireClaim("PaymentCommand", MessageOperations.Handle, "permission", "process-payments");
 
-        var identity = new ClaimsIdentity(new[]
-        {
+        var identity = new ClaimsIdentity(
+        [
             new Claim("permission", "process-payments")
-        }, "TestAuth");
+        ], "TestAuth");
         var principal = new ClaimsPrincipal(identity);
 
         // Act
@@ -193,10 +193,10 @@ public sealed class PolicyAuthorizationProviderTests
         var provider = new PolicyAuthorizationProvider();
         provider.RequireClaim("PaymentCommand", MessageOperations.Handle, "permission", "process-payments");
 
-        var identity = new ClaimsIdentity(new[]
-        {
+        var identity = new ClaimsIdentity(
+        [
             new Claim("permission", "view-only")
-        }, "TestAuth");
+        ], "TestAuth");
         var principal = new ClaimsPrincipal(identity);
 
         // Act
@@ -230,7 +230,7 @@ public sealed class PolicyAuthorizationProviderTests
         var provider = new PolicyAuthorizationProvider();
         provider.RequireRole("*", MessageOperations.Send, "sender");
 
-        var identity = new ClaimsIdentity(new[] { new Claim(ClaimTypes.Role, "sender") }, "TestAuth");
+        var identity = new ClaimsIdentity([new Claim(ClaimTypes.Role, "sender")], "TestAuth");
         var principal = new ClaimsPrincipal(identity);
 
         // Act - Should match any message type
@@ -271,10 +271,10 @@ public sealed class PolicyAuthorizationProviderTests
     {
         // Arrange
         var provider = new PolicyAuthorizationProvider();
-        var identity = new ClaimsIdentity(new[]
-        {
+        var identity = new ClaimsIdentity(
+        [
             new Claim("permission", "delete-orders")
-        }, "TestAuth");
+        ], "TestAuth");
         var principal = new ClaimsPrincipal(identity);
 
         // Act
@@ -289,10 +289,10 @@ public sealed class PolicyAuthorizationProviderTests
     {
         // Arrange
         var provider = new PolicyAuthorizationProvider();
-        var identity = new ClaimsIdentity(new[]
-        {
+        var identity = new ClaimsIdentity(
+        [
             new Claim("permission", "view-orders")
-        }, "TestAuth");
+        ], "TestAuth");
         var principal = new ClaimsPrincipal(identity);
 
         // Act
@@ -387,10 +387,10 @@ public sealed class PolicyAuthorizationProviderTests
             .RequireAuthenticatedUser()
             .RequireAssertion(p => p.HasClaim("custom", "value"));
 
-        var identity = new ClaimsIdentity(new[]
-        {
+        var identity = new ClaimsIdentity(
+        [
             new Claim("custom", "value")
-        }, "TestAuth");
+        ], "TestAuth");
         var principal = new ClaimsPrincipal(identity);
 
         // Act
@@ -408,7 +408,7 @@ public sealed class PolicyAuthorizationProviderTests
             .RequireAuthenticatedUser()
             .RequireAssertion(p => false); // Always fails
 
-        var identity = new ClaimsIdentity(Array.Empty<Claim>(), "TestAuth");
+        var identity = new ClaimsIdentity([], "TestAuth");
         var principal = new ClaimsPrincipal(identity);
 
         // Act
@@ -427,7 +427,7 @@ public sealed class PolicyAuthorizationProviderTests
             .RequireAuthenticatedUser()
             .RequireAssertion(p => throw new InvalidOperationException("Test error"));
 
-        var identity = new ClaimsIdentity(Array.Empty<Claim>(), "TestAuth");
+        var identity = new ClaimsIdentity([], "TestAuth");
         var principal = new ClaimsPrincipal(identity);
 
         // Act
@@ -468,12 +468,12 @@ public sealed class PolicyAuthorizationProviderTests
             .RequireClaim("department", "IT", "Engineering")
             .RequireAssertion(p => p.Identity?.Name?.StartsWith("dev-") == true);
 
-        var identity = new ClaimsIdentity(new[]
-        {
+        var identity = new ClaimsIdentity(
+        [
             new Claim(ClaimTypes.Name, "dev-alice"),
             new Claim(ClaimTypes.Role, "admin"),
             new Claim("department", "Engineering")
-        }, "TestAuth");
+        ], "TestAuth");
         var principal = new ClaimsPrincipal(identity);
 
         // Act

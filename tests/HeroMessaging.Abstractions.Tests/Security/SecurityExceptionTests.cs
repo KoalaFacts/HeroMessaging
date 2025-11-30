@@ -214,7 +214,7 @@ public class SecurityExceptionTests
     {
         // Arrange
         var thrown = false;
-        var caught = false;
+        bool caught;
 
         // Act
         try

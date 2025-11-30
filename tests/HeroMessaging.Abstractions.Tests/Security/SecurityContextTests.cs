@@ -20,7 +20,7 @@ public class SecurityContextTests
         Assert.Null(context.CorrelationId);
         Assert.NotNull(context.Metadata);
         Assert.Empty(context.Metadata);
-        Assert.NotEqual(default(DateTimeOffset), context.Timestamp);
+        Assert.NotEqual(default, context.Timestamp);
     }
 
     [Fact]
@@ -390,7 +390,7 @@ public class SecurityContextTests
         identity1.AddClaim(new Claim(ClaimTypes.Name, "User1"));
         var identity2 = new ClaimsIdentity("TestAuth2");
         identity2.AddClaim(new Claim(ClaimTypes.Name, "User2"));
-        var principal = new ClaimsPrincipal(new[] { identity1, identity2 });
+        var principal = new ClaimsPrincipal([identity1, identity2]);
         var context = new SecurityContext(TimeProvider.System) { Principal = principal };
 
         // Act

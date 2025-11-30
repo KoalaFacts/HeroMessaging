@@ -13,9 +13,9 @@ public class PluginDescriptor : IPluginDescriptor
     public string? Description { get; set; }
     public string AssemblyName { get; set; } = string.Empty;
     public Type PluginType { get; set; } = typeof(object);
-    public IReadOnlyList<string> Dependencies { get; set; } = new List<string>();
+    public IReadOnlyList<string> Dependencies { get; set; } = [];
     public IReadOnlyDictionary<string, Type> ConfigurationOptions { get; set; } = new Dictionary<string, Type>();
-    public IReadOnlyList<string> ProvidedFeatures { get; set; } = new List<string>();
+    public IReadOnlyList<string> ProvidedFeatures { get; set; } = [];
 
     public PluginDescriptor()
     {

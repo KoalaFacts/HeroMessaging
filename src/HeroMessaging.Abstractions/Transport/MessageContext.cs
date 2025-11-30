@@ -13,7 +13,7 @@ public readonly record struct MessageContext
         TransportName = string.Empty;
         SourceAddress = default;
         ReceiveTimestamp = TimeProvider.System.GetUtcNow();
-        Properties = ImmutableDictionary<string, object>.Empty;
+        Properties = [];
     }
 
     public MessageContext(string transportName, TransportAddress sourceAddress, TimeProvider? timeProvider = null)
@@ -21,7 +21,7 @@ public readonly record struct MessageContext
         TransportName = transportName;
         SourceAddress = sourceAddress;
         ReceiveTimestamp = (timeProvider ?? TimeProvider.System).GetUtcNow();
-        Properties = ImmutableDictionary<string, object>.Empty;
+        Properties = [];
     }
 
     /// <summary>

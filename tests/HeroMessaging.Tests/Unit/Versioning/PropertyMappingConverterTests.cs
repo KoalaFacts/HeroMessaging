@@ -343,7 +343,7 @@ public sealed class PropertyMappingConverterTests
         var propertyMappings = new Dictionary<string, string> { { "OldName", "NewName" } };
 
         // Act
-        var converter = MessageConverterBuilder.ForPropertyMapping<TestMessage>(fromVersion, toVersion, propertyMappings, _logger);
+        var converter = MessageConverterBuilder.ForPropertyMapping(fromVersion, toVersion, propertyMappings, _logger);
 
         // Assert
         Assert.NotNull(converter);

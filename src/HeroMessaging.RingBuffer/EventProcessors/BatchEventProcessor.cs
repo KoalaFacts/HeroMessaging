@@ -14,7 +14,6 @@ public sealed class BatchEventProcessor<T> : IEventProcessor, IAsyncDisposable w
     private readonly RingBuffer<T> _ringBuffer;
     private readonly ISequenceBarrier _sequenceBarrier;
     private readonly IEventHandler<T> _eventHandler;
-    private readonly ISequence _sequence = new Sequence(-1);
     private readonly CancellationTokenSource _cts = new();
     private Task? _processingTask;
     private int _isRunning; // 0 = stopped, 1 = running (for Interlocked)
@@ -39,7 +38,7 @@ public sealed class BatchEventProcessor<T> : IEventProcessor, IAsyncDisposable w
     /// <summary>
     /// Gets the current sequence being processed
     /// </summary>
-    public ISequence Sequence => _sequence;
+    public ISequence Sequence { get; } = new Sequence(-1);
 
     /// <summary>
     /// Gets whether the processor is currently running
@@ -75,7 +74,7 @@ public sealed class BatchEventProcessor<T> : IEventProcessor, IAsyncDisposable w
     /// </summary>
     private void ProcessEvents()
     {
-        long nextSequence = _sequence.Value + 1;
+        long nextSequence = Sequence.Value + 1;
 
         try
         {
@@ -98,7 +97,7 @@ public sealed class BatchEventProcessor<T> : IEventProcessor, IAsyncDisposable w
                     }
 
                     // Update our sequence to signal we are done processing
-                    _sequence.Value = availableSequence;
+                    Sequence.Value = availableSequence;
                 }
                 catch (AlertException)
                 {
@@ -111,7 +110,7 @@ public sealed class BatchEventProcessor<T> : IEventProcessor, IAsyncDisposable w
                     _eventHandler.OnError(ex);
 
                     // Update sequence and continue
-                    _sequence.Value = nextSequence;
+                    Sequence.Value = nextSequence;
                     nextSequence++;
                 }
             }

@@ -167,7 +167,7 @@ public class InMemorySagaRepository<TSaga> : ISagaRepository<TSaga>
     /// </summary>
     public IEnumerable<TSaga> GetAll()
     {
-        return _sagas.Values.ToList();
+        return [.. _sagas.Values];
     }
 
     /// <summary>

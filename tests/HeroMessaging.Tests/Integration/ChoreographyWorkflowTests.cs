@@ -29,7 +29,7 @@ public class ChoreographyWorkflowTests
             .ScanAssembly(typeof(ChoreographyWorkflowTests).Assembly));
 
         // Register event tracker (use interface to avoid type ambiguity)
-        services.AddSingleton<System.Collections.Concurrent.ConcurrentBag<IMessage>>(capturedEvents);
+        services.AddSingleton(capturedEvents);
 
         // Note: Handlers are auto-registered by ScanAssembly above, no need for explicit registration
 

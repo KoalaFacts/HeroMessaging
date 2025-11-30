@@ -348,7 +348,7 @@ public sealed class SimplePassThroughConverterTests
         var toVersion = new MessageVersion(1, 1, 0);
 
         // Act
-        var converter = MessageConverterBuilder.ForPassThrough<TestMessage>(fromVersion, toVersion, _logger);
+        var converter = MessageConverterBuilder.ForPassThrough(fromVersion, toVersion, _logger);
 
         // Assert
         Assert.NotNull(converter);

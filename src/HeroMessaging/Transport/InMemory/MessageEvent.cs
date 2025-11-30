@@ -23,5 +23,5 @@ internal sealed class MessageEventFactory : IEventFactory<MessageEvent>
     /// Creates a new MessageEvent instance.
     /// </summary>
     /// <returns>A new MessageEvent.</returns>
-    public MessageEvent Create() => new MessageEvent();
+    public MessageEvent Create() => new();
 }

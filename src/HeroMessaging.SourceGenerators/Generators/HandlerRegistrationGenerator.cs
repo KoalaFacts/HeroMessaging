@@ -47,7 +47,7 @@ public class HandlerRegistrationGenerator : IIncrementalGenerator
     private static HandlerInfo? GetHandlerInfo(GeneratorSyntaxContext context)
     {
         var classDecl = (ClassDeclarationSyntax)context.Node;
-        var symbol = context.SemanticModel.GetDeclaredSymbol(classDecl) as INamedTypeSymbol;
+        var symbol = context.SemanticModel.GetDeclaredSymbol(classDecl);
 
         if (symbol is null || symbol.IsAbstract) return null;
 
@@ -63,9 +63,7 @@ public class HandlerRegistrationGenerator : IIncrementalGenerator
             TypeName = symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
             ClassName = symbol.Name,
             Namespace = symbol.ContainingNamespace.ToDisplayString(),
-            Interfaces = handlerInterfaces
-                .Select(i => i.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat))
-                .ToArray()
+            Interfaces = [.. handlerInterfaces.Select(i => i.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat))]
         };
     }
 

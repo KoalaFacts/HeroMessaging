@@ -114,7 +114,7 @@ public class DefaultBufferPoolManagerTests
     {
         // Arrange
         var manager = new DefaultBufferPoolManager();
-        ReadOnlySpan<byte> source = new byte[] { 1, 2, 3, 4, 5 };
+        ReadOnlySpan<byte> source = [1, 2, 3, 4, 5];
 
         // Act
         using var buffer = manager.RentAndCopy(source);

@@ -226,7 +226,7 @@ public class HeroMessagingServiceTests
     public async Task SendBatchAsync_WithNullCommands_ReturnsEmptyArray()
     {
         // Act
-        var result = await _sut.SendBatchAsync((IReadOnlyList<ICommand>)null!);
+        var result = await _sut.SendBatchAsync(null!);
 
         // Assert
         Assert.NotNull(result);
@@ -266,7 +266,7 @@ public class HeroMessagingServiceTests
 
         // Assert
         Assert.Equal(3, results.Count);
-        Assert.All(results, r => Assert.True(r));
+        Assert.All(results, Assert.True);
         _mockCommandProcessor.Verify(x => x.SendAsync(It.IsAny<ICommand>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
         var metrics = _sut.GetMetrics();
         Assert.Equal(3, metrics.CommandsSent);
@@ -381,7 +381,7 @@ public class HeroMessagingServiceTests
 
         // Assert
         Assert.Equal(2, results.Count);
-        Assert.All(results, r => Assert.True(r));
+        Assert.All(results, Assert.True);
         _mockEventBus.Verify(x => x.PublishAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         var metrics = _sut.GetMetrics();
         Assert.Equal(2, metrics.EventsPublished);

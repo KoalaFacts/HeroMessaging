@@ -91,7 +91,7 @@ public class PipelineTests : IAsyncDisposable
         var startTime = DateTimeOffset.UtcNow;
 
         // Act
-        var processingTasks = messages.Select(msg => pipeline.ProcessMessageAsync(msg)).ToArray();
+        var processingTasks = messages.Select(pipeline.ProcessMessageAsync).ToArray();
         var results = await Task.WhenAll(processingTasks);
 
         var endTime = DateTimeOffset.UtcNow;
@@ -134,7 +134,7 @@ public class PipelineTests : IAsyncDisposable
             .ToArray();
 
         // Act - Process some messages successfully
-        var initialResults = await Task.WhenAll(messages.Take(5).Select(msg => pipeline.ProcessMessageAsync(msg)));
+        var initialResults = await Task.WhenAll(messages.Take(5).Select(pipeline.ProcessMessageAsync));
         Assert.All(initialResults, result => Assert.True(result.Success));
 
         // Simulate failure
@@ -162,7 +162,7 @@ public class PipelineTests : IAsyncDisposable
         pipeline.RestoreStorageService();
 
         // These should succeed again
-        var recoveryResults = await Task.WhenAll(messages.Skip(10).Take(5).Select(msg => pipeline.ProcessMessageAsync(msg)));
+        var recoveryResults = await Task.WhenAll(messages.Skip(10).Take(5).Select(pipeline.ProcessMessageAsync));
         Assert.All(recoveryResults, result => Assert.True(result.Success));
     }
 
@@ -228,7 +228,7 @@ public class PipelineTests : IAsyncDisposable
             .ToArray();
 
         // Act
-        var results = await Task.WhenAll(messages.Select(msg => pipeline.ProcessMessageAsync(msg)));
+        var results = await Task.WhenAll(messages.Select(pipeline.ProcessMessageAsync));
 
         // Allow metrics to be collected
         await Task.Delay(100, TestContext.Current.CancellationToken);
@@ -269,7 +269,7 @@ public class PipelineTests : IAsyncDisposable
         };
 
         // Act
-        var results = await Task.WhenAll(messages.Select(msg => pipeline.ProcessMessageAsync(msg)));
+        var results = await Task.WhenAll(messages.Select(pipeline.ProcessMessageAsync));
 
         // Assert
         Assert.All(results, result => Assert.True(result.Success));
@@ -444,13 +444,13 @@ public class PipelineTests : IAsyncDisposable
 
             if (includeCustomProcessors)
             {
-                _processingSteps.AddRange(new[]
-                {
+                _processingSteps.AddRange(
+                [
                     "ValidationProcessor",
                     "TransformationProcessor",
                     "EnrichmentProcessor",
                     "StorageProcessor"
-                });
+                ]);
             }
 
             await Task.Delay(50, TestContext.Current.CancellationToken); // Simulate initialization
@@ -611,18 +611,17 @@ public class PipelineTests : IAsyncDisposable
         {
             lock (_metricsLock)
             {
-                return _metrics.Values
+                return [.. _metrics.Values
                     .Select(metric => new PipelineMetric
                     {
                         Name = metric.Name,
                         Value = metric.Value,
                         Timestamp = metric.Timestamp
-                    })
-                    .ToList();
+                    })];
             }
         }
 
-        public List<string> GetProcessingSteps() => _processingSteps.ToList();
+        public List<string> GetProcessingSteps() => [.. _processingSteps];
         public bool WasStepExecuted(string step)
         {
             lock (_executedStepsLock)
@@ -654,6 +653,8 @@ public class PipelineTests : IAsyncDisposable
 
                 case "StorageProcessor":
                     // Simulate storage-specific processing
+                    break;
+                default:
                     break;
             }
         }

@@ -20,7 +20,7 @@ public class SqlServerStorageIntegrationTests : SqlServerIntegrationTestBase
 
         // Act
         await storage.StoreAsync(message, (MessageStorageOptions?)null);
-        var retrievedMessage = await storage.RetrieveAsync(message.MessageId, (IStorageTransaction?)null);
+        var retrievedMessage = await storage.RetrieveAsync(message.MessageId, null);
 
         // Assert
         Assert.NotNull(retrievedMessage);
@@ -77,7 +77,7 @@ public class SqlServerStorageIntegrationTests : SqlServerIntegrationTestBase
 
         // Act
         await storage.StoreAsync(largeMessage, (MessageStorageOptions?)null);
-        var retrievedMessage = await storage.RetrieveAsync(largeMessage.MessageId, (IStorageTransaction?)null);
+        var retrievedMessage = await storage.RetrieveAsync(largeMessage.MessageId, null);
 
         // Assert
         Assert.NotNull(retrievedMessage);

@@ -95,8 +95,7 @@ public class PostgreSqlSagaRepository<TSaga> : ISagaRepository<TSaga>, IDisposab
         await _initLock.WaitAsync(cancellationToken);
         try
         {
-            if (_initializationTask == null)
-                _initializationTask = InitializeDatabase();
+            _initializationTask ??= InitializeDatabase();
             await _initializationTask;
         }
         finally
@@ -321,13 +320,8 @@ public class PostgreSqlSagaRepository<TSaga> : ISagaRepository<TSaga>, IDisposab
             selectCommand.Parameters.AddWithValue("@CorrelationId", saga.CorrelationId);
             selectCommand.Parameters.AddWithValue("@SagaType", _sagaTypeName);
 
-            var result = await selectCommand.ExecuteScalarAsync(cancellationToken);
-            if (result == null)
-            {
-                throw new InvalidOperationException(
+            var result = await selectCommand.ExecuteScalarAsync(cancellationToken) ?? throw new InvalidOperationException(
                     $"Saga with correlation ID {saga.CorrelationId} not found. Use SaveAsync to create new sagas.");
-            }
-
             var currentVersion = Convert.ToInt32(result);
 
             // Optimistic concurrency check

@@ -97,8 +97,8 @@ public class PluginLoader : IPluginLoader
         IPluginDescriptor descriptor,
         CancellationToken cancellationToken = default)
     {
-        var errors = new System.Collections.Generic.List<string>();
-        var warnings = new System.Collections.Generic.List<string>();
+        var errors = new List<string>();
+        var warnings = new List<string>();
         var isValid = true;
 
         if (descriptor == null)
@@ -148,8 +148,8 @@ public class PluginLoader : IPluginLoader
         var result = new PluginValidationResult
         {
             IsValid = isValid,
-            Errors = errors.ToArray(),
-            Warnings = warnings.ToArray()
+            Errors = [.. errors],
+            Warnings = [.. warnings]
         };
 
         return Task.FromResult(result);
@@ -158,8 +158,7 @@ public class PluginLoader : IPluginLoader
     private IMessagingPlugin CreateInstance(IPluginDescriptor descriptor, IServiceProvider serviceProvider)
     {
         // Try to create using DI first
-        var plugin = serviceProvider.GetService(descriptor.PluginType) as IMessagingPlugin;
-        if (plugin != null)
+        if (serviceProvider.GetService(descriptor.PluginType) is IMessagingPlugin plugin)
         {
             return plugin;
         }

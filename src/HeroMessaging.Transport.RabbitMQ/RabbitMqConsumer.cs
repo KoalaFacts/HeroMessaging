@@ -23,7 +23,6 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
     private readonly TimeProvider _timeProvider;
     private AsyncEventingBasicConsumer? _consumer;
     private string? _consumerTag;
-    private bool _isActive;
     private long _messagesProcessed;
     private long _messagesFailed;
 #if NET9_0_OR_GREATER
@@ -39,7 +38,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
     public TransportAddress Source { get; }
 
     /// <inheritdoc/>
-    public bool IsActive => _isActive;
+    public bool IsActive { get; private set; }
 
     public RabbitMqConsumer(
         string consumerId,
@@ -72,14 +71,14 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
     {
         lock (_stateLock)
         {
-            if (_isActive)
+            if (IsActive)
             {
                 _logger.LogWarning("Consumer {ConsumerId} is already active", ConsumerId);
                 return;
             }
 
             _logger.LogInformation("Starting consumer {ConsumerId} for {Source}", ConsumerId, Source.Name);
-            _isActive = true;
+            IsActive = true;
         }
 
         // Create async consumer outside the lock
@@ -101,7 +100,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
     {
         lock (_stateLock)
         {
-            if (!_isActive)
+            if (!IsActive)
             {
                 return;
             }
@@ -114,7 +113,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
                 _consumer.ShutdownAsync -= OnConsumerShutdownAsync;
             }
 
-            _isActive = false;
+            IsActive = false;
         }
 
         if (!string.IsNullOrEmpty(_consumerTag) && _channel.IsOpen)
@@ -243,10 +242,10 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
                 DeadLetter = async (reason, ct) =>
                 {
                     await _channel.BasicNackAsync(ea.DeliveryTag, multiple: false, requeue: false, ct).ConfigureAwait(false);
-                    _instrumentation.AddEvent(activity, "deadletter", new[]
-                    {
+                    _instrumentation.AddEvent(activity, "deadletter",
+                    [
                         new KeyValuePair<string, object?>("reason", reason ?? "unknown")
-                    });
+                    ]);
                 }
             };
 
@@ -296,7 +295,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
             "Consumer {ConsumerId} shutdown: ReplyCode: {ReplyCode}, ReplyText: {ReplyText}",
             ConsumerId, e.ReplyCode, e.ReplyText);
 
-        _isActive = false;
+        IsActive = false;
         return Task.CompletedTask;
     }
 }

@@ -46,7 +46,7 @@ public class InMemoryMessageStorage : IMessageStorage
             // Check if the stored message is of the requested type
             if (stored.Message is T typedMessage)
             {
-                return Task.FromResult<T?>(typedMessage);
+                return Task.FromResult(typedMessage);
             }
 
             // Return null if the types don't match
@@ -174,7 +174,7 @@ public class InMemoryMessageStorage : IMessageStorage
     async Task<List<IMessage>> ITransactionalMessageStorage.QueryAsync(MessageQuery query, CancellationToken cancellationToken)
     {
         var results = await QueryAsync<IMessage>(query, cancellationToken).ConfigureAwait(false);
-        return results.ToList();
+        return [.. results];
     }
 
     async Task ITransactionalMessageStorage.DeleteAsync(Guid messageId, CancellationToken cancellationToken)

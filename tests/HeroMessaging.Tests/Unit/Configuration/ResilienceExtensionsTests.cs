@@ -261,8 +261,7 @@ public class ResilienceExtensionsTests
         var mockBuilder = new Mock<IHeroMessagingBuilder>();
 
         // Act & Assert
-        var exception = Assert.Throws<ArgumentException>(() =>
-            mockBuilder.Object.WithConnectionResilience<CustomTestPolicy>());
+        var exception = Assert.Throws<ArgumentException>(mockBuilder.Object.WithConnectionResilience<CustomTestPolicy>);
 
         Assert.Equal("builder", exception.ParamName);
     }

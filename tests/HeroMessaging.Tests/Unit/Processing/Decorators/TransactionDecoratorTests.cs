@@ -182,11 +182,11 @@ public sealed class TransactionCommandProcessorDecoratorTests
                 async (operation, name, level, ct) => await operation(ct));
 
         _innerMock
-            .Setup(p => p.SendAsync<TestResponse>(command, It.IsAny<CancellationToken>()))
+            .Setup(p => p.SendAsync(command, It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedResponse);
 
         // Act
-        var result = await decorator.SendAsync<TestResponse>(command);
+        var result = await decorator.SendAsync(command);
 
         // Assert
         Assert.Equal(expectedResponse, result);
@@ -217,15 +217,15 @@ public sealed class TransactionCommandProcessorDecoratorTests
                 async (operation, name, level, ct) => await operation(ct));
 
         _innerMock
-            .Setup(p => p.SendAsync<TestResponse>(command, It.IsAny<CancellationToken>()))
+            .Setup(p => p.SendAsync(command, It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedResponse);
 
         // Act
-        var result = await decorator.SendAsync<TestResponse>(command);
+        var result = await decorator.SendAsync(command);
 
         // Assert
         Assert.Equal(expectedResponse, result);
-        _innerMock.Verify(p => p.SendAsync<TestResponse>(command, It.IsAny<CancellationToken>()), Times.Once);
+        _innerMock.Verify(p => p.SendAsync(command, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -246,11 +246,11 @@ public sealed class TransactionCommandProcessorDecoratorTests
                 async (operation, name, level, ct) => await operation(ct));
 
         _innerMock
-            .Setup(p => p.SendAsync<TestResponse>(command, It.IsAny<CancellationToken>()))
+            .Setup(p => p.SendAsync(command, It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedResponse);
 
         // Act
-        var result = await decorator.SendAsync<TestResponse>(command);
+        var result = await decorator.SendAsync(command);
 
         // Assert
         Assert.Equal(99, result.Value);
@@ -301,7 +301,7 @@ public sealed class TransactionCommandProcessorDecoratorTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await decorator.SendAsync<TestResponse>(command));
+            async () => await decorator.SendAsync(command));
 
         Assert.Equal("Test error", exception.Message);
     }
@@ -398,11 +398,11 @@ public sealed class TransactionQueryProcessorDecoratorTests
                 async (operation, name, level, ct) => await operation(ct));
 
         _innerMock
-            .Setup(p => p.SendAsync<TestQueryResponse>(query, It.IsAny<CancellationToken>()))
+            .Setup(p => p.SendAsync(query, It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedResponse);
 
         // Act
-        var result = await decorator.SendAsync<TestQueryResponse>(query);
+        var result = await decorator.SendAsync(query);
 
         // Assert
         Assert.Equal(expectedResponse, result);
@@ -433,15 +433,15 @@ public sealed class TransactionQueryProcessorDecoratorTests
                 async (operation, name, level, ct) => await operation(ct));
 
         _innerMock
-            .Setup(p => p.SendAsync<TestQueryResponse>(query, It.IsAny<CancellationToken>()))
+            .Setup(p => p.SendAsync(query, It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedResponse);
 
         // Act
-        var result = await decorator.SendAsync<TestQueryResponse>(query);
+        var result = await decorator.SendAsync(query);
 
         // Assert
         Assert.Equal(expectedResponse, result);
-        _innerMock.Verify(p => p.SendAsync<TestQueryResponse>(query, It.IsAny<CancellationToken>()), Times.Once);
+        _innerMock.Verify(p => p.SendAsync(query, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -462,11 +462,11 @@ public sealed class TransactionQueryProcessorDecoratorTests
                 async (operation, name, level, ct) => await operation(ct));
 
         _innerMock
-            .Setup(p => p.SendAsync<TestQueryResponse>(query, It.IsAny<CancellationToken>()))
+            .Setup(p => p.SendAsync(query, It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedResponse);
 
         // Act
-        var result = await decorator.SendAsync<TestQueryResponse>(query);
+        var result = await decorator.SendAsync(query);
 
         // Assert
         Assert.Equal("Expected data", result.Data);
@@ -490,11 +490,11 @@ public sealed class TransactionQueryProcessorDecoratorTests
                 async (operation, name, level, ct) => await operation(ct));
 
         _innerMock
-            .Setup(p => p.SendAsync<TestQueryResponse>(query, It.IsAny<CancellationToken>()))
+            .Setup(p => p.SendAsync(query, It.IsAny<CancellationToken>()))
             .ReturnsAsync(expectedResponse);
 
         // Act
-        await decorator.SendAsync<TestQueryResponse>(query);
+        await decorator.SendAsync(query);
 
         // Assert - Verified by mock setup
         _transactionExecutorMock.Verify(
@@ -526,11 +526,11 @@ public sealed class TransactionQueryProcessorDecoratorTests
                 async (operation, name, level, ct) => await operation(ct));
 
         _innerMock
-            .Setup(p => p.SendAsync<TestQueryResponse>(query, cancellationToken))
+            .Setup(p => p.SendAsync(query, cancellationToken))
             .ReturnsAsync(expectedResponse);
 
         // Act
-        await decorator.SendAsync<TestQueryResponse>(query, cancellationToken);
+        await decorator.SendAsync(query, cancellationToken);
 
         // Assert
         _transactionExecutorMock.Verify(
@@ -564,7 +564,7 @@ public sealed class TransactionQueryProcessorDecoratorTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await decorator.SendAsync<TestQueryResponse>(query));
+            async () => await decorator.SendAsync(query));
 
         Assert.Equal("Query failed", exception.Message);
     }

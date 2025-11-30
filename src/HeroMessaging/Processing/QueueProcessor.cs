@@ -74,6 +74,6 @@ public class QueueProcessor(
 
     public Task<IEnumerable<string>> GetActiveQueuesAsync(CancellationToken cancellationToken = default)
     {
-        return Task.FromResult<IEnumerable<string>>(_workers.Keys.ToList());
+        return Task.FromResult<IEnumerable<string>>([.. _workers.Keys]);
     }
 }

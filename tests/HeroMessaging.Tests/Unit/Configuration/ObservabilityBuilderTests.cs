@@ -99,7 +99,7 @@ public sealed class ObservabilityBuilderTests
         builder.AddOpenTelemetry();
 
         // Assert
-        Assert.Contains(_services, s => s.ServiceType == typeof(Abstractions.Configuration.OpenTelemetryOptions));
+        Assert.Contains(_services, s => s.ServiceType == typeof(OpenTelemetryOptions));
     }
 
     [Fact]
@@ -147,7 +147,7 @@ public sealed class ObservabilityBuilderTests
         builder.AddMetrics();
 
         // Assert
-        Assert.Contains(_services, s => s.ServiceType == typeof(Abstractions.Configuration.MetricsOptions));
+        Assert.Contains(_services, s => s.ServiceType == typeof(MetricsOptions));
     }
 
     [Fact]
@@ -195,7 +195,7 @@ public sealed class ObservabilityBuilderTests
         builder.AddTracing();
 
         // Assert
-        Assert.Contains(_services, s => s.ServiceType == typeof(Abstractions.Configuration.TracingOptions));
+        Assert.Contains(_services, s => s.ServiceType == typeof(TracingOptions));
     }
 
     [Fact]
@@ -243,7 +243,7 @@ public sealed class ObservabilityBuilderTests
         builder.AddLoggingEnrichment();
 
         // Assert
-        Assert.Contains(_services, s => s.ServiceType == typeof(Abstractions.Configuration.LoggingOptions));
+        Assert.Contains(_services, s => s.ServiceType == typeof(LoggingOptions));
     }
 
     [Fact]
@@ -402,7 +402,7 @@ public sealed class ObservabilityBuilderTests
         var provider = _services.BuildServiceProvider();
 
         // Act
-        var options = provider.GetService<IOptions<Abstractions.Configuration.TracingOptions>>();
+        var options = provider.GetService<IOptions<TracingOptions>>();
 
         // Assert
         Assert.NotNull(options);
@@ -541,10 +541,10 @@ public sealed class ObservabilityBuilderTests
 
         // Assert
         Assert.Same(_services, result);
-        Assert.Contains(_services, s => s.ServiceType == typeof(Abstractions.Configuration.OpenTelemetryOptions));
-        Assert.Contains(_services, s => s.ServiceType == typeof(Abstractions.Configuration.MetricsOptions));
-        Assert.Contains(_services, s => s.ServiceType == typeof(Abstractions.Configuration.TracingOptions));
-        Assert.Contains(_services, s => s.ServiceType == typeof(Abstractions.Configuration.LoggingOptions));
+        Assert.Contains(_services, s => s.ServiceType == typeof(OpenTelemetryOptions));
+        Assert.Contains(_services, s => s.ServiceType == typeof(MetricsOptions));
+        Assert.Contains(_services, s => s.ServiceType == typeof(TracingOptions));
+        Assert.Contains(_services, s => s.ServiceType == typeof(LoggingOptions));
     }
 
     #endregion

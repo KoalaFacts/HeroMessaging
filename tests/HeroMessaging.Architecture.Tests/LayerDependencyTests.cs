@@ -136,7 +136,7 @@ public class LayerDependencyTests
         if (result.IsSuccessful)
             return string.Empty;
 
-        var violations = string.Join(Environment.NewLine, result.FailingTypeNames ?? Array.Empty<string>());
+        var violations = string.Join(Environment.NewLine, result.FailingTypeNames ?? []);
         return $"Architecture violation detected:{Environment.NewLine}{violations}";
     }
 }

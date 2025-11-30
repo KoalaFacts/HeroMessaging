@@ -18,12 +18,10 @@ namespace HeroMessaging.Configuration;
 
 public class HeroMessagingBuilder(IServiceCollection services) : IHeroMessagingBuilder
 {
-    private readonly IServiceCollection _services = services;
-
-    public IServiceCollection Services => _services;
+    public IServiceCollection Services { get; } = services;
     private readonly List<Assembly> _assemblies = [];
     private readonly List<IMessagingPlugin> _plugins = [];
-    private ProcessingOptions _processingOptions = new();
+    private readonly ProcessingOptions _processingOptions = new();
 
     private bool _withMediator;
     private bool _withEventBus;
@@ -63,29 +61,29 @@ public class HeroMessagingBuilder(IServiceCollection services) : IHeroMessagingB
 
     public IHeroMessagingBuilder UseInMemoryStorage()
     {
-        _services.AddSingleton<IMessageStorage, InMemoryMessageStorage>();
-        _services.AddSingleton<IOutboxStorage, InMemoryOutboxStorage>();
-        _services.AddSingleton<IInboxStorage, InMemoryInboxStorage>();
-        _services.AddSingleton<IQueueStorage, InMemoryQueueStorage>();
+        Services.AddSingleton<IMessageStorage, InMemoryMessageStorage>();
+        Services.AddSingleton<IOutboxStorage, InMemoryOutboxStorage>();
+        Services.AddSingleton<IInboxStorage, InMemoryInboxStorage>();
+        Services.AddSingleton<IQueueStorage, InMemoryQueueStorage>();
         return this;
     }
 
     public IHeroMessagingBuilder WithErrorHandling()
     {
-        _services.AddSingleton<IDeadLetterQueue, InMemoryDeadLetterQueue>();
-        _services.AddSingleton<IErrorHandler, DefaultErrorHandler>();
+        Services.AddSingleton<IDeadLetterQueue, InMemoryDeadLetterQueue>();
+        Services.AddSingleton<IErrorHandler, DefaultErrorHandler>();
         return this;
     }
 
     public IHeroMessagingBuilder UseStorage<TStorage>() where TStorage : class, IMessageStorage
     {
-        _services.AddSingleton<IMessageStorage, TStorage>();
+        Services.AddSingleton<IMessageStorage, TStorage>();
         return this;
     }
 
     public IHeroMessagingBuilder UseStorage(IMessageStorage storage)
     {
-        _services.AddSingleton(storage);
+        Services.AddSingleton(storage);
         return this;
     }
 
@@ -109,7 +107,7 @@ public class HeroMessagingBuilder(IServiceCollection services) : IHeroMessagingB
 
     public IHeroMessagingBuilder AddPlugin<TPlugin>() where TPlugin : class, IMessagingPlugin
     {
-        _services.AddSingleton<IMessagingPlugin, TPlugin>();
+        Services.AddSingleton<IMessagingPlugin, TPlugin>();
         return this;
     }
 
@@ -117,14 +115,14 @@ public class HeroMessagingBuilder(IServiceCollection services) : IHeroMessagingB
     {
         var plugin = Activator.CreateInstance<TPlugin>();
         configure(plugin);
-        _services.AddSingleton<IMessagingPlugin>(plugin);
+        Services.AddSingleton<IMessagingPlugin>(plugin);
         return this;
     }
 
     public IHeroMessagingBuilder AddPlugin(IMessagingPlugin plugin)
     {
         _plugins.Add(plugin);
-        _services.AddSingleton(plugin);
+        Services.AddSingleton(plugin);
         return this;
     }
 
@@ -182,69 +180,69 @@ public class HeroMessagingBuilder(IServiceCollection services) : IHeroMessagingB
     public IServiceCollection Build()
     {
         // Register TimeProvider if not already registered
-        if (!_services.Any(s => s.ServiceType == typeof(TimeProvider)))
+        if (!Services.Any(s => s.ServiceType == typeof(TimeProvider)))
         {
-            _services.AddSingleton(TimeProvider.System);
+            Services.AddSingleton(TimeProvider.System);
         }
 
         // Register core utilities for JSON serialization and buffer pooling
-        if (!_services.Any(s => s.ServiceType == typeof(DefaultBufferPoolManager)))
+        if (!Services.Any(s => s.ServiceType == typeof(DefaultBufferPoolManager)))
         {
-            _services.AddSingleton<DefaultBufferPoolManager>();
+            Services.AddSingleton<DefaultBufferPoolManager>();
         }
 
-        if (!_services.Any(s => s.ServiceType == typeof(IJsonSerializer)))
+        if (!Services.Any(s => s.ServiceType == typeof(IJsonSerializer)))
         {
-            _services.AddSingleton<IJsonSerializer>(sp =>
+            Services.AddSingleton<IJsonSerializer>(sp =>
                 new DefaultJsonSerializer(sp.GetRequiredService<DefaultBufferPoolManager>()));
         }
 
-        _services.AddSingleton(_processingOptions);
+        Services.AddSingleton(_processingOptions);
 
         if (_withMediator)
         {
-            _services.AddSingleton<ICommandProcessor, CommandProcessor>();
-            _services.AddSingleton<IQueryProcessor, QueryProcessor>();
+            Services.AddSingleton<ICommandProcessor, CommandProcessor>();
+            Services.AddSingleton<IQueryProcessor, QueryProcessor>();
         }
 
         if (_withEventBus)
         {
             // Register the pipeline-based EventBus
-            _services.AddSingleton<IEventBus, EventBus>();
+            Services.AddSingleton<IEventBus, EventBus>();
 
             // Register pipeline services
-            _services.AddMessageProcessingPipeline();
+            Services.AddMessageProcessingPipeline();
         }
 
         if (_withQueues)
         {
-            _services.AddSingleton<IQueueProcessor, QueueProcessor>();
+            Services.AddSingleton<IQueueProcessor, QueueProcessor>();
         }
 
         if (_withOutbox)
         {
-            _services.AddSingleton<IOutboxProcessor, OutboxProcessor>();
+            Services.AddSingleton<IOutboxProcessor, OutboxProcessor>();
         }
 
         if (_withInbox)
         {
-            _services.AddSingleton<IInboxProcessor, InboxProcessor>();
+            Services.AddSingleton<IInboxProcessor, InboxProcessor>();
         }
 
-        _services.AddSingleton<IHeroMessaging, HeroMessagingService>();
+        Services.AddSingleton<IHeroMessaging, HeroMessagingService>();
 
         RegisterHandlers();
 
         foreach (var plugin in _plugins)
         {
-            plugin.Configure(_services);
+            plugin.Configure(Services);
         }
 
         // Register configuration validator
-        _services.AddSingleton<IConfigurationValidator>(sp =>
-            new ConfigurationValidator(_services, sp.GetService<ILogger<ConfigurationValidator>>()));
+        Services.AddSingleton<IConfigurationValidator>(sp =>
+            new ConfigurationValidator(Services, sp.GetService<ILogger<ConfigurationValidator>>()));
 
-        return _services;
+        return Services;
     }
 
     private void RegisterHandlers()
@@ -274,7 +272,7 @@ public class HeroMessagingBuilder(IServiceCollection services) : IHeroMessagingB
 
                 foreach (var @interface in interfaces)
                 {
-                    _services.AddTransient(@interface, handlerType);
+                    Services.AddTransient(@interface, handlerType);
                 }
             }
         }

@@ -168,14 +168,7 @@ public static class ShoppingCartStateMachine
                 .Then(ctx =>
                 {
                     // No If/Else support - have to do it manually
-                    if (ctx.Instance.IsPremiumCustomer && ctx.Data.DiscountAmount > 0)
-                    {
-                        ctx.Instance.DiscountAmount = ctx.Data.DiscountAmount * 1.1m;
-                    }
-                    else
-                    {
-                        ctx.Instance.DiscountAmount = ctx.Data.DiscountAmount;
-                    }
+                    ctx.Instance.DiscountAmount = ctx.Instance.IsPremiumCustomer && ctx.Data.DiscountAmount > 0 ? ctx.Data.DiscountAmount * 1.1m : ctx.Data.DiscountAmount;
                     ctx.Instance.DiscountCode = ctx.Data.DiscountCode;
                     return Task.CompletedTask;
                 })
@@ -247,18 +240,7 @@ public static class AdvancedBuilderExample
                 .Then(ctx =>
                 {
                     // For complex nested conditions, use inline logic
-                    if (ctx.Instance.TotalAmount > 1000)
-                    {
-                        ctx.Instance.CurrentState = "RequiresApproval";
-                    }
-                    else if (ctx.Instance.IsPremiumCustomer)
-                    {
-                        ctx.Instance.CurrentState = "FastTrackCompleted";
-                    }
-                    else
-                    {
-                        ctx.Instance.CurrentState = "Completed";
-                    }
+                    ctx.Instance.CurrentState = ctx.Instance.TotalAmount > 1000 ? "RequiresApproval" : ctx.Instance.IsPremiumCustomer ? "FastTrackCompleted" : "Completed";
                     ctx.Instance.UpdatedAt = DateTimeOffset.UtcNow;
                 });
 

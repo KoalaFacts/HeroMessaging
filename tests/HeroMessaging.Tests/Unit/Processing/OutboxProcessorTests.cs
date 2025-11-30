@@ -135,8 +135,8 @@ public sealed class OutboxProcessorTests : IDisposable
         var processor = CreateProcessor();
         var entries = new List<OutboxEntry>
         {
-            new OutboxEntry { Id = "1", Message = new TestMessage(), Status = OutboxStatus.Pending },
-            new OutboxEntry { Id = "2", Message = new TestMessage(), Status = OutboxStatus.Pending }
+            new() { Id = "1", Message = new TestMessage(), Status = OutboxStatus.Pending },
+            new() { Id = "2", Message = new TestMessage(), Status = OutboxStatus.Pending }
         };
 
         _storageMock
@@ -241,7 +241,7 @@ public sealed class OutboxProcessorTests : IDisposable
 
         _storageMock
             .Setup(s => s.GetPendingAsync(100, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<OutboxEntry> { entry });
+            .ReturnsAsync([entry]);
 
         _storageMock
             .Setup(s => s.UpdateRetryCountAsync(
@@ -296,7 +296,7 @@ public sealed class OutboxProcessorTests : IDisposable
 
         _storageMock
             .Setup(s => s.GetPendingAsync(100, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<OutboxEntry> { entry });
+            .ReturnsAsync([entry]);
 
         _storageMock
             .Setup(s => s.MarkFailedAsync(entry.Id, It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -334,7 +334,7 @@ public sealed class OutboxProcessorTests : IDisposable
     public void ProcessWorkItem_CalculatesExponentialBackoff()
     {
         // Arrange
-        var processor = CreateProcessor();
+        _ = CreateProcessor();
         var entry = new OutboxEntry
         {
             Id = "entry-1",
@@ -346,7 +346,7 @@ public sealed class OutboxProcessorTests : IDisposable
 
         // Act
         var expectedDelay = TimeSpan.FromSeconds(Math.Pow(2, entry.RetryCount));
-        var nextRetry = _timeProvider.GetUtcNow().Add(expectedDelay);
+        _ = _timeProvider.GetUtcNow().Add(expectedDelay);
 
         // Assert
         Assert.Equal(TimeSpan.FromSeconds(8), expectedDelay); // 2^3 = 8 seconds
@@ -395,7 +395,7 @@ public sealed class OutboxProcessorTests : IDisposable
 
         _storageMock
             .Setup(s => s.GetPendingAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<OutboxEntry>());
+            .ReturnsAsync([]);
 
         // Act
         await processor.StartAsync(cts.Token);
@@ -418,7 +418,7 @@ public sealed class OutboxProcessorTests : IDisposable
 
         _storageMock
             .Setup(s => s.GetPendingAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<OutboxEntry>());
+            .ReturnsAsync([]);
 
         await processor.StartAsync();
         await Task.Delay(100);
@@ -471,7 +471,7 @@ public sealed class OutboxProcessorTests : IDisposable
 
         _storageMock
             .Setup(s => s.GetPendingAsync(100, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<OutboxEntry> { entry });
+            .ReturnsAsync([entry]);
 
         _storageMock
             .Setup(s => s.MarkProcessedAsync(entry.Id, It.IsAny<CancellationToken>()))
@@ -510,7 +510,7 @@ public sealed class OutboxProcessorTests : IDisposable
 
         _storageMock
             .Setup(s => s.GetPendingAsync(100, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<OutboxEntry> { entry });
+            .ReturnsAsync([entry]);
 
         _storageMock
             .Setup(s => s.MarkFailedAsync(entry.Id, It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -571,7 +571,7 @@ public sealed class OutboxProcessorTests : IDisposable
         var processor = CreateProcessor();
         _storageMock
             .Setup(s => s.GetPendingAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Array.Empty<OutboxEntry>());
+            .ReturnsAsync([]);
 
         // Act
         await processor.StartAsync();
@@ -590,7 +590,7 @@ public sealed class OutboxProcessorTests : IDisposable
         var processor = CreateProcessor();
         _storageMock
             .Setup(s => s.GetPendingAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Array.Empty<OutboxEntry>());
+            .ReturnsAsync([]);
 
         // Act
         await processor.StartAsync();

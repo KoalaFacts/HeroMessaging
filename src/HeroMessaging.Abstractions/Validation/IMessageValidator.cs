@@ -59,7 +59,7 @@ public class ValidationException : Exception
     public ValidationException()
         : base("Validation failed")
     {
-        Errors = Array.Empty<string>();
+        Errors = [];
     }
 
     /// <summary>
@@ -68,7 +68,7 @@ public class ValidationException : Exception
     public ValidationException(string message)
         : base(message)
     {
-        Errors = Array.Empty<string>();
+        Errors = [];
     }
 
     /// <summary>
@@ -77,7 +77,7 @@ public class ValidationException : Exception
     public ValidationException(string message, Exception innerException)
         : base(message, innerException)
     {
-        Errors = Array.Empty<string>();
+        Errors = [];
     }
 
     /// <summary>
@@ -86,6 +86,6 @@ public class ValidationException : Exception
     public ValidationException(IReadOnlyList<string> errors)
         : base($"Validation failed: {string.Join(", ", errors)}")
     {
-        Errors = errors ?? Array.Empty<string>();
+        Errors = errors ?? [];
     }
 }

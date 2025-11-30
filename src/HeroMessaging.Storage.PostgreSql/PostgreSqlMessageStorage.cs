@@ -530,12 +530,7 @@ public class PostgreSqlMessageStorage : IMessageStorage
                 var messageTypeName = reader.GetString(1);
 
                 // Deserialize using the concrete type stored in the database
-                var messageType = Type.GetType(messageTypeName);
-                if (messageType == null)
-                {
-                    throw new InvalidOperationException($"Unable to resolve message type: {messageTypeName}");
-                }
-
+                var messageType = Type.GetType(messageTypeName) ?? throw new InvalidOperationException($"Unable to resolve message type: {messageTypeName}");
                 var message = _jsonSerializer.DeserializeFromString(payload, messageType, _jsonOptions);
                 return message as IMessage;
             }
@@ -613,12 +608,7 @@ public class PostgreSqlMessageStorage : IMessageStorage
             var messageTypeName = reader.GetString(1);
 
             // Deserialize using the concrete type stored in the database
-            var messageType = Type.GetType(messageTypeName);
-            if (messageType == null)
-            {
-                throw new InvalidOperationException($"Unable to resolve message type: {messageTypeName}");
-            }
-
+            var messageType = Type.GetType(messageTypeName) ?? throw new InvalidOperationException($"Unable to resolve message type: {messageTypeName}");
             var message = _jsonSerializer.DeserializeFromString(payload, messageType, _jsonOptions);
             if (message is IMessage imessage)
             {

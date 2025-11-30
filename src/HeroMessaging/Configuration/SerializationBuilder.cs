@@ -16,9 +16,9 @@ public class SerializationBuilder : ISerializationBuilder
         _services = services ?? throw new ArgumentNullException(nameof(services));
     }
 
-    public ISerializationBuilder UseJson(Action<Abstractions.Configuration.JsonSerializationOptions>? configure = null)
+    public ISerializationBuilder UseJson(Action<JsonSerializationOptions>? configure = null)
     {
-        var options = new Abstractions.Configuration.JsonSerializationOptions();
+        var options = new JsonSerializationOptions();
         configure?.Invoke(options);
 
         _services.AddSingleton(options);
@@ -31,9 +31,9 @@ public class SerializationBuilder : ISerializationBuilder
         return this;
     }
 
-    public ISerializationBuilder UseProtobuf(Action<Abstractions.Configuration.ProtobufSerializationOptions>? configure = null)
+    public ISerializationBuilder UseProtobuf(Action<ProtobufSerializationOptions>? configure = null)
     {
-        var options = new Abstractions.Configuration.ProtobufSerializationOptions();
+        var options = new ProtobufSerializationOptions();
         configure?.Invoke(options);
 
         _services.AddSingleton(options);
@@ -45,9 +45,9 @@ public class SerializationBuilder : ISerializationBuilder
         return this;
     }
 
-    public ISerializationBuilder UseMessagePack(Action<Abstractions.Configuration.MessagePackSerializationOptions>? configure = null)
+    public ISerializationBuilder UseMessagePack(Action<MessagePackSerializationOptions>? configure = null)
     {
-        var options = new Abstractions.Configuration.MessagePackSerializationOptions();
+        var options = new MessagePackSerializationOptions();
         configure?.Invoke(options);
 
         _services.AddSingleton(options);
@@ -92,7 +92,7 @@ public class SerializationBuilder : ISerializationBuilder
         return this;
     }
 
-    public ISerializationBuilder WithCompression(Abstractions.Configuration.CompressionLevel level = Abstractions.Configuration.CompressionLevel.Optimal)
+    public ISerializationBuilder WithCompression(CompressionLevel level = CompressionLevel.Optimal)
     {
         _services.Configure<SerializationCompressionOptions>(options =>
         {
@@ -128,7 +128,7 @@ public class SerializationOptions
 public class SerializationCompressionOptions : SerializationOptions
 {
     public bool EnableCompression { get; set; }
-    public Abstractions.Configuration.CompressionLevel CompressionLevel { get; set; } = Abstractions.Configuration.CompressionLevel.Optimal;
+    public CompressionLevel CompressionLevel { get; set; } = CompressionLevel.Optimal;
 }
 
 public class SerializationTypeMapping

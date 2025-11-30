@@ -1,3 +1,4 @@
+
 namespace HeroMessaging.Abstractions.Transport;
 
 /// <summary>
@@ -9,9 +10,7 @@ public abstract class ComponentMetricsBase
 {
     private long _successfulOperations;
     private long _failedOperations;
-    private string? _lastError;
-    private DateTimeOffset? _lastErrorOccurredAt;
-    private readonly object _errorLock = new();
+    private readonly Lock _errorLock = new();
 
     /// <summary>
     /// Total number of successful operations
@@ -40,9 +39,11 @@ public abstract class ComponentMetricsBase
         {
             lock (_errorLock)
             {
-                return _lastError;
+                return field;
             }
         }
+
+        private set;
     }
 
     /// <summary>
@@ -54,9 +55,11 @@ public abstract class ComponentMetricsBase
         {
             lock (_errorLock)
             {
-                return _lastErrorOccurredAt;
+                return field;
             }
         }
+
+        private set;
     }
 
     /// <summary>
@@ -99,8 +102,8 @@ public abstract class ComponentMetricsBase
         {
             lock (_errorLock)
             {
-                _lastError = error;
-                _lastErrorOccurredAt = (timeProvider ?? TimeProvider.System).GetUtcNow();
+                LastError = error;
+                LastErrorOccurredAt = (timeProvider ?? TimeProvider.System).GetUtcNow();
             }
         }
     }
@@ -114,8 +117,8 @@ public abstract class ComponentMetricsBase
         Interlocked.Exchange(ref _failedOperations, 0);
         lock (_errorLock)
         {
-            _lastError = null;
-            _lastErrorOccurredAt = null;
+            LastError = null;
+            LastErrorOccurredAt = null;
         }
     }
 }

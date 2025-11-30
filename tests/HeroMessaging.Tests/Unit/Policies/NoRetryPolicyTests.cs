@@ -324,10 +324,10 @@ public class NoRetryPolicyTests
                 results.Add(result);
             }));
 
-        Task.WaitAll(tasks.ToArray());
+        Task.WaitAll([.. tasks]);
 
         // Assert - All results should be false
-        Assert.All(results, result => Assert.False(result));
+        Assert.All(results, Assert.False);
         Assert.Equal(100, results.Count);
     }
 
@@ -347,7 +347,7 @@ public class NoRetryPolicyTests
                 results.Add(delay);
             }));
 
-        Task.WaitAll(tasks.ToArray());
+        Task.WaitAll([.. tasks]);
 
         // Assert - All delays should be zero
         Assert.All(results, delay => Assert.Equal(TimeSpan.Zero, delay));

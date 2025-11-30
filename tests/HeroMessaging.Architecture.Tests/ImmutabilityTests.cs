@@ -14,7 +14,7 @@ public class ImmutabilityTests
     public void Commands_ShouldNotHavePublicSetters()
     {
         // Arrange
-        var commands = Types.InAssemblies(new[] { AbstractionsAssembly, CoreAssembly })
+        var commands = Types.InAssemblies([AbstractionsAssembly, CoreAssembly])
             .That().ImplementInterface(typeof(Abstractions.Commands.ICommand))
             .Or().Inherit(typeof(Abstractions.Commands.ICommand<>))
             .GetTypes()
@@ -39,7 +39,7 @@ public class ImmutabilityTests
     public void Events_ShouldNotHavePublicSetters()
     {
         // Arrange
-        var events = Types.InAssemblies(new[] { AbstractionsAssembly, CoreAssembly })
+        var events = Types.InAssemblies([AbstractionsAssembly, CoreAssembly])
             .That().ImplementInterface(typeof(Abstractions.Events.IEvent))
             .GetTypes()
             .Where(t => !t.IsAbstract && !t.IsInterface)
@@ -74,7 +74,7 @@ public class ImmutabilityTests
     public void Queries_ShouldNotHavePublicSetters()
     {
         // Arrange
-        var queries = Types.InAssemblies(new[] { AbstractionsAssembly, CoreAssembly })
+        var queries = Types.InAssemblies([AbstractionsAssembly, CoreAssembly])
             .That().Inherit(typeof(Abstractions.Queries.IQuery<>))
             .GetTypes()
             .Where(t => !t.IsAbstract && !t.IsInterface)
@@ -98,7 +98,7 @@ public class ImmutabilityTests
     public void Messages_ShouldBeSealed_OrAbstract()
     {
         // Arrange & Act
-        var result = Types.InAssemblies(new[] { AbstractionsAssembly, CoreAssembly })
+        var result = Types.InAssemblies([AbstractionsAssembly, CoreAssembly])
             .That().ImplementInterface(typeof(Abstractions.Messages.IMessage))
             .And().AreClasses()
             .Should().BeSealed()
@@ -123,7 +123,7 @@ public class ImmutabilityTests
         // This test checks that value objects use records or structs for value semantics
 
         // Arrange
-        var valueObjectTypes = Types.InAssemblies(new[] { AbstractionsAssembly, CoreAssembly })
+        var valueObjectTypes = Types.InAssemblies([AbstractionsAssembly, CoreAssembly])
             .That().ResideInNamespace("HeroMessaging.Abstractions")
             .And().AreNotAbstract()
             .And().AreNotInterfaces()

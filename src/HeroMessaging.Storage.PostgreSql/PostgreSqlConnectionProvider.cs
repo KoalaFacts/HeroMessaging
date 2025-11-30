@@ -10,14 +10,13 @@ public class PostgreSqlConnectionProvider : IDbConnectionProvider<NpgsqlConnecti
 {
     private readonly NpgsqlConnection? _sharedConnection;
     private readonly NpgsqlTransaction? _sharedTransaction;
-    private readonly string _connectionString;
 
     /// <summary>
     /// Creates a connection provider with a connection string (standalone mode)
     /// </summary>
     public PostgreSqlConnectionProvider(string connectionString)
     {
-        _connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
+        ConnectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
     }
 
     /// <summary>
@@ -27,7 +26,7 @@ public class PostgreSqlConnectionProvider : IDbConnectionProvider<NpgsqlConnecti
     {
         _sharedConnection = connection ?? throw new ArgumentNullException(nameof(connection));
         _sharedTransaction = transaction;
-        _connectionString = connection.ConnectionString ?? string.Empty;
+        ConnectionString = connection.ConnectionString ?? string.Empty;
     }
 
     /// <inheritdoc />
@@ -38,7 +37,7 @@ public class PostgreSqlConnectionProvider : IDbConnectionProvider<NpgsqlConnecti
             return _sharedConnection;
         }
 
-        var connection = new NpgsqlConnection(_connectionString);
+        var connection = new NpgsqlConnection(ConnectionString);
         await connection.OpenAsync(cancellationToken);
         return connection;
     }
@@ -50,5 +49,5 @@ public class PostgreSqlConnectionProvider : IDbConnectionProvider<NpgsqlConnecti
     public bool IsSharedConnection => _sharedConnection != null;
 
     /// <inheritdoc />
-    public string ConnectionString => _connectionString;
+    public string ConnectionString { get; }
 }

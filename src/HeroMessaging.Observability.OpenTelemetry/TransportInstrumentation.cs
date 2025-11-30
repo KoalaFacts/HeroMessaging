@@ -313,7 +313,7 @@ public static class TransportInstrumentation
 
         if (attributes != null)
         {
-            activity.AddEvent(new ActivityEvent(eventName, tags: new ActivityTagsCollection(attributes)));
+            activity.AddEvent(new ActivityEvent(eventName, tags: [.. attributes]));
         }
         else
         {

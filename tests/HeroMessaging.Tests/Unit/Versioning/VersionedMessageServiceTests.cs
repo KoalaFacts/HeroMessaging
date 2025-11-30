@@ -150,10 +150,9 @@ public class VersionedMessageServiceTests
             typeof(TestMessage),
             fromVersion,
             toVersion,
-            new List<MessageConversionStep>
-            {
+            [
                 new MessageConversionStep(fromVersion, toVersion, mockConverter.Object)
-            });
+            ]);
 
         _mockVersionResolver.Setup(x => x.GetVersion(message))
             .Returns(fromVersion);
@@ -193,11 +192,10 @@ public class VersionedMessageServiceTests
             typeof(TestMessage),
             v1,
             v3,
-            new List<MessageConversionStep>
-            {
+            [
                 new MessageConversionStep(v1, v2, converter1.Object),
                 new MessageConversionStep(v2, v3, converter2.Object)
-            });
+            ]);
 
         _mockVersionResolver.Setup(x => x.GetVersion(message))
             .Returns(v1);
@@ -231,10 +229,9 @@ public class VersionedMessageServiceTests
             typeof(TestMessage),
             fromVersion,
             toVersion,
-            new List<MessageConversionStep>
-            {
+            [
                 new MessageConversionStep(fromVersion, toVersion, mockConverter.Object)
-            });
+            ]);
 
         _mockVersionResolver.Setup(x => x.GetVersion(message))
             .Returns(fromVersion);
@@ -267,10 +264,9 @@ public class VersionedMessageServiceTests
             typeof(TestMessage),
             fromVersion,
             toVersion,
-            new List<MessageConversionStep>
-            {
+            [
                 new MessageConversionStep(fromVersion, toVersion, mockConverter.Object)
-            });
+            ]);
 
         _mockVersionResolver.Setup(x => x.GetVersion(message))
             .Returns(fromVersion);
@@ -339,10 +335,9 @@ public class VersionedMessageServiceTests
             typeof(TestMessage),
             currentVersion,
             requiredVersion,
-            new List<MessageConversionStep>
-            {
+            [
                 new MessageConversionStep(currentVersion, requiredVersion, mockConverter.Object)
-            });
+            ]);
 
         _mockVersionResolver.Setup(x => x.GetVersion(message))
             .Returns(currentVersion);
@@ -380,7 +375,7 @@ public class VersionedMessageServiceTests
         // Arrange
         var message = new TestMessage { Data = "test" };
         var targetVersion = new MessageVersion(2, 0);
-        var expectedResult = new MessageVersionValidationResult(true, Array.Empty<string>(), Array.Empty<string>());
+        var expectedResult = new MessageVersionValidationResult(true, [], []);
 
         _mockVersionResolver.Setup(x => x.ValidateMessage(message, targetVersion))
             .Returns(expectedResult);
@@ -406,7 +401,7 @@ public class VersionedMessageServiceTests
             typeof(TestMessage),
             new MessageVersion(1, 0),
             "TestMessage",
-            Array.Empty<MessagePropertyInfo>());
+            []);
 
         _mockVersionResolver.Setup(x => x.GetVersionInfo(typeof(TestMessage)))
             .Returns(expectedInfo);
@@ -438,7 +433,7 @@ public class VersionedMessageServiceTests
             typeof(TestMessage),
             new MessageVersion(1, 0),
             "TestMessage",
-            Array.Empty<MessagePropertyInfo>());
+            []);
 
         _mockVersionResolver.Setup(x => x.GetVersionInfo(typeof(TestMessage)))
             .Returns(expectedInfo);
@@ -508,10 +503,9 @@ public class VersionedMessageServiceTests
             typeof(TestMessage),
             fromVersion,
             toVersion,
-            new List<MessageConversionStep>
-            {
+            [
                 new MessageConversionStep(fromVersion, toVersion, mockConverter.Object)
-            });
+            ]);
 
         _mockConverterRegistry.Setup(x => x.FindConversionPath(typeof(TestMessage), fromVersion, toVersion))
             .Returns(expectedPath);

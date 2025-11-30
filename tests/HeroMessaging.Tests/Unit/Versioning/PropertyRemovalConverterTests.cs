@@ -89,7 +89,7 @@ public sealed class PropertyRemovalConverterTests
         // Arrange
         var fromVersion = new MessageVersion(2, 0, 0);
         var toVersion = new MessageVersion(1, 0, 0);
-        var converter = CreateConverter(fromVersion, toVersion, new[] { "OldProperty" });
+        var converter = CreateConverter(fromVersion, toVersion, ["OldProperty"]);
 
         // Act
         var range = converter.SupportedVersionRange;
@@ -110,7 +110,7 @@ public sealed class PropertyRemovalConverterTests
         // Arrange
         var fromVersion = new MessageVersion(1, 0, 0);
         var toVersion = new MessageVersion(2, 0, 0);
-        var converter = CreateConverter(fromVersion, toVersion, new[] { "OldProperty" });
+        var converter = CreateConverter(fromVersion, toVersion, ["OldProperty"]);
 
         // Act
         var result = converter.CanConvert(typeof(TestMessage), fromVersion, toVersion);
@@ -125,7 +125,7 @@ public sealed class PropertyRemovalConverterTests
         // Arrange
         var fromVersion = new MessageVersion(1, 0, 0);
         var toVersion = new MessageVersion(2, 0, 0);
-        var converter = CreateConverter(fromVersion, toVersion, new[] { "OldProperty" });
+        var converter = CreateConverter(fromVersion, toVersion, ["OldProperty"]);
 
         // Act
         var result = converter.CanConvert(typeof(OtherMessage), fromVersion, toVersion);
@@ -140,7 +140,7 @@ public sealed class PropertyRemovalConverterTests
         // Arrange
         var fromVersion = new MessageVersion(1, 0, 0);
         var toVersion = new MessageVersion(2, 0, 0);
-        var converter = CreateConverter(fromVersion, toVersion, new[] { "OldProperty" });
+        var converter = CreateConverter(fromVersion, toVersion, ["OldProperty"]);
 
         // Act
         var result = converter.CanConvert(typeof(TestMessage), new MessageVersion(0, 9, 0), new MessageVersion(2, 0, 0));
@@ -158,7 +158,7 @@ public sealed class PropertyRemovalConverterTests
     {
         // Arrange
         var version = new MessageVersion(1, 0, 0);
-        var converter = CreateConverter(version, version, new[] { "OldProperty" });
+        var converter = CreateConverter(version, version, ["OldProperty"]);
         var message = new TestMessage { MessageId = Guid.NewGuid() };
 
         // Act
@@ -174,7 +174,7 @@ public sealed class PropertyRemovalConverterTests
         // Arrange
         var fromVersion = new MessageVersion(2, 0, 0);
         var toVersion = new MessageVersion(1, 0, 0);
-        var converter = CreateConverter(fromVersion, toVersion, new[] { "OldProperty" });
+        var converter = CreateConverter(fromVersion, toVersion, ["OldProperty"]);
         var message = new TestMessage { MessageId = Guid.NewGuid() };
 
         // Act
@@ -190,7 +190,7 @@ public sealed class PropertyRemovalConverterTests
         // Arrange
         var fromVersion = new MessageVersion(2, 0, 0);
         var toVersion = new MessageVersion(1, 0, 0);
-        var converter = CreateConverter(fromVersion, toVersion, new[] { "OldProperty" });
+        var converter = CreateConverter(fromVersion, toVersion, ["OldProperty"]);
         var message = new TestMessage { MessageId = Guid.NewGuid() };
 
         // Act
@@ -207,7 +207,7 @@ public sealed class PropertyRemovalConverterTests
         // Arrange
         var fromVersion = new MessageVersion(3, 0, 0);
         var toVersion = new MessageVersion(1, 0, 0);
-        var converter = CreateConverter(fromVersion, toVersion, new[] { "Property1", "Property2", "Property3" });
+        var converter = CreateConverter(fromVersion, toVersion, ["Property1", "Property2", "Property3"]);
         var message = new TestMessage { MessageId = Guid.NewGuid() };
 
         // Act
@@ -224,7 +224,7 @@ public sealed class PropertyRemovalConverterTests
         // Arrange
         var fromVersion = new MessageVersion(2, 0, 0);
         var toVersion = new MessageVersion(1, 0, 0);
-        var converter = CreateConverter(fromVersion, toVersion, new[] { "OldProperty" });
+        var converter = CreateConverter(fromVersion, toVersion, ["OldProperty"]);
         var messageId = Guid.NewGuid();
         var message = new TestMessage { MessageId = messageId };
 
@@ -241,7 +241,7 @@ public sealed class PropertyRemovalConverterTests
         // Arrange
         var fromVersion = new MessageVersion(2, 0, 0);
         var toVersion = new MessageVersion(1, 0, 0);
-        var converter = CreateConverter(fromVersion, toVersion, new[] { "OldProperty" });
+        var converter = CreateConverter(fromVersion, toVersion, ["OldProperty"]);
         var message = new TestMessage
         {
             MessageId = Guid.NewGuid(),
@@ -262,7 +262,7 @@ public sealed class PropertyRemovalConverterTests
         // Arrange
         var fromVersion = new MessageVersion(2, 0, 0);
         var toVersion = new MessageVersion(1, 0, 0);
-        var converter = CreateConverter(fromVersion, toVersion, new[] { "OldProperty" });
+        var converter = CreateConverter(fromVersion, toVersion, ["OldProperty"]);
         var correlationId = Guid.NewGuid().ToString();
         var message = new TestMessage
         {
@@ -283,7 +283,7 @@ public sealed class PropertyRemovalConverterTests
         // Arrange
         var fromVersion = new MessageVersion(2, 0, 0);
         var toVersion = new MessageVersion(1, 0, 0);
-        var converter = CreateConverter(fromVersion, toVersion, new[] { "OldProperty" });
+        var converter = CreateConverter(fromVersion, toVersion, ["OldProperty"]);
         var causationId = Guid.NewGuid().ToString();
         var message = new TestMessage
         {
@@ -304,7 +304,7 @@ public sealed class PropertyRemovalConverterTests
         // Arrange
         var fromVersion = new MessageVersion(2, 0, 0);
         var toVersion = new MessageVersion(1, 0, 0);
-        var converter = CreateConverter(fromVersion, toVersion, new[] { "OldProperty" });
+        var converter = CreateConverter(fromVersion, toVersion, ["OldProperty"]);
         var message = new TestMessage { MessageId = Guid.NewGuid() };
         var cts = new CancellationTokenSource();
         cts.Cancel();
@@ -327,7 +327,7 @@ public sealed class PropertyRemovalConverterTests
         var removedProperties = new[] { "OldProperty" };
 
         // Act
-        var converter = MessageConverterBuilder.ForPropertyRemoval<TestMessage>(fromVersion, toVersion, removedProperties, _logger);
+        var converter = MessageConverterBuilder.ForPropertyRemoval(fromVersion, toVersion, removedProperties, _logger);
 
         // Assert
         Assert.NotNull(converter);
@@ -344,7 +344,7 @@ public sealed class PropertyRemovalConverterTests
         // Arrange
         var fromVersion = new MessageVersion(2, 0, 0);
         var toVersion = new MessageVersion(1, 0, 0);
-        var converter = CreateConverter(fromVersion, toVersion, new[] { "OldProperty" });
+        var converter = CreateConverter(fromVersion, toVersion, ["OldProperty"]);
         var message = new TestMessage
         {
             MessageId = Guid.NewGuid(),
@@ -364,7 +364,7 @@ public sealed class PropertyRemovalConverterTests
         // Arrange
         var fromVersion = new MessageVersion(2, 0, 0);
         var toVersion = new MessageVersion(1, 0, 0);
-        var converter = CreateConverter(fromVersion, toVersion, new[] { "OldProperty" });
+        var converter = CreateConverter(fromVersion, toVersion, ["OldProperty"]);
         var message = new TestMessage
         {
             MessageId = Guid.NewGuid(),
@@ -383,7 +383,7 @@ public sealed class PropertyRemovalConverterTests
     public void MessageType_ReturnsCorrectType()
     {
         // Arrange
-        var converter = CreateConverter(new MessageVersion(2, 0, 0), new MessageVersion(1, 0, 0), new[] { "OldProperty" });
+        var converter = CreateConverter(new MessageVersion(2, 0, 0), new MessageVersion(1, 0, 0), ["OldProperty"]);
 
         // Act
         var messageType = converter.MessageType;
@@ -400,7 +400,7 @@ public sealed class PropertyRemovalConverterTests
         // with 2.0.0 to 3.0.0, but perform conversion from 3.0.0 to 2.0.0
         var minVersion = new MessageVersion(2, 0, 0);
         var maxVersion = new MessageVersion(3, 0, 0);
-        var converter = CreateConverter(minVersion, maxVersion, new[] { "FutureProperty" });
+        var converter = CreateConverter(minVersion, maxVersion, ["FutureProperty"]);
         var message = new TestMessage { MessageId = Guid.NewGuid() };
 
         // Act - Convert from version 3.0.0 (within range) to version 2.0.0 (within range)
@@ -417,7 +417,7 @@ public sealed class PropertyRemovalConverterTests
         // Note: Version range must have minVersion <= maxVersion
         var minVersion = new MessageVersion(1, 0, 0);
         var maxVersion = new MessageVersion(2, 0, 0);
-        var converter = CreateConverter(minVersion, maxVersion, new[] { "OldProperty" });
+        var converter = CreateConverter(minVersion, maxVersion, ["OldProperty"]);
         var messages = Enumerable.Range(0, 10)
             .Select(_ => new TestMessage { MessageId = Guid.NewGuid() })
             .ToList();

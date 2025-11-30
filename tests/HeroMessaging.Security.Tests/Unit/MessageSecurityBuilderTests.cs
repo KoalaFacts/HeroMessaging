@@ -257,7 +257,7 @@ public sealed class MessageSecurityBuilderTests
 
         // Verify configuration
         var identity = new System.Security.Claims.ClaimsIdentity(
-            new[] { new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "admin") },
+            [new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "admin")],
             "TestAuth");
         var principal = new System.Security.Claims.ClaimsPrincipal(identity);
         var authResult = authzProvider.AuthorizeAsync(principal, "Command", "Execute").Result;

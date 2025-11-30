@@ -19,7 +19,7 @@ internal class RingBufferQueue : IDisposable, IAsyncDisposable
     private readonly CancellationTokenSource _cts = new();
     private long _messageCount;
     private long _depth;
-    private readonly object _consumerLock = new();
+    private readonly Lock _consumerLock = new();
 
     /// <summary>
     /// Gets the total number of messages enqueued.
@@ -45,8 +45,8 @@ internal class RingBufferQueue : IDisposable, IAsyncDisposable
         // Create ring buffer
         var eventFactory = new MessageEventFactory();
         var producerType = options.ProducerMode == ProducerMode.Single
-            ? RingBuffer.ProducerType.Single
-            : RingBuffer.ProducerType.Multi;
+            ? ProducerType.Single
+            : ProducerType.Multi;
 
         _ringBuffer = new RingBuffer<MessageEvent>(
             options.BufferSize,
@@ -167,7 +167,7 @@ internal class RingBufferQueue : IDisposable, IAsyncDisposable
         {
             if (_consumers.Count > 0)
             {
-                return _consumers.Select(cp => cp.Consumer).ToArray();
+                return [.. _consumers.Select(cp => cp.Consumer)];
             }
             return null;
         }

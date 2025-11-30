@@ -23,7 +23,6 @@ public class InMemoryTransport(
     private readonly ConcurrentDictionary<string, InMemoryQueue> _queues = new();
     private readonly ConcurrentDictionary<string, InMemoryTopic> _topics = new();
     private readonly ConcurrentDictionary<string, InMemoryConsumer> _consumers = new();
-    private TransportState _state = TransportState.Disconnected;
 #if NET9_0_OR_GREATER
     private readonly Lock _stateLock = new();
 #else
@@ -36,7 +35,7 @@ public class InMemoryTransport(
     public string Name => _options.Name;
 
     /// <inheritdoc/>
-    public TransportState State => _state;
+    public TransportState State { get; private set; } = TransportState.Disconnected;
 
     /// <inheritdoc/>
     public event EventHandler<TransportStateChangedEventArgs>? StateChanged;
@@ -50,7 +49,7 @@ public class InMemoryTransport(
         await _connectLock.WaitAsync(cancellationToken);
         try
         {
-            if (_state == TransportState.Connected)
+            if (State == TransportState.Connected)
                 return;
 
             // Simulate network delay if configured
@@ -254,9 +253,9 @@ public class InMemoryTransport(
         var health = new TransportHealth
         {
             TransportName = Name,
-            Status = _state == TransportState.Connected ? HealthStatus.Healthy : HealthStatus.Unhealthy,
-            State = _state,
-            StatusMessage = _state == TransportState.Connected ? "In-memory transport is healthy" : $"Transport state: {_state}",
+            Status = State == TransportState.Connected ? HealthStatus.Healthy : HealthStatus.Unhealthy,
+            State = State,
+            StatusMessage = State == TransportState.Connected ? "In-memory transport is healthy" : $"Transport state: {State}",
             Timestamp = _timeProvider.GetUtcNow(),
             Duration = TimeSpan.Zero,
             ActiveConnections = 1,
@@ -287,9 +286,9 @@ public class InMemoryTransport(
 
     private void EnsureConnected()
     {
-        if (_state != TransportState.Connected)
+        if (State != TransportState.Connected)
         {
-            throw new InvalidOperationException($"Transport is not connected. Current state: {_state}");
+            throw new InvalidOperationException($"Transport is not connected. Current state: {State}");
         }
     }
 
@@ -298,18 +297,13 @@ public class InMemoryTransport(
         TransportState oldState;
         lock (_stateLock)
         {
-            oldState = _state;
-            _state = newState;
+            oldState = State;
+            State = newState;
         }
 
         if (oldState != newState)
         {
             StateChanged?.Invoke(this, new TransportStateChangedEventArgs(oldState, newState, reason));
         }
-    }
-
-    private void OnError(Exception exception, string? context = null)
-    {
-        Error?.Invoke(this, new TransportErrorEventArgs(exception, context));
     }
 }

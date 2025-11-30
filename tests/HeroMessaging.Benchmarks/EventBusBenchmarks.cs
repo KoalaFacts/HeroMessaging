@@ -28,7 +28,7 @@ public class EventBusBenchmarks
         var services = new ServiceCollection();
         services.AddLogging(builder => builder.SetMinimumLevel(LogLevel.Warning));
         services.AddSingleton<IEventHandler<TestEvent>, TestEventHandler>();
-        services.AddSingleton<TimeProvider>(TimeProvider.System);
+        services.AddSingleton(TimeProvider.System);
 
         _serviceProvider = services.BuildServiceProvider();
         var logger = _serviceProvider.GetRequiredService<ILogger<EventBus>>();
@@ -40,7 +40,7 @@ public class EventBusBenchmarks
         multiServices.AddSingleton<IEventHandler<TestEvent>, TestEventHandler>();
         multiServices.AddSingleton<IEventHandler<TestEvent>, TestEventHandler2>();
         multiServices.AddSingleton<IEventHandler<TestEvent>, TestEventHandler3>();
-        multiServices.AddSingleton<TimeProvider>(TimeProvider.System);
+        multiServices.AddSingleton(TimeProvider.System);
 
         _multiHandlerServiceProvider = multiServices.BuildServiceProvider();
         var multiLogger = _multiHandlerServiceProvider.GetRequiredService<ILogger<EventBus>>();

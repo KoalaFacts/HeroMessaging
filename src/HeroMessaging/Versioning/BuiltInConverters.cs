@@ -55,7 +55,7 @@ public class PropertyRemovalConverter<TMessage>(
     private readonly MessageVersionRange _versionRange = fromVersion.CompareTo(toVersion) <= 0
         ? new MessageVersionRange(fromVersion, toVersion)
         : new MessageVersionRange(toVersion, fromVersion);
-    private readonly HashSet<string> _removedProperties = new HashSet<string>(removedProperties ?? throw new ArgumentNullException(nameof(removedProperties)));
+    private readonly HashSet<string> _removedProperties = [.. removedProperties ?? throw new ArgumentNullException(nameof(removedProperties))];
 
     public override MessageVersionRange SupportedVersionRange => _versionRange;
 

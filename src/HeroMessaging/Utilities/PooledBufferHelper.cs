@@ -93,37 +93,36 @@ public sealed class DefaultBufferPoolManager
     public ref struct PooledBuffer
     {
         private byte[]? _array;
-        private readonly int _length;
         private bool _disposed;
 
         internal PooledBuffer(byte[] array, int length)
         {
             _array = array;
-            _length = length;
+            Length = length;
             _disposed = false;
         }
 
         /// <summary>
         /// Gets the underlying array (may be larger than requested size).
         /// </summary>
-        public byte[] Array => _array ?? throw new ObjectDisposedException(nameof(PooledBuffer));
+        public readonly byte[] Array => _array ?? throw new ObjectDisposedException(nameof(PooledBuffer));
 
         /// <summary>
         /// Gets the usable length of the buffer (the requested minimum size).
         /// </summary>
-        public int Length => _length;
+        public int Length { get; }
 
         /// <summary>
         /// Gets a span over the usable portion of the buffer.
         /// </summary>
-        public Span<byte> Span => _disposed
+        public readonly Span<byte> Span => _disposed
             ? throw new ObjectDisposedException(nameof(PooledBuffer))
-            : _array.AsSpan(0, _length);
+            : _array.AsSpan(0, Length);
 
         /// <summary>
         /// Gets the full span including any extra space.
         /// </summary>
-        public Span<byte> FullSpan => _disposed
+        public readonly Span<byte> FullSpan => _disposed
             ? throw new ObjectDisposedException(nameof(PooledBuffer))
             : _array.AsSpan();
 
@@ -135,7 +134,7 @@ public sealed class DefaultBufferPoolManager
         {
             if (!_disposed && _array != null)
             {
-                DefaultBufferPoolManager.Return(_array, clearArray: false);
+                Return(_array, clearArray: false);
                 _array = null;
                 _disposed = true;
             }
@@ -149,7 +148,7 @@ public sealed class DefaultBufferPoolManager
         {
             if (!_disposed && _array != null)
             {
-                DefaultBufferPoolManager.Return(_array, clearArray);
+                Return(_array, clearArray);
                 _array = null;
                 _disposed = true;
             }

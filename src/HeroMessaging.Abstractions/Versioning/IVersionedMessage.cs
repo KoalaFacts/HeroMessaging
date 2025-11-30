@@ -115,8 +115,15 @@ public readonly record struct MessageVersion : IComparable<MessageVersion>, ICom
 
     public override string ToString() => $"{Major}.{Minor}.{Patch}";
 
-    public static implicit operator string(MessageVersion version) => version.ToString();
-    public static explicit operator MessageVersion(string version) => Parse(version);
+    public static implicit operator string(MessageVersion version)
+    {
+        return version.ToString();
+    }
+
+    public static explicit operator MessageVersion(string version)
+    {
+        return Parse(version);
+    }
 
     public static bool operator >(MessageVersion left, MessageVersion right) => left.CompareTo(right) > 0;
     public static bool operator >=(MessageVersion left, MessageVersion right) => left.CompareTo(right) >= 0;

@@ -149,11 +149,11 @@ public sealed class AesGcmMessageEncryptor : IMessageEncryptor, IDisposable
         try
         {
             // Generate random nonce
-            RandomNumberGenerator.Fill(iv.Slice(0, NonceSize));
+            RandomNumberGenerator.Fill(iv[..NonceSize]);
 
             using (var aes = new AesGcm(_key, TagSize))
             {
-                aes.Encrypt(iv.Slice(0, NonceSize), plaintext, ciphertext.Slice(0, plaintext.Length), tag.Slice(0, TagSize));
+                aes.Encrypt(iv[..NonceSize], plaintext, ciphertext[..plaintext.Length], tag[..TagSize]);
             }
 
             return plaintext.Length;
@@ -194,7 +194,7 @@ public sealed class AesGcmMessageEncryptor : IMessageEncryptor, IDisposable
         {
             using (var aes = new AesGcm(_key, TagSize))
             {
-                aes.Decrypt(iv.Slice(0, NonceSize), ciphertext, tag.Slice(0, TagSize), plaintext.Slice(0, ciphertext.Length));
+                aes.Decrypt(iv[..NonceSize], ciphertext, tag[..TagSize], plaintext[..ciphertext.Length]);
             }
 
             return ciphertext.Length;

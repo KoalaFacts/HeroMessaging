@@ -91,17 +91,15 @@ public class ServiceCollectionExtensionsTests
             // Assert
             var provider = services.BuildServiceProvider();
 
-            using (var scope1 = provider.CreateScope())
-            using (var scope2 = provider.CreateScope())
-            {
-                var service1a = scope1.ServiceProvider.GetRequiredService<ITestService>();
-                var service1b = scope1.ServiceProvider.GetRequiredService<ITestService>();
-                var service2 = scope2.ServiceProvider.GetRequiredService<ITestService>();
+            using var scope1 = provider.CreateScope();
+            using var scope2 = provider.CreateScope();
+            var service1a = scope1.ServiceProvider.GetRequiredService<ITestService>();
+            var service1b = scope1.ServiceProvider.GetRequiredService<ITestService>();
+            var service2 = scope2.ServiceProvider.GetRequiredService<ITestService>();
 
-                Assert.Same(service1a, service1b); // Same within scope
-                Assert.NotSame(service1a, service2); // Different across scopes
-                Assert.Equal("Decorated: Original", service1a.Execute());
-            }
+            Assert.Same(service1a, service1b); // Same within scope
+            Assert.NotSame(service1a, service2); // Different across scopes
+            Assert.Equal("Decorated: Original", service1a.Execute());
         }
 
         [Fact]
@@ -192,7 +190,7 @@ public class ServiceCollectionExtensionsTests
             // Arrange
             var services = new ServiceCollection();
             services.AddTransient<ITestService, TestService>();
-            services.AddSingleton<string>("Injected Prefix");
+            services.AddSingleton("Injected Prefix");
 
             // Act
             services.Decorate<ITestService>((inner, sp) =>
@@ -257,7 +255,7 @@ public class ServiceCollectionExtensionsTests
             // Assert - the exception is thrown when calling Execute() because inner is null
             var provider = services.BuildServiceProvider();
             var service = provider.GetRequiredService<ITestService>();
-            Assert.Throws<NullReferenceException>(() => service.Execute());
+            Assert.Throws<NullReferenceException>(service.Execute);
         }
 
         [Fact]
@@ -320,8 +318,7 @@ public class ServiceCollectionExtensionsTests
 
             // Assert
             var provider = services.BuildServiceProvider();
-            var exception = Assert.Throws<InvalidOperationException>(() =>
-                provider.GetRequiredService<ITestService>());
+            var exception = Assert.Throws<InvalidOperationException>(provider.GetRequiredService<ITestService>);
 
             Assert.Equal("Decorator failed", exception.Message);
         }

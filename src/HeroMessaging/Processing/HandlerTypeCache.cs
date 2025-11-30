@@ -23,7 +23,7 @@ internal static class HandlerTypeCache
     }
 
     // Method name validated at compile-time via nameof
-    private static readonly string HandleAsyncMethodName = nameof(IEventHandler<DummyEvent>.HandleAsync);
+    private static readonly string HandleAsyncMethodName = nameof(IEventHandler<>.HandleAsync);
 
     // Cache for MakeGenericType results
     private static readonly ConcurrentDictionary<Type, Type> _eventHandlerTypes = new();

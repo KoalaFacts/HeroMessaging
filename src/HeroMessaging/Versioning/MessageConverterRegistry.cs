@@ -80,7 +80,7 @@ public class MessageConverterRegistry(ILogger<MessageConverterRegistry> logger) 
         {
             lock (converterList)
             {
-                return converterList.ToList(); // Return a copy to avoid concurrency issues
+                return [.. converterList]; // Return a copy to avoid concurrency issues
             }
         }
 
@@ -113,7 +113,7 @@ public class MessageConverterRegistry(ILogger<MessageConverterRegistry> logger) 
         // If versions are the same, no conversion needed
         if (fromVersion == toVersion)
         {
-            return new MessageConversionPath(messageType, fromVersion, toVersion, Array.Empty<MessageConversionStep>());
+            return new MessageConversionPath(messageType, fromVersion, toVersion, []);
         }
 
         var converters = GetConverters(messageType).ToList();
@@ -134,7 +134,7 @@ public class MessageConverterRegistry(ILogger<MessageConverterRegistry> logger) 
                 messageType,
                 fromVersion,
                 toVersion,
-                new[] { new MessageConversionStep(fromVersion, toVersion, directConverter) }
+                [new MessageConversionStep(fromVersion, toVersion, directConverter)]
             );
         }
 

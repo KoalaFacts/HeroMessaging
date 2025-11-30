@@ -99,6 +99,8 @@ public class ErrorHandlingDecorator(
                         _logger.LogCritical(lastException, "Critical error processing message {MessageId}. Escalating.",
                             message.MessageId);
                         throw lastException;
+                    default:
+                        break;
                 }
             }
 

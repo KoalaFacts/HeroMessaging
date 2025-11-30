@@ -258,8 +258,8 @@ public sealed class InMemoryTransportInstrumentationIntegrationTests
                 ShouldListenTo = source =>
                     source.Name == TransportInstrumentation.ActivitySourceName ||
                     source.Name == HeroMessagingInstrumentation.ActivitySourceName,
-                Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
-                ActivityStarted = activity => Activities.Add(activity)
+                Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded,
+                ActivityStarted = Activities.Add
             };
             ActivitySource.AddActivityListener(_activityListener);
 

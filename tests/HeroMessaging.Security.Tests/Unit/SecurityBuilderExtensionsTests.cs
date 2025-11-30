@@ -384,7 +384,7 @@ public sealed class SecurityBuilderExtensionsTests
 
         // Verify policy was configured
         var identity = new System.Security.Claims.ClaimsIdentity(
-            new[] { new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "admin") },
+            [new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "admin")],
             "TestAuth");
         var principal = new System.Security.Claims.ClaimsPrincipal(identity);
         var result = authzProvider.AuthorizeAsync(principal, "TestMessage", "Send").Result;

@@ -481,7 +481,7 @@ namespace HeroMessaging.Tests.Unit.Plugins
                 Version = new Version(1, 0, 0),
                 Category = PluginCategory.Custom,
                 PluginType = typeof(object),
-                ProvidedFeatures = new List<string> { "Feature1", "Feature2" }
+                ProvidedFeatures = ["Feature1", "Feature2"]
             };
             registry.Register(descriptor);
 

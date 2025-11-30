@@ -49,9 +49,8 @@ public class IdempotencyKeyGenerator : IIncrementalGenerator
     private static (INamedTypeSymbol? Type, string[] PropertyNames) GetSemanticTarget(GeneratorSyntaxContext context)
     {
         var typeDecl = (TypeDeclarationSyntax)context.Node;
-        var symbol = context.SemanticModel.GetDeclaredSymbol(typeDecl) as INamedTypeSymbol;
 
-        if (symbol is null) return (null, []);
+        if (context.SemanticModel.GetDeclaredSymbol(typeDecl) is not INamedTypeSymbol symbol) return (null, []);
 
         // Check for [GenerateIdempotencyKey] attribute
         var attribute = symbol.GetAttributes()

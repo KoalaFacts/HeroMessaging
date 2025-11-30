@@ -70,17 +70,15 @@ public sealed class HmacSha256MessageSigner : IMessageSigner, IDisposable
 
         try
         {
-            using (var hmac = new HMACSHA256(_key))
-            {
-                var signatureBytes = hmac.ComputeHash(data);
-                var signature = new MessageSignature(
-                    signatureBytes,
-                    Algorithm,
-                    _keyId,
-                    _timeProvider.GetUtcNow());
+            using var hmac = new HMACSHA256(_key);
+            var signatureBytes = hmac.ComputeHash(data);
+            var signature = new MessageSignature(
+                signatureBytes,
+                Algorithm,
+                _keyId,
+                _timeProvider.GetUtcNow());
 
-                return Task.FromResult(signature);
-            }
+            return Task.FromResult(signature);
         }
         catch (CryptographicException ex)
         {
@@ -106,15 +104,13 @@ public sealed class HmacSha256MessageSigner : IMessageSigner, IDisposable
 
         try
         {
-            using (var hmac = new HMACSHA256(_key))
-            {
-                var expectedSignature = hmac.ComputeHash(data);
+            using var hmac = new HMACSHA256(_key);
+            var expectedSignature = hmac.ComputeHash(data);
 
-                // Use constant-time comparison to prevent timing attacks
-                var isValid = CryptographicOperations.FixedTimeEquals(expectedSignature, signature.SignatureBytes);
+            // Use constant-time comparison to prevent timing attacks
+            var isValid = CryptographicOperations.FixedTimeEquals(expectedSignature, signature.SignatureBytes);
 
-                return Task.FromResult(isValid);
-            }
+            return Task.FromResult(isValid);
         }
         catch (CryptographicException ex)
         {
@@ -130,14 +126,12 @@ public sealed class HmacSha256MessageSigner : IMessageSigner, IDisposable
 
         try
         {
-            using (var hmac = new HMACSHA256(_key))
+            using var hmac = new HMACSHA256(_key);
+            if (!hmac.TryComputeHash(data, signature, out var bytesWritten))
             {
-                if (!hmac.TryComputeHash(data, signature, out var bytesWritten))
-                {
-                    throw new SecurityException("Failed to compute HMAC signature");
-                }
-                return bytesWritten;
+                throw new SecurityException("Failed to compute HMAC signature");
             }
+            return bytesWritten;
         }
         catch (CryptographicException ex)
         {

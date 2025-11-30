@@ -150,7 +150,7 @@ public class GZipCompressionProvider : ICompressionProvider
 
         var totalRead = 0;
         int bytesRead;
-        while ((bytesRead = gzip.Read(destination.Slice(totalRead))) > 0)
+        while ((bytesRead = gzip.Read(destination[totalRead..])) > 0)
         {
             totalRead += bytesRead;
             if (totalRead > _maxDecompressedSize)

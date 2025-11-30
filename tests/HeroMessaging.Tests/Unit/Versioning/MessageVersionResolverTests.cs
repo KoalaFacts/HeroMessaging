@@ -368,7 +368,7 @@ public sealed class MessageVersionResolverTests
     public void ValidationResult_WithNoErrors_IsValid()
     {
         // Arrange
-        var result = new MessageVersionValidationResult(true, Array.Empty<string>(), Array.Empty<string>());
+        var result = new MessageVersionValidationResult(true, [], []);
 
         // Act & Assert
         Assert.True(result.IsValid);
@@ -380,7 +380,7 @@ public sealed class MessageVersionResolverTests
     public void ValidationResult_WithErrors_IsInvalid()
     {
         // Arrange
-        var result = new MessageVersionValidationResult(false, new[] { "Error1" }, Array.Empty<string>());
+        var result = new MessageVersionValidationResult(false, ["Error1"], []);
 
         // Act & Assert
         Assert.False(result.IsValid);
@@ -391,7 +391,7 @@ public sealed class MessageVersionResolverTests
     public void ValidationResult_WithWarnings_IsValidButHasWarnings()
     {
         // Arrange
-        var result = new MessageVersionValidationResult(true, Array.Empty<string>(), new[] { "Warning1" });
+        var result = new MessageVersionValidationResult(true, [], ["Warning1"]);
 
         // Act & Assert
         Assert.True(result.IsValid);
@@ -429,7 +429,7 @@ public sealed class MessageVersionResolverTests
         public string? CorrelationId { get; set; }
         public string? CausationId { get; set; }
         public Dictionary<string, object>? Metadata { get; set; }
-        public MessageVersion Version => new MessageVersion(3, 0, 0);
+        public MessageVersion Version => new(3, 0, 0);
         public string MessageType => nameof(VersionedTestMessage);
     }
 
@@ -446,7 +446,7 @@ public sealed class MessageVersionResolverTests
         public string? CorrelationId { get; set; }
         public string? CausationId { get; set; }
         public Dictionary<string, object>? Metadata { get; set; }
-        public MessageVersion Version => new MessageVersion(4, 0, 0);
+        public MessageVersion Version => new(4, 0, 0);
         public string MessageType => nameof(UncreatableVersionedMessage);
     }
 

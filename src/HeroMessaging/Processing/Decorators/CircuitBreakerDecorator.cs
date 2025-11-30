@@ -133,8 +133,7 @@ internal class CircuitBreakerState(CircuitBreakerOptions options, TimeProvider t
 {
     private readonly CircuitBreakerOptions _options = options;
     private readonly TimeProvider _timeProvider = timeProvider;
-    private readonly ConcurrentQueue<(DateTimeOffset Timestamp, bool Success)> _results = new ConcurrentQueue<(DateTimeOffset, bool)>();
-    private CircuitState _currentState = CircuitState.Closed;
+    private readonly ConcurrentQueue<(DateTimeOffset Timestamp, bool Success)> _results = new();
     private DateTimeOffset _lastStateChange = timeProvider.GetUtcNow();
     private int _halfOpenSuccesses;
 #if NET9_0_OR_GREATER
@@ -143,7 +142,7 @@ internal class CircuitBreakerState(CircuitBreakerOptions options, TimeProvider t
     private readonly object _stateLock = new();
 #endif
 
-    public CircuitState CurrentState => _currentState;
+    public CircuitState CurrentState { get; private set; } = CircuitState.Closed;
     public bool StateChanged { get; private set; }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -153,7 +152,7 @@ internal class CircuitBreakerState(CircuitBreakerOptions options, TimeProvider t
         {
             StateChanged = false;
 
-            switch (_currentState)
+            switch (CurrentState)
             {
                 case CircuitState.Closed:
                     return true;
@@ -185,7 +184,7 @@ internal class CircuitBreakerState(CircuitBreakerOptions options, TimeProvider t
         {
             StateChanged = false;
 
-            if (_currentState == CircuitState.HalfOpen)
+            if (CurrentState == CircuitState.HalfOpen)
             {
                 _halfOpenSuccesses++;
                 if (_halfOpenSuccesses >= _options.HalfOpenSuccessesRequired)
@@ -206,7 +205,7 @@ internal class CircuitBreakerState(CircuitBreakerOptions options, TimeProvider t
         {
             StateChanged = false;
 
-            switch (_currentState)
+            switch (CurrentState)
             {
                 case CircuitState.Closed:
                     if (ShouldOpen())
@@ -217,6 +216,10 @@ internal class CircuitBreakerState(CircuitBreakerOptions options, TimeProvider t
 
                 case CircuitState.HalfOpen:
                     TransitionTo(CircuitState.Open);
+                    break;
+                case CircuitState.Open:
+                    break;
+                default:
                     break;
             }
         }
@@ -236,9 +239,9 @@ internal class CircuitBreakerState(CircuitBreakerOptions options, TimeProvider t
 
     private void TransitionTo(CircuitState newState)
     {
-        if (_currentState != newState)
+        if (CurrentState != newState)
         {
-            _currentState = newState;
+            CurrentState = newState;
             _lastStateChange = _timeProvider.GetUtcNow();
             StateChanged = true;
 
@@ -266,7 +269,7 @@ internal class CircuitBreakerState(CircuitBreakerOptions options, TimeProvider t
     private List<(DateTimeOffset Timestamp, bool Success)> GetValidResults()
     {
         var cutoff = _timeProvider.GetUtcNow() - _options.SamplingDuration;
-        return _results.Where(r => r.Timestamp >= cutoff).ToList();
+        return [.. _results.Where(r => r.Timestamp >= cutoff)];
     }
 
     private void CleanOldResults(DateTimeOffset now)

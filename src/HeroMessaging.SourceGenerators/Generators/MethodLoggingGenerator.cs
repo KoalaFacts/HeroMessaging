@@ -65,7 +65,7 @@ public class MethodLoggingGenerator : IIncrementalGenerator
             ClassName = classDeclaration.Identifier.Text,
             MethodName = method.Identifier.Text,
             ReturnType = method.ReturnType.ToString(),
-            Parameters = method.ParameterList.Parameters
+            Parameters = [.. method.ParameterList.Parameters
                 .Select(p => new ParameterInfo
                 {
                     Type = p.Type?.ToString() ?? "object",
@@ -73,8 +73,7 @@ public class MethodLoggingGenerator : IIncrementalGenerator
                     HasNoLog = p.AttributeLists
                         .SelectMany(al => al.Attributes)
                         .Any(a => a.Name.ToString().Contains("NoLog"))
-                })
-                .ToList(),
+                })],
             IsAsync = method.Modifiers.Any(m => m.ValueText == "async")
         };
     }

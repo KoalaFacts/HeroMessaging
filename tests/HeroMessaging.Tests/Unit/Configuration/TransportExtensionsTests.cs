@@ -401,7 +401,7 @@ public class TransportExtensionsTests
         };
 
         // Act & Assert
-        var exception = Assert.Throws<ArgumentException>(() => options.Validate());
+        var exception = Assert.Throws<ArgumentException>(options.Validate);
         Assert.Contains("BufferSize must be positive", exception.Message);
     }
 
@@ -415,7 +415,7 @@ public class TransportExtensionsTests
         };
 
         // Act & Assert
-        var exception = Assert.Throws<ArgumentException>(() => options.Validate());
+        var exception = Assert.Throws<ArgumentException>(options.Validate);
         Assert.Contains("BufferSize must be positive", exception.Message);
     }
 
@@ -435,7 +435,7 @@ public class TransportExtensionsTests
         };
 
         // Act & Assert
-        var exception = Assert.Throws<ArgumentException>(() => options.Validate());
+        var exception = Assert.Throws<ArgumentException>(options.Validate);
         Assert.Contains("BufferSize must be power of 2", exception.Message);
     }
 

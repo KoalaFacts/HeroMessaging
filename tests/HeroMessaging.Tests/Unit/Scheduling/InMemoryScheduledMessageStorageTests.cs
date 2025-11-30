@@ -844,7 +844,7 @@ public sealed class InMemoryScheduledMessageStorageTests
 
         // Assert
         Assert.Equal(100, entries.Length);
-        Assert.All(entries, entry => Assert.NotNull(entry));
+        Assert.All(entries, Assert.NotNull);
 
         var count = await _storage.GetPendingCountAsync();
         Assert.Equal(100, count);

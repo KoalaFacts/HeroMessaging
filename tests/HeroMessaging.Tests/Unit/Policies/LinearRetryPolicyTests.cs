@@ -451,7 +451,7 @@ public class LinearRetryPolicyTests
         var policy = new LinearRetryPolicy(
             maxRetries: 3,
             delay: TimeSpan.FromSeconds(1),
-            retryableExceptions: new[] { typeof(TimeoutException), typeof(InvalidOperationException) });
+            retryableExceptions: [typeof(TimeoutException), typeof(InvalidOperationException)]);
 
         // Act & Assert
         Assert.True(policy.ShouldRetry(new TimeoutException("Error 1"), attemptNumber: 0));
@@ -467,7 +467,7 @@ public class LinearRetryPolicyTests
         var policy = new LinearRetryPolicy(
             maxRetries: 3,
             delay: TimeSpan.FromSeconds(1),
-            retryableExceptions: new[] { typeof(TimeoutException), typeof(InvalidOperationException), typeof(ArgumentException) });
+            retryableExceptions: [typeof(TimeoutException), typeof(InvalidOperationException), typeof(ArgumentException)]);
 
         // Act & Assert
         Assert.True(policy.ShouldRetry(new TimeoutException(), attemptNumber: 0));
@@ -546,7 +546,7 @@ public class LinearRetryPolicyTests
                 results.Add(result);
             }));
 
-        Task.WaitAll(tasks.ToArray());
+        Task.WaitAll([.. tasks]);
 
         // Assert - All calls within maxRetries should return true
         var expectedTrueCount = 100 * 10 / 15 + (100 % 15 <= 10 ? 100 % 15 : 10);
@@ -570,7 +570,7 @@ public class LinearRetryPolicyTests
                 results.Add(delay);
             }));
 
-        Task.WaitAll(tasks.ToArray());
+        Task.WaitAll([.. tasks]);
 
         // Assert - All delays should be the same
         Assert.All(results, delay => Assert.Equal(expectedDelay, delay));

@@ -237,6 +237,7 @@ public sealed class CircuitBreakerDecoratorTests
     #region Open State Tests
 
     [Fact]
+    [Obsolete]
     public async Task ProcessAsync_InOpenState_RejectsRequestsWithoutCallingInner()
     {
         // Arrange
@@ -310,6 +311,7 @@ public sealed class CircuitBreakerDecoratorTests
     #region Half-Open State Tests
 
     [Fact]
+    [Obsolete]
     public async Task ProcessAsync_AfterBreakDuration_TransitionsToHalfOpen()
     {
         // Arrange
@@ -347,6 +349,7 @@ public sealed class CircuitBreakerDecoratorTests
     }
 
     [Fact]
+    [Obsolete]
     public async Task ProcessAsync_InHalfOpenState_AfterThreeSuccesses_ClosesCircuit()
     {
         // Arrange
@@ -389,6 +392,7 @@ public sealed class CircuitBreakerDecoratorTests
     }
 
     [Fact]
+    [Obsolete]
     public async Task ProcessAsync_InHalfOpenState_OnFailure_ReOpensCircuit()
     {
         // Arrange
@@ -462,6 +466,7 @@ public sealed class CircuitBreakerDecoratorTests
     }
 
     [Fact]
+    [Obsolete]
     public async Task ProcessAsync_WhenCircuitCloses_LogsInformation()
     {
         // Arrange
@@ -538,6 +543,7 @@ public sealed class CircuitBreakerDecoratorTests
     #region Sampling Duration Tests
 
     [Fact]
+    [Obsolete]
     public async Task ProcessAsync_CleansOldResultsOutsideSamplingDuration()
     {
         // Arrange

@@ -59,7 +59,7 @@ public class InMemoryInboxStorage : IInboxStorage
     public Task<InboxEntry?> GetAsync(string messageId, CancellationToken cancellationToken = default)
     {
         _entries.TryGetValue(messageId, out var entry);
-        return Task.FromResult<InboxEntry?>(entry);
+        return Task.FromResult(entry);
     }
 
     public Task<bool> MarkProcessedAsync(string messageId, CancellationToken cancellationToken = default)

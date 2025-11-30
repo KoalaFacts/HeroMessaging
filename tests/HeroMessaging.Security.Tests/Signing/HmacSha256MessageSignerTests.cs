@@ -326,7 +326,7 @@ public sealed class HmacSha256MessageSignerTests
 
         // Assert
         Assert.Equal(32, bytesWritten);
-        Assert.NotEqual(default(byte), signature[0]); // Signature should be populated
+        Assert.NotEqual(default, signature[0]); // Signature should be populated
     }
 
     [Fact]

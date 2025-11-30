@@ -123,7 +123,7 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         command.Parameters.AddWithValue("@created_at", _timeProvider.GetUtcNow());
         command.Parameters.AddWithValue("@exception_message", context.Exception?.Message ?? (object)DBNull.Value);
         command.Parameters.AddWithValue("@metadata", NpgsqlDbType.Jsonb,
-            context.Metadata.Any() ? _jsonSerializer.SerializeToString(context.Metadata, _jsonOptions) : (object)DBNull.Value);
+            context.Metadata.Any() ? _jsonSerializer.SerializeToString(context.Metadata, _jsonOptions) : DBNull.Value);
 
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         return deadLetterId;

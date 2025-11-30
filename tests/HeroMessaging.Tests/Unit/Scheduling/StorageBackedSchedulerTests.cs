@@ -33,7 +33,7 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
 
         // Setup default mock behaviors
         _mockStorage.Setup(x => x.GetDueAsync(It.IsAny<DateTimeOffset>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<ScheduledMessageEntry>());
+            .ReturnsAsync([]);
 
         _mockStorage.Setup(x => x.GetPendingCountAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(0);

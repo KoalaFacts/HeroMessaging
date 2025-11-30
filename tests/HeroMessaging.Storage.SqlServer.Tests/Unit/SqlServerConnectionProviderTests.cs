@@ -25,7 +25,7 @@ public sealed class SqlServerConnectionProviderTests
     public void Constructor_WithNullConnectionString_ThrowsArgumentNullException()
     {
         // Act & Assert
-        var exception = Assert.Throws<ArgumentNullException>(() => new SqlServerConnectionProvider((string)null!));
+        var exception = Assert.Throws<ArgumentNullException>(() => new SqlServerConnectionProvider(null!));
         Assert.Equal("connectionString", exception.ParamName);
     }
 
@@ -161,7 +161,7 @@ public sealed class SqlServerConnectionProviderTests
         var results = tasks.Select(t => t.Result).ToArray();
 
         // Assert
-        Assert.All(results, result => Assert.False(result));
+        Assert.All(results, Assert.False);
     }
 
     [Fact]
@@ -197,7 +197,7 @@ public sealed class SqlServerConnectionProviderTests
         var results = tasks.Select(t => t.Result).ToArray();
 
         // Assert
-        Assert.All(results, result => Assert.Null(result));
+        Assert.All(results, Assert.Null);
     }
 
     #endregion

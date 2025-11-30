@@ -190,23 +190,14 @@ internal class CoverageReporting
             // Analyze trends
             if (historicalData.Count >= 2)
             {
-                var previousCoverage = historicalData[historicalData.Count - 2].OverallCoverage;
+                var previousCoverage = historicalData[^2].OverallCoverage;
                 trendAnalysis.PreviousCoverage = previousCoverage;
                 trendAnalysis.CoverageChange = trendAnalysis.CurrentCoverage - previousCoverage;
 
                 // Determine trend direction
-                if (Math.Abs(trendAnalysis.CoverageChange) < 0.1)
-                {
-                    trendAnalysis.TrendDirection = CoverageTrendDirection.Stable;
-                }
-                else if (trendAnalysis.CoverageChange > 0)
-                {
-                    trendAnalysis.TrendDirection = CoverageTrendDirection.Improving;
-                }
-                else
-                {
-                    trendAnalysis.TrendDirection = CoverageTrendDirection.Declining;
-                }
+                trendAnalysis.TrendDirection = Math.Abs(trendAnalysis.CoverageChange) < 0.1
+                    ? CoverageTrendDirection.Stable
+                    : trendAnalysis.CoverageChange > 0 ? CoverageTrendDirection.Improving : CoverageTrendDirection.Declining;
 
                 // Calculate moving average if we have enough data points
                 if (historicalData.Count >= 5)
@@ -257,7 +248,7 @@ internal class CoverageReporting
                 return diffAnalysis;
             }
 
-            var baselineCoverage = await ParseCoverageDataAsync(new[] { baselineCoverageFile });
+            var baselineCoverage = await ParseCoverageDataAsync([baselineCoverageFile]);
 
             // Compare overall coverage
             diffAnalysis.BaselineCoverage = baselineCoverage.OverallCoverage.LinePercentage;
@@ -283,9 +274,7 @@ internal class CoverageReporting
             }
 
             // Identify significant changes (> 1% change)
-            diffAnalysis.SignificantChanges = diffAnalysis.AssemblyDiffs
-                .Where(d => Math.Abs(d.CoverageChange) > 1.0)
-                .ToList();
+            diffAnalysis.SignificantChanges = [.. diffAnalysis.AssemblyDiffs.Where(d => Math.Abs(d.CoverageChange) > 1.0)];
 
             // Generate diff report
             var diffReportPath = Path.Combine(outputDirectory, "diff-coverage-report.md");
@@ -399,16 +388,15 @@ internal class CoverageReporting
 
     private List<AssemblyCoverage> MergeAssemblyCoverage(List<AssemblyCoverage> assemblies)
     {
-        return assemblies
+        return [.. assemblies
             .GroupBy(a => a.Name)
             .Select(g => new AssemblyCoverage
             {
                 Name = g.Key,
                 LinePercentage = g.Average(a => a.LinePercentage),
                 BranchPercentage = g.Average(a => a.BranchPercentage),
-                Classes = g.SelectMany(a => a.Classes).ToList()
-            })
-            .ToList();
+                Classes = [.. g.SelectMany(a => a.Classes)]
+            })];
     }
 
     private CoverageMetrics CalculateOverallCoverage(List<AssemblyCoverage> assemblies)
@@ -583,8 +571,8 @@ internal class CoverageReporting
     {
         return new TrendChartData
         {
-            Labels = historicalData.Select(d => d.Date.ToString("yyyy-MM-dd")).ToList(),
-            CoverageValues = historicalData.Select(d => d.OverallCoverage).ToList()
+            Labels = [.. historicalData.Select(d => d.Date.ToString("yyyy-MM-dd"))],
+            CoverageValues = [.. historicalData.Select(d => d.OverallCoverage)]
         };
     }
 

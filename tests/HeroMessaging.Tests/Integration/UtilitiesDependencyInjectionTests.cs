@@ -98,7 +98,7 @@ public class UtilitiesDependencyInjectionTests
         // Arrange: Register custom implementation first
         var services = new ServiceCollection();
         var customBufferPool = new DefaultBufferPoolManager();
-        services.AddSingleton<DefaultBufferPoolManager>(customBufferPool);
+        services.AddSingleton(customBufferPool);
 
         var builder = new HeroMessagingBuilder(services);
 

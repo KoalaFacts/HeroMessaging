@@ -111,7 +111,7 @@ public class JsonMessageSerializerTests
     {
         // Arrange
         var serializer = new JsonMessageSerializer();
-        var message = new TestMessage { Id = 1, Name = "Test", Value = 99.99m, Tags = new[] { "tag1", "tag2" } };
+        var message = new TestMessage { Id = 1, Name = "Test", Value = 99.99m, Tags = ["tag1", "tag2"] };
 
         // Act
         var result = await serializer.SerializeAsync(message);
@@ -187,7 +187,7 @@ public class JsonMessageSerializerTests
             Id = 1,
             Name = "Test message for compression testing with repeated data",
             Value = 99.99m,
-            Tags = new[] { "tag1", "tag2", "tag3", "tag4", "tag5" }
+            Tags = ["tag1", "tag2", "tag3", "tag4", "tag5"]
         };
 
         // Act
@@ -285,7 +285,7 @@ public class JsonMessageSerializerTests
     {
         // Arrange
         var serializer = new JsonMessageSerializer();
-        var original = new TestMessage { Id = 42, Name = "RoundTrip", Value = 123.45m, Tags = new[] { "a", "b" } };
+        var original = new TestMessage { Id = 42, Name = "RoundTrip", Value = 123.45m, Tags = ["a", "b"] };
         var buffer = new byte[4096];
 
         // Act
@@ -529,7 +529,7 @@ public class JsonMessageSerializerTests
     {
         // Arrange
         var serializer = new JsonMessageSerializer();
-        var original = new TestMessage { Id = 42, Name = "RoundTrip", Value = 123.45m, Tags = new[] { "tag1", "tag2" } };
+        var original = new TestMessage { Id = 42, Name = "RoundTrip", Value = 123.45m, Tags = ["tag1", "tag2"] };
 
         // Act
         var serialized = await serializer.SerializeAsync(original);

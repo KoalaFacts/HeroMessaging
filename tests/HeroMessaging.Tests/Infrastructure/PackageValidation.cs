@@ -408,7 +408,7 @@ internal class PackageValidation
                 }
             }
 
-            validation.SupportedFrameworks = frameworks.ToList();
+            validation.SupportedFrameworks = [.. frameworks];
 
             // Check for required frameworks
             foreach (var requiredFramework in _config.RequiredTargetFrameworks)

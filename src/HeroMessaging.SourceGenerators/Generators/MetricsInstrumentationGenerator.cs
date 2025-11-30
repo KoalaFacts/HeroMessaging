@@ -107,13 +107,12 @@ public class MetricsInstrumentationGenerator : IIncrementalGenerator
             ClassName = classDeclaration.Identifier.Text,
             MethodName = method.Identifier.Text,
             ReturnType = method.ReturnType.ToString(),
-            Parameters = method.ParameterList.Parameters
+            Parameters = [.. method.ParameterList.Parameters
                 .Select(p => new ParameterInfo
                 {
                     Type = p.Type?.ToString() ?? "object",
                     Name = p.Identifier.Text
-                })
-                .ToList(),
+                })],
             TagParameters = tagParameters,
             IsAsync = method.Modifiers.Any(m => m.ValueText == "async")
         };

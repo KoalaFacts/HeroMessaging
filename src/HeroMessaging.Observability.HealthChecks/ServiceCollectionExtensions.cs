@@ -12,9 +12,9 @@ public static class ExtensionsToIHealthChecksBuilderForHeroMessaging
 {
     public static IHealthChecksBuilder AddHeroMessagingHealthChecks(
         this IHealthChecksBuilder builder,
-        Action<HeroMessaging.Observability.HealthChecks.HeroMessagingHealthCheckOptions>? configure = null)
+        Action<HeroMessagingHealthCheckOptions>? configure = null)
     {
-        var options = new HeroMessaging.Observability.HealthChecks.HeroMessagingHealthCheckOptions();
+        var options = new HeroMessagingHealthCheckOptions();
         configure?.Invoke(options);
 
         if (options.CheckStorage)
@@ -32,7 +32,7 @@ public static class ExtensionsToIHealthChecksBuilderForHeroMessaging
 
     private static IHealthChecksBuilder AddStorageHealthChecks(
         this IHealthChecksBuilder builder,
-        HeroMessaging.Observability.HealthChecks.HeroMessagingHealthCheckOptions options)
+        HeroMessagingHealthCheckOptions options)
     {
         if (options.CheckMessageStorage)
         {
@@ -99,7 +99,7 @@ public static class ExtensionsToIHealthChecksBuilderForHeroMessaging
 
     private static IHealthChecksBuilder AddTransportHealthChecks(
         this IHealthChecksBuilder builder,
-        HeroMessaging.Observability.HealthChecks.HeroMessagingHealthCheckOptions options)
+        HeroMessagingHealthCheckOptions options)
     {
         // Register a health check that will enumerate all transports at runtime
         builder.Add(new HealthCheckRegistration(

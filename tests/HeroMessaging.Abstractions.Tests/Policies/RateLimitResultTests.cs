@@ -245,7 +245,7 @@ public class RateLimitResultTests
         Assert.Equal(100, result1.RemainingPermits);
         Assert.Equal(90, result2.RemainingPermits);
         Assert.Equal(80, result3.RemainingPermits);
-        Assert.All(new[] { result1, result2, result3 }, r => Assert.True(r.IsAllowed));
+        Assert.All([result1, result2, result3], r => Assert.True(r.IsAllowed));
     }
 
     [Fact]
@@ -260,7 +260,7 @@ public class RateLimitResultTests
         Assert.Equal(TimeSpan.FromSeconds(1), shortPeriod.RetryAfter);
         Assert.Equal(TimeSpan.FromMinutes(1), mediumPeriod.RetryAfter);
         Assert.Equal(TimeSpan.FromHours(1), longPeriod.RetryAfter);
-        Assert.All(new[] { shortPeriod, mediumPeriod, longPeriod }, r => Assert.False(r.IsAllowed));
+        Assert.All([shortPeriod, mediumPeriod, longPeriod], r => Assert.False(r.IsAllowed));
     }
 
     [Fact]
