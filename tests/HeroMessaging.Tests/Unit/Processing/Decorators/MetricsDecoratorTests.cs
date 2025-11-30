@@ -394,7 +394,9 @@ public sealed class MetricsDecoratorTests
             .Setup(p => p.ProcessAsync(message, context, It.IsAny<CancellationToken>()))
             .Returns(async () =>
             {
-                await Task.Delay(50); // Simulate processing time
+                // Manually advance FakeTimeProvider to simulate processing time
+                _fakeTimeProvider.Advance(TimeSpan.FromMilliseconds(50));
+                await Task.Yield(); // Yield to ensure async continuation
                 return ProcessingResult.Successful();
             });
 
@@ -407,9 +409,9 @@ public sealed class MetricsDecoratorTests
 
         // Assert
         Assert.NotNull(recordedDuration);
-        // Allow 10% tolerance for timer imprecision
-        Assert.True(recordedDuration.Value.TotalMilliseconds >= 45,
-            $"Expected duration >= 45ms, but was {recordedDuration.Value.TotalMilliseconds}ms");
+        // Exact check since we control time with FakeTimeProvider
+        Assert.True(recordedDuration.Value.TotalMilliseconds >= 50,
+            $"Expected duration >= 50ms, but was {recordedDuration.Value.TotalMilliseconds}ms");
     }
 
     #endregion
