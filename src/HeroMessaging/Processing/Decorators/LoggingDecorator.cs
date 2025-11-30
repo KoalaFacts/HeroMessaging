@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Processing;
 using Microsoft.Extensions.Logging;
@@ -11,16 +10,18 @@ namespace HeroMessaging.Processing.Decorators;
 public class LoggingDecorator(
     IMessageProcessor inner,
     ILogger<LoggingDecorator> logger,
+    TimeProvider timeProvider,
     LogLevel successLogLevel = LogLevel.Debug,
     bool logPayload = false) : MessageProcessorDecorator(inner)
 {
     private readonly ILogger<LoggingDecorator> _logger = logger;
+    private readonly TimeProvider _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     private readonly LogLevel _successLogLevel = successLogLevel;
     private readonly bool _logPayload = logPayload;
 
     public override async ValueTask<ProcessingResult> ProcessAsync(IMessage message, ProcessingContext context, CancellationToken cancellationToken = default)
     {
-        var stopwatch = Stopwatch.StartNew();
+        var startTime = _timeProvider.GetTimestamp();
         var messageType = message.GetType().Name;
 
         _logger.LogDebug("Processing {MessageType} with ID {MessageId} in component {Component}",
@@ -34,19 +35,19 @@ public class LoggingDecorator(
         try
         {
             var result = await _inner.ProcessAsync(message, context, cancellationToken).ConfigureAwait(false);
-            stopwatch.Stop();
+            var elapsedMs = _timeProvider.GetElapsedTime(startTime).TotalMilliseconds;
 
             if (result.Success)
             {
                 _logger.Log(_successLogLevel,
                     "Successfully processed {MessageType} with ID {MessageId} in {ElapsedMs}ms",
-                    messageType, message.MessageId, stopwatch.ElapsedMilliseconds);
+                    messageType, message.MessageId, elapsedMs);
             }
             else
             {
                 _logger.LogWarning(result.Exception,
                     "Failed to process {MessageType} with ID {MessageId} in {ElapsedMs}ms: {Reason}",
-                    messageType, message.MessageId, stopwatch.ElapsedMilliseconds, result.Message);
+                    messageType, message.MessageId, elapsedMs, result.Message);
             }
 
             // Note: Context is immutable, timing info can be passed via result if needed
@@ -55,10 +56,10 @@ public class LoggingDecorator(
         }
         catch (Exception ex)
         {
-            stopwatch.Stop();
+            var elapsedMs = _timeProvider.GetElapsedTime(startTime).TotalMilliseconds;
             _logger.LogError(ex,
                 "Exception processing {MessageType} with ID {MessageId} after {ElapsedMs}ms",
-                messageType, message.MessageId, stopwatch.ElapsedMilliseconds);
+                messageType, message.MessageId, elapsedMs);
             throw;
         }
     }

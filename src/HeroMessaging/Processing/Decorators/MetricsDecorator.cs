@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Metrics;
@@ -10,26 +9,27 @@ namespace HeroMessaging.Processing.Decorators;
 /// <summary>
 /// Decorator that collects metrics about message processing
 /// </summary>
-public class MetricsDecorator(IMessageProcessor inner, IMetricsCollector metricsCollector) : MessageProcessorDecorator(inner)
+public class MetricsDecorator(IMessageProcessor inner, IMetricsCollector metricsCollector, TimeProvider timeProvider) : MessageProcessorDecorator(inner)
 {
     private readonly IMetricsCollector _metricsCollector = metricsCollector;
+    private readonly TimeProvider _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
 
     public override async ValueTask<ProcessingResult> ProcessAsync(IMessage message, ProcessingContext context, CancellationToken cancellationToken = default)
     {
         var messageType = message.GetType().Name;
-        var stopwatch = Stopwatch.StartNew();
+        var startTime = _timeProvider.GetTimestamp();
 
         _metricsCollector.IncrementCounter($"messages.{messageType}.started");
 
         try
         {
             var result = await _inner.ProcessAsync(message, context, cancellationToken).ConfigureAwait(false);
-            stopwatch.Stop();
+            var duration = _timeProvider.GetElapsedTime(startTime);
 
             if (result.Success)
             {
                 _metricsCollector.IncrementCounter($"messages.{messageType}.succeeded");
-                _metricsCollector.RecordDuration($"messages.{messageType}.duration", stopwatch.Elapsed);
+                _metricsCollector.RecordDuration($"messages.{messageType}.duration", duration);
             }
             else
             {
@@ -44,9 +44,9 @@ public class MetricsDecorator(IMessageProcessor inner, IMetricsCollector metrics
         }
         catch (Exception)
         {
-            stopwatch.Stop();
+            var duration = _timeProvider.GetElapsedTime(startTime);
             _metricsCollector.IncrementCounter($"messages.{messageType}.exceptions");
-            _metricsCollector.RecordDuration($"messages.{messageType}.duration", stopwatch.Elapsed);
+            _metricsCollector.RecordDuration($"messages.{messageType}.duration", duration);
             throw;
         }
     }

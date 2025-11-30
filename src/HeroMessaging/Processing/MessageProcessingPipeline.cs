@@ -28,7 +28,8 @@ public class MessageProcessingPipelineBuilder(IServiceProvider serviceProvider)
         {
             var logger = _serviceProvider.GetService<ILogger<LoggingDecorator>>()
                 ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<LoggingDecorator>.Instance;
-            return new LoggingDecorator(processor, logger, successLevel, logPayload);
+            var timeProvider = _serviceProvider.GetRequiredService<TimeProvider>();
+            return new LoggingDecorator(processor, logger, timeProvider, successLevel, logPayload);
         });
         return this;
     }
@@ -102,7 +103,8 @@ public class MessageProcessingPipelineBuilder(IServiceProvider serviceProvider)
                 return processor; // Skip if no metrics collector available
             }
 
-            return new MetricsDecorator(processor, collector);
+            var timeProvider = _serviceProvider.GetRequiredService<TimeProvider>();
+            return new MetricsDecorator(processor, collector, timeProvider);
         });
         return this;
     }

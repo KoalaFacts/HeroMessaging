@@ -2,6 +2,7 @@ using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Metrics;
 using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Processing.Decorators;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using Xunit;
 
@@ -12,16 +13,18 @@ public sealed class MetricsDecoratorTests
 {
     private readonly Mock<IMessageProcessor> _innerMock;
     private readonly Mock<IMetricsCollector> _metricsCollectorMock;
+    private readonly FakeTimeProvider _fakeTimeProvider;
 
     public MetricsDecoratorTests()
     {
         _innerMock = new Mock<IMessageProcessor>();
         _metricsCollectorMock = new Mock<IMetricsCollector>();
+        _fakeTimeProvider = new FakeTimeProvider(DateTimeOffset.UtcNow);
     }
 
     private MetricsDecorator CreateDecorator()
     {
-        return new MetricsDecorator(_innerMock.Object, _metricsCollectorMock.Object);
+        return new MetricsDecorator(_innerMock.Object, _metricsCollectorMock.Object, _fakeTimeProvider);
     }
 
     #region ProcessAsync - Success Cases

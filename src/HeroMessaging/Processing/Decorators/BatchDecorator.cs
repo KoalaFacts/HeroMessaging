@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Diagnostics;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Processing;
 using Microsoft.Extensions.Logging;
@@ -368,7 +367,7 @@ public sealed class BatchDecorator : MessageProcessorDecorator, IAsyncDisposable
     private async Task ProcessBatchInternalAsync(List<BatchItem> batch)
     {
         var batchSize = batch.Count;
-        var stopwatch = Stopwatch.StartNew();
+        var startTime = _timeProvider.GetTimestamp();
 
         _logger.LogDebug(
             "Processing batch of {BatchSize} messages (MinBatchSize={MinBatchSize})",
@@ -454,7 +453,7 @@ public sealed class BatchDecorator : MessageProcessorDecorator, IAsyncDisposable
                 await Task.WhenAll(tasks);
             }
 
-            stopwatch.Stop();
+            var elapsedMs = _timeProvider.GetElapsedTime(startTime).TotalMilliseconds;
 
             var successCount = 0;
             var failureCount = 0;
@@ -475,7 +474,7 @@ public sealed class BatchDecorator : MessageProcessorDecorator, IAsyncDisposable
             _logger.LogInformation(
                 "Batch processing completed: {BatchSize} messages in {ElapsedMs}ms ({SuccessCount} succeeded, {FailureCount} failed)",
                 batchSize,
-                stopwatch.ElapsedMilliseconds,
+                elapsedMs,
                 successCount,
                 failureCount);
         }
