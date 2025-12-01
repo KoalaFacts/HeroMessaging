@@ -423,8 +423,11 @@ public class ObservabilityTests : IAsyncDisposable
     private class TestMetricsCollector : IAsyncDisposable
     {
         private readonly Dictionary<string, Metric> _metrics = new(StringComparer.OrdinalIgnoreCase);
+#if NET9_0_OR_GREATER
         private readonly Lock _syncRoot = new();
-
+#else
+        private readonly object _syncRoot = new();
+#endif
         public void RecordMetric(string name, double value, Dictionary<string, string>? tags = null)
         {
             lock (_syncRoot)

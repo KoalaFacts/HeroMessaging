@@ -19,8 +19,11 @@ internal class RingBufferQueue : IDisposable, IAsyncDisposable
     private readonly CancellationTokenSource _cts = new();
     private long _messageCount;
     private long _depth;
+#if NET9_0_OR_GREATER
     private readonly Lock _consumerLock = new();
-
+#else
+    private readonly object _consumerLock = new();
+#endif
     /// <summary>
     /// Gets the total number of messages enqueued.
     /// </summary>

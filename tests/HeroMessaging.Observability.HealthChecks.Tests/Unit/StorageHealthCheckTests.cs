@@ -6,10 +6,6 @@ using Xunit;
 
 namespace HeroMessaging.Observability.HealthChecks.Tests.Unit;
 
-/// <summary>
-/// Unit tests for storage health check implementations
-/// Testing MessageStorageHealthCheck, OutboxStorageHealthCheck, InboxStorageHealthCheck, and QueueStorageHealthCheck
-/// </summary>
 public class StorageHealthCheckTests
 {
     #region Test Helpers
@@ -116,7 +112,7 @@ public class StorageHealthCheckTests
         var healthCheck = new MessageStorageHealthCheck(storage, timeProvider);
 
         // Act
-        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
+        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext(), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HealthStatus.Healthy, result.Status);
@@ -134,7 +130,7 @@ public class StorageHealthCheckTests
         var healthCheck = new MessageStorageHealthCheck(storage, timeProvider);
 
         // Act
-        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
+        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext(), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HealthStatus.Unhealthy, result.Status);
@@ -157,7 +153,7 @@ public class StorageHealthCheckTests
         var healthCheck = new MessageStorageHealthCheck(mockStorage.Object, timeProvider);
 
         // Act
-        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
+        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext(), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HealthStatus.Unhealthy, result.Status);
@@ -180,7 +176,7 @@ public class StorageHealthCheckTests
         var healthCheck = new MessageStorageHealthCheck(storage, timeProvider, customName);
 
         // Act
-        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
+        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext(), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HealthStatus.Healthy, result.Status);
@@ -229,7 +225,7 @@ public class StorageHealthCheckTests
         var healthCheck = new OutboxStorageHealthCheck(mockStorage.Object);
 
         // Act
-        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
+        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext(), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HealthStatus.Healthy, result.Status);
@@ -255,7 +251,7 @@ public class StorageHealthCheckTests
         var healthCheck = new OutboxStorageHealthCheck(mockStorage.Object);
 
         // Act
-        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
+        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext(), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HealthStatus.Unhealthy, result.Status);
@@ -282,7 +278,7 @@ public class StorageHealthCheckTests
         var healthCheck = new OutboxStorageHealthCheck(mockStorage.Object, customName);
 
         // Act
-        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
+        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext(), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HealthStatus.Healthy, result.Status);
@@ -316,7 +312,7 @@ public class StorageHealthCheckTests
         var healthCheck = new InboxStorageHealthCheck(mockStorage.Object);
 
         // Act
-        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
+        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext(), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HealthStatus.Healthy, result.Status);
@@ -342,7 +338,7 @@ public class StorageHealthCheckTests
         var healthCheck = new InboxStorageHealthCheck(mockStorage.Object);
 
         // Act
-        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
+        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext(), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HealthStatus.Unhealthy, result.Status);
@@ -369,7 +365,7 @@ public class StorageHealthCheckTests
         var healthCheck = new InboxStorageHealthCheck(mockStorage.Object, customName);
 
         // Act
-        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
+        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext(), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HealthStatus.Healthy, result.Status);
@@ -404,7 +400,7 @@ public class StorageHealthCheckTests
         var healthCheck = new QueueStorageHealthCheck(mockStorage.Object);
 
         // Act
-        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
+        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext(), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HealthStatus.Healthy, result.Status);
@@ -435,7 +431,7 @@ public class StorageHealthCheckTests
         var healthCheck = new QueueStorageHealthCheck(mockStorage.Object, queueName: customQueueName);
 
         // Act
-        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
+        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext(), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HealthStatus.Healthy, result.Status);
@@ -464,7 +460,7 @@ public class StorageHealthCheckTests
         var healthCheck = new QueueStorageHealthCheck(mockStorage.Object, queueName: queueName);
 
         // Act
-        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
+        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext(), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HealthStatus.Unhealthy, result.Status);
@@ -493,7 +489,7 @@ public class StorageHealthCheckTests
         var healthCheck = new QueueStorageHealthCheck(mockStorage.Object, customName);
 
         // Act
-        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
+        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext(), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HealthStatus.Healthy, result.Status);

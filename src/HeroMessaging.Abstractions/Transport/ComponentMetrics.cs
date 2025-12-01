@@ -10,8 +10,11 @@ public abstract class ComponentMetricsBase
 {
     private long _successfulOperations;
     private long _failedOperations;
+#if NET9_0_OR_GREATER
     private readonly Lock _errorLock = new();
-
+#else
+    private readonly object _errorLock = new();
+#endif
     /// <summary>
     /// Total number of successful operations
     /// </summary>

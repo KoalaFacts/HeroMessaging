@@ -4,10 +4,6 @@ using Xunit;
 
 namespace HeroMessaging.Storage.SqlServer.Tests.Integration;
 
-/// <summary>
-/// Integration tests for SQL Server storage implementation
-/// Tests store/retrieve, transactions (rollback), large messages, and delete operations
-/// </summary>
 [Trait("Category", "Integration")]
 public class SqlServerStorageIntegrationTests : SqlServerIntegrationTestBase
 {
@@ -19,8 +15,8 @@ public class SqlServerStorageIntegrationTests : SqlServerIntegrationTestBase
         var message = TestMessageBuilder.CreateValidMessage("SQL Server test message");
 
         // Act
-        await storage.StoreAsync(message, (MessageStorageOptions?)null);
-        var retrievedMessage = await storage.RetrieveAsync(message.MessageId, null);
+        await storage.StoreAsync(message, (MessageStorageOptions?)null, TestContext.Current.CancellationToken);
+        var retrievedMessage = await storage.RetrieveAsync(message.MessageId, null, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(retrievedMessage);
@@ -42,28 +38,28 @@ public class SqlServerStorageIntegrationTests : SqlServerIntegrationTestBase
         };
 
         // Act
-        using var transaction = await storage.BeginTransactionAsync();
+        using var transaction = await storage.BeginTransactionAsync(TestContext.Current.CancellationToken);
 
         try
         {
             // Store first two messages
-            await storage.StoreAsync(messages[0], transaction);
-            await storage.StoreAsync(messages[1], transaction);
+            await storage.StoreAsync(messages[0], transaction, TestContext.Current.CancellationToken);
+            await storage.StoreAsync(messages[1], transaction, TestContext.Current.CancellationToken);
 
             // Verify they're visible within transaction
-            var retrievedMessage1 = await storage.RetrieveAsync(messages[0].MessageId, transaction);
+            var retrievedMessage1 = await storage.RetrieveAsync(messages[0].MessageId, transaction, TestContext.Current.CancellationToken);
             Assert.NotNull(retrievedMessage1);
 
             // Simulate error condition and rollback
-            await transaction.RollbackAsync();
+            await transaction.RollbackAsync(TestContext.Current.CancellationToken);
 
             // Messages should not be visible after rollback
-            var retrievedAfterRollback = await storage.RetrieveAsync(messages[0].MessageId);
+            var retrievedAfterRollback = await storage.RetrieveAsync(messages[0].MessageId, cancellationToken: TestContext.Current.CancellationToken);
             Assert.Null(retrievedAfterRollback);
         }
         catch
         {
-            await transaction.RollbackAsync();
+            await transaction.RollbackAsync(TestContext.Current.CancellationToken);
             throw;
         }
     }
@@ -76,8 +72,8 @@ public class SqlServerStorageIntegrationTests : SqlServerIntegrationTestBase
         var largeMessage = TestMessageBuilder.CreateLargeMessage(1_000_000); // 1MB message
 
         // Act
-        await storage.StoreAsync(largeMessage, (MessageStorageOptions?)null);
-        var retrievedMessage = await storage.RetrieveAsync(largeMessage.MessageId, null);
+        await storage.StoreAsync(largeMessage, (MessageStorageOptions?)null, TestContext.Current.CancellationToken);
+        var retrievedMessage = await storage.RetrieveAsync(largeMessage.MessageId, null, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(retrievedMessage);
@@ -94,17 +90,17 @@ public class SqlServerStorageIntegrationTests : SqlServerIntegrationTestBase
         var message = TestMessageBuilder.CreateValidMessage("Delete test message");
 
         // Act
-        await storage.StoreAsync(message, (MessageStorageOptions?)null);
+        await storage.StoreAsync(message, (MessageStorageOptions?)null, TestContext.Current.CancellationToken);
 
         // Verify it exists
-        var retrievedBeforeDelete = await storage.RetrieveAsync(message.MessageId);
+        var retrievedBeforeDelete = await storage.RetrieveAsync(message.MessageId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotNull(retrievedBeforeDelete);
 
         // Delete it
-        await storage.DeleteAsync(message.MessageId);
+        await storage.DeleteAsync(message.MessageId, TestContext.Current.CancellationToken);
 
         // Verify it's gone
-        var retrievedAfterDelete = await storage.RetrieveAsync(message.MessageId);
+        var retrievedAfterDelete = await storage.RetrieveAsync(message.MessageId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Null(retrievedAfterDelete);
     }
 }

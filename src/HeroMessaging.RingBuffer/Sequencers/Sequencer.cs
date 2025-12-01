@@ -15,8 +15,11 @@ public abstract class Sequencer
 
     // Use volatile array reference for lock-free reads in hot path
     private volatile ISequence[] _gatingSequencesArray = [];
+#if NET9_0_OR_GREATER
     private readonly Lock _gatingLock = new();
-
+#else
+    private readonly object _gatingLock = new();
+#endif
     /// <summary>
     /// Creates a new sequencer
     /// </summary>

@@ -6,14 +6,6 @@ using Xunit;
 
 namespace HeroMessaging.Storage.SqlServer.Tests;
 
-/// <summary>
-/// Integration tests for SqlServerIdempotencyStore using Testcontainers.
-/// </summary>
-/// <remarks>
-/// These tests automatically spin up a SQL Server container and run all tests against it.
-/// No manual database setup is required - Docker is the only prerequisite.
-/// All tests in this class share a single SQL Server container for performance.
-/// </remarks>
 [Trait("Category", "Integration")]
 [Trait("Database", "SqlServer")]
 [Collection(nameof(SqlServerIdempotencyStoreCollection))]
@@ -41,7 +33,7 @@ public sealed class SqlServerIdempotencyStoreIntegrationTests : IAsyncDisposable
         _keysToCleanup.Add(key);
 
         // Act
-        var result = await _store.GetAsync(key);
+        var result = await _store.GetAsync(key, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result);
@@ -57,10 +49,10 @@ public sealed class SqlServerIdempotencyStoreIntegrationTests : IAsyncDisposable
         var ttl = TimeSpan.FromHours(1);
 
         // Act - Store
-        await _store.StoreSuccessAsync(key, successResult, ttl);
+        await _store.StoreSuccessAsync(key, successResult, ttl, TestContext.Current.CancellationToken);
 
         // Act - Get
-        var retrieved = await _store.GetAsync(key);
+        var retrieved = await _store.GetAsync(key, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(retrieved);
@@ -82,10 +74,10 @@ public sealed class SqlServerIdempotencyStoreIntegrationTests : IAsyncDisposable
         var ttl = TimeSpan.FromHours(1);
 
         // Act - Store
-        await _store.StoreFailureAsync(key, exception, ttl);
+        await _store.StoreFailureAsync(key, exception, ttl, TestContext.Current.CancellationToken);
 
         // Act - Get
-        var retrieved = await _store.GetAsync(key);
+        var retrieved = await _store.GetAsync(key, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(retrieved);
@@ -106,8 +98,8 @@ public sealed class SqlServerIdempotencyStoreIntegrationTests : IAsyncDisposable
         var ttl = TimeSpan.FromHours(1);
 
         // Act
-        await _store.StoreSuccessAsync(key, null, ttl);
-        var retrieved = await _store.GetAsync(key);
+        await _store.StoreSuccessAsync(key, null, ttl, TestContext.Current.CancellationToken);
+        var retrieved = await _store.GetAsync(key, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(retrieved);
@@ -126,16 +118,16 @@ public sealed class SqlServerIdempotencyStoreIntegrationTests : IAsyncDisposable
         var ttl = TimeSpan.FromHours(1);
 
         // Act - Store first
-        await _store.StoreSuccessAsync(key, firstResult, ttl);
+        await _store.StoreSuccessAsync(key, firstResult, ttl, TestContext.Current.CancellationToken);
 
         // Advance time
         _timeProvider.Advance(TimeSpan.FromMinutes(10));
 
         // Act - Store second (should update)
-        await _store.StoreSuccessAsync(key, secondResult, ttl);
+        await _store.StoreSuccessAsync(key, secondResult, ttl, TestContext.Current.CancellationToken);
 
         // Act - Retrieve
-        var retrieved = await _store.GetAsync(key);
+        var retrieved = await _store.GetAsync(key, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(retrieved);
@@ -153,13 +145,13 @@ public sealed class SqlServerIdempotencyStoreIntegrationTests : IAsyncDisposable
         var ttl = TimeSpan.FromHours(1);
 
         // Act - Store with 1 hour TTL
-        await _store.StoreSuccessAsync(key, result, ttl);
+        await _store.StoreSuccessAsync(key, result, ttl, TestContext.Current.CancellationToken);
 
         // Act - Advance time beyond TTL
         _timeProvider.Advance(TimeSpan.FromHours(2));
 
         // Act - Try to retrieve
-        var retrieved = await _store.GetAsync(key);
+        var retrieved = await _store.GetAsync(key, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(retrieved);
@@ -174,10 +166,10 @@ public sealed class SqlServerIdempotencyStoreIntegrationTests : IAsyncDisposable
         var ttl = TimeSpan.FromHours(1);
 
         // Act - Store
-        await _store.StoreSuccessAsync(key, "test", ttl);
+        await _store.StoreSuccessAsync(key, "test", ttl, TestContext.Current.CancellationToken);
 
         // Act - Check existence
-        var exists = await _store.ExistsAsync(key);
+        var exists = await _store.ExistsAsync(key, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(exists);
@@ -191,7 +183,7 @@ public sealed class SqlServerIdempotencyStoreIntegrationTests : IAsyncDisposable
         _keysToCleanup.Add(key);
 
         // Act
-        var exists = await _store.ExistsAsync(key);
+        var exists = await _store.ExistsAsync(key, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(exists);
@@ -206,13 +198,13 @@ public sealed class SqlServerIdempotencyStoreIntegrationTests : IAsyncDisposable
         var ttl = TimeSpan.FromHours(1);
 
         // Act - Store
-        await _store.StoreSuccessAsync(key, "test", ttl);
+        await _store.StoreSuccessAsync(key, "test", ttl, TestContext.Current.CancellationToken);
 
         // Act - Advance time beyond TTL
         _timeProvider.Advance(TimeSpan.FromHours(2));
 
         // Act - Check existence
-        var exists = await _store.ExistsAsync(key);
+        var exists = await _store.ExistsAsync(key, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(exists);
@@ -228,19 +220,19 @@ public sealed class SqlServerIdempotencyStoreIntegrationTests : IAsyncDisposable
         _keysToCleanup.Add(key2);
 
         // Store two entries with different TTLs
-        await _store.StoreSuccessAsync(key1, "test1", TimeSpan.FromMinutes(30));
-        await _store.StoreSuccessAsync(key2, "test2", TimeSpan.FromHours(2));
+        await _store.StoreSuccessAsync(key1, "test1", TimeSpan.FromMinutes(30), TestContext.Current.CancellationToken);
+        await _store.StoreSuccessAsync(key2, "test2", TimeSpan.FromHours(2), TestContext.Current.CancellationToken);
 
         // Advance time to expire first entry
         _timeProvider.Advance(TimeSpan.FromHours(1));
 
         // Act - Cleanup
-        var removedCount = await _store.CleanupExpiredAsync();
+        var removedCount = await _store.CleanupExpiredAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(removedCount >= 1); // At least key1 should be removed
-        Assert.False(await _store.ExistsAsync(key1)); // First entry should be gone
-        Assert.True(await _store.ExistsAsync(key2)); // Second entry should remain
+        Assert.False(await _store.ExistsAsync(key1, TestContext.Current.CancellationToken)); // First entry should be gone
+        Assert.True(await _store.ExistsAsync(key2, TestContext.Current.CancellationToken)); // Second entry should remain
     }
 
     [Fact]
@@ -264,8 +256,8 @@ public sealed class SqlServerIdempotencyStoreIntegrationTests : IAsyncDisposable
         var ttl = TimeSpan.FromHours(1);
 
         // Act
-        await _store.StoreSuccessAsync(key, complexResult, ttl);
-        var retrieved = await _store.GetAsync(key);
+        await _store.StoreSuccessAsync(key, complexResult, ttl, TestContext.Current.CancellationToken);
+        var retrieved = await _store.GetAsync(key, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(retrieved);
