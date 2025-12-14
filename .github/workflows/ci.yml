@@ -87,7 +87,7 @@ jobs:
             -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
 
       - name: Upload test results
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: test-results-${{ matrix.os }}-${{ matrix.framework }}
@@ -157,7 +157,7 @@ jobs:
             --threshold 10
 
       - name: Upload current benchmarks as baseline
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         with:
           name: performance-baseline
@@ -248,7 +248,7 @@ jobs:
           fi
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: coverage-report
           path: ./coverage-report/**/*
@@ -426,21 +426,21 @@ jobs:
           echo "Full Version: ${{ steps.build-number.outputs.full-version }}"
 
       - name: Upload release packages
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: release-packages-${{ github.sha }}
           path: ./release-packages/*
           retention-days: 90  # Keep for 90 days for releases
 
       - name: Upload release packages (latest)
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: release-packages-latest
           path: ./release-packages/*
           retention-days: 90
 
       - name: Upload SBOM artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: sbom-${{ github.sha }}
           path: ./release-packages/sbom*/**/*
