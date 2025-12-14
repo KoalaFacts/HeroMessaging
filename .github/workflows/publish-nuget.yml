@@ -140,7 +140,7 @@ jobs:
 
     steps:
       - name: Download packages
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: release-packages
           path: ./packages
@@ -231,7 +231,7 @@ jobs:
 
     steps:
       - name: Download packages
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: release-packages
           path: ./packages
