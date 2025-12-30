@@ -245,7 +245,7 @@ public class HealthCheckExtensionsTests
         var serviceProvider = services.BuildServiceProvider();
         var healthCheckService = serviceProvider.GetRequiredService<HealthCheckService>();
 
-        var result = await healthCheckService.CheckHealthAsync();
+        var result = await healthCheckService.CheckHealthAsync(TestContext.Current.CancellationToken);
 
         Assert.NotNull(result);
         Assert.Contains(result.Entries, e => e.Key == "composite");

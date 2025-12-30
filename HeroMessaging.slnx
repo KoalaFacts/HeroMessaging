@@ -1,0 +1,35 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/src/">
+    <Project Path="src/HeroMessaging.Abstractions/HeroMessaging.Abstractions.csproj" />
+    <Project Path="src/HeroMessaging.Observability.HealthChecks/HeroMessaging.Observability.HealthChecks.csproj" />
+    <Project Path="src/HeroMessaging.Observability.OpenTelemetry/HeroMessaging.Observability.OpenTelemetry.csproj" />
+    <Project Path="src/HeroMessaging.Security/HeroMessaging.Security.csproj" />
+    <Project Path="src/HeroMessaging.Serialization.Json/HeroMessaging.Serialization.Json.csproj" />
+    <Project Path="src/HeroMessaging.Serialization.MessagePack/HeroMessaging.Serialization.MessagePack.csproj" />
+    <Project Path="src/HeroMessaging.Serialization.Protobuf/HeroMessaging.Serialization.Protobuf.csproj" />
+    <Project Path="src/HeroMessaging.SourceGenerators/HeroMessaging.SourceGenerators.csproj" />
+    <Project Path="src/HeroMessaging.Storage.PostgreSql/HeroMessaging.Storage.PostgreSql.csproj" />
+    <Project Path="src/HeroMessaging.Storage.SqlServer/HeroMessaging.Storage.SqlServer.csproj" />
+    <Project Path="src/HeroMessaging.Transport.RabbitMQ/HeroMessaging.Transport.RabbitMQ.csproj" />
+    <Project Path="src/HeroMessaging/HeroMessaging.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/HeroMessaging.Abstractions.Tests/HeroMessaging.Abstractions.Tests.csproj" />
+    <Project Path="tests/HeroMessaging.Architecture.Tests/HeroMessaging.Architecture.Tests.csproj" />
+    <Project Path="tests/HeroMessaging.Benchmarks/HeroMessaging.Benchmarks.csproj" />
+    <Project Path="tests/HeroMessaging.Observability.HealthChecks.Tests/HeroMessaging.Observability.HealthChecks.Tests.csproj" />
+    <Project Path="tests/HeroMessaging.Security.Tests/HeroMessaging.Security.Tests.csproj" />
+    <Project Path="tests/HeroMessaging.Serialization.Json.Tests/HeroMessaging.Serialization.Json.Tests.csproj" />
+    <Project Path="tests/HeroMessaging.Serialization.MessagePack.Tests/HeroMessaging.Serialization.MessagePack.Tests.csproj" />
+    <Project Path="tests/HeroMessaging.Serialization.Protobuf.Tests/HeroMessaging.Serialization.Protobuf.Tests.csproj" />
+    <Project Path="tests/HeroMessaging.SourceGenerators.Tests/HeroMessaging.SourceGenerators.Tests.csproj" />
+    <Project Path="tests/HeroMessaging.Storage.PostgreSql.Tests/HeroMessaging.Storage.PostgreSql.Tests.csproj" />
+    <Project Path="tests/HeroMessaging.Storage.SqlServer.Tests/HeroMessaging.Storage.SqlServer.Tests.csproj" />
+    <Project Path="tests/HeroMessaging.Tests/HeroMessaging.Tests.csproj" />
+  </Folder>
+</Solution>

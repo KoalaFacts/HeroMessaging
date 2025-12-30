@@ -27,19 +27,13 @@ public static class ExtensionsToIServiceCollectionForDecorator
             serviceProvider =>
             {
                 // Create the original service
-                TService originalService;
-                if (existingDescriptor.ImplementationFactory != null)
-                {
-                    originalService = (TService)existingDescriptor.ImplementationFactory(serviceProvider);
-                }
-                else
-                {
-                    originalService = existingDescriptor.ImplementationInstance != null
+                TService originalService = existingDescriptor.ImplementationFactory != null
+                    ? (TService)existingDescriptor.ImplementationFactory(serviceProvider)
+                    : existingDescriptor.ImplementationInstance != null
                         ? (TService)existingDescriptor.ImplementationInstance
                         : existingDescriptor.ImplementationType != null
                         ? (TService)ActivatorUtilities.CreateInstance(serviceProvider, existingDescriptor.ImplementationType)
                         : throw new InvalidOperationException($"Unable to resolve original service of type {typeof(TService).Name}");
-                }
 
                 // Apply the decorator
                 return decorator(originalService, serviceProvider);

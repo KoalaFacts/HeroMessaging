@@ -27,7 +27,7 @@ public readonly record struct ProcessingContext
         HandlerType = null;
         RetryCount = 0;
         FirstFailureTime = null;
-        Metadata = ImmutableDictionary<string, object>.Empty;
+        Metadata = [];
     }
 
     public ProcessingContext(string component, ImmutableDictionary<string, object>? metadata = null)
@@ -37,7 +37,7 @@ public readonly record struct ProcessingContext
         HandlerType = null;
         RetryCount = 0;
         FirstFailureTime = null;
-        Metadata = metadata ?? ImmutableDictionary<string, object>.Empty;
+        Metadata = metadata ?? [];
     }
 
     public string Component { get; init; }
@@ -45,7 +45,7 @@ public readonly record struct ProcessingContext
     public Type? HandlerType { get; init; }
     public int RetryCount { get; init; }
     public DateTimeOffset? FirstFailureTime { get; init; }
-    public ImmutableDictionary<string, object> Metadata { get; init; } = ImmutableDictionary<string, object>.Empty;
+    public ImmutableDictionary<string, object> Metadata { get; init; } = [];
 
     public ProcessingContext WithMetadata(string key, object value)
     {
