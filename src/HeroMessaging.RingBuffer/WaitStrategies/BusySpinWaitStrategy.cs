@@ -2,7 +2,7 @@ namespace HeroMessaging.RingBuffer.WaitStrategies;
 
 /// <summary>
 /// Busy spin wait strategy that never yields or sleeps.
-/// Provides ultra-low latency (<10μs) but uses 100% CPU.
+/// Provides ultra-low latency (less than 10μs) but uses 100% CPU.
 /// Best for low-latency trading systems or real-time applications
 /// where minimizing latency is critical and CPU usage is not a concern.
 /// </summary>

@@ -6,9 +6,9 @@ namespace HeroMessaging.Benchmarks;
 
 /// <summary>
 /// Benchmarks for QueryProcessor to validate performance claims:
-/// - Target: <1ms p99 latency for query processing
-/// - Target: >100K queries/second throughput
-/// - Target: <1KB allocation per query in steady state
+/// - Target: Less than 1ms p99 latency for query processing
+/// - Target: Greater than 100K queries/second throughput
+/// - Target: Less than 1KB allocation per query in steady state
 /// </summary>
 [MemoryDiagnoser]
 [SimpleJob(RuntimeMoniker.Net80, warmupCount: 3, iterationCount: 10)]
@@ -41,7 +41,7 @@ public class QueryProcessorBenchmarks
     }
 
     /// <summary>
-    /// Measures single query processing latency (should be <1ms)
+    /// Measures single query processing latency (should be less than 1ms)
     /// </summary>
     [Benchmark(Description = "Process single query")]
     public async Task ProcessQuery_SingleMessage()
@@ -51,7 +51,7 @@ public class QueryProcessorBenchmarks
 
     /// <summary>
     /// Measures throughput of sequential query processing
-    /// Target: >100K queries/second
+    /// Target: Greater than 100K queries/second
     /// </summary>
     [Benchmark(Description = "Process 100 queries sequentially")]
     public async Task ProcessQuery_SequentialBatch()

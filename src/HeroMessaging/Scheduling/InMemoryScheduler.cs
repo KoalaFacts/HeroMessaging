@@ -14,7 +14,7 @@ namespace HeroMessaging.Scheduling;
 /// consider using a storage-backed scheduler.
 ///
 /// Performance characteristics:
-/// - Scheduling operation: O(1), <100 microseconds
+/// - Scheduling operation: O(1), less than 100 microseconds
 /// - Memory usage: ~200 bytes per scheduled message
 /// - Supports concurrent operations via ConcurrentDictionary
 /// </remarks>

@@ -5,9 +5,9 @@ namespace HeroMessaging.Benchmarks;
 
 /// <summary>
 /// Benchmarks for Storage operations to validate performance claims:
-/// - Target: <1ms p99 latency for storage operations
-/// - Target: >100K operations/second throughput
-/// - Target: <1KB allocation per operation in steady state
+/// - Target: Less than 1ms p99 latency for storage operations
+/// - Target: Greater than 100K operations/second throughput
+/// - Target: Less than 1KB allocation per operation in steady state
 /// </summary>
 [MemoryDiagnoser]
 [SimpleJob(RuntimeMoniker.Net80, warmupCount: 3, iterationCount: 10)]
@@ -31,7 +31,7 @@ public class StorageBenchmarks
     }
 
     /// <summary>
-    /// Measures message storage latency (should be <1ms)
+    /// Measures message storage latency (should be less than 1ms)
     /// </summary>
     [Benchmark(Description = "Store single message")]
     public async Task Storage_StoreMessage()
@@ -58,7 +58,7 @@ public class StorageBenchmarks
 
     /// <summary>
     /// Measures throughput of sequential storage operations
-    /// Target: >100K operations/second
+    /// Target: Greater than 100K operations/second
     /// </summary>
     [Benchmark(Description = "Store 100 messages sequentially")]
     public async Task Storage_SequentialBatch()

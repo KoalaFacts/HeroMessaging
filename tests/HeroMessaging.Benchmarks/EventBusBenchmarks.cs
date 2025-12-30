@@ -6,9 +6,9 @@ namespace HeroMessaging.Benchmarks;
 
 /// <summary>
 /// Benchmarks for EventBus to validate performance claims:
-/// - Target: <1ms p99 latency for event publishing
-/// - Target: >100K events/second throughput
-/// - Target: <1KB allocation per event in steady state
+/// - Target: Less than 1ms p99 latency for event publishing
+/// - Target: Greater than 100K events/second throughput
+/// - Target: Less than 1KB allocation per event in steady state
 /// </summary>
 [MemoryDiagnoser]
 [SimpleJob(RuntimeMoniker.Net80, warmupCount: 3, iterationCount: 10)]
@@ -63,7 +63,7 @@ public class EventBusBenchmarks
     }
 
     /// <summary>
-    /// Measures single event publishing latency (should be <1ms)
+    /// Measures single event publishing latency (should be less than 1ms)
     /// </summary>
     [Benchmark(Description = "Publish single event")]
     public async Task PublishEvent_SingleMessage()
@@ -73,7 +73,7 @@ public class EventBusBenchmarks
 
     /// <summary>
     /// Measures throughput of sequential event publishing
-    /// Target: >100K events/second
+    /// Target: Greater than 100K events/second
     /// </summary>
     [Benchmark(Description = "Publish 100 events sequentially")]
     public async Task PublishEvent_SequentialBatch()

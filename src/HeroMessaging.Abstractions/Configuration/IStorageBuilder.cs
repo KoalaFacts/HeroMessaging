@@ -85,12 +85,27 @@ public interface IStorageBuilder
 }
 
 /// <summary>
-/// Options for in-memory storage
+/// Configuration options for in-memory storage.
 /// </summary>
 public class InMemoryStorageOptions
 {
+    /// <summary>
+    /// Maximum number of messages to retain in memory. Default: 10000.
+    /// </summary>
     public int MaxMessages { get; set; } = 10000;
+
+    /// <summary>
+    /// How long to retain messages before automatic cleanup. Default: 24 hours.
+    /// </summary>
     public TimeSpan MessageRetention { get; set; } = TimeSpan.FromHours(24);
+
+    /// <summary>
+    /// Whether to enable storage metrics collection. Default: false.
+    /// </summary>
     public bool EnableMetrics { get; set; } = false;
+
+    /// <summary>
+    /// Whether to enable message caching for faster retrieval. Default: true.
+    /// </summary>
     public bool EnableCaching { get; set; } = true;
 }

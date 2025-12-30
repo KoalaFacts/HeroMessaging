@@ -52,7 +52,7 @@ public interface IBufferPoolManager
 public enum BufferingStrategy
 {
     /// <summary>
-    /// Use stack allocation (stackalloc) for small buffers (<=1KB).
+    /// Use stack allocation (stackalloc) for small buffers (1KB or less).
     /// Zero heap allocation, fastest, but limited size.
     /// </summary>
     StackAlloc,
@@ -70,7 +70,7 @@ public enum BufferingStrategy
     PooledWithChunking,
 
     /// <summary>
-    /// Use stream-based approach for very large data (>1MB).
+    /// Use stream-based approach for very large data (greater than 1MB).
     /// Consider RecyclableMemoryStream or file-based storage.
     /// </summary>
     StreamBased

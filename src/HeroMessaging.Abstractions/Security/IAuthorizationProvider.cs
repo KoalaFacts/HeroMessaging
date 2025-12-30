@@ -75,13 +75,32 @@ public sealed class AuthorizationResult
 }
 
 /// <summary>
-/// Standard message operations for authorization
+/// Standard message operations for authorization.
 /// </summary>
 public static class MessageOperations
 {
+    /// <summary>
+    /// Operation type for sending point-to-point messages.
+    /// </summary>
     public const string Send = "Send";
+
+    /// <summary>
+    /// Operation type for receiving messages.
+    /// </summary>
     public const string Receive = "Receive";
+
+    /// <summary>
+    /// Operation type for handling/processing messages.
+    /// </summary>
     public const string Handle = "Handle";
+
+    /// <summary>
+    /// Operation type for publishing events.
+    /// </summary>
     public const string Publish = "Publish";
+
+    /// <summary>
+    /// Operation type for subscribing to events.
+    /// </summary>
     public const string Subscribe = "Subscribe";
 }

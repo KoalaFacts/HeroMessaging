@@ -8,7 +8,7 @@ namespace HeroMessaging.Tests.Unit.Scheduling;
 
 /// <summary>
 /// Unit tests for InMemoryScheduler
-/// Target: 100% coverage for public APIs, execution time < 10s
+/// Target: 100% coverage for public APIs, execution time less than 10s
 /// </summary>
 public class InMemorySchedulerTests : IAsyncLifetime
 {

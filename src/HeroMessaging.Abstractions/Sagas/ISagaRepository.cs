@@ -59,14 +59,31 @@ public interface ISagaRepository<TSaga> where TSaga : class, ISaga
 }
 
 /// <summary>
-/// Exception thrown when saga update fails due to concurrent modification
+/// Exception thrown when saga update fails due to concurrent modification.
 /// </summary>
 public class SagaConcurrencyException : Exception
 {
+    /// <summary>
+    /// Gets the correlation ID of the saga that had a concurrency conflict.
+    /// </summary>
     public Guid CorrelationId { get; }
+
+    /// <summary>
+    /// Gets the version that was expected when attempting the update.
+    /// </summary>
     public int ExpectedVersion { get; }
+
+    /// <summary>
+    /// Gets the actual version found in storage.
+    /// </summary>
     public int ActualVersion { get; }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SagaConcurrencyException"/> class.
+    /// </summary>
+    /// <param name="correlationId">The correlation ID of the saga</param>
+    /// <param name="expectedVersion">The expected version</param>
+    /// <param name="actualVersion">The actual version found</param>
     public SagaConcurrencyException(Guid correlationId, int expectedVersion, int actualVersion)
         : base($"Saga {correlationId} concurrency conflict. Expected version {expectedVersion}, but found {actualVersion}.")
     {

@@ -342,7 +342,7 @@ public static class RefStructInterfacesExample
 ///    - Stack-only (no heap allocation possible)
 ///
 /// 4. Best Practices:
-///    - Use stackalloc for buffers <1KB
+///    - Use stackalloc for buffers less than 1KB
 ///    - Validate buffer sizes with GetRequiredBufferSize()
 ///    - Provide both Try* and non-Try* methods
 ///    - Document stack size requirements

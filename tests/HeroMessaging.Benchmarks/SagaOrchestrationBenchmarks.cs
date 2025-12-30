@@ -8,9 +8,9 @@ namespace HeroMessaging.Benchmarks;
 
 /// <summary>
 /// Benchmarks for SagaOrchestrator to validate performance claims:
-/// - Target: <1ms p99 latency for saga processing
-/// - Target: >100K saga events/second throughput
-/// - Target: <1KB allocation per saga event in steady state
+/// - Target: Less than 1ms p99 latency for saga processing
+/// - Target: Greater than 100K saga events/second throughput
+/// - Target: Less than 1KB allocation per saga event in steady state
 /// </summary>
 [MemoryDiagnoser]
 [SimpleJob(RuntimeMoniker.Net80, warmupCount: 3, iterationCount: 10)]
@@ -80,7 +80,7 @@ public class SagaOrchestrationBenchmarks
     }
 
     /// <summary>
-    /// Measures saga creation and first event processing (should be <1ms)
+    /// Measures saga creation and first event processing (should be less than 1ms)
     /// </summary>
     [Benchmark(Description = "Process saga start event")]
     public async Task ProcessSaga_StartEvent()
@@ -106,7 +106,7 @@ public class SagaOrchestrationBenchmarks
 
     /// <summary>
     /// Measures throughput of sequential saga processing
-    /// Target: >100K saga events/second
+    /// Target: Greater than 100K saga events/second
     /// </summary>
     [Benchmark(Description = "Process 100 saga events sequentially")]
     public async Task ProcessSaga_SequentialBatch()

@@ -39,7 +39,6 @@ public sealed class HmacSha256MessageSigner : IMessageSigner, IDisposable
         _keyId = keyId;
     }
 
-    /// </summary>
     /// <summary>
     /// Creates a new HMAC-SHA256 signer by generating a random key.
     /// SECURITY: The generated key is zeroed from memory after being copied to the signer.

@@ -23,8 +23,8 @@ public enum QueueMode
     /// Characteristics:
     /// - Lock-free coordination
     /// - Pre-allocated memory (zero allocation in hot path)
-    /// - <50μs p99 latency
-    /// - >500K msg/s throughput
+    /// - Less than 50μs p99 latency
+    /// - Greater than 500K msg/s throughput
     /// - Requires power-of-2 buffer sizes
     /// </summary>
     RingBuffer

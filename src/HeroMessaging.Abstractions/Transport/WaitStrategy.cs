@@ -26,7 +26,7 @@ public enum WaitStrategy
     Yielding,
 
     /// <summary>
-    /// Busy spin (ultra-low latency <10μs, 100% CPU).
+    /// Busy spin (ultra-low latency, less than 10μs, 100% CPU).
     /// Best for ultra-low latency trading systems or real-time applications.
     /// WARNING: Uses 100% of a CPU core.
     /// </summary>

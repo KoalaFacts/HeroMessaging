@@ -60,24 +60,61 @@ public interface ISerializationBuilder
     IServiceCollection Build();
 }
 
-// These option classes would normally be in their respective plugin projects
+/// <summary>
+/// Configuration options for JSON serialization.
+/// </summary>
 public class JsonSerializationOptions
 {
+    /// <summary>
+    /// Whether to format JSON with indentation for readability. Default: false.
+    /// </summary>
     public bool Indented { get; set; } = false;
+
+    /// <summary>
+    /// Whether to use camelCase for property names. Default: true.
+    /// </summary>
     public bool CamelCase { get; set; } = true;
+
+    /// <summary>
+    /// Maximum depth for nested objects during serialization. Default: 32.
+    /// </summary>
     public int MaxDepth { get; set; } = 32;
+
+    /// <summary>
+    /// Whether to include type information in serialized output. Default: false.
+    /// </summary>
     public bool IncludeTypeInfo { get; set; } = false;
 }
 
+/// <summary>
+/// Configuration options for Protocol Buffers serialization.
+/// </summary>
 public class ProtobufSerializationOptions
 {
+    /// <summary>
+    /// Whether to include type information in serialized output. Default: false.
+    /// </summary>
     public bool IncludeTypeInfo { get; set; } = false;
+
+    /// <summary>
+    /// Whether to apply compression to serialized data. Default: false.
+    /// </summary>
     public bool UseCompression { get; set; } = false;
 }
 
+/// <summary>
+/// Configuration options for MessagePack serialization.
+/// </summary>
 public class MessagePackSerializationOptions
 {
+    /// <summary>
+    /// Whether to apply LZ4 compression to serialized data. Default: true.
+    /// </summary>
     public bool UseCompression { get; set; } = true;
+
+    /// <summary>
+    /// Whether to use contractless resolver for serialization without attributes. Default: true.
+    /// </summary>
     public bool ContractlessResolve { get; set; } = true;
 }
 

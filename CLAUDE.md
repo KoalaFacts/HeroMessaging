@@ -70,6 +70,9 @@ dotnet test --framework net10.0
 - **Test Classes**: `{ClassUnderTest}Tests` with descriptive test method names
 - **Benchmark Classes**: `{Feature}Benchmarks` with `[Benchmark]` methods
 - **Categories**: Use `[Trait("Category", "Unit|Integration|Contract|Performance")]`
+- **Private Instance Fields**: `_camelCase` (e.g., `_logger`, `_messageStore`)
+- **Static Readonly Fields**: `PascalCase` (e.g., `DefaultOptions`, `EmptyResult`)
+- **Constants**: `PascalCase` (e.g., `DefaultMaxDecompressedSize`, `Send`)
 
 ### Code Organization
 - **Primary Constructors**: Use C# 12 syntax for services and decorators
@@ -77,6 +80,15 @@ dotnet test --framework net10.0
 - **Decorator Pattern**: For cross-cutting concerns (logging, retry, metrics)
 - **Builder Pattern**: Fluent configuration APIs
 - **Error Handling**: Actionable error messages with remediation steps
+
+### Collection Initialization Rules
+- **ImmutableDictionary**: Use `ImmutableDictionary<K, V>.Empty` instead of collection expressions `[]`
+  - Collection expressions don't work for `ImmutableDictionary` in readonly record structs
+  - Example: `Metadata = ImmutableDictionary<string, object>.Empty;` (correct)
+  - Example: `Metadata = [];` (incorrect - causes CS1729 error)
+  - IDE0301 is disabled in editorconfig because it falsely suggests `[]` for ImmutableDictionary
+- **ImmutableArray**: Use `[]` or `ImmutableArray<T>.Empty` (both work)
+- **Regular arrays/lists**: Use `[]` collection expressions (C# 12 feature)
 
 ### Test Patterns
 ```csharp

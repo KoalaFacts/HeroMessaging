@@ -6,9 +6,9 @@ namespace HeroMessaging.Benchmarks;
 
 /// <summary>
 /// Benchmarks for CommandProcessor to validate performance claims:
-/// - Target: <1ms p99 latency for message processing overhead
-/// - Target: >100K messages/second single-threaded capability
-/// - Target: <1KB allocation per message in steady state
+/// - Target: Less than 1ms p99 latency for message processing overhead
+/// - Target: Greater than 100K messages/second single-threaded capability
+/// - Target: Less than 1KB allocation per message in steady state
 /// </summary>
 [MemoryDiagnoser]
 [SimpleJob(RuntimeMoniker.Net80, warmupCount: 3, iterationCount: 10)]
@@ -42,7 +42,7 @@ public class CommandProcessorBenchmarks
     }
 
     /// <summary>
-    /// Measures single command processing latency (should be <1ms)
+    /// Measures single command processing latency (should be less than 1ms)
     /// </summary>
     [Benchmark(Description = "Process single command")]
     public async Task ProcessCommand_SingleMessage()
@@ -52,7 +52,7 @@ public class CommandProcessorBenchmarks
 
     /// <summary>
     /// Measures throughput of sequential command processing
-    /// Target: >100K messages/second = <10 microseconds per message
+    /// Target: Greater than 100K messages/second (less than 10 microseconds per message)
     /// </summary>
     [Benchmark(Description = "Process 100 commands sequentially")]
     public async Task ProcessCommand_SequentialBatch()

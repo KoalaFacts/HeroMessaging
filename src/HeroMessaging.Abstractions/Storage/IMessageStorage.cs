@@ -123,23 +123,79 @@ public interface IStorageTransaction : IDisposable
     Task RollbackAsync(CancellationToken cancellationToken = default);
 }
 
+/// <summary>
+/// Options for storing messages.
+/// </summary>
 public class MessageStorageOptions
 {
+    /// <summary>
+    /// The collection or partition to store the message in.
+    /// </summary>
     public string? Collection { get; set; }
+
+    /// <summary>
+    /// Time-to-live for the message. Null means no expiration.
+    /// </summary>
     public TimeSpan? Ttl { get; set; }
+
+    /// <summary>
+    /// Additional metadata to store with the message.
+    /// </summary>
     public Dictionary<string, object>? Metadata { get; set; }
 }
 
+/// <summary>
+/// Query criteria for retrieving messages from storage.
+/// </summary>
 public class MessageQuery
 {
+    /// <summary>
+    /// Filter by collection or partition.
+    /// </summary>
     public string? Collection { get; set; }
+
+    /// <summary>
+    /// Filter by minimum timestamp (inclusive).
+    /// </summary>
     public DateTimeOffset? FromTimestamp { get; set; }
+
+    /// <summary>
+    /// Filter by maximum timestamp (inclusive).
+    /// </summary>
     public DateTimeOffset? ToTimestamp { get; set; }
+
+    /// <summary>
+    /// Filter by metadata key-value pairs.
+    /// </summary>
     public Dictionary<string, object>? MetadataFilters { get; set; }
+
+    /// <summary>
+    /// Maximum number of results to return.
+    /// </summary>
     public int? Limit { get; set; }
+
+    /// <summary>
+    /// Number of results to skip for pagination.
+    /// </summary>
     public int? Offset { get; set; }
+
+    /// <summary>
+    /// Field to order results by.
+    /// </summary>
     public string? OrderBy { get; set; }
+
+    /// <summary>
+    /// Whether to sort in ascending order. Default: true.
+    /// </summary>
     public bool Ascending { get; set; } = true;
+
+    /// <summary>
+    /// Filter by content containing this substring.
+    /// </summary>
     public string? ContentContains { get; set; }
+
+    /// <summary>
+    /// Maximum results cap. Default: 100.
+    /// </summary>
     public int MaxResults { get; set; } = 100;
 }

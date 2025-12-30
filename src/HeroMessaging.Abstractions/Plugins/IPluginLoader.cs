@@ -38,13 +38,28 @@ public interface IPluginLoader
 }
 
 /// <summary>
-/// Result of plugin validation
+/// Result of plugin validation.
 /// </summary>
 public sealed record PluginValidationResult
 {
+    /// <summary>
+    /// Gets whether the plugin passed validation.
+    /// </summary>
     public bool IsValid { get; init; }
+
+    /// <summary>
+    /// Gets the collection of validation errors.
+    /// </summary>
     public IReadOnlyCollection<string> Errors { get; init; } = [];
+
+    /// <summary>
+    /// Gets the collection of validation warnings.
+    /// </summary>
     public IReadOnlyCollection<string> Warnings { get; init; } = [];
+
+    /// <summary>
+    /// Gets the collection of missing dependencies.
+    /// </summary>
     public IReadOnlyCollection<string> MissingDependencies { get; init; } = [];
 }
 
@@ -89,17 +104,52 @@ public interface IPluginLifecycleManager
 }
 
 /// <summary>
-/// States of a plugin lifecycle
+/// States of a plugin lifecycle.
 /// </summary>
 public enum PluginState
 {
+    /// <summary>
+    /// Plugin has not been initialized.
+    /// </summary>
     NotInitialized,
+
+    /// <summary>
+    /// Plugin is currently initializing.
+    /// </summary>
     Initializing,
+
+    /// <summary>
+    /// Plugin has been initialized successfully.
+    /// </summary>
     Initialized,
+
+    /// <summary>
+    /// Plugin is currently starting.
+    /// </summary>
     Starting,
+
+    /// <summary>
+    /// Plugin has started successfully.
+    /// </summary>
     Started,
+
+    /// <summary>
+    /// Plugin is currently stopping.
+    /// </summary>
     Stopping,
+
+    /// <summary>
+    /// Plugin has stopped.
+    /// </summary>
     Stopped,
+
+    /// <summary>
+    /// Plugin has failed.
+    /// </summary>
     Failed,
+
+    /// <summary>
+    /// Plugin has been disposed.
+    /// </summary>
     Disposed
 }

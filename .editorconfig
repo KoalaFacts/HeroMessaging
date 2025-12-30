@@ -20,17 +20,24 @@ dotnet_naming_rule.types_should_be_pascal_case.severity = warning
 dotnet_naming_rule.types_should_be_pascal_case.symbols = types
 dotnet_naming_rule.types_should_be_pascal_case.style = pascal_case
 
-dotnet_naming_rule.const_fields_should_be_upper_case.severity = warning
-dotnet_naming_rule.const_fields_should_be_upper_case.symbols = const_fields
-dotnet_naming_rule.const_fields_should_be_upper_case.style = upper_case
+# Constants use PascalCase (standard C# convention for const and static readonly)
+dotnet_naming_rule.const_fields_should_be_pascal_case.severity = warning
+dotnet_naming_rule.const_fields_should_be_pascal_case.symbols = const_fields
+dotnet_naming_rule.const_fields_should_be_pascal_case.style = pascal_case
 
 dotnet_naming_rule.non_field_members_should_be_pascal_case.severity = warning
 dotnet_naming_rule.non_field_members_should_be_pascal_case.symbols = non_field_members
 dotnet_naming_rule.non_field_members_should_be_pascal_case.style = pascal_case
 
-dotnet_naming_rule.private_field_should_be_camel_case.severity = warning
-dotnet_naming_rule.private_field_should_be_camel_case.symbols = private_field
-dotnet_naming_rule.private_field_should_be_camel_case.style = camel_case
+# Static readonly fields use PascalCase (standard C# convention)
+dotnet_naming_rule.static_readonly_field_should_be_pascal_case.severity = warning
+dotnet_naming_rule.static_readonly_field_should_be_pascal_case.symbols = static_readonly_field
+dotnet_naming_rule.static_readonly_field_should_be_pascal_case.style = pascal_case
+
+# Private instance fields use _camelCase convention (matches codebase style)
+dotnet_naming_rule.private_field_should_be_underscore_camel_case.severity = warning
+dotnet_naming_rule.private_field_should_be_underscore_camel_case.symbols = private_instance_field
+dotnet_naming_rule.private_field_should_be_underscore_camel_case.style = underscore_camel_case
 
 # Symbol specifications
 dotnet_naming_symbols.interface.applicable_kinds = interface
@@ -45,9 +52,13 @@ dotnet_naming_symbols.non_field_members.applicable_kinds = property, event, meth
 dotnet_naming_symbols.non_field_members.applicable_accessibilities = public, internal, private, protected, protected_internal, private_protected
 dotnet_naming_symbols.non_field_members.required_modifiers =
 
-dotnet_naming_symbols.private_field.applicable_kinds = field
-dotnet_naming_symbols.private_field.applicable_accessibilities = private
-dotnet_naming_symbols.private_field.required_modifiers =
+dotnet_naming_symbols.static_readonly_field.applicable_kinds = field
+dotnet_naming_symbols.static_readonly_field.applicable_accessibilities = private, protected, internal, protected_internal, private_protected
+dotnet_naming_symbols.static_readonly_field.required_modifiers = static, readonly
+
+dotnet_naming_symbols.private_instance_field.applicable_kinds = field
+dotnet_naming_symbols.private_instance_field.applicable_accessibilities = private
+dotnet_naming_symbols.private_instance_field.required_modifiers =
 
 dotnet_naming_symbols.const_fields.applicable_kinds = field
 dotnet_naming_symbols.const_fields.applicable_accessibilities = public, internal, private, protected, protected_internal, private_protected
@@ -132,7 +143,11 @@ dotnet_diagnostic.IDE0061.severity = none
 
 # C# style rules
 csharp_style_namespace_declarations = file_scoped:warning
-csharp_style_collection_expression = when_possible:warning
+# when_types_exactly_match prevents formatter from incorrectly suggesting [] for ImmutableDictionary
+# (collection expressions don't work for ImmutableDictionary in readonly record structs)
+csharp_style_collection_expression = when_types_exactly_match:suggestion
+# IDE0301: Disabled because it falsely suggests [] for ImmutableDictionary which doesn't compile
+dotnet_diagnostic.IDE0301.severity = none
 
 # XML documentation
 [*.cs]
