@@ -113,7 +113,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             var @event = new EventWithoutCorrelation();
 
             // Act
-            await orchestrator.ProcessAsync(@event);
+            await orchestrator.ProcessAsync(@event, TestContext.Current.CancellationToken);
 
             // Assert
             _repositoryMock.Verify(r => r.FindAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
@@ -131,7 +131,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
                 .ReturnsAsync((TestSaga?)null);
 
             // Act
-            await orchestrator.ProcessAsync(@event);
+            await orchestrator.ProcessAsync(@event, TestContext.Current.CancellationToken);
 
             // Assert
             _repositoryMock.Verify(r => r.FindAsync(correlationId, It.IsAny<CancellationToken>()), Times.Once);
@@ -149,7 +149,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
                 .ReturnsAsync((TestSaga?)null);
 
             // Act
-            await orchestrator.ProcessAsync(@event);
+            await orchestrator.ProcessAsync(@event, TestContext.Current.CancellationToken);
 
             // Assert
             _repositoryMock.Verify(r => r.FindAsync(correlationId, It.IsAny<CancellationToken>()), Times.Once);
@@ -171,7 +171,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
                 .ReturnsAsync((TestSaga?)null);
 
             // Act
-            await orchestrator.ProcessAsync(@event);
+            await orchestrator.ProcessAsync(@event, TestContext.Current.CancellationToken);
 
             // Assert
             _repositoryMock.Verify(r => r.SaveAsync(
@@ -195,7 +195,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
                 .Returns(Task.CompletedTask);
 
             // Act
-            await orchestrator.ProcessAsync(@event);
+            await orchestrator.ProcessAsync(@event, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.NotNull(savedState);
@@ -218,7 +218,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
                 .Returns(Task.CompletedTask);
 
             // Act
-            await orchestrator.ProcessAsync(@event);
+            await orchestrator.ProcessAsync(@event, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.NotNull(savedSaga);
@@ -246,7 +246,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
                 .ReturnsAsync(existingSaga);
 
             // Act
-            await orchestrator.ProcessAsync(@event);
+            await orchestrator.ProcessAsync(@event, TestContext.Current.CancellationToken);
 
             // Assert
             _repositoryMock.Verify(r => r.UpdateAsync(existingSaga, It.IsAny<CancellationToken>()), Times.Once);
@@ -269,7 +269,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
                 .ReturnsAsync(existingSaga);
 
             // Act
-            await orchestrator.ProcessAsync(@event);
+            await orchestrator.ProcessAsync(@event, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.Equal("Completed", existingSaga.CurrentState);
@@ -292,7 +292,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
                 .ReturnsAsync(existingSaga);
 
             // Act
-            await orchestrator.ProcessAsync(@event);
+            await orchestrator.ProcessAsync(@event, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.True(existingSaga.IsCompleted);
@@ -324,7 +324,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
                 .ReturnsAsync((TestSaga?)null);
 
             // Act
-            await orchestrator.ProcessAsync(@event);
+            await orchestrator.ProcessAsync(@event, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.True(actionExecuted);
@@ -356,7 +356,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
                 .ReturnsAsync((TestSaga?)null);
 
             // Act
-            await orchestrator.ProcessAsync(@event);
+            await orchestrator.ProcessAsync(@event, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.True(actionExecuted);
@@ -384,7 +384,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
                 .ReturnsAsync((TestSaga?)null);
 
             // Act
-            await orchestrator.ProcessAsync(@event);
+            await orchestrator.ProcessAsync(@event, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.NotNull(receivedContext);
@@ -414,7 +414,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
                 .ReturnsAsync(existingSaga);
 
             // Act
-            await orchestrator.ProcessAsync(@event);
+            await orchestrator.ProcessAsync(@event, TestContext.Current.CancellationToken);
 
             // Assert
             _repositoryMock.Verify(r => r.UpdateAsync(It.IsAny<TestSaga>(), It.IsAny<CancellationToken>()), Times.Never);
@@ -438,7 +438,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
                 .ReturnsAsync(existingSaga);
 
             // Act
-            await orchestrator.ProcessAsync(@event);
+            await orchestrator.ProcessAsync(@event, TestContext.Current.CancellationToken);
 
             // Assert
             _repositoryMock.Verify(r => r.UpdateAsync(It.IsAny<TestSaga>(), It.IsAny<CancellationToken>()), Times.Never);
@@ -466,7 +466,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
 
             // Act & Assert
             await Assert.ThrowsAsync<InvalidOperationException>(
-                async () => await orchestrator.ProcessAsync(@event));
+                async () => await orchestrator.ProcessAsync(@event, TestContext.Current.CancellationToken));
         }
 
         #endregion

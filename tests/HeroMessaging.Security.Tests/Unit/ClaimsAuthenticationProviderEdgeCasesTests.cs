@@ -104,7 +104,7 @@ public sealed class ClaimsAuthenticationProviderEdgeCasesTests
         var credentials = new AuthenticationCredentials("ApiKey", key);
 
         // Act
-        var principal = provider.AuthenticateAsync(credentials).Result;
+        var principal = provider.AuthenticateAsync(credentials, TestContext.Current.CancellationToken).Result;
 
         // Assert
         Assert.NotNull(principal);
@@ -123,8 +123,8 @@ public sealed class ClaimsAuthenticationProviderEdgeCasesTests
         var creds2 = new AuthenticationCredentials("ApiKey", "lowercase");
 
         // Act
-        var principal1 = await provider.AuthenticateAsync(creds1);
-        var principal2 = await provider.AuthenticateAsync(creds2);
+        var principal1 = await provider.AuthenticateAsync(creds1, TestContext.Current.CancellationToken);
+        var principal2 = await provider.AuthenticateAsync(creds2, TestContext.Current.CancellationToken);
 
         // Assert - Keys should be case-sensitive
         Assert.NotNull(principal1);
@@ -143,7 +143,7 @@ public sealed class ClaimsAuthenticationProviderEdgeCasesTests
         var credentials = new AuthenticationCredentials("apikey", "test"); // lowercase scheme
 
         // Act
-        var principal = await provider.AuthenticateAsync(credentials);
+        var principal = await provider.AuthenticateAsync(credentials, TestContext.Current.CancellationToken);
 
         // Assert - Scheme comparison should be case-sensitive
         Assert.Null(principal);
@@ -156,7 +156,7 @@ public sealed class ClaimsAuthenticationProviderEdgeCasesTests
         var provider = new ClaimsAuthenticationProvider();
 
         // Act
-        var principal = await provider.ValidateTokenAsync(null!);
+        var principal = await provider.ValidateTokenAsync(null!, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(principal);
@@ -169,7 +169,7 @@ public sealed class ClaimsAuthenticationProviderEdgeCasesTests
         var provider = new ClaimsAuthenticationProvider();
 
         // Act
-        var principal = await provider.ValidateTokenAsync("");
+        var principal = await provider.ValidateTokenAsync("", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(principal);
@@ -182,7 +182,7 @@ public sealed class ClaimsAuthenticationProviderEdgeCasesTests
         var provider = new ClaimsAuthenticationProvider();
 
         // Act
-        var principal = await provider.ValidateTokenAsync("   ");
+        var principal = await provider.ValidateTokenAsync("   ", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(principal);
@@ -197,7 +197,7 @@ public sealed class ClaimsAuthenticationProviderEdgeCasesTests
         provider.RegisterApiKey(token, "TokenUser");
 
         // Act
-        var principal = await provider.ValidateTokenAsync(token);
+        var principal = await provider.ValidateTokenAsync(token, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(principal);
@@ -212,7 +212,7 @@ public sealed class ClaimsAuthenticationProviderEdgeCasesTests
         provider.RegisterApiKey("valid-token", "User");
 
         // Act
-        var principal = await provider.ValidateTokenAsync("invalid-token");
+        var principal = await provider.ValidateTokenAsync("invalid-token", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(principal);
@@ -229,7 +229,7 @@ public sealed class ClaimsAuthenticationProviderEdgeCasesTests
         // Act
         provider.RegisterApiKey(key, name);
         var credentials = new AuthenticationCredentials("ApiKey", key);
-        var principal = provider.AuthenticateAsync(credentials).Result;
+        var principal = provider.AuthenticateAsync(credentials, TestContext.Current.CancellationToken).Result;
 
         // Assert
         Assert.NotNull(principal);
@@ -251,7 +251,7 @@ public sealed class ClaimsAuthenticationProviderEdgeCasesTests
         // Act
         provider.RegisterApiKey(key, name, emptyClaims);
         var credentials = new AuthenticationCredentials("ApiKey", key);
-        var principal = provider.AuthenticateAsync(credentials).Result;
+        var principal = provider.AuthenticateAsync(credentials, TestContext.Current.CancellationToken).Result;
 
         // Assert
         Assert.NotNull(principal);
@@ -274,7 +274,7 @@ public sealed class ClaimsAuthenticationProviderEdgeCasesTests
         // Act
         provider.RegisterApiKey("multi-role-key", "MultiRoleUser", claims);
         var credentials = new AuthenticationCredentials("ApiKey", "multi-role-key");
-        var principal = provider.AuthenticateAsync(credentials).Result;
+        var principal = provider.AuthenticateAsync(credentials, TestContext.Current.CancellationToken).Result;
 
         // Assert
         Assert.NotNull(principal);
@@ -301,7 +301,7 @@ public sealed class ClaimsAuthenticationProviderEdgeCasesTests
         var tasks = keys.Select(async kv =>
         {
             var credentials = new AuthenticationCredentials("ApiKey", kv.Item1);
-            var principal = await provider.AuthenticateAsync(credentials);
+            var principal = await provider.AuthenticateAsync(credentials, TestContext.Current.CancellationToken);
             return (ExpectedName: kv.Item2, ActualName: principal?.Identity?.Name);
         });
 
@@ -324,7 +324,7 @@ public sealed class ClaimsAuthenticationProviderEdgeCasesTests
         // Act
         provider.RegisterApiKey(specialKey, "SpecialUser");
         var credentials = new AuthenticationCredentials("ApiKey", specialKey);
-        var principal = provider.AuthenticateAsync(credentials).Result;
+        var principal = provider.AuthenticateAsync(credentials, TestContext.Current.CancellationToken).Result;
 
         // Assert
         Assert.NotNull(principal);
@@ -341,7 +341,7 @@ public sealed class ClaimsAuthenticationProviderEdgeCasesTests
         // Act
         provider.RegisterApiKey("unicode-key", unicodeName);
         var credentials = new AuthenticationCredentials("ApiKey", "unicode-key");
-        var principal = provider.AuthenticateAsync(credentials).Result;
+        var principal = provider.AuthenticateAsync(credentials, TestContext.Current.CancellationToken).Result;
 
         // Assert
         Assert.NotNull(principal);
@@ -358,7 +358,7 @@ public sealed class ClaimsAuthenticationProviderEdgeCasesTests
         // Act
         provider.RegisterApiKey(longKey, "LongKeyUser");
         var credentials = new AuthenticationCredentials("ApiKey", longKey);
-        var principal = provider.AuthenticateAsync(credentials).Result;
+        var principal = provider.AuthenticateAsync(credentials, TestContext.Current.CancellationToken).Result;
 
         // Assert
         Assert.NotNull(principal);
@@ -375,7 +375,7 @@ public sealed class ClaimsAuthenticationProviderEdgeCasesTests
         // Act
         provider.RegisterApiKey("long-name-key", longName);
         var credentials = new AuthenticationCredentials("ApiKey", "long-name-key");
-        var principal = provider.AuthenticateAsync(credentials).Result;
+        var principal = provider.AuthenticateAsync(credentials, TestContext.Current.CancellationToken).Result;
 
         // Assert
         Assert.NotNull(principal);
@@ -404,7 +404,7 @@ public sealed class ClaimsAuthenticationProviderEdgeCasesTests
         // Act
         provider.RegisterApiKey("complex-key", "ComplexUser", claims);
         var credentials = new AuthenticationCredentials("ApiKey", "complex-key");
-        var principal = provider.AuthenticateAsync(credentials).Result;
+        var principal = provider.AuthenticateAsync(credentials, TestContext.Current.CancellationToken).Result;
 
         // Assert
         Assert.NotNull(principal);
@@ -423,7 +423,7 @@ public sealed class ClaimsAuthenticationProviderEdgeCasesTests
         var cts = new CancellationTokenSource();
 
         // Act
-        var principal = await provider.AuthenticateAsync(credentials, cts.Token);
+        var principal = await provider.AuthenticateAsync(credentials, cts.Token, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(principal);
@@ -438,7 +438,7 @@ public sealed class ClaimsAuthenticationProviderEdgeCasesTests
         var cts = new CancellationTokenSource();
 
         // Act
-        var principal = await provider.ValidateTokenAsync("token", cts.Token);
+        var principal = await provider.ValidateTokenAsync("token", cts.Token, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(principal);
@@ -460,7 +460,7 @@ public sealed class ClaimsAuthenticationProviderEdgeCasesTests
         for (int i = 0; i < keyCount; i++)
         {
             var credentials = new AuthenticationCredentials("ApiKey", $"key-{i}");
-            var principal = provider.AuthenticateAsync(credentials).Result;
+            var principal = provider.AuthenticateAsync(credentials, TestContext.Current.CancellationToken).Result;
 
             Assert.NotNull(principal);
             Assert.Equal($"user-{i}", principal.Identity?.Name);

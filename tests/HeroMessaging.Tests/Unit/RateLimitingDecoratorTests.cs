@@ -71,7 +71,7 @@ public class RateLimitingDecoratorTests
         var context = new ProcessingContext();
 
         // Act
-        var result = await decorator.ProcessAsync(message, context);
+        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -100,8 +100,8 @@ public class RateLimitingDecoratorTests
         var context = new ProcessingContext();
 
         // Act: First message should succeed, second should be throttled
-        var result1 = await decorator.ProcessAsync(message1, context);
-        var result2 = await decorator.ProcessAsync(message2, context);
+        var result1 = await decorator.ProcessAsync(message1, context, TestContext.Current.CancellationToken);
+        var result2 = await decorator.ProcessAsync(message2, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result1.Success);
@@ -130,10 +130,10 @@ public class RateLimitingDecoratorTests
         var context = new ProcessingContext();
 
         // Exhaust capacity
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Act: Try again (should be throttled)
-        var result = await decorator.ProcessAsync(message, context);
+        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.Success);
@@ -167,8 +167,8 @@ public class RateLimitingDecoratorTests
         var context = new ProcessingContext();
 
         // Act: Both messages of same type should share rate limit
-        var result1 = await decorator.ProcessAsync(message1, context);
-        var result2 = await decorator.ProcessAsync(message2, context);
+        var result1 = await decorator.ProcessAsync(message1, context, TestContext.Current.CancellationToken);
+        var result2 = await decorator.ProcessAsync(message2, context, TestContext.Current.CancellationToken);
 
         // Assert: First succeeds, second throttled (same type)
         Assert.True(result1.Success);
@@ -198,8 +198,8 @@ public class RateLimitingDecoratorTests
         var context = new ProcessingContext();
 
         // Act
-        var result1 = await decorator.ProcessAsync(message1, context);
-        var result2 = await decorator.ProcessAsync(message2, context);
+        var result1 = await decorator.ProcessAsync(message1, context, TestContext.Current.CancellationToken);
+        var result2 = await decorator.ProcessAsync(message2, context, TestContext.Current.CancellationToken);
 
         // Assert: Both use global limit
         Assert.True(result1.Success);
@@ -233,8 +233,8 @@ public class RateLimitingDecoratorTests
         var context = new ProcessingContext();
 
         // Act: First exhausts token, second should wait and succeed
-        var result1 = await decorator.ProcessAsync(message1, context);
-        var result2 = await decorator.ProcessAsync(message2, context);
+        var result1 = await decorator.ProcessAsync(message1, context, TestContext.Current.CancellationToken);
+        var result2 = await decorator.ProcessAsync(message2, context, TestContext.Current.CancellationToken);
 
         // Assert: Both should eventually succeed
         Assert.True(result1.Success);
@@ -261,9 +261,9 @@ public class RateLimitingDecoratorTests
         var context = new ProcessingContext();
 
         // Act: Process two messages (both should fail, but consume tokens)
-        var result1 = await decorator.ProcessAsync(message, context);
-        var result2 = await decorator.ProcessAsync(message, context);
-        var result3 = await decorator.ProcessAsync(message, context);
+        var result1 = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
+        var result2 = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
+        var result3 = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert: First two consumed tokens and failed, third rate limited
         Assert.False(result1.Success);
@@ -289,7 +289,7 @@ public class RateLimitingDecoratorTests
         var context = new ProcessingContext();
 
         // Exhaust capacity
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Act: Cancel while queued
         using var cts = new CancellationTokenSource();
@@ -348,20 +348,20 @@ public class RateLimitingDecoratorTests
         var context = new ProcessingContext();
 
         // Exhaust capacity (2 tokens)
-        await decorator.ProcessAsync(message, context);
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Verify exhausted
-        var resultExhausted = await decorator.ProcessAsync(message, context);
+        var resultExhausted = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
         Assert.False(resultExhausted.Success);
 
         // Act: Advance time by 1 second (should refill 10 tokens, capped at capacity 2)
         timeProvider.Advance(TimeSpan.FromSeconds(1));
 
         // Assert: Should allow 2 more requests
-        var result1 = await decorator.ProcessAsync(message, context);
-        var result2 = await decorator.ProcessAsync(message, context);
-        var result3 = await decorator.ProcessAsync(message, context);
+        var result1 = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
+        var result2 = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
+        var result3 = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         Assert.True(result1.Success);
         Assert.True(result2.Success);

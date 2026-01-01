@@ -288,7 +288,7 @@ public sealed class SecurityBuilderExtensionsTests
         Assert.NotNull(authProvider);
 
         var credentials = new AuthenticationCredentials("ApiKey", configuredKey);
-        var principal = authProvider.AuthenticateAsync(credentials).Result;
+        var principal = authProvider.AuthenticateAsync(credentials, TestContext.Current.CancellationToken).Result;
         Assert.NotNull(principal);
         Assert.Equal(configuredName, principal.Identity?.Name);
     }
@@ -387,7 +387,7 @@ public sealed class SecurityBuilderExtensionsTests
             [new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "admin")],
             "TestAuth");
         var principal = new System.Security.Claims.ClaimsPrincipal(identity);
-        var result = authzProvider.AuthorizeAsync(principal, "TestMessage", "Send").Result;
+        var result = authzProvider.AuthorizeAsync(principal, "TestMessage", "Send", TestContext.Current.CancellationToken).Result;
         Assert.True(result.Succeeded);
     }
 

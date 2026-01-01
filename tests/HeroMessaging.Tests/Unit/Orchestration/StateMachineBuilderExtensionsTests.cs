@@ -226,7 +226,7 @@ public class StateMachineBuilderExtensionsTests
         }
 
         // Execute compensation
-        await compensationContext.CompensateAsync(cancellationToken: CancellationToken.None);
+        await compensationContext.CompensateAsync(cancellationToken: CancellationToken.None, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(compensationExecuted);

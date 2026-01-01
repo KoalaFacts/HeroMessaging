@@ -273,7 +273,7 @@ public sealed class SqlServerIdempotencyStoreIntegrationTests : IAsyncDisposable
             try
             {
                 await using var connection = new SqlConnection(_fixture.ConnectionString);
-                await connection.OpenAsync();
+                await connection.OpenAsync(TestContext.Current.CancellationToken);
 
                 foreach (var key in _keysToCleanup)
                 {
@@ -282,7 +282,7 @@ public sealed class SqlServerIdempotencyStoreIntegrationTests : IAsyncDisposable
                         await using var command = connection.CreateCommand();
                         command.CommandText = "DELETE FROM IdempotencyResponses WHERE IdempotencyKey = @Key";
                         command.Parameters.AddWithValue("@Key", key);
-                        await command.ExecuteNonQueryAsync();
+                        await command.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
                     }
                     catch
                     {

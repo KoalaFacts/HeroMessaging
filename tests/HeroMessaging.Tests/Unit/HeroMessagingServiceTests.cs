@@ -93,7 +93,7 @@ public class HeroMessagingServiceTests
             .Returns(Task.CompletedTask);
 
         // Act
-        await _sut.SendAsync(command);
+        await _sut.SendAsync(command, TestContext.Current.CancellationToken);
 
         // Assert
         _mockCommandProcessor.Verify(x => x.SendAsync(command, It.IsAny<CancellationToken>()), Times.Once);
@@ -111,7 +111,7 @@ public class HeroMessagingServiceTests
             .ReturnsAsync(expectedResponse);
 
         // Act
-        var result = await _sut.SendAsync(command);
+        var result = await _sut.SendAsync(command, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(expectedResponse, result);
@@ -152,7 +152,7 @@ public class HeroMessagingServiceTests
             .ReturnsAsync(expectedResponse);
 
         // Act
-        var result = await _sut.SendAsync(query);
+        var result = await _sut.SendAsync(query, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(expectedResponse, result);
@@ -192,7 +192,7 @@ public class HeroMessagingServiceTests
             .Returns(Task.CompletedTask);
 
         // Act
-        await _sut.PublishAsync(@event);
+        await _sut.PublishAsync(@event, TestContext.Current.CancellationToken);
 
         // Assert
         _mockEventBus.Verify(x => x.PublishAsync(@event, It.IsAny<CancellationToken>()), Times.Once);
@@ -226,7 +226,7 @@ public class HeroMessagingServiceTests
     public async Task SendBatchAsync_WithNullCommands_ReturnsEmptyArray()
     {
         // Act
-        var result = await _sut.SendBatchAsync(null!);
+        var result = await _sut.SendBatchAsync(null!, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -240,7 +240,7 @@ public class HeroMessagingServiceTests
         var commands = Array.Empty<ICommand>();
 
         // Act
-        var result = await _sut.SendBatchAsync(commands);
+        var result = await _sut.SendBatchAsync(commands, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -262,7 +262,7 @@ public class HeroMessagingServiceTests
             .Returns(Task.CompletedTask);
 
         // Act
-        var results = await _sut.SendBatchAsync(commands);
+        var results = await _sut.SendBatchAsync(commands, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(3, results.Count);
@@ -289,7 +289,7 @@ public class HeroMessagingServiceTests
             .Returns(Task.CompletedTask);
 
         // Act - batch operations should NOT throw, they should continue processing
-        var results = await _sut.SendBatchAsync(commands);
+        var results = await _sut.SendBatchAsync(commands, TestContext.Current.CancellationToken);
 
         // Assert - first succeeded, second failed, third succeeded
         Assert.Equal(3, results.Count);
@@ -313,7 +313,7 @@ public class HeroMessagingServiceTests
             .ReturnsAsync("result2");
 
         // Act
-        var results = await _sut.SendBatchAsync(commands);
+        var results = await _sut.SendBatchAsync(commands, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(2, results.Count);
@@ -342,7 +342,7 @@ public class HeroMessagingServiceTests
     public async Task PublishBatchAsync_WithNullEvents_ReturnsEmptyArray()
     {
         // Act
-        var result = await _sut.PublishBatchAsync(null!);
+        var result = await _sut.PublishBatchAsync(null!, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -356,7 +356,7 @@ public class HeroMessagingServiceTests
         var events = Array.Empty<IEvent>();
 
         // Act
-        var result = await _sut.PublishBatchAsync(events);
+        var result = await _sut.PublishBatchAsync(events, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -377,7 +377,7 @@ public class HeroMessagingServiceTests
             .Returns(Task.CompletedTask);
 
         // Act
-        var results = await _sut.PublishBatchAsync(events);
+        var results = await _sut.PublishBatchAsync(events, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(2, results.Count);
@@ -404,7 +404,7 @@ public class HeroMessagingServiceTests
             .Returns(Task.CompletedTask);
 
         // Act - batch operations should NOT throw, they should continue processing
-        var results = await _sut.PublishBatchAsync(events);
+        var results = await _sut.PublishBatchAsync(events, TestContext.Current.CancellationToken);
 
         // Assert - first succeeded, second failed, third succeeded
         Assert.Equal(3, results.Count);
@@ -429,7 +429,7 @@ public class HeroMessagingServiceTests
             .Returns(Task.CompletedTask);
 
         // Act
-        await _sut.EnqueueAsync(message, queueName, options);
+        await _sut.EnqueueAsync(message, queueName, options, TestContext.Current.CancellationToken);
 
         // Assert
         _mockQueueProcessor.Verify(x => x.EnqueueAsync(message, queueName, options, It.IsAny<CancellationToken>()), Times.Once);
@@ -454,7 +454,7 @@ public class HeroMessagingServiceTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await service.EnqueueAsync(message, "queue"));
+            async () => await service.EnqueueAsync(message, "queue", TestContext.Current.CancellationToken));
 
         Assert.Contains("Queue functionality is not enabled", exception.Message);
         Assert.Contains("WithQueues()", exception.Message);
@@ -473,7 +473,7 @@ public class HeroMessagingServiceTests
             .Returns(Task.CompletedTask);
 
         // Act
-        await _sut.StartQueueAsync(queueName);
+        await _sut.StartQueueAsync(queueName, TestContext.Current.CancellationToken);
 
         // Assert
         _mockQueueProcessor.Verify(x => x.StartQueueAsync(queueName, It.IsAny<CancellationToken>()), Times.Once);
@@ -494,7 +494,7 @@ public class HeroMessagingServiceTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await service.StartQueueAsync("queue"));
+            async () => await service.StartQueueAsync("queue", TestContext.Current.CancellationToken));
 
         Assert.Contains("Queue functionality is not enabled", exception.Message);
     }
@@ -512,7 +512,7 @@ public class HeroMessagingServiceTests
             .Returns(Task.CompletedTask);
 
         // Act
-        await _sut.StopQueueAsync(queueName);
+        await _sut.StopQueueAsync(queueName, TestContext.Current.CancellationToken);
 
         // Assert
         _mockQueueProcessor.Verify(x => x.StopQueueAsync(queueName, It.IsAny<CancellationToken>()), Times.Once);
@@ -533,7 +533,7 @@ public class HeroMessagingServiceTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await service.StopQueueAsync("queue"));
+            async () => await service.StopQueueAsync("queue", TestContext.Current.CancellationToken));
 
         Assert.Contains("Queue functionality is not enabled", exception.Message);
     }
@@ -553,7 +553,7 @@ public class HeroMessagingServiceTests
             .Returns(Task.CompletedTask);
 
         // Act
-        await _sut.PublishToOutboxAsync(message, options);
+        await _sut.PublishToOutboxAsync(message, options, TestContext.Current.CancellationToken);
 
         // Assert
         _mockOutboxProcessor.Verify(x => x.PublishToOutboxAsync(message, options, It.IsAny<CancellationToken>()), Times.Once);
@@ -578,7 +578,7 @@ public class HeroMessagingServiceTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await service.PublishToOutboxAsync(message));
+            async () => await service.PublishToOutboxAsync(message, TestContext.Current.CancellationToken));
 
         Assert.Contains("Outbox functionality is not enabled", exception.Message);
         Assert.Contains("WithOutbox()", exception.Message);
@@ -599,7 +599,7 @@ public class HeroMessagingServiceTests
             .ReturnsAsync(true);
 
         // Act
-        await _sut.ProcessIncomingAsync(message, options);
+        await _sut.ProcessIncomingAsync(message, options, TestContext.Current.CancellationToken);
 
         // Assert
         _mockInboxProcessor.Verify(x => x.ProcessIncomingAsync(message, options, It.IsAny<CancellationToken>()), Times.Once);
@@ -624,7 +624,7 @@ public class HeroMessagingServiceTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await service.ProcessIncomingAsync(message));
+            async () => await service.ProcessIncomingAsync(message, TestContext.Current.CancellationToken));
 
         Assert.Contains("Inbox functionality is not enabled", exception.Message);
         Assert.Contains("WithInbox()", exception.Message);

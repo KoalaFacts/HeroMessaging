@@ -184,14 +184,14 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             var cts = new CancellationTokenSource();
 
             // Act
-            await handler.StartAsync(cts.Token);
+            await handler.StartAsync(cts.Token, TestContext.Current.CancellationToken);
 
             // Wait for processing to complete with timeout
             var completedTask = await Task.WhenAny(processingComplete.Task, Task.Delay(1000));
             Assert.Same(processingComplete.Task, completedTask);
 
-            await cts.CancelAsync();
-            await handler.StopAsync(CancellationToken.None);
+            await cts.CancelAsync(TestContext.Current.CancellationToken);
+            await handler.StopAsync(CancellationToken.None, TestContext.Current.CancellationToken);
 
             // Assert
             repositoryMock.Verify(r => r.UpdateAsync(
@@ -220,14 +220,14 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             var cts = new CancellationTokenSource();
 
             // Act
-            await handler.StartAsync(cts.Token);
+            await handler.StartAsync(cts.Token, TestContext.Current.CancellationToken);
 
             // Wait for at least one check to complete
             var completedTask = await Task.WhenAny(findCalled.Task, Task.Delay(1000));
             Assert.Same(findCalled.Task, completedTask);
 
-            await cts.CancelAsync();
-            await handler.StopAsync(CancellationToken.None);
+            await cts.CancelAsync(TestContext.Current.CancellationToken);
+            await handler.StopAsync(CancellationToken.None, TestContext.Current.CancellationToken);
 
             // Assert
             repositoryMock.Verify(r => r.UpdateAsync(It.IsAny<TestSaga>(), It.IsAny<CancellationToken>()), Times.Never);
@@ -271,14 +271,14 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             var cts = new CancellationTokenSource();
 
             // Act
-            await handler.StartAsync(cts.Token);
+            await handler.StartAsync(cts.Token, TestContext.Current.CancellationToken);
 
             // Wait for all updates to complete
             var completedTask = await Task.WhenAny(allUpdated.Task, Task.Delay(1000));
             Assert.Same(allUpdated.Task, completedTask);
 
-            await cts.CancelAsync();
-            await handler.StopAsync(CancellationToken.None);
+            await cts.CancelAsync(TestContext.Current.CancellationToken);
+            await handler.StopAsync(CancellationToken.None, TestContext.Current.CancellationToken);
 
             // Assert
             repositoryMock.Verify(r => r.UpdateAsync(
@@ -320,14 +320,14 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             var cts = new CancellationTokenSource();
 
             // Act - Should not throw
-            await handler.StartAsync(cts.Token);
+            await handler.StartAsync(cts.Token, TestContext.Current.CancellationToken);
 
             // Wait for update attempt
             var completedTask = await Task.WhenAny(updateAttempted.Task, Task.Delay(1000));
             Assert.Same(updateAttempted.Task, completedTask);
 
-            await cts.CancelAsync();
-            await handler.StopAsync(CancellationToken.None);
+            await cts.CancelAsync(TestContext.Current.CancellationToken);
+            await handler.StopAsync(CancellationToken.None, TestContext.Current.CancellationToken);
 
             // Assert - Should have attempted update
             repositoryMock.Verify(r => r.UpdateAsync(It.IsAny<TestSaga>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
@@ -369,7 +369,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             var cts = new CancellationTokenSource();
 
             // Act
-            await handler.StartAsync(cts.Token);
+            await handler.StartAsync(cts.Token, TestContext.Current.CancellationToken);
 
             // Advance time to trigger multiple checks
             _fakeTimeProvider.Advance(TimeSpan.FromMilliseconds(100));
@@ -378,8 +378,8 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             var completedTask = await Task.WhenAny(secondCallComplete.Task, Task.Delay(1000));
             Assert.Same(secondCallComplete.Task, completedTask);
 
-            await cts.CancelAsync();
-            await handler.StopAsync(CancellationToken.None);
+            await cts.CancelAsync(TestContext.Current.CancellationToken);
+            await handler.StopAsync(CancellationToken.None, TestContext.Current.CancellationToken);
 
             // Assert - Should have attempted multiple checks despite errors
             Assert.True(callCount >= 2, $"Expected at least 2 checks, got {callCount}");
@@ -410,15 +410,15 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             var cts = new CancellationTokenSource();
 
             // Act
-            await handler.StartAsync(cts.Token);
+            await handler.StartAsync(cts.Token, TestContext.Current.CancellationToken);
 
             // Wait for first check to start
             await Task.WhenAny(findCalled.Task, Task.Delay(500));
 
-            await cts.CancelAsync();
+            await cts.CancelAsync(TestContext.Current.CancellationToken);
 
             // BackgroundService should stop gracefully when StopAsync is called
-            await handler.StopAsync(CancellationToken.None);
+            await handler.StopAsync(CancellationToken.None, TestContext.Current.CancellationToken);
 
             // Assert - if we get here without hanging, the test passes
             Assert.True(true);
@@ -444,12 +444,12 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             var handler = new SagaTimeoutHandler<TestSaga>(services, options, _loggerMock.Object, _fakeTimeProvider);
 
             // Act
-            await handler.StartAsync(CancellationToken.None);
+            await handler.StartAsync(CancellationToken.None, TestContext.Current.CancellationToken);
 
             // Wait for first check
             await Task.WhenAny(findCalled.Task, Task.Delay(500));
 
-            await handler.StopAsync(CancellationToken.None);
+            await handler.StopAsync(CancellationToken.None, TestContext.Current.CancellationToken);
 
             // Assert - Should complete without error
             Assert.True(true);
@@ -489,14 +489,14 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             var cts = new CancellationTokenSource();
 
             // Act
-            await handler.StartAsync(cts.Token);
+            await handler.StartAsync(cts.Token, TestContext.Current.CancellationToken);
 
             // Wait for update to complete
             var completedTask = await Task.WhenAny(updateCalled.Task, Task.Delay(1000));
             Assert.Same(updateCalled.Task, completedTask);
 
-            await cts.CancelAsync();
-            await handler.StopAsync(CancellationToken.None);
+            await cts.CancelAsync(TestContext.Current.CancellationToken);
+            await handler.StopAsync(CancellationToken.None, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.True(staleSaga.IsCompleted);
@@ -531,14 +531,14 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             var cts = new CancellationTokenSource();
 
             // Act
-            await handler.StartAsync(cts.Token);
+            await handler.StartAsync(cts.Token, TestContext.Current.CancellationToken);
 
             // Wait for update to complete
             var completedTask = await Task.WhenAny(updateCalled.Task, Task.Delay(1000));
             Assert.Same(updateCalled.Task, completedTask);
 
-            await cts.CancelAsync();
-            await handler.StopAsync(CancellationToken.None);
+            await cts.CancelAsync(TestContext.Current.CancellationToken);
+            await handler.StopAsync(CancellationToken.None, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.Equal("TimedOut", staleSaga.CurrentState);

@@ -42,7 +42,7 @@ public sealed class LoggingDecoratorTests
             .ReturnsAsync(ProcessingResult.Successful());
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         _loggerMock.Verify(
@@ -68,7 +68,7 @@ public sealed class LoggingDecoratorTests
             .ReturnsAsync(ProcessingResult.Successful());
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         _loggerMock.Verify(
@@ -94,7 +94,7 @@ public sealed class LoggingDecoratorTests
             .ReturnsAsync(ProcessingResult.Successful());
 
         // Act
-        var result = await decorator.ProcessAsync(message, context);
+        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -115,7 +115,7 @@ public sealed class LoggingDecoratorTests
             .ReturnsAsync(ProcessingResult.Successful(expectedMessage));
 
         // Act
-        var result = await decorator.ProcessAsync(message, context);
+        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -140,7 +140,7 @@ public sealed class LoggingDecoratorTests
             .ReturnsAsync(ProcessingResult.Failed(testException, "Processing failed"));
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         _loggerMock.Verify(
@@ -167,7 +167,7 @@ public sealed class LoggingDecoratorTests
             .ReturnsAsync(ProcessingResult.Failed(testException, "Processing failed"));
 
         // Act
-        var result = await decorator.ProcessAsync(message, context);
+        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.Success);
@@ -193,7 +193,7 @@ public sealed class LoggingDecoratorTests
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await decorator.ProcessAsync(message, context));
+            async () => await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken));
 
         _loggerMock.Verify(
             x => x.Log(
@@ -220,7 +220,7 @@ public sealed class LoggingDecoratorTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await decorator.ProcessAsync(message, context));
+            async () => await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken));
 
         Assert.Equal("Test exception", exception.Message);
     }
@@ -246,7 +246,7 @@ public sealed class LoggingDecoratorTests
             .ReturnsAsync(ProcessingResult.Successful());
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         _loggerMock.Verify(
@@ -276,7 +276,7 @@ public sealed class LoggingDecoratorTests
             .ReturnsAsync(ProcessingResult.Successful());
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         _loggerMock.Verify(
@@ -306,7 +306,7 @@ public sealed class LoggingDecoratorTests
             .ReturnsAsync(ProcessingResult.Successful());
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         _loggerMock.Verify(
@@ -340,7 +340,7 @@ public sealed class LoggingDecoratorTests
             .ReturnsAsync(ProcessingResult.Successful());
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         // Note: When logLevel is Debug, there will be 2 calls: start logging + success logging
@@ -377,7 +377,7 @@ public sealed class LoggingDecoratorTests
             });
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert - Verify logging includes elapsed time (should be > 0ms)
         _loggerMock.Verify(
@@ -407,7 +407,7 @@ public sealed class LoggingDecoratorTests
             });
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         _loggerMock.Verify(
@@ -438,7 +438,7 @@ public sealed class LoggingDecoratorTests
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await decorator.ProcessAsync(message, context));
+            async () => await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken));
 
         _loggerMock.Verify(
             x => x.Log(
@@ -467,7 +467,7 @@ public sealed class LoggingDecoratorTests
             .ReturnsAsync(ProcessingResult.Successful());
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert - Logs should reference TestMessage
         _loggerMock.Verify(

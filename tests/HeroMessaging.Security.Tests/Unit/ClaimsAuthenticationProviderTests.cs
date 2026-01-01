@@ -77,7 +77,7 @@ public sealed class ClaimsAuthenticationProviderTests
         var credentials = new AuthenticationCredentials("ApiKey", apiKey);
 
         // Act
-        var principal = await provider.AuthenticateAsync(credentials);
+        var principal = await provider.AuthenticateAsync(credentials, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(principal);
@@ -96,7 +96,7 @@ public sealed class ClaimsAuthenticationProviderTests
         var credentials = new AuthenticationCredentials("ApiKey", "invalid-key");
 
         // Act
-        var principal = await provider.AuthenticateAsync(credentials);
+        var principal = await provider.AuthenticateAsync(credentials, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(principal);
@@ -112,7 +112,7 @@ public sealed class ClaimsAuthenticationProviderTests
         var credentials = new AuthenticationCredentials("Bearer", "test-key");
 
         // Act
-        var principal = await provider.AuthenticateAsync(credentials);
+        var principal = await provider.AuthenticateAsync(credentials, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(principal);
@@ -126,7 +126,7 @@ public sealed class ClaimsAuthenticationProviderTests
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentNullException>(
-            () => provider.AuthenticateAsync(null!));
+            () => provider.AuthenticateAsync(null!, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -136,7 +136,7 @@ public sealed class ClaimsAuthenticationProviderTests
         var provider = new ClaimsAuthenticationProvider();
 
         // Act
-        var principal = await provider.ValidateTokenAsync("some-token");
+        var principal = await provider.ValidateTokenAsync("some-token", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(principal);
@@ -182,8 +182,8 @@ public sealed class ClaimsAuthenticationProviderTests
         var credentials2 = new AuthenticationCredentials("ApiKey", "key2");
 
         // Act
-        var principal1 = await provider.AuthenticateAsync(credentials1);
-        var principal2 = await provider.AuthenticateAsync(credentials2);
+        var principal1 = await provider.AuthenticateAsync(credentials1, TestContext.Current.CancellationToken);
+        var principal2 = await provider.AuthenticateAsync(credentials2, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(principal1);
@@ -212,7 +212,7 @@ public sealed class ClaimsAuthenticationProviderTests
         var credentials = new AuthenticationCredentials("ApiKey", "manager-key");
 
         // Act
-        var principal = await provider.AuthenticateAsync(credentials);
+        var principal = await provider.AuthenticateAsync(credentials, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(principal);

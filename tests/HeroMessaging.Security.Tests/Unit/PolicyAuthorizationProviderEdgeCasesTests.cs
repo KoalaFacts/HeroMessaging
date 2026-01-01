@@ -15,7 +15,7 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
         var provider = new PolicyAuthorizationProvider(requireAuthenticatedUser: true);
 
         // Act
-        var result = await provider.AuthorizeAsync(null!, "Message", "Operation");
+        var result = await provider.AuthorizeAsync(null!, "Message", "Operation", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.Succeeded);
@@ -28,7 +28,7 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
         var provider = new PolicyAuthorizationProvider(requireAuthenticatedUser: false);
 
         // Act
-        var result = await provider.AuthorizeAsync(null!, "Message", "Operation");
+        var result = await provider.AuthorizeAsync(null!, "Message", "Operation", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Succeeded);
@@ -43,7 +43,7 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentException>(
-            () => provider.AuthorizeAsync(principal, "", "Operation"));
+            () => provider.AuthorizeAsync(principal, "", "Operation", TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -55,7 +55,7 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentException>(
-            () => provider.AuthorizeAsync(principal, "   ", "Operation"));
+            () => provider.AuthorizeAsync(principal, "   ", "Operation", TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -67,7 +67,7 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentException>(
-            () => provider.AuthorizeAsync(principal, "Message", ""));
+            () => provider.AuthorizeAsync(principal, "Message", "", TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -79,7 +79,7 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentException>(
-            () => provider.AuthorizeAsync(principal, "Message", "  \t\n"));
+            () => provider.AuthorizeAsync(principal, "Message", "  \t\n", TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -93,8 +93,8 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
         var principal = new ClaimsPrincipal(identity);
 
         // Act - Try with different casing
-        var result1 = await provider.AuthorizeAsync(principal, "testmessage", "send");
-        var result2 = await provider.AuthorizeAsync(principal, "TESTMESSAGE", "SEND");
+        var result1 = await provider.AuthorizeAsync(principal, "testmessage", "send", TestContext.Current.CancellationToken);
+        var result2 = await provider.AuthorizeAsync(principal, "TESTMESSAGE", "SEND", TestContext.Current.CancellationToken);
 
         // Assert - Policy names should be case-insensitive
         Assert.True(result1.Succeeded);
@@ -112,7 +112,7 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
 
         var identity = new ClaimsIdentity([new Claim(ClaimTypes.Role, "manager")], "TestAuth");
         var principal = new ClaimsPrincipal(identity);
-        var result = provider.AuthorizeAsync(principal, "Message", "Op").Result;
+        var result = provider.AuthorizeAsync(principal, "Message", "Op", TestContext.Current.CancellationToken).Result;
 
         // Assert - Should work, whitespace roles ignored
         Assert.True(result.Succeeded);
@@ -129,7 +129,7 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
 
         var identity = new ClaimsIdentity([new Claim("permission", "write")], "TestAuth");
         var principal = new ClaimsPrincipal(identity);
-        var result = provider.AuthorizeAsync(principal, "Message", "Op").Result;
+        var result = provider.AuthorizeAsync(principal, "Message", "Op", TestContext.Current.CancellationToken).Result;
 
         // Assert - Should work, whitespace values ignored
         Assert.True(result.Succeeded);
@@ -144,7 +144,7 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentException>(
-            () => provider.HasPermissionAsync(principal, ""));
+            () => provider.HasPermissionAsync(principal, "", TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -156,7 +156,7 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentException>(
-            () => provider.HasPermissionAsync(principal, "  \t"));
+            () => provider.HasPermissionAsync(principal, "  \t", TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -171,8 +171,8 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
         var principal = new ClaimsPrincipal(identity);
 
         // Act
-        var hasPermission1 = await provider.HasPermissionAsync(principal, "delete-orders");
-        var hasPermission2 = await provider.HasPermissionAsync(principal, "DELETE-ORDERS");
+        var hasPermission1 = await provider.HasPermissionAsync(principal, "delete-orders", TestContext.Current.CancellationToken);
+        var hasPermission2 = await provider.HasPermissionAsync(principal, "DELETE-ORDERS", TestContext.Current.CancellationToken);
 
         // Assert - Permission check should be case-insensitive
         Assert.True(hasPermission1);
@@ -412,8 +412,8 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
         var userPrincipal = new ClaimsPrincipal(userIdentity);
 
         // Act
-        var adminResult = await provider.AuthorizeAsync(adminPrincipal, "SpecificMessage", "Send");
-        var userResult = await provider.AuthorizeAsync(userPrincipal, "SpecificMessage", "Send");
+        var adminResult = await provider.AuthorizeAsync(adminPrincipal, "SpecificMessage", "Send", TestContext.Current.CancellationToken);
+        var userResult = await provider.AuthorizeAsync(userPrincipal, "SpecificMessage", "Send", TestContext.Current.CancellationToken);
 
         // Assert - Specific policy should take precedence
         Assert.True(adminResult.Succeeded);
@@ -434,9 +434,9 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
         var principal = new ClaimsPrincipal(identity);
 
         // Act
-        var result1 = await provider.AuthorizeAsync(principal, "Message1", "Send");
-        var result2 = await provider.AuthorizeAsync(principal, "Message2", "Send");
-        var result3 = await provider.AuthorizeAsync(principal, "AnyMessage", "Send");
+        var result1 = await provider.AuthorizeAsync(principal, "Message1", "Send", TestContext.Current.CancellationToken);
+        var result2 = await provider.AuthorizeAsync(principal, "Message2", "Send", TestContext.Current.CancellationToken);
+        var result3 = await provider.AuthorizeAsync(principal, "AnyMessage", "Send", TestContext.Current.CancellationToken);
 
         // Assert - Wildcard applies to all
         Assert.True(result1.Succeeded);
@@ -454,7 +454,7 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
         var cts = new CancellationTokenSource();
 
         // Act
-        var result = await provider.AuthorizeAsync(principal, "Message", "Op", cts.Token);
+        var result = await provider.AuthorizeAsync(principal, "Message", "Op", cts.Token, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Succeeded);
@@ -473,7 +473,7 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
         var cts = new CancellationTokenSource();
 
         // Act
-        var hasPermission = await provider.HasPermissionAsync(principal, "test", cts.Token);
+        var hasPermission = await provider.HasPermissionAsync(principal, "test", cts.Token, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(hasPermission);
@@ -492,7 +492,7 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
         provider.AddPolicy("Test:Op", policy2); // Overwrite
 
         var unauthPrincipal = new ClaimsPrincipal();
-        var result = provider.AuthorizeAsync(unauthPrincipal, "Test", "Op").Result;
+        var result = provider.AuthorizeAsync(unauthPrincipal, "Test", "Op", TestContext.Current.CancellationToken).Result;
 
         // Assert - Should use second policy (anonymous)
         Assert.True(result.Succeeded);

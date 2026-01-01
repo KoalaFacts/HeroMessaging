@@ -81,7 +81,7 @@ namespace HeroMessaging.Tests.Unit.Plugins
             var assembly = typeof(object).Assembly; // System.Private.CoreLib has no plugins
 
             // Act
-            var result = await discovery.DiscoverPluginsAsync(assembly);
+            var result = await discovery.DiscoverPluginsAsync(assembly, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.NotNull(result);
@@ -97,7 +97,7 @@ namespace HeroMessaging.Tests.Unit.Plugins
             var cts = new CancellationTokenSource();
 
             // Act - Pass valid token
-            var result = await discovery.DiscoverPluginsAsync(assembly, cts.Token);
+            var result = await discovery.DiscoverPluginsAsync(assembly, cts.Token, TestContext.Current.CancellationToken);
 
             // Assert - Should complete successfully
             Assert.NotNull(result);
@@ -128,7 +128,7 @@ namespace HeroMessaging.Tests.Unit.Plugins
 
             // Act & Assert
             var ex = await Assert.ThrowsAsync<ArgumentNullException>(() =>
-                discovery.DiscoverPluginsAsync(string.Empty));
+                discovery.DiscoverPluginsAsync(string.Empty, TestContext.Current.CancellationToken));
 
             Assert.Equal("directory", ex.ParamName);
         }
@@ -141,7 +141,7 @@ namespace HeroMessaging.Tests.Unit.Plugins
             var nonExistentDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
 
             // Act
-            var result = await discovery.DiscoverPluginsAsync(nonExistentDir);
+            var result = await discovery.DiscoverPluginsAsync(nonExistentDir, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.NotNull(result);
@@ -163,7 +163,7 @@ namespace HeroMessaging.Tests.Unit.Plugins
                 File.WriteAllText(systemFile, "fake");
 
                 // Act
-                var result = await discovery.DiscoverPluginsAsync(tempDir);
+                var result = await discovery.DiscoverPluginsAsync(tempDir, TestContext.Current.CancellationToken);
 
                 // Assert
                 Assert.NotNull(result);
@@ -187,7 +187,7 @@ namespace HeroMessaging.Tests.Unit.Plugins
             try
             {
                 // Act
-                var result = await discovery.DiscoverPluginsAsync(tempDir, "*.custom");
+                var result = await discovery.DiscoverPluginsAsync(tempDir, "*.custom", TestContext.Current.CancellationToken);
 
                 // Assert
                 Assert.NotNull(result);
@@ -210,7 +210,7 @@ namespace HeroMessaging.Tests.Unit.Plugins
             var discovery = CreateDiscovery();
 
             // Act
-            var result = await discovery.DiscoverPluginsAsync();
+            var result = await discovery.DiscoverPluginsAsync(TestContext.Current.CancellationToken);
 
             // Assert
             Assert.NotNull(result);
@@ -228,7 +228,7 @@ namespace HeroMessaging.Tests.Unit.Plugins
             var discovery = CreateDiscovery();
 
             // Act
-            var result = await discovery.DiscoverPluginsAsync(PluginCategory.Storage);
+            var result = await discovery.DiscoverPluginsAsync(PluginCategory.Storage, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.NotNull(result);
@@ -242,7 +242,7 @@ namespace HeroMessaging.Tests.Unit.Plugins
             var discovery = CreateDiscovery();
 
             // Act
-            var result = await discovery.DiscoverPluginsAsync(PluginCategory.Serialization);
+            var result = await discovery.DiscoverPluginsAsync(PluginCategory.Serialization, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.NotNull(result);
@@ -256,7 +256,7 @@ namespace HeroMessaging.Tests.Unit.Plugins
             var discovery = CreateDiscovery();
 
             // Act
-            var result = await discovery.DiscoverPluginsAsync(PluginCategory.Observability);
+            var result = await discovery.DiscoverPluginsAsync(PluginCategory.Observability, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.NotNull(result);

@@ -61,7 +61,7 @@ public sealed class InMemoryOutboxStorageTests
         var options = new OutboxOptions { Destination = "TestDestination", Priority = 5 };
 
         // Act
-        var entry = await storage.AddAsync(message, options);
+        var entry = await storage.AddAsync(message, options, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(entry);
@@ -88,7 +88,7 @@ public sealed class InMemoryOutboxStorageTests
         // Act
         for (int i = 0; i < 100; i++)
         {
-            var entry = await storage.AddAsync(new TestMessage(), new OutboxOptions());
+            var entry = await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
             ids.Add(entry.Id);
         }
 
@@ -112,7 +112,7 @@ public sealed class InMemoryOutboxStorageTests
         };
 
         // Act
-        var entry = await storage.AddAsync(message, options);
+        var entry = await storage.AddAsync(message, options, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal("TestQueue", entry.Options.Destination);
@@ -132,16 +132,16 @@ public sealed class InMemoryOutboxStorageTests
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryOutboxStorage(timeProvider);
 
-        var entry1 = await storage.AddAsync(new TestMessage(), new OutboxOptions());
-        var entry2 = await storage.AddAsync(new TestMessage(), new OutboxOptions());
-        var entry3 = await storage.AddAsync(new TestMessage(), new OutboxOptions());
+        var entry1 = await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
+        var entry2 = await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
+        var entry3 = await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
 
-        await storage.MarkProcessedAsync(entry2.Id);
+        await storage.MarkProcessedAsync(entry2.Id, TestContext.Current.CancellationToken);
 
         var query = new OutboxQuery { Limit = 100 };
 
         // Act
-        var results = await storage.GetPendingAsync(query);
+        var results = await storage.GetPendingAsync(query, TestContext.Current.CancellationToken);
 
         // Assert
         var resultsList = results.ToList();
@@ -156,17 +156,17 @@ public sealed class InMemoryOutboxStorageTests
         // Arrange
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryOutboxStorage(timeProvider);
-        _ = await storage.AddAsync(new TestMessage(), new OutboxOptions());
-        var entry2 = await storage.AddAsync(new TestMessage(), new OutboxOptions());
-        var entry3 = await storage.AddAsync(new TestMessage(), new OutboxOptions());
+        _ = await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
+        var entry2 = await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
+        var entry3 = await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
 
-        await storage.MarkProcessedAsync(entry2.Id);
-        await storage.MarkFailedAsync(entry3.Id, "Test error");
+        await storage.MarkProcessedAsync(entry2.Id, TestContext.Current.CancellationToken);
+        await storage.MarkFailedAsync(entry3.Id, "Test error", TestContext.Current.CancellationToken);
 
         var query = new OutboxQuery { Status = OutboxStatus.Failed };
 
         // Act
-        var results = await storage.GetPendingAsync(query);
+        var results = await storage.GetPendingAsync(query, TestContext.Current.CancellationToken);
 
         // Assert
         var resultsList = results.ToList();
@@ -181,16 +181,16 @@ public sealed class InMemoryOutboxStorageTests
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryOutboxStorage(timeProvider);
 
-        var entry1 = await storage.AddAsync(new TestMessage(), new OutboxOptions());
-        var entry2 = await storage.AddAsync(new TestMessage(), new OutboxOptions());
+        var entry1 = await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
+        var entry2 = await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
 
         var futureRetry = timeProvider.GetUtcNow().AddMinutes(10);
-        await storage.UpdateRetryCountAsync(entry2.Id, 1, futureRetry);
+        await storage.UpdateRetryCountAsync(entry2.Id, 1, futureRetry, TestContext.Current.CancellationToken);
 
         var query = new OutboxQuery { Limit = 100 };
 
         // Act
-        var results = await storage.GetPendingAsync(query);
+        var results = await storage.GetPendingAsync(query, TestContext.Current.CancellationToken);
 
         // Assert
         var resultsList = results.ToList();
@@ -204,16 +204,16 @@ public sealed class InMemoryOutboxStorageTests
         // Arrange
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryOutboxStorage(timeProvider);
-        _ = await storage.AddAsync(new TestMessage(), new OutboxOptions());
-        var entry2 = await storage.AddAsync(new TestMessage(), new OutboxOptions());
+        _ = await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
+        var entry2 = await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
 
         var pastRetry = timeProvider.GetUtcNow().AddMinutes(-10);
-        await storage.UpdateRetryCountAsync(entry2.Id, 1, pastRetry);
+        await storage.UpdateRetryCountAsync(entry2.Id, 1, pastRetry, TestContext.Current.CancellationToken);
 
         var query = new OutboxQuery { Limit = 100 };
 
         // Act
-        var results = await storage.GetPendingAsync(query);
+        var results = await storage.GetPendingAsync(query, TestContext.Current.CancellationToken);
 
         // Assert
         var resultsList = results.ToList();
@@ -227,18 +227,18 @@ public sealed class InMemoryOutboxStorageTests
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryOutboxStorage(timeProvider);
 
-        var entry1 = await storage.AddAsync(new TestMessage(), new OutboxOptions());
+        var entry1 = await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
 
         timeProvider.Advance(TimeSpan.FromMinutes(10));
         var cutoffTime = timeProvider.GetUtcNow();
 
         timeProvider.Advance(TimeSpan.FromMinutes(5));
-        _ = await storage.AddAsync(new TestMessage(), new OutboxOptions());
+        _ = await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
 
         var query = new OutboxQuery { OlderThan = cutoffTime };
 
         // Act
-        var results = await storage.GetPendingAsync(query);
+        var results = await storage.GetPendingAsync(query, TestContext.Current.CancellationToken);
 
         // Assert
         var resultsList = results.ToList();
@@ -252,18 +252,18 @@ public sealed class InMemoryOutboxStorageTests
         // Arrange
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryOutboxStorage(timeProvider);
-        _ = await storage.AddAsync(new TestMessage(), new OutboxOptions());
+        _ = await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
 
         timeProvider.Advance(TimeSpan.FromMinutes(10));
         var cutoffTime = timeProvider.GetUtcNow();
 
         timeProvider.Advance(TimeSpan.FromMinutes(5));
-        var entry2 = await storage.AddAsync(new TestMessage(), new OutboxOptions());
+        var entry2 = await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
 
         var query = new OutboxQuery { NewerThan = cutoffTime };
 
         // Act
-        var results = await storage.GetPendingAsync(query);
+        var results = await storage.GetPendingAsync(query, TestContext.Current.CancellationToken);
 
         // Assert
         var resultsList = results.ToList();
@@ -280,13 +280,13 @@ public sealed class InMemoryOutboxStorageTests
 
         for (int i = 0; i < 10; i++)
         {
-            await storage.AddAsync(new TestMessage(), new OutboxOptions());
+            await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
         }
 
         var query = new OutboxQuery { Limit = 5 };
 
         // Act
-        var results = await storage.GetPendingAsync(query);
+        var results = await storage.GetPendingAsync(query, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(5, results.Count());
@@ -299,21 +299,21 @@ public sealed class InMemoryOutboxStorageTests
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryOutboxStorage(timeProvider);
 
-        var entry1 = await storage.AddAsync(new TestMessage(), new OutboxOptions { Priority = 5 });
+        var entry1 = await storage.AddAsync(new TestMessage(), new OutboxOptions { Priority = 5 }, TestContext.Current.CancellationToken);
         timeProvider.Advance(TimeSpan.FromSeconds(1));
 
-        var entry2 = await storage.AddAsync(new TestMessage(), new OutboxOptions { Priority = 10 });
+        var entry2 = await storage.AddAsync(new TestMessage(), new OutboxOptions { Priority = 10 }, TestContext.Current.CancellationToken);
         timeProvider.Advance(TimeSpan.FromSeconds(1));
 
-        var entry3 = await storage.AddAsync(new TestMessage(), new OutboxOptions { Priority = 5 });
+        var entry3 = await storage.AddAsync(new TestMessage(), new OutboxOptions { Priority = 5 }, TestContext.Current.CancellationToken);
         timeProvider.Advance(TimeSpan.FromSeconds(1));
 
-        var entry4 = await storage.AddAsync(new TestMessage(), new OutboxOptions { Priority = 10 });
+        var entry4 = await storage.AddAsync(new TestMessage(), new OutboxOptions { Priority = 10 }, TestContext.Current.CancellationToken);
 
         var query = new OutboxQuery { Limit = 100 };
 
         // Act
-        var results = await storage.GetPendingAsync(query);
+        var results = await storage.GetPendingAsync(query, TestContext.Current.CancellationToken);
 
         // Assert
         var resultsList = results.ToList();
@@ -335,7 +335,7 @@ public sealed class InMemoryOutboxStorageTests
         var query = new OutboxQuery();
 
         // Act
-        var results = await storage.GetPendingAsync(query);
+        var results = await storage.GetPendingAsync(query, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(results);
@@ -351,14 +351,14 @@ public sealed class InMemoryOutboxStorageTests
         // Arrange
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryOutboxStorage(timeProvider);
-        _ = await storage.AddAsync(new TestMessage(), new OutboxOptions());
-        var entry2 = await storage.AddAsync(new TestMessage(), new OutboxOptions());
-        _ = await storage.AddAsync(new TestMessage(), new OutboxOptions());
+        _ = await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
+        var entry2 = await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
+        _ = await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
 
-        await storage.MarkProcessedAsync(entry2.Id);
+        await storage.MarkProcessedAsync(entry2.Id, TestContext.Current.CancellationToken);
 
         // Act
-        var results = await storage.GetPendingAsync(limit: 100);
+        var results = await storage.GetPendingAsync(100, TestContext.Current.CancellationToken);
 
         // Assert
         var resultsList = results.ToList();
@@ -374,11 +374,11 @@ public sealed class InMemoryOutboxStorageTests
 
         for (int i = 0; i < 10; i++)
         {
-            await storage.AddAsync(new TestMessage(), new OutboxOptions());
+            await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
         }
 
         // Act
-        var results = await storage.GetPendingAsync(limit: 5);
+        var results = await storage.GetPendingAsync(5, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(5, results.Count());
@@ -391,14 +391,14 @@ public sealed class InMemoryOutboxStorageTests
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryOutboxStorage(timeProvider);
 
-        var entry1 = await storage.AddAsync(new TestMessage(), new OutboxOptions { Priority = 1 });
+        var entry1 = await storage.AddAsync(new TestMessage(), new OutboxOptions { Priority = 1 }, TestContext.Current.CancellationToken);
         timeProvider.Advance(TimeSpan.FromSeconds(1));
-        var entry2 = await storage.AddAsync(new TestMessage(), new OutboxOptions { Priority = 5 });
+        var entry2 = await storage.AddAsync(new TestMessage(), new OutboxOptions { Priority = 5 }, TestContext.Current.CancellationToken);
         timeProvider.Advance(TimeSpan.FromSeconds(1));
-        var entry3 = await storage.AddAsync(new TestMessage(), new OutboxOptions { Priority = 1 });
+        var entry3 = await storage.AddAsync(new TestMessage(), new OutboxOptions { Priority = 1 }, TestContext.Current.CancellationToken);
 
         // Act
-        var results = await storage.GetPendingAsync(limit: 100);
+        var results = await storage.GetPendingAsync(100, TestContext.Current.CancellationToken);
 
         // Assert
         var resultsList = results.ToList();
@@ -417,10 +417,10 @@ public sealed class InMemoryOutboxStorageTests
         // Arrange
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryOutboxStorage(timeProvider);
-        var entry = await storage.AddAsync(new TestMessage(), new OutboxOptions());
+        var entry = await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
 
         // Act
-        var result = await storage.MarkProcessedAsync(entry.Id);
+        var result = await storage.MarkProcessedAsync(entry.Id, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
@@ -436,7 +436,7 @@ public sealed class InMemoryOutboxStorageTests
         var storage = new InMemoryOutboxStorage(timeProvider);
 
         // Act
-        var result = await storage.MarkProcessedAsync("non-existent-id");
+        var result = await storage.MarkProcessedAsync("non-existent-id", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);
@@ -448,13 +448,13 @@ public sealed class InMemoryOutboxStorageTests
         // Arrange
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryOutboxStorage(timeProvider);
-        var entry = await storage.AddAsync(new TestMessage(), new OutboxOptions());
+        var entry = await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
 
         timeProvider.Advance(TimeSpan.FromMinutes(5));
         var expectedProcessedAt = timeProvider.GetUtcNow();
 
         // Act
-        await storage.MarkProcessedAsync(entry.Id);
+        await storage.MarkProcessedAsync(entry.Id, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(expectedProcessedAt, entry.ProcessedAt);
@@ -470,10 +470,10 @@ public sealed class InMemoryOutboxStorageTests
         // Arrange
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryOutboxStorage(timeProvider);
-        var entry = await storage.AddAsync(new TestMessage(), new OutboxOptions());
+        var entry = await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
 
         // Act
-        var result = await storage.MarkFailedAsync(entry.Id, "Test error");
+        var result = await storage.MarkFailedAsync(entry.Id, "Test error", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
@@ -489,7 +489,7 @@ public sealed class InMemoryOutboxStorageTests
         var storage = new InMemoryOutboxStorage(timeProvider);
 
         // Act
-        var result = await storage.MarkFailedAsync("non-existent-id", "Error");
+        var result = await storage.MarkFailedAsync("non-existent-id", "Error", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);
@@ -501,11 +501,11 @@ public sealed class InMemoryOutboxStorageTests
         // Arrange
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryOutboxStorage(timeProvider);
-        var entry = await storage.AddAsync(new TestMessage(), new OutboxOptions());
+        var entry = await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
         var errorMessage = "Delivery failed: Connection timeout";
 
         // Act
-        await storage.MarkFailedAsync(entry.Id, errorMessage);
+        await storage.MarkFailedAsync(entry.Id, errorMessage, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(errorMessage, entry.LastError);
@@ -521,10 +521,10 @@ public sealed class InMemoryOutboxStorageTests
         // Arrange
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryOutboxStorage(timeProvider);
-        var entry = await storage.AddAsync(new TestMessage(), new OutboxOptions());
+        var entry = await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
 
         // Act
-        var result = await storage.UpdateRetryCountAsync(entry.Id, 3);
+        var result = await storage.UpdateRetryCountAsync(entry.Id, 3, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
@@ -539,7 +539,7 @@ public sealed class InMemoryOutboxStorageTests
         var storage = new InMemoryOutboxStorage(timeProvider);
 
         // Act
-        var result = await storage.UpdateRetryCountAsync("non-existent-id", 1);
+        var result = await storage.UpdateRetryCountAsync("non-existent-id", 1, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);
@@ -551,10 +551,10 @@ public sealed class InMemoryOutboxStorageTests
         // Arrange
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryOutboxStorage(timeProvider);
-        var entry = await storage.AddAsync(new TestMessage(), new OutboxOptions());
+        var entry = await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
 
         // Act
-        await storage.UpdateRetryCountAsync(entry.Id, 5);
+        await storage.UpdateRetryCountAsync(entry.Id, 5, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(5, entry.RetryCount);
@@ -566,11 +566,11 @@ public sealed class InMemoryOutboxStorageTests
         // Arrange
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryOutboxStorage(timeProvider);
-        var entry = await storage.AddAsync(new TestMessage(), new OutboxOptions());
+        var entry = await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
         var nextRetry = timeProvider.GetUtcNow().AddMinutes(5);
 
         // Act
-        await storage.UpdateRetryCountAsync(entry.Id, 2, nextRetry);
+        await storage.UpdateRetryCountAsync(entry.Id, 2, nextRetry, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(nextRetry, entry.NextRetryAt);
@@ -583,10 +583,10 @@ public sealed class InMemoryOutboxStorageTests
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryOutboxStorage(timeProvider);
         var options = new OutboxOptions { MaxRetries = 3 };
-        var entry = await storage.AddAsync(new TestMessage(), options);
+        var entry = await storage.AddAsync(new TestMessage(), options, TestContext.Current.CancellationToken);
 
         // Act
-        await storage.UpdateRetryCountAsync(entry.Id, 3);
+        await storage.UpdateRetryCountAsync(entry.Id, 3, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(OutboxStatus.Failed, entry.Status);
@@ -599,10 +599,10 @@ public sealed class InMemoryOutboxStorageTests
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryOutboxStorage(timeProvider);
         var options = new OutboxOptions { MaxRetries = 5 };
-        var entry = await storage.AddAsync(new TestMessage(), options);
+        var entry = await storage.AddAsync(new TestMessage(), options, TestContext.Current.CancellationToken);
 
         // Act
-        await storage.UpdateRetryCountAsync(entry.Id, 2);
+        await storage.UpdateRetryCountAsync(entry.Id, 2, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(OutboxStatus.Pending, entry.Status);
@@ -620,7 +620,7 @@ public sealed class InMemoryOutboxStorageTests
         var storage = new InMemoryOutboxStorage(timeProvider);
 
         // Act
-        var count = await storage.GetPendingCountAsync();
+        var count = await storage.GetPendingCountAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(0, count);
@@ -633,12 +633,12 @@ public sealed class InMemoryOutboxStorageTests
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryOutboxStorage(timeProvider);
 
-        await storage.AddAsync(new TestMessage(), new OutboxOptions());
-        await storage.AddAsync(new TestMessage(), new OutboxOptions());
-        await storage.AddAsync(new TestMessage(), new OutboxOptions());
+        await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
+        await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
+        await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
 
         // Act
-        var count = await storage.GetPendingCountAsync();
+        var count = await storage.GetPendingCountAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(3, count);
@@ -650,14 +650,14 @@ public sealed class InMemoryOutboxStorageTests
         // Arrange
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryOutboxStorage(timeProvider);
-        _ = await storage.AddAsync(new TestMessage(), new OutboxOptions());
-        var entry2 = await storage.AddAsync(new TestMessage(), new OutboxOptions());
-        _ = await storage.AddAsync(new TestMessage(), new OutboxOptions());
+        _ = await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
+        var entry2 = await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
+        _ = await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
 
-        await storage.MarkProcessedAsync(entry2.Id);
+        await storage.MarkProcessedAsync(entry2.Id, TestContext.Current.CancellationToken);
 
         // Act
-        var count = await storage.GetPendingCountAsync();
+        var count = await storage.GetPendingCountAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(2, count);
@@ -669,13 +669,13 @@ public sealed class InMemoryOutboxStorageTests
         // Arrange
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryOutboxStorage(timeProvider);
-        _ = await storage.AddAsync(new TestMessage(), new OutboxOptions());
-        var entry2 = await storage.AddAsync(new TestMessage(), new OutboxOptions());
+        _ = await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
+        var entry2 = await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
 
-        await storage.MarkFailedAsync(entry2.Id, "Error");
+        await storage.MarkFailedAsync(entry2.Id, "Error", TestContext.Current.CancellationToken);
 
         // Act - Note: GetPendingCountAsync only counts Pending status
-        var count = await storage.GetPendingCountAsync();
+        var count = await storage.GetPendingCountAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(1, count); // Only entry1 is pending
@@ -692,10 +692,10 @@ public sealed class InMemoryOutboxStorageTests
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryOutboxStorage(timeProvider);
 
-        await storage.AddAsync(new TestMessage(), new OutboxOptions());
+        await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
 
         // Act
-        var results = await storage.GetFailedAsync();
+        var results = await storage.GetFailedAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(results);
@@ -708,15 +708,15 @@ public sealed class InMemoryOutboxStorageTests
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryOutboxStorage(timeProvider);
 
-        var entry1 = await storage.AddAsync(new TestMessage(), new OutboxOptions());
-        var entry2 = await storage.AddAsync(new TestMessage(), new OutboxOptions());
-        var entry3 = await storage.AddAsync(new TestMessage(), new OutboxOptions());
+        var entry1 = await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
+        var entry2 = await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
+        var entry3 = await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
 
-        await storage.MarkFailedAsync(entry1.Id, "Error 1");
-        await storage.MarkFailedAsync(entry3.Id, "Error 2");
+        await storage.MarkFailedAsync(entry1.Id, "Error 1", TestContext.Current.CancellationToken);
+        await storage.MarkFailedAsync(entry3.Id, "Error 2", TestContext.Current.CancellationToken);
 
         // Act
-        var results = await storage.GetFailedAsync();
+        var results = await storage.GetFailedAsync(TestContext.Current.CancellationToken);
 
         // Assert
         var resultsList = results.ToList();
@@ -734,12 +734,12 @@ public sealed class InMemoryOutboxStorageTests
 
         for (int i = 0; i < 10; i++)
         {
-            var entry = await storage.AddAsync(new TestMessage(), new OutboxOptions());
-            await storage.MarkFailedAsync(entry.Id, $"Error {i}");
+            var entry = await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
+            await storage.MarkFailedAsync(entry.Id, $"Error {i}", TestContext.Current.CancellationToken);
         }
 
         // Act
-        var results = await storage.GetFailedAsync(limit: 5);
+        var results = await storage.GetFailedAsync(limit: 5, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(5, results.Count());
@@ -755,14 +755,14 @@ public sealed class InMemoryOutboxStorageTests
         var entries = new List<OutboxEntry>();
         for (int i = 0; i < 5; i++)
         {
-            var entry = await storage.AddAsync(new TestMessage(), new OutboxOptions());
+            var entry = await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
             entries.Add(entry);
-            await storage.MarkFailedAsync(entry.Id, $"Error {i}");
+            await storage.MarkFailedAsync(entry.Id, $"Error {i}", TestContext.Current.CancellationToken);
             timeProvider.Advance(TimeSpan.FromSeconds(1));
         }
 
         // Act
-        var results = await storage.GetFailedAsync();
+        var results = await storage.GetFailedAsync(TestContext.Current.CancellationToken);
 
         // Assert
         var resultsList = results.ToList();
@@ -789,14 +789,14 @@ public sealed class InMemoryOutboxStorageTests
         {
             tasks.Add(Task.Run(async () =>
             {
-                return await storage.AddAsync(new TestMessage(), new OutboxOptions());
+                return await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
             }));
         }
 
         var entries = await Task.WhenAll(tasks);
 
         // Assert - All entries should be retrievable
-        var pending = await storage.GetPendingAsync(limit: 200);
+        var pending = await storage.GetPendingAsync(limit: 200, TestContext.Current.CancellationToken);
         Assert.Equal(100, pending.Count());
     }
 
@@ -810,7 +810,7 @@ public sealed class InMemoryOutboxStorageTests
         var entries = new List<OutboxEntry>();
         for (int i = 0; i < 50; i++)
         {
-            var entry = await storage.AddAsync(new TestMessage(), new OutboxOptions());
+            var entry = await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
             entries.Add(entry);
         }
 
@@ -822,7 +822,7 @@ public sealed class InMemoryOutboxStorageTests
         await Task.WhenAll(tasks);
 
         // Assert
-        var count = await storage.GetPendingCountAsync();
+        var count = await storage.GetPendingCountAsync(TestContext.Current.CancellationToken);
         Assert.Equal(0, count);
     }
 
@@ -848,7 +848,7 @@ public sealed class InMemoryOutboxStorageTests
         await Task.WhenAll(tasks);
 
         // Assert - All entries should have updated retry counts
-        var pending = await storage.GetPendingAsync(limit: 100);
+        var pending = await storage.GetPendingAsync(100, TestContext.Current.CancellationToken);
         Assert.Equal(50, pending.Count());
     }
 
@@ -872,7 +872,7 @@ public sealed class InMemoryOutboxStorageTests
         };
 
         // Act
-        var entry = await storage.AddAsync(message, new OutboxOptions());
+        var entry = await storage.AddAsync(message, new OutboxOptions(, TestContext.Current.CancellationToken));
 
         // Assert
         Assert.NotNull(entry.Message.Metadata);
@@ -895,13 +895,13 @@ public sealed class InMemoryOutboxStorageTests
 
         foreach (var entry in entries)
         {
-            await storage.MarkProcessedAsync(entry.Id);
+            await storage.MarkProcessedAsync(entry.Id, TestContext.Current.CancellationToken);
         }
 
         var query = new OutboxQuery();
 
         // Act
-        var results = await storage.GetPendingAsync(query);
+        var results = await storage.GetPendingAsync(query, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(results);
@@ -913,10 +913,10 @@ public sealed class InMemoryOutboxStorageTests
         // Arrange
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryOutboxStorage(timeProvider);
-        var entry = await storage.AddAsync(new TestMessage(), new OutboxOptions());
+        var entry = await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
 
         // Act
-        await storage.UpdateRetryCountAsync(entry.Id, 2, null);
+        await storage.UpdateRetryCountAsync(entry.Id, 2, null, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(2, entry.RetryCount);
@@ -936,7 +936,7 @@ public sealed class InMemoryOutboxStorageTests
         var query = new OutboxQuery { Limit = 100 };
 
         // Act
-        var results = await storage.GetPendingAsync(query);
+        var results = await storage.GetPendingAsync(query, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(2, results.Count());
@@ -949,10 +949,10 @@ public sealed class InMemoryOutboxStorageTests
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryOutboxStorage(timeProvider);
         var options = new OutboxOptions { MaxRetries = 3 };
-        var entry = await storage.AddAsync(new TestMessage(), options);
+        var entry = await storage.AddAsync(new TestMessage(), options, TestContext.Current.CancellationToken);
 
         // Act - Update to exactly maxRetries
-        await storage.UpdateRetryCountAsync(entry.Id, 3);
+        await storage.UpdateRetryCountAsync(entry.Id, 3, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(OutboxStatus.Failed, entry.Status);
@@ -966,7 +966,7 @@ public sealed class InMemoryOutboxStorageTests
         var storage = new InMemoryOutboxStorage(timeProvider);
 
         // Act
-        var results = await storage.GetFailedAsync();
+        var results = await storage.GetFailedAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(results);
@@ -979,14 +979,14 @@ public sealed class InMemoryOutboxStorageTests
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryOutboxStorage(timeProvider);
 
-        var entry = await storage.AddAsync(new TestMessage(), new OutboxOptions());
+        var entry = await storage.AddAsync(new TestMessage(), new OutboxOptions(), TestContext.Current.CancellationToken);
         var currentTime = timeProvider.GetUtcNow();
-        await storage.UpdateRetryCountAsync(entry.Id, 1, currentTime);
+        await storage.UpdateRetryCountAsync(entry.Id, 1, currentTime, TestContext.Current.CancellationToken);
 
         var query = new OutboxQuery { Limit = 100 };
 
         // Act
-        var results = await storage.GetPendingAsync(query);
+        var results = await storage.GetPendingAsync(query, TestContext.Current.CancellationToken);
 
         // Assert
         var resultsList = results.ToList();

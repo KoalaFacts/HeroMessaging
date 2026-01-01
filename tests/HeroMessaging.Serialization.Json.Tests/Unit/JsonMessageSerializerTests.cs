@@ -114,7 +114,7 @@ public class JsonMessageSerializerTests
         var message = new TestMessage { Id = 1, Name = "Test", Value = 99.99m, Tags = ["tag1", "tag2"] };
 
         // Act
-        var result = await serializer.SerializeAsync(message);
+        var result = await serializer.SerializeAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -129,7 +129,7 @@ public class JsonMessageSerializerTests
         var serializer = new JsonMessageSerializer();
 
         // Act
-        var result = await serializer.SerializeAsync<TestMessage>(null!);
+        var result = await serializer.SerializeAsync<TestMessage>(null!, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -154,7 +154,7 @@ public class JsonMessageSerializerTests
         };
 
         // Act
-        var result = await serializer.SerializeAsync(message);
+        var result = await serializer.SerializeAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -172,7 +172,7 @@ public class JsonMessageSerializerTests
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await serializer.SerializeAsync(message));
+            await serializer.SerializeAsync(message, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -191,7 +191,7 @@ public class JsonMessageSerializerTests
         };
 
         // Act
-        var result = await serializer.SerializeAsync(message);
+        var result = await serializer.SerializeAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -208,7 +208,7 @@ public class JsonMessageSerializerTests
         using var cts = new CancellationTokenSource();
 
         // Act
-        var result = await serializer.SerializeAsync(message, cts.Token);
+        var result = await serializer.SerializeAsync(message, cts.Token, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -227,7 +227,7 @@ public class JsonMessageSerializerTests
 
         // Act & Assert
         await Assert.ThrowsAsync<OperationCanceledException>(async () =>
-            await serializer.SerializeAsync(message, cts.Token));
+            await serializer.SerializeAsync(message, cts.Token, TestContext.Current.CancellationToken));
     }
 
     #endregion
@@ -385,10 +385,10 @@ public class JsonMessageSerializerTests
         // Arrange
         var serializer = new JsonMessageSerializer();
         var original = new TestMessage { Id = 1, Name = "Test", Value = 99.99m };
-        var data = await serializer.SerializeAsync(original);
+        var data = await serializer.SerializeAsync(original, TestContext.Current.CancellationToken);
 
         // Act
-        var result = await serializer.DeserializeAsync<TestMessage>(data);
+        var result = await serializer.DeserializeAsync<TestMessage>(data, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -405,7 +405,7 @@ public class JsonMessageSerializerTests
         var data = Array.Empty<byte>();
 
         // Act
-        var result = await serializer.DeserializeAsync<TestMessage>(data);
+        var result = await serializer.DeserializeAsync<TestMessage>(data, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result);
@@ -419,10 +419,10 @@ public class JsonMessageSerializerTests
         var options = new SerializationOptions { EnableCompression = true };
         var serializer = new JsonMessageSerializer(options);
         var original = new TestMessage { Id = 1, Name = "Compression Test", Value = 99.99m };
-        var data = await serializer.SerializeAsync(original);
+        var data = await serializer.SerializeAsync(original, TestContext.Current.CancellationToken);
 
         // Act
-        var result = await serializer.DeserializeAsync<TestMessage>(data);
+        var result = await serializer.DeserializeAsync<TestMessage>(data, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -437,7 +437,7 @@ public class JsonMessageSerializerTests
         // Arrange
         var serializer = new JsonMessageSerializer();
         var original = new TestMessage { Id = 1, Name = "Test", Value = 99.99m };
-        var data = await serializer.SerializeAsync(original);
+        var data = await serializer.SerializeAsync(original, TestContext.Current.CancellationToken);
         using var cts = new CancellationTokenSource();
 
         // Act
@@ -454,10 +454,10 @@ public class JsonMessageSerializerTests
         // Arrange
         var serializer = new JsonMessageSerializer();
         var original = new TestMessage { Id = 1, Name = "Test", Value = 99.99m };
-        var data = await serializer.SerializeAsync(original);
+        var data = await serializer.SerializeAsync(original, TestContext.Current.CancellationToken);
 
         // Act
-        var result = await serializer.DeserializeAsync(data, typeof(TestMessage));
+        var result = await serializer.DeserializeAsync(data, typeof(TestMessage), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -532,8 +532,8 @@ public class JsonMessageSerializerTests
         var original = new TestMessage { Id = 42, Name = "RoundTrip", Value = 123.45m, Tags = ["tag1", "tag2"] };
 
         // Act
-        var serialized = await serializer.SerializeAsync(original);
-        var deserialized = await serializer.DeserializeAsync<TestMessage>(serialized);
+        var serialized = await serializer.SerializeAsync(original, TestContext.Current.CancellationToken);
+        var deserialized = await serializer.DeserializeAsync<TestMessage>(serialized, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(deserialized);
@@ -553,8 +553,8 @@ public class JsonMessageSerializerTests
         var original = new TestMessage { Id = 42, Name = "Compressed RoundTrip", Value = 999.99m };
 
         // Act
-        var serialized = await serializer.SerializeAsync(original);
-        var deserialized = await serializer.DeserializeAsync<TestMessage>(serialized);
+        var serialized = await serializer.SerializeAsync(original, TestContext.Current.CancellationToken);
+        var deserialized = await serializer.DeserializeAsync<TestMessage>(serialized, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(deserialized);
@@ -580,8 +580,8 @@ public class JsonMessageSerializerTests
         };
 
         // Act
-        var serialized = await serializer.SerializeAsync(original);
-        var deserialized = await serializer.DeserializeAsync<ComplexTestMessage>(serialized);
+        var serialized = await serializer.SerializeAsync(original, TestContext.Current.CancellationToken);
+        var deserialized = await serializer.DeserializeAsync<ComplexTestMessage>(serialized, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(deserialized);
@@ -605,7 +605,7 @@ public class JsonMessageSerializerTests
         var message = new TestMessage { Id = 0, Name = "", Value = 0 };
 
         // Act
-        var result = await serializer.SerializeAsync(message);
+        var result = await serializer.SerializeAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -622,7 +622,7 @@ public class JsonMessageSerializerTests
         var message = new TestMessage { Id = 1, Name = "Large Message", Value = 99.99m, Tags = tags };
 
         // Act
-        var result = await serializer.SerializeAsync(message);
+        var result = await serializer.SerializeAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -638,8 +638,8 @@ public class JsonMessageSerializerTests
         var message = new TestMessage { Id = 1, Name = "Test\"with'special\\chars/and\"quotes", Value = 99.99m };
 
         // Act
-        var serialized = await serializer.SerializeAsync(message);
-        var deserialized = await serializer.DeserializeAsync<TestMessage>(serialized);
+        var serialized = await serializer.SerializeAsync(message, TestContext.Current.CancellationToken);
+        var deserialized = await serializer.DeserializeAsync<TestMessage>(serialized, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(deserialized);
@@ -655,8 +655,8 @@ public class JsonMessageSerializerTests
         var message = new TestMessage { Id = 1, Name = "Test with emoji 😀 and unicode ñ é", Value = 99.99m };
 
         // Act
-        var serialized = await serializer.SerializeAsync(message);
-        var deserialized = await serializer.DeserializeAsync<TestMessage>(serialized);
+        var serialized = await serializer.SerializeAsync(message, TestContext.Current.CancellationToken);
+        var deserialized = await serializer.DeserializeAsync<TestMessage>(serialized, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(deserialized);

@@ -94,7 +94,7 @@ public sealed class SqlServerDeadLetterQueueTests : IDisposable
             FailureTime = DateTimeOffset.UtcNow
         };
 
-        var result = await queue.SendToDeadLetterAsync(message, context);
+        var result = await queue.SendToDeadLetterAsync(message, context, TestContext.Current.CancellationToken);
         Assert.NotNull(result);
         Assert.NotEmpty(result);
     }
@@ -114,7 +114,7 @@ public sealed class SqlServerDeadLetterQueueTests : IDisposable
             Exception = exception
         };
 
-        var result = await queue.SendToDeadLetterAsync(message, context);
+        var result = await queue.SendToDeadLetterAsync(message, context, TestContext.Current.CancellationToken);
         Assert.NotNull(result);
     }
 
@@ -132,7 +132,7 @@ public sealed class SqlServerDeadLetterQueueTests : IDisposable
             Metadata = new Dictionary<string, object> { { "custom", "value" } }
         };
 
-        var result = await queue.SendToDeadLetterAsync(message, context);
+        var result = await queue.SendToDeadLetterAsync(message, context, TestContext.Current.CancellationToken);
         Assert.NotNull(result);
     }
 
@@ -181,7 +181,7 @@ public sealed class SqlServerDeadLetterQueueTests : IDisposable
     {
         var queue = CreateDeadLetterQueue();
 
-        var result = await queue.GetDeadLetterCountAsync();
+        var result = await queue.GetDeadLetterCountAsync(TestContext.Current.CancellationToken);
         Assert.IsType<long>(result);
         Assert.True(result >= 0);
     }
@@ -191,7 +191,7 @@ public sealed class SqlServerDeadLetterQueueTests : IDisposable
     {
         var queue = CreateDeadLetterQueue();
 
-        var result = await queue.GetStatisticsAsync();
+        var result = await queue.GetStatisticsAsync(TestContext.Current.CancellationToken);
         Assert.NotNull(result);
         Assert.IsType<DeadLetterStatistics>(result);
     }
@@ -201,7 +201,7 @@ public sealed class SqlServerDeadLetterQueueTests : IDisposable
     {
         var queue = CreateDeadLetterQueue();
 
-        var result = await queue.GetStatisticsAsync();
+        var result = await queue.GetStatisticsAsync(TestContext.Current.CancellationToken);
         Assert.NotNull(result);
         Assert.True(result.TotalCount >= 0);
     }
@@ -222,7 +222,7 @@ public sealed class SqlServerDeadLetterQueueTests : IDisposable
         cts.Cancel();
 
         await Assert.ThrowsAsync<OperationCanceledException>(async () =>
-            await queue.SendToDeadLetterAsync(message, context, cts.Token));
+            await queue.SendToDeadLetterAsync(message, context, cts.Token, TestContext.Current.CancellationToken));
     }
 
     private SqlServerDeadLetterQueue CreateDeadLetterQueue()

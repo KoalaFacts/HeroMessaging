@@ -125,7 +125,7 @@ public sealed class PostgreSqlIdempotencyStoreTests : IDisposable
         var idempotencyKey = "idempotency:test-key";
 
         // Act
-        var result = await store.GetAsync(idempotencyKey);
+        var result = await store.GetAsync(idempotencyKey, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result); // Mocked connection returns null
@@ -139,7 +139,7 @@ public sealed class PostgreSqlIdempotencyStoreTests : IDisposable
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentNullException>(async () =>
-            await store.GetAsync(null!));
+            await store.GetAsync(null!, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -150,7 +150,7 @@ public sealed class PostgreSqlIdempotencyStoreTests : IDisposable
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentException>(async () =>
-            await store.GetAsync(string.Empty));
+            await store.GetAsync(string.Empty, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -163,7 +163,7 @@ public sealed class PostgreSqlIdempotencyStoreTests : IDisposable
         var ttl = TimeSpan.FromHours(24);
 
         // Act
-        await store.StoreSuccessAsync(idempotencyKey, result, ttl);
+        await store.StoreSuccessAsync(idempotencyKey, result, ttl, TestContext.Current.CancellationToken);
 
         // Assert - no exception thrown
         Assert.NotNull(store);
@@ -178,7 +178,7 @@ public sealed class PostgreSqlIdempotencyStoreTests : IDisposable
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentNullException>(async () =>
-            await store.StoreSuccessAsync(null!, new object(), ttl));
+            await store.StoreSuccessAsync(null!, new object(), ttl, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -190,7 +190,7 @@ public sealed class PostgreSqlIdempotencyStoreTests : IDisposable
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentException>(async () =>
-            await store.StoreSuccessAsync(string.Empty, new object(), ttl));
+            await store.StoreSuccessAsync(string.Empty, new object(), ttl, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -202,7 +202,7 @@ public sealed class PostgreSqlIdempotencyStoreTests : IDisposable
         var ttl = TimeSpan.FromHours(24);
 
         // Act
-        await store.StoreSuccessAsync(idempotencyKey, null, ttl);
+        await store.StoreSuccessAsync(idempotencyKey, null, ttl, TestContext.Current.CancellationToken);
 
         // Assert - no exception thrown
         Assert.NotNull(store);
@@ -217,7 +217,7 @@ public sealed class PostgreSqlIdempotencyStoreTests : IDisposable
         var ttl = TimeSpan.Zero;
 
         // Act
-        await store.StoreSuccessAsync(idempotencyKey, new object(), ttl);
+        await store.StoreSuccessAsync(idempotencyKey, new object(), ttl, TestContext.Current.CancellationToken);
 
         // Assert - no exception thrown
         Assert.NotNull(store);
@@ -233,7 +233,7 @@ public sealed class PostgreSqlIdempotencyStoreTests : IDisposable
         var ttl = TimeSpan.FromHours(1);
 
         // Act
-        await store.StoreFailureAsync(idempotencyKey, exception, ttl);
+        await store.StoreFailureAsync(idempotencyKey, exception, ttl, TestContext.Current.CancellationToken);
 
         // Assert - no exception thrown
         Assert.NotNull(store);
@@ -249,7 +249,7 @@ public sealed class PostgreSqlIdempotencyStoreTests : IDisposable
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentNullException>(async () =>
-            await store.StoreFailureAsync(null!, exception, ttl));
+            await store.StoreFailureAsync(null!, exception, ttl, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -262,7 +262,7 @@ public sealed class PostgreSqlIdempotencyStoreTests : IDisposable
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentException>(async () =>
-            await store.StoreFailureAsync(string.Empty, exception, ttl));
+            await store.StoreFailureAsync(string.Empty, exception, ttl, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -275,7 +275,7 @@ public sealed class PostgreSqlIdempotencyStoreTests : IDisposable
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentNullException>(async () =>
-            await store.StoreFailureAsync(idempotencyKey, null!, ttl));
+            await store.StoreFailureAsync(idempotencyKey, null!, ttl, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -286,7 +286,7 @@ public sealed class PostgreSqlIdempotencyStoreTests : IDisposable
         var idempotencyKey = "idempotency:test-key";
 
         // Act
-        var result = await store.ExistsAsync(idempotencyKey);
+        var result = await store.ExistsAsync(idempotencyKey, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result); // Mocked connection returns false
@@ -300,7 +300,7 @@ public sealed class PostgreSqlIdempotencyStoreTests : IDisposable
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentNullException>(async () =>
-            await store.ExistsAsync(null!));
+            await store.ExistsAsync(null!, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -311,7 +311,7 @@ public sealed class PostgreSqlIdempotencyStoreTests : IDisposable
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentException>(async () =>
-            await store.ExistsAsync(string.Empty));
+            await store.ExistsAsync(string.Empty, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -321,7 +321,7 @@ public sealed class PostgreSqlIdempotencyStoreTests : IDisposable
         var store = CreateStore();
 
         // Act
-        var result = await store.CleanupExpiredAsync();
+        var result = await store.CleanupExpiredAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<int>(result);
@@ -338,7 +338,7 @@ public sealed class PostgreSqlIdempotencyStoreTests : IDisposable
 
         // Act & Assert
         await Assert.ThrowsAsync<OperationCanceledException>(async () =>
-            await store.CleanupExpiredAsync(cts.Token));
+            await store.CleanupExpiredAsync(cts.Token, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -350,7 +350,7 @@ public sealed class PostgreSqlIdempotencyStoreTests : IDisposable
         var ttl = TimeSpan.FromDays(365);
 
         // Act
-        await store.StoreSuccessAsync(idempotencyKey, new object(), ttl);
+        await store.StoreSuccessAsync(idempotencyKey, new object(), ttl, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(store);
@@ -367,7 +367,7 @@ public sealed class PostgreSqlIdempotencyStoreTests : IDisposable
         var ttl = TimeSpan.FromHours(1);
 
         // Act
-        await store.StoreFailureAsync(idempotencyKey, exception, ttl);
+        await store.StoreFailureAsync(idempotencyKey, exception, ttl, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(store);

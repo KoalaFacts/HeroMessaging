@@ -83,7 +83,7 @@ public sealed class SqlServerQueueStorageTests : IDisposable
         var message = CreateTestMessage();
         var options = new EnqueueOptions { Priority = 1 };
 
-        var result = await storage.EnqueueAsync("test-queue", message, options);
+        var result = await storage.EnqueueAsync("test-queue", message, options, TestContext.Current.CancellationToken);
         Assert.NotNull(result);
         Assert.Equal(message, result.Message);
     }
@@ -96,7 +96,7 @@ public sealed class SqlServerQueueStorageTests : IDisposable
         var delay = TimeSpan.FromMinutes(5);
         var options = new EnqueueOptions { Priority = 0, Delay = delay };
 
-        var result = await storage.EnqueueAsync("test-queue", message, options);
+        var result = await storage.EnqueueAsync("test-queue", message, options, TestContext.Current.CancellationToken);
         Assert.NotNull(result);
         Assert.Equal(delay, result.Options.Delay);
     }
@@ -105,7 +105,7 @@ public sealed class SqlServerQueueStorageTests : IDisposable
     public async Task DequeueAsync_WithEmptyQueue_ReturnsNull()
     {
         var storage = CreateStorage();
-        var result = await storage.DequeueAsync("test-queue");
+        var result = await storage.DequeueAsync("test-queue", TestContext.Current.CancellationToken);
         Assert.Null(result);
     }
 
@@ -113,7 +113,7 @@ public sealed class SqlServerQueueStorageTests : IDisposable
     public async Task PeekAsync_WithEmptyQueue_ReturnsEmptyCollection()
     {
         var storage = CreateStorage();
-        var result = await storage.PeekAsync("test-queue");
+        var result = await storage.PeekAsync("test-queue", TestContext.Current.CancellationToken);
         Assert.NotNull(result);
         Assert.Empty(result);
     }
@@ -123,7 +123,7 @@ public sealed class SqlServerQueueStorageTests : IDisposable
     {
         var storage = CreateStorage();
         var entryId = Guid.NewGuid().ToString();
-        var result = await storage.AcknowledgeAsync("test-queue", entryId);
+        var result = await storage.AcknowledgeAsync("test-queue", entryId, TestContext.Current.CancellationToken);
         Assert.False(result);
     }
 
@@ -132,7 +132,7 @@ public sealed class SqlServerQueueStorageTests : IDisposable
     {
         var storage = CreateStorage();
         var entryId = Guid.NewGuid().ToString();
-        var result = await storage.RejectAsync("test-queue", entryId, requeue: true);
+        var result = await storage.RejectAsync("test-queue", entryId, requeue: true, TestContext.Current.CancellationToken);
         Assert.False(result);
     }
 
@@ -141,7 +141,7 @@ public sealed class SqlServerQueueStorageTests : IDisposable
     {
         var storage = CreateStorage();
         var entryId = Guid.NewGuid().ToString();
-        var result = await storage.RejectAsync("test-queue", entryId, requeue: false);
+        var result = await storage.RejectAsync("test-queue", entryId, requeue: false, TestContext.Current.CancellationToken);
         Assert.False(result);
     }
 
@@ -149,7 +149,7 @@ public sealed class SqlServerQueueStorageTests : IDisposable
     public async Task GetQueueDepthAsync_ReturnsCount()
     {
         var storage = CreateStorage();
-        var result = await storage.GetQueueDepthAsync("test-queue");
+        var result = await storage.GetQueueDepthAsync("test-queue", TestContext.Current.CancellationToken);
         Assert.IsType<long>(result);
         Assert.True(result >= 0);
     }
@@ -158,7 +158,7 @@ public sealed class SqlServerQueueStorageTests : IDisposable
     public async Task CreateQueueAsync_WithValidQueueName_ReturnsTrue()
     {
         var storage = CreateStorage();
-        var result = await storage.CreateQueueAsync("new-queue");
+        var result = await storage.CreateQueueAsync("new-queue", TestContext.Current.CancellationToken);
         Assert.True(result);
     }
 
@@ -166,7 +166,7 @@ public sealed class SqlServerQueueStorageTests : IDisposable
     public async Task DeleteQueueAsync_WithValidQueueName_ReturnsTrue()
     {
         var storage = CreateStorage();
-        var result = await storage.DeleteQueueAsync("test-queue");
+        var result = await storage.DeleteQueueAsync("test-queue", TestContext.Current.CancellationToken);
         Assert.True(result);
     }
 
@@ -174,7 +174,7 @@ public sealed class SqlServerQueueStorageTests : IDisposable
     public async Task GetQueuesAsync_ReturnsQueueNames()
     {
         var storage = CreateStorage();
-        var result = await storage.GetQueuesAsync();
+        var result = await storage.GetQueuesAsync(TestContext.Current.CancellationToken);
         Assert.NotNull(result);
         Assert.IsAssignableFrom<IEnumerable<string>>(result);
     }
@@ -183,7 +183,7 @@ public sealed class SqlServerQueueStorageTests : IDisposable
     public async Task QueueExistsAsync_WithNonExistentQueue_ReturnsFalse()
     {
         var storage = CreateStorage();
-        var result = await storage.QueueExistsAsync("non-existent-queue");
+        var result = await storage.QueueExistsAsync("non-existent-queue", TestContext.Current.CancellationToken);
         Assert.False(result);
     }
 

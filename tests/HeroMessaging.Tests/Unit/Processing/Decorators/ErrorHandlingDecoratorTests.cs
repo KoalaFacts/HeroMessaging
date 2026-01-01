@@ -50,7 +50,7 @@ public sealed class ErrorHandlingDecoratorTests
             .ReturnsAsync(ProcessingResult.Successful());
 
         // Act
-        var result = await decorator.ProcessAsync(message, context);
+        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -86,7 +86,7 @@ public sealed class ErrorHandlingDecoratorTests
             .ReturnsAsync(ErrorHandlingResult.Retry(TimeSpan.Zero));
 
         // Act
-        var result = await decorator.ProcessAsync(message, context);
+        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -123,7 +123,7 @@ public sealed class ErrorHandlingDecoratorTests
             .ReturnsAsync(ErrorHandlingResult.SendToDeadLetter("Permanent failure"));
 
         // Act
-        var result = await decorator.ProcessAsync(message, context);
+        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.Success);
@@ -151,7 +151,7 @@ public sealed class ErrorHandlingDecoratorTests
             .ReturnsAsync(ErrorHandlingResult.SendToDeadLetter("Permanent failure"));
 
         // Act
-        var result = await decorator.ProcessAsync(message, context);
+        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.Success);
@@ -173,7 +173,7 @@ public sealed class ErrorHandlingDecoratorTests
             .ReturnsAsync(ProcessingResult.Failed(null!, "Permanent failure"));
 
         // Act
-        var result = await decorator.ProcessAsync(message, context);
+        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.Success);
@@ -204,7 +204,7 @@ public sealed class ErrorHandlingDecoratorTests
             .ReturnsAsync(ErrorHandlingResult.Retry(TimeSpan.Zero));
 
         // Act
-        var result = await decorator.ProcessAsync(message, context);
+        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.Success);
@@ -236,7 +236,7 @@ public sealed class ErrorHandlingDecoratorTests
             .ReturnsAsync(ErrorHandlingResult.Retry(TimeSpan.Zero));
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert - Last context should have RetryCount = 1
         Assert.NotNull(capturedContext);
@@ -262,7 +262,7 @@ public sealed class ErrorHandlingDecoratorTests
             .ReturnsAsync(ErrorHandlingResult.Retry(retryDelay));
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert - With maxRetries=1, there will be 2 delay logs: one for initial retry, one for second retry
         _loggerMock.Verify(
@@ -298,7 +298,7 @@ public sealed class ErrorHandlingDecoratorTests
             .ReturnsAsync(ErrorHandlingResult.SendToDeadLetter(dlqReason));
 
         // Act
-        var result = await decorator.ProcessAsync(message, context);
+        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.Success);
@@ -324,7 +324,7 @@ public sealed class ErrorHandlingDecoratorTests
             .ReturnsAsync(ErrorHandlingResult.SendToDeadLetter("Test reason"));
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         _loggerMock.Verify(
@@ -360,7 +360,7 @@ public sealed class ErrorHandlingDecoratorTests
             .ReturnsAsync(ErrorHandlingResult.Discard(discardReason));
 
         // Act
-        var result = await decorator.ProcessAsync(message, context);
+        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.Success);
@@ -386,7 +386,7 @@ public sealed class ErrorHandlingDecoratorTests
             .ReturnsAsync(ErrorHandlingResult.Discard("Test reason"));
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         _loggerMock.Verify(
@@ -422,7 +422,7 @@ public sealed class ErrorHandlingDecoratorTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await decorator.ProcessAsync(message, context));
+            async () => await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken));
 
         Assert.Equal("Test error", exception.Message);
     }
@@ -446,7 +446,7 @@ public sealed class ErrorHandlingDecoratorTests
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await decorator.ProcessAsync(message, context));
+            async () => await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken));
 
         _loggerMock.Verify(
             x => x.Log(
@@ -480,7 +480,7 @@ public sealed class ErrorHandlingDecoratorTests
             .ReturnsAsync(ErrorHandlingResult.Retry(TimeSpan.Zero));
 
         // Act
-        var result = await decorator.ProcessAsync(message, context);
+        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.Success);
@@ -508,7 +508,7 @@ public sealed class ErrorHandlingDecoratorTests
             .ReturnsAsync(ErrorHandlingResult.Retry(TimeSpan.Zero));
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         _loggerMock.Verify(
@@ -549,7 +549,7 @@ public sealed class ErrorHandlingDecoratorTests
             .ReturnsAsync(ErrorHandlingResult.SendToDeadLetter("Max retries"));
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(capturedContext);
@@ -583,7 +583,7 @@ public sealed class ErrorHandlingDecoratorTests
             .ReturnsAsync(ErrorHandlingResult.Retry(TimeSpan.Zero));
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert - Should have 3 error contexts (initial + 2 retries)
         Assert.Equal(3, capturedContexts.Count);

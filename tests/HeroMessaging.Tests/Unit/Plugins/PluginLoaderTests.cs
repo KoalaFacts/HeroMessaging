@@ -69,7 +69,7 @@ namespace HeroMessaging.Tests.Unit.Plugins
 
             // Act & Assert
             var ex = await Assert.ThrowsAsync<ArgumentNullException>(() =>
-                loader.LoadAsync(null!, _serviceProviderMock.Object));
+                loader.LoadAsync(null!, _serviceProviderMock.Object, TestContext.Current.CancellationToken));
 
             Assert.Equal("descriptor", ex.ParamName);
         }
@@ -83,7 +83,7 @@ namespace HeroMessaging.Tests.Unit.Plugins
 
             // Act & Assert
             var ex = await Assert.ThrowsAsync<ArgumentNullException>(() =>
-                loader.LoadAsync(descriptor, null!));
+                loader.LoadAsync(descriptor, null!, TestContext.Current.CancellationToken));
 
             Assert.Equal("serviceProvider", ex.ParamName);
         }
@@ -97,7 +97,7 @@ namespace HeroMessaging.Tests.Unit.Plugins
 
             // Act & Assert
             await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                loader.LoadAsync(descriptor, _serviceProviderMock.Object));
+                loader.LoadAsync(descriptor, _serviceProviderMock.Object, TestContext.Current.CancellationToken));
         }
 
         [Fact]
@@ -113,7 +113,7 @@ namespace HeroMessaging.Tests.Unit.Plugins
                 .Returns(pluginInstance);
 
             // Act
-            var result = await loader.LoadAsync(descriptor, _serviceProviderMock.Object);
+            var result = await loader.LoadAsync(descriptor, _serviceProviderMock.Object, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.NotNull(result);
@@ -137,7 +137,7 @@ namespace HeroMessaging.Tests.Unit.Plugins
             await loader.LoadAsync(descriptor, _serviceProviderMock.Object, plugin =>
             {
                 configureWasCalled = true;
-                Assert.Same(pluginInstance, plugin);
+                Assert.Same(pluginInstance, plugin, TestContext.Current.CancellationToken);
             });
 
             // Assert
@@ -155,7 +155,7 @@ namespace HeroMessaging.Tests.Unit.Plugins
             var loader = CreateLoader();
 
             // Act
-            var result = await loader.CanLoadAsync(null!);
+            var result = await loader.CanLoadAsync(null!, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.False(result);
@@ -169,7 +169,7 @@ namespace HeroMessaging.Tests.Unit.Plugins
             var descriptor = CreateValidDescriptor(typeof(AbstractPlugin));
 
             // Act
-            var result = await loader.CanLoadAsync(descriptor);
+            var result = await loader.CanLoadAsync(descriptor, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.False(result);
@@ -183,7 +183,7 @@ namespace HeroMessaging.Tests.Unit.Plugins
             var descriptor = CreateValidDescriptor(typeof(IMessagingPlugin));
 
             // Act
-            var result = await loader.CanLoadAsync(descriptor);
+            var result = await loader.CanLoadAsync(descriptor, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.False(result);
@@ -197,7 +197,7 @@ namespace HeroMessaging.Tests.Unit.Plugins
             var descriptor = CreateValidDescriptor(typeof(InvalidPlugin));
 
             // Act
-            var result = await loader.CanLoadAsync(descriptor);
+            var result = await loader.CanLoadAsync(descriptor, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.False(result);
@@ -211,7 +211,7 @@ namespace HeroMessaging.Tests.Unit.Plugins
             var descriptor = CreateValidDescriptor(typeof(TestPlugin));
 
             // Act
-            var result = await loader.CanLoadAsync(descriptor);
+            var result = await loader.CanLoadAsync(descriptor, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.True(result);
@@ -228,7 +228,7 @@ namespace HeroMessaging.Tests.Unit.Plugins
             var loader = CreateLoader();
 
             // Act
-            var result = await loader.ValidateAsync(null!);
+            var result = await loader.ValidateAsync(null!, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.False(result.IsValid);
@@ -249,7 +249,7 @@ namespace HeroMessaging.Tests.Unit.Plugins
             };
 
             // Act
-            var result = await loader.ValidateAsync(descriptor);
+            var result = await loader.ValidateAsync(descriptor, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.False(result.IsValid);
@@ -264,7 +264,7 @@ namespace HeroMessaging.Tests.Unit.Plugins
             var descriptor = CreateValidDescriptor(typeof(InvalidPlugin));
 
             // Act
-            var result = await loader.ValidateAsync(descriptor);
+            var result = await loader.ValidateAsync(descriptor, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.False(result.IsValid);
@@ -285,7 +285,7 @@ namespace HeroMessaging.Tests.Unit.Plugins
             };
 
             // Act
-            var result = await loader.ValidateAsync(descriptor);
+            var result = await loader.ValidateAsync(descriptor, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.False(result.IsValid);
@@ -300,7 +300,7 @@ namespace HeroMessaging.Tests.Unit.Plugins
             var descriptor = CreateValidDescriptor(typeof(TestPlugin));
 
             // Act
-            var result = await loader.ValidateAsync(descriptor);
+            var result = await loader.ValidateAsync(descriptor, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.Contains("Plugin has no description", result.Warnings);
@@ -321,7 +321,7 @@ namespace HeroMessaging.Tests.Unit.Plugins
             };
 
             // Act
-            var result = await loader.ValidateAsync(descriptor);
+            var result = await loader.ValidateAsync(descriptor, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.True(result.IsValid);

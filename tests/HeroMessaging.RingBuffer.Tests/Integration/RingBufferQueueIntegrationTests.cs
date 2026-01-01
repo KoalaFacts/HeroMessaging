@@ -62,7 +62,7 @@ public class RingBufferQueueIntegrationTests
         var testConsumer = new TestConsumer();
         var consumer = testConsumer.CreateConsumer();
 
-        await consumer.StartAsync();
+        await consumer.StartAsync(TestContext.Current.CancellationToken);
         queue.AddConsumer(consumer);
 
         var envelope = new TransportEnvelope(
@@ -71,7 +71,7 @@ public class RingBufferQueueIntegrationTests
             messageId: Guid.NewGuid().ToString());
 
         // Act
-        var result = await queue.EnqueueAsync(envelope);
+        var result = await queue.EnqueueAsync(envelope, TestContext.Current.CancellationToken);
 
         // Wait for processing
         await Task.Delay(200);
@@ -82,8 +82,8 @@ public class RingBufferQueueIntegrationTests
         Assert.Equal(envelope.MessageId, testConsumer.ReceivedMessages[0].MessageId);
 
         // Cleanup
-        await consumer.StopAsync();
-        await queue.DisposeAsync();
+        await consumer.StopAsync(TestContext.Current.CancellationToken);
+        await queue.DisposeAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -102,7 +102,7 @@ public class RingBufferQueueIntegrationTests
         var testConsumer = new TestConsumer();
         var consumer = testConsumer.CreateConsumer();
 
-        await consumer.StartAsync();
+        await consumer.StartAsync(TestContext.Current.CancellationToken);
         queue.AddConsumer(consumer);
 
         var messageIds = new List<string>();
@@ -118,7 +118,7 @@ public class RingBufferQueueIntegrationTests
                 body: BitConverter.GetBytes(i),
                 messageId: messageId);
 
-            await queue.EnqueueAsync(envelope);
+            await queue.EnqueueAsync(envelope, TestContext.Current.CancellationToken);
         }
 
         // Wait for all messages to be processed
@@ -133,8 +133,8 @@ public class RingBufferQueueIntegrationTests
         }
 
         // Cleanup
-        await consumer.StopAsync();
-        await queue.DisposeAsync();
+        await consumer.StopAsync(TestContext.Current.CancellationToken);
+        await queue.DisposeAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -159,9 +159,9 @@ public class RingBufferQueueIntegrationTests
         var inmemConsumer2 = consumer2.CreateConsumer("consumer-2");
         var inmemConsumer3 = consumer3.CreateConsumer("consumer-3");
 
-        await inmemConsumer1.StartAsync();
-        await inmemConsumer2.StartAsync();
-        await inmemConsumer3.StartAsync();
+        await inmemConsumer1.StartAsync(TestContext.Current.CancellationToken);
+        await inmemConsumer2.StartAsync(TestContext.Current.CancellationToken);
+        await inmemConsumer3.StartAsync(TestContext.Current.CancellationToken);
 
         queue.AddConsumer(inmemConsumer1);
         queue.AddConsumer(inmemConsumer2);
@@ -175,7 +175,7 @@ public class RingBufferQueueIntegrationTests
                 body: BitConverter.GetBytes(i),
                 messageId: $"msg-{i}");
 
-            await queue.EnqueueAsync(envelope);
+            await queue.EnqueueAsync(envelope, TestContext.Current.CancellationToken);
         }
 
         // Wait for processing
@@ -194,10 +194,10 @@ public class RingBufferQueueIntegrationTests
         Assert.True(consumer3.ReceivedMessages.Count > 0);
 
         // Cleanup
-        await inmemConsumer1.StopAsync();
-        await inmemConsumer2.StopAsync();
-        await inmemConsumer3.StopAsync();
-        await queue.DisposeAsync();
+        await inmemConsumer1.StopAsync(TestContext.Current.CancellationToken);
+        await inmemConsumer2.StopAsync(TestContext.Current.CancellationToken);
+        await inmemConsumer3.StopAsync(TestContext.Current.CancellationToken);
+        await queue.DisposeAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -216,7 +216,7 @@ public class RingBufferQueueIntegrationTests
         var testConsumer = new TestConsumer();
         var consumer = testConsumer.CreateConsumer();
 
-        await consumer.StartAsync();
+        await consumer.StartAsync(TestContext.Current.CancellationToken);
         queue.AddConsumer(consumer);
 
         var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -229,7 +229,7 @@ public class RingBufferQueueIntegrationTests
                 body: BitConverter.GetBytes(i),
                 messageId: $"msg-{i}");
 
-            await queue.EnqueueAsync(envelope);
+            await queue.EnqueueAsync(envelope, TestContext.Current.CancellationToken);
         }
 
         sw.Stop();
@@ -245,8 +245,8 @@ public class RingBufferQueueIntegrationTests
         Assert.True(throughput > 10000, $"Throughput: {throughput:N0} msg/s (expected >10K msg/s)");
 
         // Cleanup
-        await consumer.StopAsync();
-        await queue.DisposeAsync();
+        await consumer.StopAsync(TestContext.Current.CancellationToken);
+        await queue.DisposeAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -290,14 +290,14 @@ public class RingBufferQueueIntegrationTests
                 body: new byte[] { (byte)i },
                 messageId: $"msg-{i}");
 
-            await queue.EnqueueAsync(envelope);
+            await queue.EnqueueAsync(envelope, TestContext.Current.CancellationToken);
         }
 
         // Assert
         Assert.Equal(5, queue.MessageCount);
 
         // Cleanup
-        await queue.DisposeAsync();
+        await queue.DisposeAsync(TestContext.Current.CancellationToken);
     }
 
     [Theory]
@@ -319,7 +319,7 @@ public class RingBufferQueueIntegrationTests
         var testConsumer = new TestConsumer();
         var consumer = testConsumer.CreateConsumer();
 
-        await consumer.StartAsync();
+        await consumer.StartAsync(TestContext.Current.CancellationToken);
         queue.AddConsumer(consumer);
 
         // Act
@@ -330,7 +330,7 @@ public class RingBufferQueueIntegrationTests
                 body: BitConverter.GetBytes(i),
                 messageId: $"msg-{i}");
 
-            await queue.EnqueueAsync(envelope);
+            await queue.EnqueueAsync(envelope, TestContext.Current.CancellationToken);
         }
 
         await Task.Delay(200);
@@ -339,8 +339,8 @@ public class RingBufferQueueIntegrationTests
         Assert.Equal(5, testConsumer.ReceivedMessages.Count);
 
         // Cleanup
-        await consumer.StopAsync();
-        await queue.DisposeAsync();
+        await consumer.StopAsync(TestContext.Current.CancellationToken);
+        await queue.DisposeAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -359,7 +359,7 @@ public class RingBufferQueueIntegrationTests
         var testConsumer = new TestConsumer();
         var consumer = testConsumer.CreateConsumer();
 
-        await consumer.StartAsync();
+        await consumer.StartAsync(TestContext.Current.CancellationToken);
 
         // Act - Add consumer
         queue.AddConsumer(consumer);
@@ -369,7 +369,7 @@ public class RingBufferQueueIntegrationTests
             body: new byte[] { 1 },
             messageId: "msg-1");
 
-        await queue.EnqueueAsync(envelope1);
+        await queue.EnqueueAsync(envelope1, TestContext.Current.CancellationToken);
         await Task.Delay(100);
 
         Assert.Single(testConsumer.ReceivedMessages);
@@ -382,15 +382,15 @@ public class RingBufferQueueIntegrationTests
             body: new byte[] { 2 },
             messageId: "msg-2");
 
-        await queue.EnqueueAsync(envelope2);
+        await queue.EnqueueAsync(envelope2, TestContext.Current.CancellationToken);
         await Task.Delay(100);
 
         // Assert - Should still be 1 (consumer was removed)
         Assert.Single(testConsumer.ReceivedMessages);
 
         // Cleanup
-        await consumer.StopAsync();
-        await queue.DisposeAsync();
+        await consumer.StopAsync(TestContext.Current.CancellationToken);
+        await queue.DisposeAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -409,7 +409,7 @@ public class RingBufferQueueIntegrationTests
         var testConsumer = new TestConsumer();
         var consumer = testConsumer.CreateConsumer();
 
-        await consumer.StartAsync();
+        await consumer.StartAsync(TestContext.Current.CancellationToken);
         queue.AddConsumer(consumer);
 
         const int threadCount = 10;
@@ -429,7 +429,7 @@ public class RingBufferQueueIntegrationTests
                         body: BitConverter.GetBytes(i),
                         messageId: $"thread-{threadId}-msg-{i}");
 
-                    await queue.EnqueueAsync(envelope);
+                    await queue.EnqueueAsync(envelope, TestContext.Current.CancellationToken);
                 }
             });
         }
@@ -445,7 +445,7 @@ public class RingBufferQueueIntegrationTests
         Assert.Equal(threadCount * messagesPerThread, uniqueIds);
 
         // Cleanup
-        await consumer.StopAsync();
-        await queue.DisposeAsync();
+        await consumer.StopAsync(TestContext.Current.CancellationToken);
+        await queue.DisposeAsync(TestContext.Current.CancellationToken);
     }
 }

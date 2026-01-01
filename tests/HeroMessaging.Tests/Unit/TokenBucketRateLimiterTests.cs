@@ -27,7 +27,7 @@ public class TokenBucketRateLimiterTests
         var limiter = new TokenBucketRateLimiter(options, timeProvider);
 
         // Act: Acquire 1 token
-        var result = await limiter.AcquireAsync();
+        var result = await limiter.AcquireAsync(TestContext.Current.CancellationToken);
 
         // Assert: Should succeed with 9 remaining
         Assert.True(result.IsAllowed);
@@ -50,11 +50,11 @@ public class TokenBucketRateLimiterTests
         var limiter = new TokenBucketRateLimiter(options, timeProvider);
 
         // Exhaust tokens
-        await limiter.AcquireAsync();
-        await limiter.AcquireAsync();
+        await limiter.AcquireAsync(TestContext.Current.CancellationToken);
+        await limiter.AcquireAsync(TestContext.Current.CancellationToken);
 
         // Act: Try to acquire when empty
-        var result = await limiter.AcquireAsync();
+        var result = await limiter.AcquireAsync(TestContext.Current.CancellationToken);
 
         // Assert: Should be throttled
         Assert.False(result.IsAllowed);
@@ -79,12 +79,12 @@ public class TokenBucketRateLimiterTests
         // Act: Acquire 50 tokens in burst
         for (int i = 0; i < 50; i++)
         {
-            var result = await limiter.AcquireAsync();
+            var result = await limiter.AcquireAsync(TestContext.Current.CancellationToken);
             Assert.True(result.IsAllowed, $"Token {i + 1} should be allowed");
         }
 
         // Assert: Should still have 50 remaining
-        var finalResult = await limiter.AcquireAsync();
+        var finalResult = await limiter.AcquireAsync(TestContext.Current.CancellationToken);
         Assert.True(finalResult.IsAllowed);
         Assert.Equal(49, finalResult.RemainingPermits);
     }
@@ -109,12 +109,12 @@ public class TokenBucketRateLimiterTests
         // Exhaust all tokens
         for (int i = 0; i < 10; i++)
         {
-            await limiter.AcquireAsync();
+            await limiter.AcquireAsync(TestContext.Current.CancellationToken);
         }
 
         // Act: Advance time by 1 second (should refill 10 tokens)
         timeProvider.Advance(TimeSpan.FromSeconds(1));
-        var result = await limiter.AcquireAsync();
+        var result = await limiter.AcquireAsync(TestContext.Current.CancellationToken);
 
         // Assert: Should have tokens available again
         Assert.True(result.IsAllowed);
@@ -137,12 +137,12 @@ public class TokenBucketRateLimiterTests
         // Exhaust 8 tokens (2 remaining)
         for (int i = 0; i < 8; i++)
         {
-            await limiter.AcquireAsync();
+            await limiter.AcquireAsync(TestContext.Current.CancellationToken);
         }
 
         // Act: Advance time by 2 seconds (should add 10 tokens, but capped at capacity)
         timeProvider.Advance(TimeSpan.FromSeconds(2));
-        var result = await limiter.AcquireAsync();
+        var result = await limiter.AcquireAsync(TestContext.Current.CancellationToken);
 
         // Assert: Should be at capacity (10 - 1 = 9 remaining)
         Assert.True(result.IsAllowed);
@@ -165,12 +165,12 @@ public class TokenBucketRateLimiterTests
         // Exhaust all tokens
         for (int i = 0; i < 10; i++)
         {
-            await limiter.AcquireAsync();
+            await limiter.AcquireAsync(TestContext.Current.CancellationToken);
         }
 
         // Act: Advance time by 0.5 seconds (should add 5 tokens)
         timeProvider.Advance(TimeSpan.FromMilliseconds(500));
-        var result = await limiter.AcquireAsync();
+        var result = await limiter.AcquireAsync(TestContext.Current.CancellationToken);
 
         // Assert: Should have partial refill (5 - 1 = 4 remaining)
         Assert.True(result.IsAllowed);
@@ -192,7 +192,7 @@ public class TokenBucketRateLimiterTests
 
         // Act: Advance time significantly (should not exceed capacity)
         timeProvider.Advance(TimeSpan.FromSeconds(10));
-        var result = await limiter.AcquireAsync();
+        var result = await limiter.AcquireAsync(TestContext.Current.CancellationToken);
 
         // Assert: Should not exceed capacity (10 - 1 = 9)
         Assert.True(result.IsAllowed);
@@ -217,11 +217,11 @@ public class TokenBucketRateLimiterTests
         var timeProvider = new FakeTimeProvider();
         var limiter = new TokenBucketRateLimiter(options, timeProvider);
 
-        await limiter.AcquireAsync(); // Exhaust token
+        await limiter.AcquireAsync(TestContext.Current.CancellationToken); // Exhaust token
 
         // Act: Try to acquire with no tokens (should return immediately)
         var startTime = timeProvider.GetUtcNow();
-        var result = await limiter.AcquireAsync();
+        var result = await limiter.AcquireAsync(TestContext.Current.CancellationToken);
         var elapsed = timeProvider.GetUtcNow() - startTime;
 
         // Assert: Should reject immediately without waiting
@@ -246,10 +246,10 @@ public class TokenBucketRateLimiterTests
         var limiter = new TokenBucketRateLimiter(options, timeProvider);
 
         // Act: Exhaust token
-        await limiter.AcquireAsync();
+        await limiter.AcquireAsync(TestContext.Current.CancellationToken);
 
         // Start queued acquire in background
-        var acquireTask = Task.Run(async () => await limiter.AcquireAsync());
+        var acquireTask = Task.Run(async () => await limiter.AcquireAsync(TestContext.Current.CancellationToken));
 
         // Allow task to start and hit the delay
         await Task.Delay(10);
@@ -280,10 +280,10 @@ public class TokenBucketRateLimiterTests
         };
         var limiter = new TokenBucketRateLimiter(options, TimeProvider.System);
 
-        await limiter.AcquireAsync(); // Exhaust token
+        await limiter.AcquireAsync(TestContext.Current.CancellationToken); // Exhaust token
 
         // Act: Try to queue - need to wait 1 second for refill but max wait is 100ms
-        var result = await limiter.AcquireAsync();
+        var result = await limiter.AcquireAsync(TestContext.Current.CancellationToken);
 
         // Assert: Should be throttled due to max queue wait exceeded
         Assert.False(result.IsAllowed);
@@ -308,7 +308,7 @@ public class TokenBucketRateLimiterTests
         var limiter = new TokenBucketRateLimiter(options, timeProvider);
 
         // Act: Acquire 5 permits at once
-        var result = await limiter.AcquireAsync(permits: 5);
+        var result = await limiter.AcquireAsync(permits: 5, TestContext.Current.CancellationToken);
 
         // Assert: Should consume 5 tokens (10 - 5 = 5 remaining)
         Assert.True(result.IsAllowed);
@@ -330,7 +330,7 @@ public class TokenBucketRateLimiterTests
         var limiter = new TokenBucketRateLimiter(options, timeProvider);
 
         // Act: Try to acquire 11 permits (more than capacity)
-        var result = await limiter.AcquireAsync(permits: 11);
+        var result = await limiter.AcquireAsync(permits: 11, TestContext.Current.CancellationToken);
 
         // Assert: Should be throttled
         Assert.False(result.IsAllowed);
@@ -383,11 +383,11 @@ public class TokenBucketRateLimiterTests
         // Act: Exhaust tokens for key1
         for (int i = 0; i < 5; i++)
         {
-            await limiter.AcquireAsync(key: "key1");
+            await limiter.AcquireAsync(key: "key1", TestContext.Current.CancellationToken);
         }
 
         // Try to acquire for key2 (should have full bucket)
-        var result = await limiter.AcquireAsync(key: "key2");
+        var result = await limiter.AcquireAsync(key: "key2", TestContext.Current.CancellationToken);
 
         // Assert: key2 should have tokens available
         Assert.True(result.IsAllowed);
@@ -409,9 +409,9 @@ public class TokenBucketRateLimiterTests
         var limiter = new TokenBucketRateLimiter(options, timeProvider);
 
         // Act: Acquire with same key multiple times
-        await limiter.AcquireAsync(key: "shared-key");
-        await limiter.AcquireAsync(key: "shared-key");
-        var result = await limiter.AcquireAsync(key: "shared-key");
+        await limiter.AcquireAsync(key: "shared-key", TestContext.Current.CancellationToken);
+        await limiter.AcquireAsync(key: "shared-key", TestContext.Current.CancellationToken);
+        var result = await limiter.AcquireAsync(key: "shared-key", TestContext.Current.CancellationToken);
 
         // Assert: Should share the same bucket (5 - 3 = 2 remaining)
         Assert.True(result.IsAllowed);
@@ -433,9 +433,9 @@ public class TokenBucketRateLimiterTests
         var limiter = new TokenBucketRateLimiter(options, timeProvider);
 
         // Act: Acquire with null key (global bucket)
-        await limiter.AcquireAsync(key: null);
-        await limiter.AcquireAsync(key: null);
-        var result = await limiter.AcquireAsync(key: null);
+        await limiter.AcquireAsync(key: null, TestContext.Current.CancellationToken);
+        await limiter.AcquireAsync(key: null, TestContext.Current.CancellationToken);
+        var result = await limiter.AcquireAsync(key: null, TestContext.Current.CancellationToken);
 
         // Assert: Should use global bucket
         Assert.True(result.IsAllowed);
@@ -460,13 +460,13 @@ public class TokenBucketRateLimiterTests
         // Act: Create 50 unique keys, each with independent limits
         for (int i = 0; i < 50; i++)
         {
-            var result = await limiter.AcquireAsync(key: $"key-{i}");
+            var result = await limiter.AcquireAsync(key: $"key-{i}", TestContext.Current.CancellationToken);
             Assert.True(result.IsAllowed, $"Key {i} should be allowed");
             Assert.Equal(9, result.RemainingPermits);
         }
 
         // Assert: All keys should have independent buckets
-        var finalResult = await limiter.AcquireAsync(key: "key-0");
+        var finalResult = await limiter.AcquireAsync(key: "key-0", TestContext.Current.CancellationToken);
         Assert.True(finalResult.IsAllowed);
         Assert.Equal(8, finalResult.RemainingPermits); // Used twice now
     }
@@ -500,7 +500,7 @@ public class TokenBucketRateLimiterTests
         Assert.Equal(100, successCount);
 
         // Try one more (should fail - bucket empty)
-        var extraResult = await limiter.AcquireAsync();
+        var extraResult = await limiter.AcquireAsync(TestContext.Current.CancellationToken);
         Assert.False(extraResult.IsAllowed);
     }
 
@@ -553,7 +553,7 @@ public class TokenBucketRateLimiterTests
         // Exhaust tokens
         for (int i = 0; i < 10; i++)
         {
-            await limiter.AcquireAsync();
+            await limiter.AcquireAsync(TestContext.Current.CancellationToken);
         }
 
         // Act: Advance time precisely
@@ -562,11 +562,11 @@ public class TokenBucketRateLimiterTests
         // Assert: Should have exactly 10 tokens (full capacity)
         for (int i = 0; i < 10; i++)
         {
-            var result = await limiter.AcquireAsync();
+            var result = await limiter.AcquireAsync(TestContext.Current.CancellationToken);
             Assert.True(result.IsAllowed, $"Token {i + 1} should be available");
         }
 
-        var extraResult = await limiter.AcquireAsync();
+        var extraResult = await limiter.AcquireAsync(TestContext.Current.CancellationToken);
         Assert.False(extraResult.IsAllowed, "Should be exhausted again");
     }
 
@@ -586,12 +586,12 @@ public class TokenBucketRateLimiterTests
         // Use 50 tokens
         for (int i = 0; i < 50; i++)
         {
-            await limiter.AcquireAsync();
+            await limiter.AcquireAsync(TestContext.Current.CancellationToken);
         }
 
         // Act: Advance by 0.3 seconds (should add 30 tokens)
         timeProvider.Advance(TimeSpan.FromMilliseconds(300));
-        var result = await limiter.AcquireAsync();
+        var result = await limiter.AcquireAsync(TestContext.Current.CancellationToken);
 
         // Assert: Should have 50 remaining + 30 refilled - 1 acquired = 79 remaining
         Assert.True(result.IsAllowed);
@@ -616,9 +616,9 @@ public class TokenBucketRateLimiterTests
         var limiter = new TokenBucketRateLimiter(options, timeProvider);
 
         // Act: Use some tokens
-        await limiter.AcquireAsync();
-        await limiter.AcquireAsync();
-        await limiter.AcquireAsync();
+        await limiter.AcquireAsync(TestContext.Current.CancellationToken);
+        await limiter.AcquireAsync(TestContext.Current.CancellationToken);
+        await limiter.AcquireAsync(TestContext.Current.CancellationToken);
 
         var stats = limiter.GetStatistics();
 
@@ -644,10 +644,10 @@ public class TokenBucketRateLimiterTests
         var limiter = new TokenBucketRateLimiter(options, new FakeTimeProvider());
 
         // Act: Acquire and exhaust
-        await limiter.AcquireAsync(); // Success
-        await limiter.AcquireAsync(); // Success
-        await limiter.AcquireAsync(); // Throttled
-        await limiter.AcquireAsync(); // Throttled
+        await limiter.AcquireAsync(TestContext.Current.CancellationToken); // Success
+        await limiter.AcquireAsync(TestContext.Current.CancellationToken); // Success
+        await limiter.AcquireAsync(TestContext.Current.CancellationToken); // Throttled
+        await limiter.AcquireAsync(TestContext.Current.CancellationToken); // Throttled
 
         var stats = limiter.GetStatistics();
 
@@ -696,10 +696,10 @@ public class TokenBucketRateLimiterTests
         var limiter = new TokenBucketRateLimiter(options, TimeProvider.System);
 
         // Exhaust the one token
-        await limiter.AcquireAsync();
+        await limiter.AcquireAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await limiter.AcquireAsync();
+        var result = await limiter.AcquireAsync(TestContext.Current.CancellationToken);
 
         // Assert: Should be throttled with very slow refill
         Assert.False(result.IsAllowed);
@@ -719,7 +719,7 @@ public class TokenBucketRateLimiterTests
         };
         var limiter = new TokenBucketRateLimiter(options, TimeProvider.System);
 
-        await limiter.AcquireAsync(); // Exhaust
+        await limiter.AcquireAsync(TestContext.Current.CancellationToken); // Exhaust
 
         // Act: Cancel immediately
         using var cts = new CancellationTokenSource();

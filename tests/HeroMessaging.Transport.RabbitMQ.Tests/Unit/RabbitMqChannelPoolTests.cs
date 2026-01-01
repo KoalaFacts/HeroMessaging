@@ -52,7 +52,7 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
     {
         if (_channelPool != null)
         {
-            await _channelPool.DisposeAsync();
+            await _channelPool.DisposeAsync(TestContext.Current.CancellationToken);
         }
     }
 
@@ -109,7 +109,7 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
         _channelPool.ReleaseChannel(channel1);
 
         // Act
-        var channel2 = await _channelPool.AcquireChannelAsync();
+        var channel2 = await _channelPool.AcquireChannelAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Same(channel1, channel2);
@@ -127,7 +127,7 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
         _channelPool.ReleaseChannel(channel1);
 
         // Act
-        var channel2 = await _channelPool.AcquireChannelAsync();
+        var channel2 = await _channelPool.AcquireChannelAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotSame(channel1, channel2);
@@ -142,7 +142,7 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
 
         // Act & Assert
         await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
-            await _channelPool.AcquireChannelAsync());
+            await _channelPool.AcquireChannelAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -228,7 +228,7 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
     {
         // Arrange
         var channel = await _channelPool!.AcquireChannelAsync();
-        await _channelPool.DisposeAsync();
+        await _channelPool.DisposeAsync(TestContext.Current.CancellationToken);
 
         // Act
         _channelPool.ReleaseChannel(channel);
@@ -350,12 +350,12 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
     {
         // Arrange
         var channel1 = await _channelPool!.AcquireChannelAsync();
-        var channel2 = await _channelPool.AcquireChannelAsync();
+        var channel2 = await _channelPool.AcquireChannelAsync(TestContext.Current.CancellationToken);
         _channelPool.ReleaseChannel(channel1);
         _channelPool.ReleaseChannel(channel2);
 
         // Act
-        await _channelPool.DisposeAsync();
+        await _channelPool.DisposeAsync(TestContext.Current.CancellationToken);
 
         // Assert
         foreach (var mockChannel in _mockChannels)
@@ -369,8 +369,8 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
     {
         // Act
         await _channelPool!.DisposeAsync();
-        await _channelPool.DisposeAsync();
-        await _channelPool.DisposeAsync();
+        await _channelPool.DisposeAsync(TestContext.Current.CancellationToken);
+        await _channelPool.DisposeAsync(TestContext.Current.CancellationToken);
 
         // Assert - should not throw
     }
@@ -444,7 +444,7 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
         _channelPool.ReleaseChannel(channel1);
 
         // Act
-        var channel2 = await _channelPool.AcquireChannelAsync();
+        var channel2 = await _channelPool.AcquireChannelAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(channel1, channel2);
@@ -455,7 +455,7 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
     {
         // Act
         var channel1 = await _channelPool!.AcquireChannelAsync();
-        var channel2 = await _channelPool.AcquireChannelAsync();
+        var channel2 = await _channelPool.AcquireChannelAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotEqual(channel1, channel2);
@@ -473,7 +473,7 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
         }
 
         // Act - 6th acquire should succeed but create temp channel
-        var tempChannel = await _channelPool.AcquireChannelAsync();
+        var tempChannel = await _channelPool.AcquireChannelAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(tempChannel);
@@ -506,7 +506,7 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
 
         // Act
         _channelPool.ReleaseChannel(channel);
-        var channel2 = await _channelPool.AcquireChannelAsync();
+        var channel2 = await _channelPool.AcquireChannelAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(channel, channel2);
@@ -585,7 +585,7 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
     {
         // Arrange
         var ch1 = await _channelPool!.AcquireChannelAsync();
-        var ch2 = await _channelPool.AcquireChannelAsync();
+        var ch2 = await _channelPool.AcquireChannelAsync(TestContext.Current.CancellationToken);
 
         // Act
         var stats = _channelPool.GetStatistics();
@@ -600,7 +600,7 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
     {
         // Arrange
         var ch1 = await _channelPool!.AcquireChannelAsync();
-        var ch2 = await _channelPool.AcquireChannelAsync();
+        var ch2 = await _channelPool.AcquireChannelAsync(TestContext.Current.CancellationToken);
         _channelPool.ReleaseChannel(ch1);
 
         // Act
@@ -691,7 +691,7 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
 
         // Act & Assert
         await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
-            await _channelPool.AcquireChannelAsync());
+            await _channelPool.AcquireChannelAsync(TestContext.Current.CancellationToken));
     }
 
     #endregion

@@ -35,7 +35,7 @@ public abstract class RabbitMqIntegrationTestBase : IAsyncLifetime
             .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(5672))
             .Build();
 
-        await _rabbitMqContainer.StartAsync();
+        await _rabbitMqContainer.StartAsync(TestContext.Current.CancellationToken);
 
         // Create transport options
         Options = new RabbitMqTransportOptions
@@ -54,20 +54,20 @@ public abstract class RabbitMqIntegrationTestBase : IAsyncLifetime
         Transport = new RabbitMqTransport(Options, LoggerFactory, TimeProvider.System);
 
         // Connect to RabbitMQ
-        await Transport.ConnectAsync();
+        await Transport.ConnectAsync(TestContext.Current.CancellationToken);
     }
 
     public async ValueTask DisposeAsync()
     {
         if (Transport != null)
         {
-            await Transport.DisposeAsync();
+            await Transport.DisposeAsync(TestContext.Current.CancellationToken);
         }
 
         if (_rabbitMqContainer != null)
         {
-            await _rabbitMqContainer.StopAsync();
-            await _rabbitMqContainer.DisposeAsync();
+            await _rabbitMqContainer.StopAsync(TestContext.Current.CancellationToken);
+            await _rabbitMqContainer.DisposeAsync(TestContext.Current.CancellationToken);
         }
     }
 

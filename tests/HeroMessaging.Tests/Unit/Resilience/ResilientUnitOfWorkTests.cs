@@ -200,7 +200,7 @@ public class ResilientUnitOfWorkTests
             .Returns<Func<Task>, string, CancellationToken>((func, _, _) => func());
 
         // Act
-        await _resilientUnitOfWork.BeginTransactionAsync();
+        await _resilientUnitOfWork.BeginTransactionAsync(TestContext.Current.CancellationToken);
 
         // Assert
         _mockResiliencePolicy.Verify(
@@ -228,7 +228,7 @@ public class ResilientUnitOfWorkTests
             .Returns<Func<Task>, string, CancellationToken>((func, _, _) => func());
 
         // Act
-        await _resilientUnitOfWork.BeginTransactionAsync(isolationLevel);
+        await _resilientUnitOfWork.BeginTransactionAsync(isolationLevel, TestContext.Current.CancellationToken);
 
         // Assert
         _mockUnitOfWork.Verify(
@@ -261,7 +261,7 @@ public class ResilientUnitOfWorkTests
             .Returns<Func<Task>, string, CancellationToken>((func, _, _) => func());
 
         // Act
-        await _resilientUnitOfWork.CommitAsync();
+        await _resilientUnitOfWork.CommitAsync(TestContext.Current.CancellationToken);
 
         // Assert
         _mockResiliencePolicy.Verify(
@@ -286,7 +286,7 @@ public class ResilientUnitOfWorkTests
             .Returns<Func<Task>, string, CancellationToken>((func, _, _) => func());
 
         // Act
-        await _resilientUnitOfWork.CommitAsync();
+        await _resilientUnitOfWork.CommitAsync(TestContext.Current.CancellationToken);
 
         // Assert
         _mockLogger.Verify(
@@ -316,7 +316,7 @@ public class ResilientUnitOfWorkTests
             .Returns<Func<Task>, string, CancellationToken>((func, _, _) => func());
 
         // Act
-        await _resilientUnitOfWork.RollbackAsync();
+        await _resilientUnitOfWork.RollbackAsync(TestContext.Current.CancellationToken);
 
         // Assert
         _mockResiliencePolicy.Verify(
@@ -341,7 +341,7 @@ public class ResilientUnitOfWorkTests
             .Returns<Func<Task>, string, CancellationToken>((func, _, _) => func());
 
         // Act
-        await _resilientUnitOfWork.RollbackAsync();
+        await _resilientUnitOfWork.RollbackAsync(TestContext.Current.CancellationToken);
 
         // Assert
         _mockLogger.Verify(
@@ -372,7 +372,7 @@ public class ResilientUnitOfWorkTests
             .Returns<Func<Task>, string, CancellationToken>((func, _, _) => func());
 
         // Act
-        await _resilientUnitOfWork.SavepointAsync(savepointName);
+        await _resilientUnitOfWork.SavepointAsync(savepointName, TestContext.Current.CancellationToken);
 
         // Assert
         _mockResiliencePolicy.Verify(
@@ -400,7 +400,7 @@ public class ResilientUnitOfWorkTests
             .Returns<Func<Task>, string, CancellationToken>((func, _, _) => func());
 
         // Act
-        await _resilientUnitOfWork.SavepointAsync(savepointName);
+        await _resilientUnitOfWork.SavepointAsync(savepointName, TestContext.Current.CancellationToken);
 
         // Assert
         _mockLogger.Verify(
@@ -431,7 +431,7 @@ public class ResilientUnitOfWorkTests
             .Returns<Func<Task>, string, CancellationToken>((func, _, _) => func());
 
         // Act
-        await _resilientUnitOfWork.RollbackToSavepointAsync(savepointName);
+        await _resilientUnitOfWork.RollbackToSavepointAsync(savepointName, TestContext.Current.CancellationToken);
 
         // Assert
         _mockResiliencePolicy.Verify(
@@ -459,7 +459,7 @@ public class ResilientUnitOfWorkTests
             .Returns<Func<Task>, string, CancellationToken>((func, _, _) => func());
 
         // Act
-        await _resilientUnitOfWork.RollbackToSavepointAsync(savepointName);
+        await _resilientUnitOfWork.RollbackToSavepointAsync(savepointName, TestContext.Current.CancellationToken);
 
         // Assert
         _mockLogger.Verify(
@@ -484,7 +484,7 @@ public class ResilientUnitOfWorkTests
         _mockUnitOfWork.Setup(x => x.DisposeAsync()).Returns(ValueTask.CompletedTask);
 
         // Act
-        await _resilientUnitOfWork.DisposeAsync();
+        await _resilientUnitOfWork.DisposeAsync(TestContext.Current.CancellationToken);
 
         // Assert
         _mockUnitOfWork.Verify(x => x.DisposeAsync(), Times.Once);
@@ -574,7 +574,7 @@ public class ResilientUnitOfWorkTests
             mockLogger.Object);
 
         // Act
-        var result = await factory.CreateAsync();
+        var result = await factory.CreateAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -612,7 +612,7 @@ public class ResilientUnitOfWorkTests
             mockLogger.Object);
 
         // Act
-        var result = await factory.CreateAsync(IsolationLevel.Serializable);
+        var result = await factory.CreateAsync(IsolationLevel.Serializable, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -648,7 +648,7 @@ public class ResilientUnitOfWorkTests
             mockLogger.Object);
 
         // Act
-        await factory.CreateAsync();
+        await factory.CreateAsync(TestContext.Current.CancellationToken);
 
         // Assert
         mockLogger.Verify(
@@ -687,7 +687,7 @@ public class ResilientUnitOfWorkTests
             mockLogger.Object);
 
         // Act
-        await factory.CreateAsync(IsolationLevel.Snapshot);
+        await factory.CreateAsync(IsolationLevel.Snapshot, TestContext.Current.CancellationToken);
 
         // Assert
         mockLogger.Verify(

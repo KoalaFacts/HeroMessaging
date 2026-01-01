@@ -29,7 +29,7 @@ public class InMemoryQueueTests
     {
         // Arrange
         var transport = new InMemoryTransport(_options, TimeProvider.System);
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(TestContext.Current.CancellationToken);
 
         var queue = TransportAddress.Queue("test-queue");
         var receivedMessages = new List<string>();
@@ -39,14 +39,14 @@ public class InMemoryQueueTests
             async (env, ctx, ct) =>
             {
                 receivedMessages.Add(env.MessageType);
-                await ctx.AcknowledgeAsync(ct);
+                await ctx.AcknowledgeAsync(ct, TestContext.Current.CancellationToken);
             },
             new ConsumerOptions { StartImmediately = true });
 
         // Act
-        await transport.SendAsync(queue, CreateTestEnvelope("Message1"));
-        await transport.SendAsync(queue, CreateTestEnvelope("Message2"));
-        await transport.SendAsync(queue, CreateTestEnvelope("Message3"));
+        await transport.SendAsync(queue, CreateTestEnvelope("Message1", TestContext.Current.CancellationToken));
+        await transport.SendAsync(queue, CreateTestEnvelope("Message2", TestContext.Current.CancellationToken));
+        await transport.SendAsync(queue, CreateTestEnvelope("Message3", TestContext.Current.CancellationToken));
 
         await Task.Delay(200); // Wait for processing
 
@@ -56,7 +56,7 @@ public class InMemoryQueueTests
         Assert.Equal("Message2", receivedMessages[1]);
         Assert.Equal("Message3", receivedMessages[2]);
 
-        await transport.DisposeAsync();
+        await transport.DisposeAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -70,20 +70,20 @@ public class InMemoryQueueTests
             DropWhenFull = false
         };
         var transport = new InMemoryTransport(options, TimeProvider.System);
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(TestContext.Current.CancellationToken);
 
         var queue = TransportAddress.Queue("test-queue");
 
         // Fill the queue
-        await transport.SendAsync(queue, CreateTestEnvelope());
-        await transport.SendAsync(queue, CreateTestEnvelope());
+        await transport.SendAsync(queue, CreateTestEnvelope(, TestContext.Current.CancellationToken));
+        await transport.SendAsync(queue, CreateTestEnvelope(, TestContext.Current.CancellationToken));
 
         // Act & Assert - Third message should timeout
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
         await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
             await transport.SendAsync(queue, CreateTestEnvelope(), cts.Token));
 
-        await transport.DisposeAsync();
+        await transport.DisposeAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -97,20 +97,20 @@ public class InMemoryQueueTests
             DropWhenFull = true
         };
         var transport = new InMemoryTransport(options, TimeProvider.System);
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(TestContext.Current.CancellationToken);
 
         var queue = TransportAddress.Queue("test-queue");
 
         // Act - Fill the queue and send one more
-        await transport.SendAsync(queue, CreateTestEnvelope());
-        await transport.SendAsync(queue, CreateTestEnvelope());
-        await transport.SendAsync(queue, CreateTestEnvelope()); // Should drop oldest
+        await transport.SendAsync(queue, CreateTestEnvelope(, TestContext.Current.CancellationToken));
+        await transport.SendAsync(queue, CreateTestEnvelope(, TestContext.Current.CancellationToken));
+        await transport.SendAsync(queue, CreateTestEnvelope(, TestContext.Current.CancellationToken)); // Should drop oldest
 
         // Assert - Should not throw
-        var health = await transport.GetHealthAsync();
+        var health = await transport.GetHealthAsync(TestContext.Current.CancellationToken);
         Assert.True(health.PendingMessages <= 2);
 
-        await transport.DisposeAsync();
+        await transport.DisposeAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -118,7 +118,7 @@ public class InMemoryQueueTests
     {
         // Arrange
         var transport = new InMemoryTransport(_options, TimeProvider.System);
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(TestContext.Current.CancellationToken);
 
         var queue = TransportAddress.Queue("test-queue");
         var consumer1Messages = new List<string>();
@@ -129,7 +129,7 @@ public class InMemoryQueueTests
             async (env, ctx, ct) =>
             {
                 consumer1Messages.Add(env.MessageType);
-                await ctx.AcknowledgeAsync(ct);
+                await ctx.AcknowledgeAsync(ct, TestContext.Current.CancellationToken);
             },
             new ConsumerOptions { StartImmediately = true, ConsumerId = "consumer1" });
 
@@ -137,7 +137,7 @@ public class InMemoryQueueTests
             async (env, ctx, ct) =>
             {
                 consumer2Messages.Add(env.MessageType);
-                await ctx.AcknowledgeAsync(ct);
+                await ctx.AcknowledgeAsync(ct, TestContext.Current.CancellationToken);
             },
             new ConsumerOptions { StartImmediately = true, ConsumerId = "consumer2" });
 
@@ -145,14 +145,14 @@ public class InMemoryQueueTests
             async (env, ctx, ct) =>
             {
                 consumer3Messages.Add(env.MessageType);
-                await ctx.AcknowledgeAsync(ct);
+                await ctx.AcknowledgeAsync(ct, TestContext.Current.CancellationToken);
             },
             new ConsumerOptions { StartImmediately = true, ConsumerId = "consumer3" });
 
         // Act - Send 6 messages (2 per consumer with round-robin)
         for (int i = 0; i < 6; i++)
         {
-            await transport.SendAsync(queue, CreateTestEnvelope($"Message{i}"));
+            await transport.SendAsync(queue, CreateTestEnvelope($"Message{i}", TestContext.Current.CancellationToken));
         }
 
         await Task.Delay(300); // Wait for processing
@@ -162,7 +162,7 @@ public class InMemoryQueueTests
         Assert.Equal(2, consumer2Messages.Count);
         Assert.Equal(2, consumer3Messages.Count);
 
-        await transport.DisposeAsync();
+        await transport.DisposeAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -170,7 +170,7 @@ public class InMemoryQueueTests
     {
         // Arrange
         var transport = new InMemoryTransport(_options, TimeProvider.System);
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(TestContext.Current.CancellationToken);
 
         var queue = TransportAddress.Queue("test-queue");
         var consumer1Messages = new List<string>();
@@ -181,7 +181,7 @@ public class InMemoryQueueTests
             async (env, ctx, ct) =>
             {
                 consumer1Messages.Add(env.MessageType);
-                await ctx.AcknowledgeAsync(ct);
+                await ctx.AcknowledgeAsync(ct, TestContext.Current.CancellationToken);
             },
             new ConsumerOptions { StartImmediately = true, ConsumerId = "consumer1" });
 
@@ -190,20 +190,20 @@ public class InMemoryQueueTests
             {
                 consumer2Messages.Add(env.MessageType);
                 receivedMessages.Add(env.MessageType);
-                await ctx.AcknowledgeAsync(ct);
+                await ctx.AcknowledgeAsync(ct, TestContext.Current.CancellationToken);
             },
             new ConsumerOptions { StartImmediately = true, ConsumerId = "consumer2" });
 
         // Act - Remove consumer1
-        await consumer1.DisposeAsync();
+        await consumer1.DisposeAsync(TestContext.Current.CancellationToken);
 
         // Allow time for cache refresh (round-robin might still hit removed consumer briefly)
         await Task.Delay(50);
 
         // Send messages after removal - with only consumer2 active
-        await transport.SendAsync(queue, CreateTestEnvelope("AfterRemoval1"));
-        await transport.SendAsync(queue, CreateTestEnvelope("AfterRemoval2"));
-        await transport.SendAsync(queue, CreateTestEnvelope("AfterRemoval3"));
+        await transport.SendAsync(queue, CreateTestEnvelope("AfterRemoval1", TestContext.Current.CancellationToken));
+        await transport.SendAsync(queue, CreateTestEnvelope("AfterRemoval2", TestContext.Current.CancellationToken));
+        await transport.SendAsync(queue, CreateTestEnvelope("AfterRemoval3", TestContext.Current.CancellationToken));
 
         // Wait for processing
         await Task.Delay(300);
@@ -214,7 +214,7 @@ public class InMemoryQueueTests
         // Consumer2 should receive at least some messages (all messages go to consumer2 now)
         Assert.True(consumer2Messages.Count > 0, "Consumer2 should receive messages after consumer1 removal");
 
-        await transport.DisposeAsync();
+        await transport.DisposeAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -222,7 +222,7 @@ public class InMemoryQueueTests
     {
         // Arrange
         var transport = new InMemoryTransport(_options, TimeProvider.System);
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(TestContext.Current.CancellationToken);
 
         var queue = TransportAddress.Queue("test-queue");
         var processedMessages = new System.Collections.Concurrent.ConcurrentBag<string>();
@@ -238,7 +238,7 @@ public class InMemoryQueueTests
                 }
 
                 processedMessages.Add(env.MessageType);
-                await ctx.AcknowledgeAsync(ct);
+                await ctx.AcknowledgeAsync(ct, TestContext.Current.CancellationToken);
 
                 // Signal when we've successfully processed the other messages
                 if (processedMessages.Count >= 2)
@@ -257,19 +257,19 @@ public class InMemoryQueueTests
             });
 
         // Act - Send multiple messages
-        await transport.SendAsync(queue, CreateTestEnvelope("Message1"));
-        await transport.SendAsync(queue, CreateTestEnvelope("Message2"));
-        await transport.SendAsync(queue, CreateTestEnvelope("Message3"));
+        await transport.SendAsync(queue, CreateTestEnvelope("Message1", TestContext.Current.CancellationToken));
+        await transport.SendAsync(queue, CreateTestEnvelope("Message2", TestContext.Current.CancellationToken));
+        await transport.SendAsync(queue, CreateTestEnvelope("Message3", TestContext.Current.CancellationToken));
 
         // Wait for the successful messages (Message2 and Message3)
-        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5, TestContext.Current.CancellationToken));
 
         // Assert - Should have processed Message2 and Message3 successfully despite Message1 failing
         Assert.Equal(2, processedMessages.Count);
         Assert.Contains("Message2", processedMessages);
         Assert.Contains("Message3", processedMessages);
 
-        await transport.DisposeAsync();
+        await transport.DisposeAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -284,7 +284,7 @@ public class InMemoryQueueTests
                 DropWhenFull = false
             },
             TimeProvider.System);
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(TestContext.Current.CancellationToken);
 
         var queue = TransportAddress.Queue("test-queue");
         var processedCount = 0;
@@ -293,7 +293,7 @@ public class InMemoryQueueTests
             async (env, ctx, ct) =>
             {
                 Interlocked.Increment(ref processedCount);
-                await ctx.AcknowledgeAsync(ct);
+                await ctx.AcknowledgeAsync(ct, TestContext.Current.CancellationToken);
             },
             new ConsumerOptions { StartImmediately = true, ConsumerId = "consumer1" });
 
@@ -301,7 +301,7 @@ public class InMemoryQueueTests
             async (env, ctx, ct) =>
             {
                 Interlocked.Increment(ref processedCount);
-                await ctx.AcknowledgeAsync(ct);
+                await ctx.AcknowledgeAsync(ct, TestContext.Current.CancellationToken);
             },
             new ConsumerOptions { StartImmediately = true, ConsumerId = "consumer2" });
 
@@ -318,7 +318,7 @@ public class InMemoryQueueTests
         // Assert
         Assert.Equal(100, processedCount);
 
-        await transport.DisposeAsync();
+        await transport.DisposeAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -326,17 +326,17 @@ public class InMemoryQueueTests
     {
         // Arrange
         var transport = new InMemoryTransport(_options, TimeProvider.System);
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(TestContext.Current.CancellationToken);
 
         var queue = TransportAddress.Queue("test-queue");
 
         // Act - Send messages without consumer
-        await transport.SendAsync(queue, CreateTestEnvelope());
-        await transport.SendAsync(queue, CreateTestEnvelope());
-        await transport.SendAsync(queue, CreateTestEnvelope());
+        await transport.SendAsync(queue, CreateTestEnvelope(, TestContext.Current.CancellationToken));
+        await transport.SendAsync(queue, CreateTestEnvelope(, TestContext.Current.CancellationToken));
+        await transport.SendAsync(queue, CreateTestEnvelope(, TestContext.Current.CancellationToken));
 
         // Assert - Depth should be 3
-        var health = await transport.GetHealthAsync();
+        var health = await transport.GetHealthAsync(TestContext.Current.CancellationToken);
         Assert.Equal(3, health.PendingMessages);
 
         // Add consumer and wait
@@ -347,10 +347,10 @@ public class InMemoryQueueTests
         await Task.Delay(200);
 
         // Assert - Depth should be 0 after processing
-        health = await transport.GetHealthAsync();
+        health = await transport.GetHealthAsync(TestContext.Current.CancellationToken);
         Assert.Equal(0, health.PendingMessages);
 
-        await transport.DisposeAsync();
+        await transport.DisposeAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -358,7 +358,7 @@ public class InMemoryQueueTests
     {
         // Arrange
         var transport = new InMemoryTransport(_options, TimeProvider.System);
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(TestContext.Current.CancellationToken);
 
         var queue = TransportAddress.Queue("test-queue");
         var processedCount = 0;
@@ -367,27 +367,27 @@ public class InMemoryQueueTests
             async (env, ctx, ct) =>
             {
                 Interlocked.Increment(ref processedCount);
-                await ctx.AcknowledgeAsync(ct);
+                await ctx.AcknowledgeAsync(ct, TestContext.Current.CancellationToken);
             },
             new ConsumerOptions { StartImmediately = true });
 
         // Send and process first message
-        await transport.SendAsync(queue, CreateTestEnvelope());
+        await transport.SendAsync(queue, CreateTestEnvelope(, TestContext.Current.CancellationToken));
         await Task.Delay(100);
 
         // Act - Stop consumer
-        await consumer.StopAsync();
+        await consumer.StopAsync(TestContext.Current.CancellationToken);
         var countAfterStop = processedCount;
 
         // Send message while stopped
-        await transport.SendAsync(queue, CreateTestEnvelope());
+        await transport.SendAsync(queue, CreateTestEnvelope(, TestContext.Current.CancellationToken));
         await Task.Delay(100);
 
         // Assert - Message not processed while stopped
         Assert.Equal(countAfterStop, processedCount);
         Assert.False(consumer.IsActive);
 
-        await transport.DisposeAsync();
+        await transport.DisposeAsync(TestContext.Current.CancellationToken);
     }
 
     private static TransportEnvelope CreateTestEnvelope(string messageType = "TestMessage")

@@ -59,7 +59,7 @@ public sealed class CommandProcessorTests : IDisposable
             .Returns(Task.CompletedTask);
 
         // Act
-        await processor.SendAsync(command);
+        await processor.SendAsync(command, TestContext.Current.CancellationToken);
 
         // Assert
         handlerMock.Verify(h => h.HandleAsync(command, It.IsAny<CancellationToken>()), Times.Once);
@@ -79,7 +79,7 @@ public sealed class CommandProcessorTests : IDisposable
             .Returns(Task.CompletedTask);
 
         // Act
-        await processor.SendAsync(command);
+        await processor.SendAsync(command, TestContext.Current.CancellationToken);
 
         // Assert
         var metrics = processor.GetMetrics();
@@ -102,8 +102,8 @@ public sealed class CommandProcessorTests : IDisposable
             .Returns(Task.CompletedTask);
 
         // Act
-        await processor.SendAsync(command1);
-        await processor.SendAsync(command2);
+        await processor.SendAsync(command1, TestContext.Current.CancellationToken);
+        await processor.SendAsync(command2, TestContext.Current.CancellationToken);
 
         // Assert
         var metrics = processor.GetMetrics();
@@ -130,7 +130,7 @@ public sealed class CommandProcessorTests : IDisposable
             .ReturnsAsync(expectedResponse);
 
         // Act
-        var result = await processor.SendAsync(command);
+        var result = await processor.SendAsync(command, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(expectedResponse, result);
@@ -150,7 +150,7 @@ public sealed class CommandProcessorTests : IDisposable
             .ReturnsAsync("Success");
 
         // Act
-        await processor.SendAsync(command);
+        await processor.SendAsync(command, TestContext.Current.CancellationToken);
 
         // Assert
         var metrics = processor.GetMetrics();
@@ -171,7 +171,7 @@ public sealed class CommandProcessorTests : IDisposable
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await processor.SendAsync(command));
+            async () => await processor.SendAsync(command, TestContext.Current.CancellationToken));
         Assert.Contains("No handler found", exception.Message);
     }
 
@@ -191,7 +191,7 @@ public sealed class CommandProcessorTests : IDisposable
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await processor.SendAsync(command));
+            async () => await processor.SendAsync(command, TestContext.Current.CancellationToken));
         Assert.Equal("Handler error", exception.Message);
     }
 
@@ -211,7 +211,7 @@ public sealed class CommandProcessorTests : IDisposable
         // Act
         try
         {
-            await processor.SendAsync(command);
+            await processor.SendAsync(command, TestContext.Current.CancellationToken);
         }
         catch (InvalidOperationException)
         {
@@ -240,7 +240,7 @@ public sealed class CommandProcessorTests : IDisposable
         // Act
         try
         {
-            await processor.SendAsync(command);
+            await processor.SendAsync(command, TestContext.Current.CancellationToken);
         }
         catch (InvalidOperationException)
         {
@@ -275,7 +275,7 @@ public sealed class CommandProcessorTests : IDisposable
 
         // Act & Assert
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
-            async () => await processor.SendAsync(command, cts.Token));
+            async () => await processor.SendAsync(command, cts.Token, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -298,7 +298,7 @@ public sealed class CommandProcessorTests : IDisposable
 
         // Act & Assert
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
-            async () => await processor.SendAsync(command, cts.Token));
+            async () => await processor.SendAsync(command, cts.Token, TestContext.Current.CancellationToken));
     }
 
     #endregion
@@ -313,7 +313,7 @@ public sealed class CommandProcessorTests : IDisposable
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentNullException>(
-            async () => await processor.SendAsync(null!));
+            async () => await processor.SendAsync(null!, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -360,7 +360,7 @@ public sealed class CommandProcessorTests : IDisposable
             .Returns(async () => await Task.Delay(10));
 
         // Act
-        await processor.SendAsync(command);
+        await processor.SendAsync(command, TestContext.Current.CancellationToken);
 
         // Assert
         var metrics = processor.GetMetrics();
@@ -380,15 +380,15 @@ public sealed class CommandProcessorTests : IDisposable
             .Returns(Task.CompletedTask);
 
         // Act
-        await processor.SendAsync(new TestCommand());
-        await processor.SendAsync(new TestCommand());
+        await processor.SendAsync(new TestCommand(, TestContext.Current.CancellationToken));
+        await processor.SendAsync(new TestCommand(, TestContext.Current.CancellationToken));
 
         try
         {
             handlerMock
                 .Setup(h => h.HandleAsync(It.IsAny<TestCommand>(), It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new InvalidOperationException());
-            await processor.SendAsync(new TestCommand());
+            await processor.SendAsync(new TestCommand(, TestContext.Current.CancellationToken));
         }
         catch (InvalidOperationException)
         {

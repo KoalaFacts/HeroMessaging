@@ -114,7 +114,7 @@ public class ProtobufMessageSerializerTests
         var message = new TestMessage { Id = 1, Name = "Test", Value = 99.99m, Tags = ["tag1", "tag2"] };
 
         // Act
-        var result = await serializer.SerializeAsync(message);
+        var result = await serializer.SerializeAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -129,7 +129,7 @@ public class ProtobufMessageSerializerTests
         var serializer = new ProtobufMessageSerializer();
 
         // Act
-        var result = await serializer.SerializeAsync<TestMessage>(null!);
+        var result = await serializer.SerializeAsync<TestMessage>(null!, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -154,7 +154,7 @@ public class ProtobufMessageSerializerTests
         };
 
         // Act
-        var result = await serializer.SerializeAsync(message);
+        var result = await serializer.SerializeAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -172,7 +172,7 @@ public class ProtobufMessageSerializerTests
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await serializer.SerializeAsync(message));
+            await serializer.SerializeAsync(message, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -191,7 +191,7 @@ public class ProtobufMessageSerializerTests
         };
 
         // Act
-        var result = await serializer.SerializeAsync(message);
+        var result = await serializer.SerializeAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -208,7 +208,7 @@ public class ProtobufMessageSerializerTests
         using var cts = new CancellationTokenSource();
 
         // Act
-        var result = await serializer.SerializeAsync(message, cts.Token);
+        var result = await serializer.SerializeAsync(message, cts.Token, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -227,7 +227,7 @@ public class ProtobufMessageSerializerTests
 
         // Act & Assert
         await Assert.ThrowsAsync<OperationCanceledException>(async () =>
-            await serializer.SerializeAsync(message, cts.Token));
+            await serializer.SerializeAsync(message, cts.Token, TestContext.Current.CancellationToken));
     }
 
     #endregion
@@ -385,10 +385,10 @@ public class ProtobufMessageSerializerTests
         // Arrange
         var serializer = new ProtobufMessageSerializer();
         var original = new TestMessage { Id = 1, Name = "Test", Value = 99.99m };
-        var data = await serializer.SerializeAsync(original);
+        var data = await serializer.SerializeAsync(original, TestContext.Current.CancellationToken);
 
         // Act
-        var result = await serializer.DeserializeAsync<TestMessage>(data);
+        var result = await serializer.DeserializeAsync<TestMessage>(data, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -405,7 +405,7 @@ public class ProtobufMessageSerializerTests
         var data = Array.Empty<byte>();
 
         // Act
-        var result = await serializer.DeserializeAsync<TestMessage>(data);
+        var result = await serializer.DeserializeAsync<TestMessage>(data, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result);
@@ -419,10 +419,10 @@ public class ProtobufMessageSerializerTests
         var options = new SerializationOptions { EnableCompression = true };
         var serializer = new ProtobufMessageSerializer(options);
         var original = new TestMessage { Id = 1, Name = "Compression Test", Value = 99.99m };
-        var data = await serializer.SerializeAsync(original);
+        var data = await serializer.SerializeAsync(original, TestContext.Current.CancellationToken);
 
         // Act
-        var result = await serializer.DeserializeAsync<TestMessage>(data);
+        var result = await serializer.DeserializeAsync<TestMessage>(data, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -437,7 +437,7 @@ public class ProtobufMessageSerializerTests
         // Arrange
         var serializer = new ProtobufMessageSerializer();
         var original = new TestMessage { Id = 1, Name = "Test", Value = 99.99m };
-        var data = await serializer.SerializeAsync(original);
+        var data = await serializer.SerializeAsync(original, TestContext.Current.CancellationToken);
         using var cts = new CancellationTokenSource();
 
         // Act
@@ -454,10 +454,10 @@ public class ProtobufMessageSerializerTests
         // Arrange
         var serializer = new ProtobufMessageSerializer();
         var original = new TestMessage { Id = 1, Name = "Test", Value = 99.99m };
-        var data = await serializer.SerializeAsync(original);
+        var data = await serializer.SerializeAsync(original, TestContext.Current.CancellationToken);
 
         // Act
-        var result = await serializer.DeserializeAsync(data, typeof(TestMessage));
+        var result = await serializer.DeserializeAsync(data, typeof(TestMessage), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -534,8 +534,8 @@ public class ProtobufMessageSerializerTests
         var original = new TestMessage { Id = 42, Name = "RoundTrip", Value = 123.45m, Tags = ["tag1", "tag2"] };
 
         // Act
-        var serialized = await serializer.SerializeAsync(original);
-        var deserialized = await serializer.DeserializeAsync<TestMessage>(serialized);
+        var serialized = await serializer.SerializeAsync(original, TestContext.Current.CancellationToken);
+        var deserialized = await serializer.DeserializeAsync<TestMessage>(serialized, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(deserialized);
@@ -555,8 +555,8 @@ public class ProtobufMessageSerializerTests
         var original = new TestMessage { Id = 42, Name = "Compressed RoundTrip", Value = 999.99m };
 
         // Act
-        var serialized = await serializer.SerializeAsync(original);
-        var deserialized = await serializer.DeserializeAsync<TestMessage>(serialized);
+        var serialized = await serializer.SerializeAsync(original, TestContext.Current.CancellationToken);
+        var deserialized = await serializer.DeserializeAsync<TestMessage>(serialized, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(deserialized);
@@ -582,8 +582,8 @@ public class ProtobufMessageSerializerTests
         };
 
         // Act
-        var serialized = await serializer.SerializeAsync(original);
-        var deserialized = await serializer.DeserializeAsync<ComplexTestMessage>(serialized);
+        var serialized = await serializer.SerializeAsync(original, TestContext.Current.CancellationToken);
+        var deserialized = await serializer.DeserializeAsync<ComplexTestMessage>(serialized, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(deserialized);
@@ -607,7 +607,7 @@ public class ProtobufMessageSerializerTests
         var message = new TestMessage { Id = 0, Name = "", Value = 0 };
 
         // Act
-        var result = await serializer.SerializeAsync(message);
+        var result = await serializer.SerializeAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -624,7 +624,7 @@ public class ProtobufMessageSerializerTests
         var message = new TestMessage { Id = 1, Name = "Large Message", Value = 99.99m, Tags = tags };
 
         // Act
-        var result = await serializer.SerializeAsync(message);
+        var result = await serializer.SerializeAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -640,8 +640,8 @@ public class ProtobufMessageSerializerTests
         var message = new TestMessage { Id = 1, Name = "Test\"with'special\\chars/and\"quotes", Value = 99.99m };
 
         // Act
-        var serialized = await serializer.SerializeAsync(message);
-        var deserialized = await serializer.DeserializeAsync<TestMessage>(serialized);
+        var serialized = await serializer.SerializeAsync(message, TestContext.Current.CancellationToken);
+        var deserialized = await serializer.DeserializeAsync<TestMessage>(serialized, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(deserialized);
@@ -657,8 +657,8 @@ public class ProtobufMessageSerializerTests
         var message = new TestMessage { Id = 1, Name = "Test with emoji 😀 and unicode ñ é", Value = 99.99m };
 
         // Act
-        var serialized = await serializer.SerializeAsync(message);
-        var deserialized = await serializer.DeserializeAsync<TestMessage>(serialized);
+        var serialized = await serializer.SerializeAsync(message, TestContext.Current.CancellationToken);
+        var deserialized = await serializer.DeserializeAsync<TestMessage>(serialized, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(deserialized);
@@ -682,7 +682,7 @@ public class ProtobufMessageSerializerTests
         {
             var options = new SerializationOptions { EnableCompression = true, CompressionLevel = level };
             var serializer = new ProtobufMessageSerializer(options);
-            var result = await serializer.SerializeAsync(message);
+            var result = await serializer.SerializeAsync(message, TestContext.Current.CancellationToken);
             Assert.NotNull(result);
             Assert.NotEmpty(result);
         }
@@ -699,10 +699,10 @@ public class ProtobufMessageSerializerTests
         var compressedSerializer = new ProtobufMessageSerializer(compressedOptions);
 
         // Act
-        var uncompressedData = await uncompressedSerializer.SerializeAsync(message);
-        var compressedData = await compressedSerializer.SerializeAsync(message);
-        var uncompressedResult = await uncompressedSerializer.DeserializeAsync<TestMessage>(uncompressedData);
-        var compressedResult = await compressedSerializer.DeserializeAsync<TestMessage>(compressedData);
+        var uncompressedData = await uncompressedSerializer.SerializeAsync(message, TestContext.Current.CancellationToken);
+        var compressedData = await compressedSerializer.SerializeAsync(message, TestContext.Current.CancellationToken);
+        var uncompressedResult = await uncompressedSerializer.DeserializeAsync<TestMessage>(uncompressedData, TestContext.Current.CancellationToken);
+        var compressedResult = await compressedSerializer.DeserializeAsync<TestMessage>(compressedData, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(uncompressedResult.Id, compressedResult.Id);

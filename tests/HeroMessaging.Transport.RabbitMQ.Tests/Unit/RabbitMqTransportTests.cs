@@ -45,7 +45,7 @@ public class RabbitMqTransportTests : IAsyncLifetime
     {
         if (_transport != null)
         {
-            await _transport.DisposeAsync();
+            await _transport.DisposeAsync(TestContext.Current.CancellationToken);
         }
     }
 
@@ -249,7 +249,7 @@ public class RabbitMqTransportTests : IAsyncLifetime
         try
         {
             // Will fail because no real RabbitMQ, but should raise Connecting event
-            await _transport.ConnectAsync();
+            await _transport.ConnectAsync(TestContext.Current.CancellationToken);
         }
         catch
         {
@@ -280,8 +280,8 @@ public class RabbitMqTransportTests : IAsyncLifetime
     {
         // Act
         await _transport!.DisposeAsync();
-        await _transport.DisposeAsync();
-        await _transport.DisposeAsync();
+        await _transport.DisposeAsync(TestContext.Current.CancellationToken);
+        await _transport.DisposeAsync(TestContext.Current.CancellationToken);
 
         // Assert - should not throw
     }
@@ -381,7 +381,7 @@ public class RabbitMqTransportTests : IAsyncLifetime
         // Act
         try
         {
-            await _transport.ConnectAsync();
+            await _transport.ConnectAsync(TestContext.Current.CancellationToken);
         }
         catch { /* Expected to fail */ }
 
@@ -680,7 +680,7 @@ public class RabbitMqTransportTests : IAsyncLifetime
         // Act
         try
         {
-            await _transport.ConnectAsync();
+            await _transport.ConnectAsync(TestContext.Current.CancellationToken);
         }
         catch { /* Expected */ }
 

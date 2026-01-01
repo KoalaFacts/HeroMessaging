@@ -128,7 +128,7 @@ public sealed class IdempotencyDecoratorTests
             .ReturnsAsync(ProcessingResult.Successful());
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         _keyGeneratorMock.Verify(g => g.GenerateKey(message, context), Times.Once);
@@ -147,7 +147,7 @@ public sealed class IdempotencyDecoratorTests
         _innerMock.Setup(p => p.ProcessAsync(message, context, It.IsAny<CancellationToken>())).ReturnsAsync(ProcessingResult.Successful());
 
         // Act
-        var result = await decorator.ProcessAsync(message, context);
+        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -170,7 +170,7 @@ public sealed class IdempotencyDecoratorTests
             .ReturnsAsync(ProcessingResult.Successful(data: resultData));
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         _storeMock.Verify(s => s.StoreSuccessAsync(
@@ -195,7 +195,7 @@ public sealed class IdempotencyDecoratorTests
             .ReturnsAsync(ProcessingResult.Successful());
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         _storeMock.Verify(s => s.StoreSuccessAsync(
@@ -226,7 +226,7 @@ public sealed class IdempotencyDecoratorTests
         _policyMock.Setup(p => p.IsIdempotentFailure(exception)).Returns(true);
 
         // Act
-        var result = await decorator.ProcessAsync(message, context);
+        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.Success);
@@ -253,7 +253,7 @@ public sealed class IdempotencyDecoratorTests
         _policyMock.Setup(p => p.IsIdempotentFailure(exception)).Returns(false);
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         _storeMock.Verify(s => s.StoreFailureAsync(
@@ -280,7 +280,7 @@ public sealed class IdempotencyDecoratorTests
         _policyMock.Setup(p => p.IsIdempotentFailure(exception)).Returns(true);
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         _storeMock.Verify(s => s.StoreFailureAsync(
@@ -304,7 +304,7 @@ public sealed class IdempotencyDecoratorTests
             .ReturnsAsync(new ProcessingResult { Success = false, Exception = null });
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         _storeMock.Verify(s => s.StoreFailureAsync(
@@ -339,7 +339,7 @@ public sealed class IdempotencyDecoratorTests
         _storeMock.Setup(s => s.GetAsync("key", It.IsAny<CancellationToken>())).ReturnsAsync(cachedResponse);
 
         // Act
-        var result = await decorator.ProcessAsync(message, context);
+        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -367,7 +367,7 @@ public sealed class IdempotencyDecoratorTests
         _storeMock.Setup(s => s.GetAsync("key", It.IsAny<CancellationToken>())).ReturnsAsync(cachedResponse);
 
         // Act
-        var result = await decorator.ProcessAsync(message, context);
+        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -396,7 +396,7 @@ public sealed class IdempotencyDecoratorTests
         _storeMock.Setup(s => s.GetAsync("key", It.IsAny<CancellationToken>())).ReturnsAsync(cachedResponse);
 
         // Act
-        var result = await decorator.ProcessAsync(message, context);
+        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.Success);
@@ -426,7 +426,7 @@ public sealed class IdempotencyDecoratorTests
         _storeMock.Setup(s => s.GetAsync("key", It.IsAny<CancellationToken>())).ReturnsAsync(cachedResponse);
 
         // Act
-        var result = await decorator.ProcessAsync(message, context);
+        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.Success);
@@ -456,7 +456,7 @@ public sealed class IdempotencyDecoratorTests
         _storeMock.Setup(s => s.GetAsync("key", It.IsAny<CancellationToken>())).ReturnsAsync(cachedResponse);
 
         // Act
-        var result = await decorator.ProcessAsync(message, context);
+        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.Success);
@@ -485,7 +485,7 @@ public sealed class IdempotencyDecoratorTests
         _storeMock.Setup(s => s.GetAsync("key", It.IsAny<CancellationToken>())).ReturnsAsync(cachedResponse);
 
         // Act
-        var result = await decorator.ProcessAsync(message, context);
+        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.Success);
@@ -516,7 +516,7 @@ public sealed class IdempotencyDecoratorTests
         _storeMock.Setup(s => s.GetAsync("key", It.IsAny<CancellationToken>())).ReturnsAsync(cachedResponse);
 
         // Act
-        var result = await decorator.ProcessAsync(message, context);
+        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.Success);
@@ -548,7 +548,7 @@ public sealed class IdempotencyDecoratorTests
         _storeMock.Setup(s => s.GetAsync("test-key", It.IsAny<CancellationToken>())).ReturnsAsync(cachedResponse);
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         _loggerMock.Verify(
@@ -575,7 +575,7 @@ public sealed class IdempotencyDecoratorTests
             .ReturnsAsync(ProcessingResult.Successful());
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         _loggerMock.Verify(
@@ -604,7 +604,7 @@ public sealed class IdempotencyDecoratorTests
         _policyMock.Setup(p => p.IsIdempotentFailure(exception)).Returns(true);
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         _loggerMock.Verify(
@@ -751,8 +751,8 @@ public sealed class IdempotencyDecoratorTests
             .ReturnsAsync(ProcessingResult.Successful(data: resultData));
 
         // Act
-        var result1 = await decorator.ProcessAsync(message1, context);
-        var result2 = await decorator.ProcessAsync(message2, context);
+        var result1 = await decorator.ProcessAsync(message1, context, TestContext.Current.CancellationToken);
+        var result2 = await decorator.ProcessAsync(message2, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result1.Success);
@@ -778,8 +778,8 @@ public sealed class IdempotencyDecoratorTests
             .ReturnsAsync(ProcessingResult.Successful());
 
         // Act
-        await decorator.ProcessAsync(message1, context);
-        await decorator.ProcessAsync(message2, context);
+        await decorator.ProcessAsync(message1, context, TestContext.Current.CancellationToken);
+        await decorator.ProcessAsync(message2, context, TestContext.Current.CancellationToken);
 
         // Assert
         _innerMock.Verify(p => p.ProcessAsync(It.IsAny<IMessage>(), It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()), Times.Exactly(2));

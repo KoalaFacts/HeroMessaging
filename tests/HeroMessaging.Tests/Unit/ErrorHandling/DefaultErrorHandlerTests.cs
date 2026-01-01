@@ -68,7 +68,7 @@ namespace HeroMessaging.Tests.Unit.ErrorHandling
             };
 
             // Act
-            var result = await handler.HandleErrorAsync(message, error, context);
+            var result = await handler.HandleErrorAsync(message, error, context, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.Equal(ErrorAction.Retry, result.Action);
@@ -91,7 +91,7 @@ namespace HeroMessaging.Tests.Unit.ErrorHandling
             };
 
             // Act
-            var result = await handler.HandleErrorAsync(message, error, context);
+            var result = await handler.HandleErrorAsync(message, error, context, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.Equal(ErrorAction.Retry, result.Action);
@@ -112,7 +112,7 @@ namespace HeroMessaging.Tests.Unit.ErrorHandling
             };
 
             // Act
-            var result = await handler.HandleErrorAsync(message, error, context);
+            var result = await handler.HandleErrorAsync(message, error, context, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.Equal(ErrorAction.Retry, result.Action);
@@ -137,7 +137,7 @@ namespace HeroMessaging.Tests.Unit.ErrorHandling
             };
 
             // Act
-            var result = await handler.HandleErrorAsync(message, error, context);
+            var result = await handler.HandleErrorAsync(message, error, context, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.Equal(ErrorAction.Escalate, result.Action);
@@ -158,7 +158,7 @@ namespace HeroMessaging.Tests.Unit.ErrorHandling
             };
 
             // Act
-            var result = await handler.HandleErrorAsync(message, error, context);
+            var result = await handler.HandleErrorAsync(message, error, context, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.Equal(ErrorAction.Escalate, result.Action);
@@ -179,7 +179,7 @@ namespace HeroMessaging.Tests.Unit.ErrorHandling
             };
 
             // Act
-            var result = await handler.HandleErrorAsync(message, error, context);
+            var result = await handler.HandleErrorAsync(message, error, context, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.Equal(ErrorAction.Escalate, result.Action);
@@ -204,7 +204,7 @@ namespace HeroMessaging.Tests.Unit.ErrorHandling
             };
 
             // Act
-            var result = await handler.HandleErrorAsync(message, error, context);
+            var result = await handler.HandleErrorAsync(message, error, context, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.Equal(ErrorAction.SendToDeadLetter, result.Action);
@@ -235,7 +235,7 @@ namespace HeroMessaging.Tests.Unit.ErrorHandling
                 .ReturnsAsync("dead-letter-id");
 
             // Act
-            await handler.HandleErrorAsync(message, error, context);
+            await handler.HandleErrorAsync(message, error, context, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.NotNull(capturedContext);
@@ -264,7 +264,7 @@ namespace HeroMessaging.Tests.Unit.ErrorHandling
             };
 
             // Act
-            var result = await handler.HandleErrorAsync(message, error, context);
+            var result = await handler.HandleErrorAsync(message, error, context, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.Equal(ErrorAction.SendToDeadLetter, result.Action);
@@ -286,9 +286,9 @@ namespace HeroMessaging.Tests.Unit.ErrorHandling
             var error = new TimeoutException();
 
             // Act - Multiple retries
-            var result1 = await handler.HandleErrorAsync(message, error, new ErrorContext { RetryCount = 0, MaxRetries = 5 });
-            var result2 = await handler.HandleErrorAsync(message, error, new ErrorContext { RetryCount = 1, MaxRetries = 5 });
-            var result3 = await handler.HandleErrorAsync(message, error, new ErrorContext { RetryCount = 2, MaxRetries = 5 });
+            var result1 = await handler.HandleErrorAsync(message, error, new ErrorContext { RetryCount = 0, MaxRetries = 5 }, TestContext.Current.CancellationToken);
+            var result2 = await handler.HandleErrorAsync(message, error, new ErrorContext { RetryCount = 1, MaxRetries = 5 }, TestContext.Current.CancellationToken);
+            var result3 = await handler.HandleErrorAsync(message, error, new ErrorContext { RetryCount = 2, MaxRetries = 5 }, TestContext.Current.CancellationToken);
 
             // Assert - Delays should generally increase (allowing for jitter)
             Assert.NotNull(result1.RetryDelay);

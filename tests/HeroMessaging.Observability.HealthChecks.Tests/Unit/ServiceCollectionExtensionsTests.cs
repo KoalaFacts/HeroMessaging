@@ -39,7 +39,7 @@ public class ServiceCollectionExtensionsTests
         var serviceProvider = services.BuildServiceProvider();
         var healthCheckService = serviceProvider.GetRequiredService<HealthCheckService>();
 
-        var result = await healthCheckService.CheckHealthAsync();
+        var result = await healthCheckService.CheckHealthAsync(TestContext.Current.CancellationToken);
 
         Assert.NotNull(result);
         Assert.Contains(result.Entries, e => e.Key == "hero_messaging_transport");
@@ -68,7 +68,7 @@ public class ServiceCollectionExtensionsTests
         var serviceProvider = services.BuildServiceProvider();
         var healthCheckService = serviceProvider.GetRequiredService<HealthCheckService>();
 
-        var result = await healthCheckService.CheckHealthAsync();
+        var result = await healthCheckService.CheckHealthAsync(TestContext.Current.CancellationToken);
 
         Assert.DoesNotContain(result.Entries, e => e.Key == "hero_messaging_transport");
     }
@@ -96,7 +96,7 @@ public class ServiceCollectionExtensionsTests
         var serviceProvider = services.BuildServiceProvider();
         var healthCheckService = serviceProvider.GetRequiredService<HealthCheckService>();
 
-        var result = await healthCheckService.CheckHealthAsync();
+        var result = await healthCheckService.CheckHealthAsync(TestContext.Current.CancellationToken);
 
         Assert.NotNull(result);
         Assert.Contains(result.Entries, e => e.Key == "hero_messaging_transport");
@@ -129,7 +129,7 @@ public class ServiceCollectionExtensionsTests
         var serviceProvider = services.BuildServiceProvider();
         var healthCheckService = serviceProvider.GetRequiredService<HealthCheckService>();
 
-        var result = await healthCheckService.CheckHealthAsync();
+        var result = await healthCheckService.CheckHealthAsync(TestContext.Current.CancellationToken);
 
         Assert.NotNull(result);
         Assert.Contains(result.Entries, e => e.Key == "hero_messaging_transport");
@@ -166,7 +166,7 @@ public class ServiceCollectionExtensionsTests
         var serviceProvider = services.BuildServiceProvider();
         var healthCheckService = serviceProvider.GetRequiredService<HealthCheckService>();
 
-        var result = await healthCheckService.CheckHealthAsync();
+        var result = await healthCheckService.CheckHealthAsync(TestContext.Current.CancellationToken);
 
         Assert.NotNull(result);
         Assert.Contains(result.Entries, e => e.Key == "hero_messaging_transport");
@@ -204,7 +204,7 @@ public class ServiceCollectionExtensionsTests
         var serviceProvider = services.BuildServiceProvider();
         var healthCheckService = serviceProvider.GetRequiredService<HealthCheckService>();
 
-        var result = await healthCheckService.CheckHealthAsync();
+        var result = await healthCheckService.CheckHealthAsync(TestContext.Current.CancellationToken);
 
         Assert.Contains(result.Entries, e => e.Key == "hero_messaging_message_storage");
         Assert.Contains(result.Entries, e => e.Key == "hero_messaging_transport");
@@ -255,7 +255,7 @@ public class ServiceCollectionExtensionsTests
         var serviceProvider = services.BuildServiceProvider();
         var healthCheckService = serviceProvider.GetRequiredService<HealthCheckService>();
 
-        var result = await healthCheckService.CheckHealthAsync();
+        var result = await healthCheckService.CheckHealthAsync(TestContext.Current.CancellationToken);
 
         Assert.NotNull(result);
         // Default options should register storage checks but not transport
@@ -279,7 +279,7 @@ public class ServiceCollectionExtensionsTests
         var serviceProvider = services.BuildServiceProvider();
         var healthCheckService = serviceProvider.GetRequiredService<HealthCheckService>();
 
-        var result = await healthCheckService.CheckHealthAsync();
+        var result = await healthCheckService.CheckHealthAsync(TestContext.Current.CancellationToken);
 
         Assert.Contains(result.Entries, e => e.Key == "empty_composite");
         Assert.Equal(Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Healthy, result.Entries["empty_composite"].Status);
@@ -302,7 +302,7 @@ public class ServiceCollectionExtensionsTests
         var serviceProvider = services.BuildServiceProvider();
         var healthCheckService = serviceProvider.GetRequiredService<HealthCheckService>();
 
-        var result = await healthCheckService.CheckHealthAsync();
+        var result = await healthCheckService.CheckHealthAsync(TestContext.Current.CancellationToken);
 
         var entry = result.Entries["data_composite"];
         Assert.NotNull(entry.Data);

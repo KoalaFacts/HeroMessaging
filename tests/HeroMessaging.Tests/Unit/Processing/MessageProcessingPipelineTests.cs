@@ -83,7 +83,7 @@ public sealed class MessageProcessingPipelineTests : IDisposable
             .UseLogging()
             .Build(innerProcessor.Object);
 
-        var result = await pipeline.ProcessAsync(message, context);
+        var result = await pipeline.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -115,7 +115,7 @@ public sealed class MessageProcessingPipelineTests : IDisposable
             .UseValidation()
             .Build(innerProcessor.Object);
 
-        var result = await pipeline.ProcessAsync(message, context);
+        var result = await pipeline.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -143,7 +143,7 @@ public sealed class MessageProcessingPipelineTests : IDisposable
             .UseRetry(retryPolicyMock.Object)
             .Build(innerProcessor.Object);
 
-        var result = await pipeline.ProcessAsync(message, context);
+        var result = await pipeline.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -170,7 +170,7 @@ public sealed class MessageProcessingPipelineTests : IDisposable
             .UseErrorHandling()
             .Build(innerProcessor.Object);
 
-        var result = await pipeline.ProcessAsync(message, context);
+        var result = await pipeline.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -201,7 +201,7 @@ public sealed class MessageProcessingPipelineTests : IDisposable
             .UseMetrics()
             .Build(innerProcessor.Object);
 
-        var result = await pipeline.ProcessAsync(message, context);
+        var result = await pipeline.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -226,7 +226,7 @@ public sealed class MessageProcessingPipelineTests : IDisposable
             .UseCircuitBreaker()
             .Build(innerProcessor.Object);
 
-        var result = await pipeline.ProcessAsync(message, context);
+        var result = await pipeline.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -250,7 +250,7 @@ public sealed class MessageProcessingPipelineTests : IDisposable
             .UseCorrelation()
             .Build(innerProcessor.Object);
 
-        var result = await pipeline.ProcessAsync(message, context);
+        var result = await pipeline.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -291,7 +291,7 @@ public sealed class MessageProcessingPipelineTests : IDisposable
             .UseRetry()
             .Build(innerProcessor.Object);
 
-        var result = await pipeline.ProcessAsync(message, context);
+        var result = await pipeline.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -334,7 +334,7 @@ public sealed class MessageProcessingPipelineTests : IDisposable
             .UseRetry()
             .Build(innerProcessor.Object);
 
-        var result = await pipeline.ProcessAsync(message, context);
+        var result = await pipeline.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -364,7 +364,7 @@ public sealed class MessageProcessingPipelineTests : IDisposable
             .Use(inner => new CustomTestDecorator(inner, () => customDecoratorCalled = true))
             .Build(innerProcessor.Object);
 
-        var result = await pipeline.ProcessAsync(message, context);
+        var result = await pipeline.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -390,7 +390,7 @@ public sealed class MessageProcessingPipelineTests : IDisposable
         var context = new ProcessingContext();
 
         // Act
-        var result = await processor.ProcessAsync(message, context);
+        var result = await processor.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -410,7 +410,7 @@ public sealed class MessageProcessingPipelineTests : IDisposable
         var context = new ProcessingContext();
 
         // Act
-        var result = await processor.ProcessAsync(message, context);
+        var result = await processor.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.Success);
@@ -440,7 +440,7 @@ public sealed class MessageProcessingPipelineTests : IDisposable
             .UseValidation()
             .Build(innerProcessor.Object);
 
-        var result = await pipeline.ProcessAsync(message, context);
+        var result = await pipeline.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert - Should still work without validator
         Assert.True(result.Success);
@@ -464,7 +464,7 @@ public sealed class MessageProcessingPipelineTests : IDisposable
             .UseErrorHandling()
             .Build(innerProcessor.Object);
 
-        var result = await pipeline.ProcessAsync(message, context);
+        var result = await pipeline.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert - Should still work without error handler
         Assert.True(result.Success);
@@ -488,7 +488,7 @@ public sealed class MessageProcessingPipelineTests : IDisposable
             .UseMetrics()
             .Build(innerProcessor.Object);
 
-        var result = await pipeline.ProcessAsync(message, context);
+        var result = await pipeline.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert - Should still work without metrics collector
         Assert.True(result.Success);
@@ -512,7 +512,7 @@ public sealed class MessageProcessingPipelineTests : IDisposable
             .UseRateLimiting()
             .Build(innerProcessor.Object);
 
-        var result = await pipeline.ProcessAsync(message, context);
+        var result = await pipeline.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert - Should still work without rate limiter
         Assert.True(result.Success);

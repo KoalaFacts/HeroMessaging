@@ -19,7 +19,7 @@ public abstract class SqlServerIntegrationTestBase : IAsyncLifetime
             .WithPassword("YourStrong@Passw0rd")
             .Build();
 
-        await Container.StartAsync();
+        await Container.StartAsync(TestContext.Current.CancellationToken);
 
         Options = new SqlServerStorageOptions
         {
@@ -33,8 +33,8 @@ public abstract class SqlServerIntegrationTestBase : IAsyncLifetime
     {
         if (Container != null)
         {
-            await Container.StopAsync();
-            await Container.DisposeAsync();
+            await Container.StopAsync(TestContext.Current.CancellationToken);
+            await Container.DisposeAsync(TestContext.Current.CancellationToken);
         }
     }
 

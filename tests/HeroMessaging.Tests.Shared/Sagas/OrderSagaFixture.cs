@@ -228,7 +228,7 @@ public static class OrderSagaStateMachine
                     ctx.Instance.FailureReason = ctx.Data.Reason;
 
                     // Compensate previous steps (refund payment)
-                    await ctx.Compensation.CompensateAsync();
+                    await ctx.Compensation.CompensateAsync(TestContext.Current.CancellationToken);
                 })
                 .TransitionTo(Failed);
 
@@ -248,7 +248,7 @@ public static class OrderSagaStateMachine
                     ctx.Instance.FailureReason = ctx.Data.Reason;
 
                     // Compensate all previous steps (release inventory, refund payment)
-                    await ctx.Compensation.CompensateAsync();
+                    await ctx.Compensation.CompensateAsync(TestContext.Current.CancellationToken);
                 })
                 .TransitionTo(Failed);
 
@@ -268,7 +268,7 @@ public static class OrderSagaStateMachine
                 .Then(async ctx =>
                 {
                     ctx.Instance.FailureReason = ctx.Data.Reason;
-                    await ctx.Compensation.CompensateAsync(); // Refund payment
+                    await ctx.Compensation.CompensateAsync(TestContext.Current.CancellationToken); // Refund payment
                 })
                 .TransitionTo(Cancelled)
                 .Finalize();
@@ -278,7 +278,7 @@ public static class OrderSagaStateMachine
                 .Then(async ctx =>
                 {
                     ctx.Instance.FailureReason = ctx.Data.Reason;
-                    await ctx.Compensation.CompensateAsync(); // Release inventory, refund payment
+                    await ctx.Compensation.CompensateAsync(TestContext.Current.CancellationToken); // Release inventory, refund payment
                 })
                 .TransitionTo(Cancelled)
                 .Finalize();

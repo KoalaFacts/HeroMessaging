@@ -46,7 +46,7 @@ public class ChoreographyWorkflowTests
             CorrelationId = initialCorrelationId
         };
 
-        await messaging.PublishAsync(orderCreatedEvent);
+        await messaging.PublishAsync(orderCreatedEvent, TestContext.Current.CancellationToken);
 
         // Allow async processing to complete with polling
         var timeout = TimeSpan.FromSeconds(5);

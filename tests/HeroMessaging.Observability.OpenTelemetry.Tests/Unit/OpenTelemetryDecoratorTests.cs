@@ -47,7 +47,7 @@ public class OpenTelemetryDecoratorTests
         var decorator = new OpenTelemetryDecorator(_innerProcessor.Object, _fakeTimeProvider);
 
         // Act
-        var result = await decorator.ProcessAsync(message, context);
+        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -80,7 +80,7 @@ public class OpenTelemetryDecoratorTests
         var decorator = new OpenTelemetryDecorator(_innerProcessor.Object, _fakeTimeProvider);
 
         // Act
-        var result = await decorator.ProcessAsync(message, context);
+        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.Success);
@@ -141,7 +141,7 @@ public class OpenTelemetryDecoratorTests
         var decorator = new OpenTelemetryDecorator(_innerProcessor.Object, _fakeTimeProvider);
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         var activity = _activities[0];
@@ -166,7 +166,7 @@ public class OpenTelemetryDecoratorTests
         var decorator = new OpenTelemetryDecorator(_innerProcessor.Object, _fakeTimeProvider);
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         var activity = _activities[0];
@@ -198,7 +198,7 @@ public class OpenTelemetryDecoratorTests
         var decorator = new OpenTelemetryDecorator(_innerProcessor.Object, _fakeTimeProvider);
 
         // Act
-        var result = await decorator.ProcessAsync(message, context);
+        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -222,7 +222,7 @@ public class OpenTelemetryDecoratorTests
         var decorator = new OpenTelemetryDecorator(_innerProcessor.Object, _fakeTimeProvider);
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         var activity = _activities[0];

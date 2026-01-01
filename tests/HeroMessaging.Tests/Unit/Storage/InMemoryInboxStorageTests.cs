@@ -61,7 +61,7 @@ public sealed class InMemoryInboxStorageTests
         var options = new InboxOptions { Source = "TestSource" };
 
         // Act
-        var entry = await storage.AddAsync(message, options);
+        var entry = await storage.AddAsync(message, options, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(entry);
@@ -85,15 +85,15 @@ public sealed class InMemoryInboxStorageTests
         var options = new InboxOptions { RequireIdempotency = true };
 
         // Act
-        var entry1 = await storage.AddAsync(message1, options);
-        var entry2 = await storage.AddAsync(message2, options);
+        var entry1 = await storage.AddAsync(message1, options, TestContext.Current.CancellationToken);
+        var entry2 = await storage.AddAsync(message2, options, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(entry1);
         Assert.Null(entry2);
 
         // Verify the stored entry is marked as duplicate
-        var stored = await storage.GetAsync(messageId.ToString());
+        var stored = await storage.GetAsync(messageId.ToString(), TestContext.Current.CancellationToken);
         Assert.NotNull(stored);
         Assert.Equal(InboxStatus.Duplicate, stored.Status);
     }
@@ -110,8 +110,8 @@ public sealed class InMemoryInboxStorageTests
         var options = new InboxOptions { RequireIdempotency = false };
 
         // Act
-        var entry1 = await storage.AddAsync(message1, options);
-        var entry2 = await storage.AddAsync(message2, options);
+        var entry1 = await storage.AddAsync(message1, options, TestContext.Current.CancellationToken);
+        var entry2 = await storage.AddAsync(message2, options, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(entry1);
@@ -134,7 +134,7 @@ public sealed class InMemoryInboxStorageTests
         };
 
         // Act
-        var entry = await storage.AddAsync(message, options);
+        var entry = await storage.AddAsync(message, options, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(entry);
@@ -153,7 +153,7 @@ public sealed class InMemoryInboxStorageTests
         var storage = new InMemoryInboxStorage(timeProvider);
 
         // Act
-        var isDuplicate = await storage.IsDuplicateAsync("non-existent-id");
+        var isDuplicate = await storage.IsDuplicateAsync("non-existent-id", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(isDuplicate);
@@ -166,10 +166,10 @@ public sealed class InMemoryInboxStorageTests
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryInboxStorage(timeProvider);
         var message = new TestMessage();
-        await storage.AddAsync(message, new InboxOptions());
+        await storage.AddAsync(message, new InboxOptions(), TestContext.Current.CancellationToken);
 
         // Act
-        var isDuplicate = await storage.IsDuplicateAsync(message.MessageId.ToString());
+        var isDuplicate = await storage.IsDuplicateAsync(message.MessageId.ToString(), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(isDuplicate);
@@ -182,19 +182,21 @@ public sealed class InMemoryInboxStorageTests
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryInboxStorage(timeProvider);
         var message = new TestMessage();
-        await storage.AddAsync(message, new InboxOptions());
+        await storage.AddAsync(message, new InboxOptions(), TestContext.Current.CancellationToken);
 
         // Act - Within window
         var isDuplicateWithin = await storage.IsDuplicateAsync(
             message.MessageId.ToString(),
-            TimeSpan.FromMinutes(5));
+            TimeSpan.FromMinutes(5),
+            TestContext.Current.CancellationToken);
 
         // Advance time beyond window
         timeProvider.Advance(TimeSpan.FromMinutes(10));
 
         var isDuplicateBeyond = await storage.IsDuplicateAsync(
             message.MessageId.ToString(),
-            TimeSpan.FromMinutes(5));
+            TimeSpan.FromMinutes(5),
+            TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(isDuplicateWithin);
@@ -208,7 +210,7 @@ public sealed class InMemoryInboxStorageTests
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryInboxStorage(timeProvider);
         var message = new TestMessage();
-        await storage.AddAsync(message, new InboxOptions());
+        await storage.AddAsync(message, new InboxOptions(), TestContext.Current.CancellationToken);
 
         // Advance exactly to window boundary
         timeProvider.Advance(TimeSpan.FromMinutes(5));
@@ -216,7 +218,8 @@ public sealed class InMemoryInboxStorageTests
         // Act
         var isDuplicate = await storage.IsDuplicateAsync(
             message.MessageId.ToString(),
-            TimeSpan.FromMinutes(5));
+            TimeSpan.FromMinutes(5),
+            TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(isDuplicate);
@@ -234,7 +237,7 @@ public sealed class InMemoryInboxStorageTests
         var storage = new InMemoryInboxStorage(timeProvider);
 
         // Act
-        var entry = await storage.GetAsync("non-existent-id");
+        var entry = await storage.GetAsync("non-existent-id", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(entry);
@@ -247,10 +250,10 @@ public sealed class InMemoryInboxStorageTests
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryInboxStorage(timeProvider);
         var message = new TestMessage { Content = "Test" };
-        await storage.AddAsync(message, new InboxOptions());
+        await storage.AddAsync(message, new InboxOptions(), TestContext.Current.CancellationToken);
 
         // Act
-        var entry = await storage.GetAsync(message.MessageId.ToString());
+        var entry = await storage.GetAsync(message.MessageId.ToString(), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(entry);
@@ -270,15 +273,15 @@ public sealed class InMemoryInboxStorageTests
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryInboxStorage(timeProvider);
         var message = new TestMessage();
-        await storage.AddAsync(message, new InboxOptions());
+        await storage.AddAsync(message, new InboxOptions(), TestContext.Current.CancellationToken);
 
         // Act
-        var result = await storage.MarkProcessedAsync(message.MessageId.ToString());
+        var result = await storage.MarkProcessedAsync(message.MessageId.ToString(), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
 
-        var entry = await storage.GetAsync(message.MessageId.ToString());
+        var entry = await storage.GetAsync(message.MessageId.ToString(), TestContext.Current.CancellationToken);
         Assert.NotNull(entry);
         Assert.Equal(InboxStatus.Processed, entry.Status);
         Assert.Equal(timeProvider.GetUtcNow(), entry.ProcessedAt);
@@ -292,7 +295,7 @@ public sealed class InMemoryInboxStorageTests
         var storage = new InMemoryInboxStorage(timeProvider);
 
         // Act
-        var result = await storage.MarkProcessedAsync("non-existent-id");
+        var result = await storage.MarkProcessedAsync("non-existent-id", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);
@@ -305,16 +308,16 @@ public sealed class InMemoryInboxStorageTests
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryInboxStorage(timeProvider);
         var message = new TestMessage();
-        await storage.AddAsync(message, new InboxOptions());
+        await storage.AddAsync(message, new InboxOptions(), TestContext.Current.CancellationToken);
 
         timeProvider.Advance(TimeSpan.FromMinutes(5));
         var expectedProcessedAt = timeProvider.GetUtcNow();
 
         // Act
-        await storage.MarkProcessedAsync(message.MessageId.ToString());
+        await storage.MarkProcessedAsync(message.MessageId.ToString(), TestContext.Current.CancellationToken);
 
         // Assert
-        var entry = await storage.GetAsync(message.MessageId.ToString());
+        var entry = await storage.GetAsync(message.MessageId.ToString(), TestContext.Current.CancellationToken);
         Assert.NotNull(entry);
         Assert.Equal(expectedProcessedAt, entry.ProcessedAt);
     }
@@ -330,15 +333,15 @@ public sealed class InMemoryInboxStorageTests
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryInboxStorage(timeProvider);
         var message = new TestMessage();
-        await storage.AddAsync(message, new InboxOptions());
+        await storage.AddAsync(message, new InboxOptions(), TestContext.Current.CancellationToken);
 
         // Act
-        var result = await storage.MarkFailedAsync(message.MessageId.ToString(), "Test error");
+        var result = await storage.MarkFailedAsync(message.MessageId.ToString(), "Test error", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
 
-        var entry = await storage.GetAsync(message.MessageId.ToString());
+        var entry = await storage.GetAsync(message.MessageId.ToString(), TestContext.Current.CancellationToken);
         Assert.NotNull(entry);
         Assert.Equal(InboxStatus.Failed, entry.Status);
         Assert.Equal("Test error", entry.Error);
@@ -352,7 +355,7 @@ public sealed class InMemoryInboxStorageTests
         var storage = new InMemoryInboxStorage(timeProvider);
 
         // Act
-        var result = await storage.MarkFailedAsync("non-existent-id", "Error");
+        var result = await storage.MarkFailedAsync("non-existent-id", "Error", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);
@@ -365,14 +368,14 @@ public sealed class InMemoryInboxStorageTests
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryInboxStorage(timeProvider);
         var message = new TestMessage();
-        await storage.AddAsync(message, new InboxOptions());
+        await storage.AddAsync(message, new InboxOptions(), TestContext.Current.CancellationToken);
         var errorMessage = "Processing failed: Invalid data format";
 
         // Act
-        await storage.MarkFailedAsync(message.MessageId.ToString(), errorMessage);
+        await storage.MarkFailedAsync(message.MessageId.ToString(), errorMessage, TestContext.Current.CancellationToken);
 
         // Assert
-        var entry = await storage.GetAsync(message.MessageId.ToString());
+        var entry = await storage.GetAsync(message.MessageId.ToString(), TestContext.Current.CancellationToken);
         Assert.NotNull(entry);
         Assert.Equal(errorMessage, entry.Error);
     }
@@ -392,16 +395,16 @@ public sealed class InMemoryInboxStorageTests
         var message2 = new TestMessage();
         var message3 = new TestMessage();
 
-        await storage.AddAsync(message1, new InboxOptions());
-        await storage.AddAsync(message2, new InboxOptions());
-        await storage.AddAsync(message3, new InboxOptions());
+        await storage.AddAsync(message1, new InboxOptions(), TestContext.Current.CancellationToken);
+        await storage.AddAsync(message2, new InboxOptions(), TestContext.Current.CancellationToken);
+        await storage.AddAsync(message3, new InboxOptions(), TestContext.Current.CancellationToken);
 
-        await storage.MarkProcessedAsync(message2.MessageId.ToString());
+        await storage.MarkProcessedAsync(message2.MessageId.ToString(), TestContext.Current.CancellationToken);
 
         var query = new InboxQuery { Limit = 100 };
 
         // Act
-        var results = await storage.GetPendingAsync(query);
+        var results = await storage.GetPendingAsync(query, TestContext.Current.CancellationToken);
 
         // Assert
         var resultsList = results.ToList();
@@ -421,17 +424,17 @@ public sealed class InMemoryInboxStorageTests
         var message2 = new TestMessage();
         var message3 = new TestMessage();
 
-        await storage.AddAsync(message1, new InboxOptions());
-        await storage.AddAsync(message2, new InboxOptions());
-        await storage.AddAsync(message3, new InboxOptions());
+        await storage.AddAsync(message1, new InboxOptions(), TestContext.Current.CancellationToken);
+        await storage.AddAsync(message2, new InboxOptions(), TestContext.Current.CancellationToken);
+        await storage.AddAsync(message3, new InboxOptions(), TestContext.Current.CancellationToken);
 
-        await storage.MarkProcessedAsync(message2.MessageId.ToString());
-        await storage.MarkFailedAsync(message3.MessageId.ToString(), "Error");
+        await storage.MarkProcessedAsync(message2.MessageId.ToString(), TestContext.Current.CancellationToken);
+        await storage.MarkFailedAsync(message3.MessageId.ToString(), "Error", TestContext.Current.CancellationToken);
 
         var query = new InboxQuery { Status = InboxStatus.Failed };
 
         // Act
-        var results = await storage.GetPendingAsync(query);
+        var results = await storage.GetPendingAsync(query, TestContext.Current.CancellationToken);
 
         // Assert
         var resultsList = results.ToList();
@@ -447,19 +450,19 @@ public sealed class InMemoryInboxStorageTests
         var storage = new InMemoryInboxStorage(timeProvider);
 
         var message1 = new TestMessage();
-        await storage.AddAsync(message1, new InboxOptions());
+        await storage.AddAsync(message1, new InboxOptions(), TestContext.Current.CancellationToken);
 
         timeProvider.Advance(TimeSpan.FromMinutes(10));
         var cutoffTime = timeProvider.GetUtcNow();
 
         timeProvider.Advance(TimeSpan.FromMinutes(5));
         var message2 = new TestMessage();
-        await storage.AddAsync(message2, new InboxOptions());
+        await storage.AddAsync(message2, new InboxOptions(), TestContext.Current.CancellationToken);
 
         var query = new InboxQuery { OlderThan = cutoffTime };
 
         // Act
-        var results = await storage.GetPendingAsync(query);
+        var results = await storage.GetPendingAsync(query, TestContext.Current.CancellationToken);
 
         // Assert
         var resultsList = results.ToList();
@@ -475,19 +478,19 @@ public sealed class InMemoryInboxStorageTests
         var storage = new InMemoryInboxStorage(timeProvider);
 
         var message1 = new TestMessage();
-        await storage.AddAsync(message1, new InboxOptions());
+        await storage.AddAsync(message1, new InboxOptions(), TestContext.Current.CancellationToken);
 
         timeProvider.Advance(TimeSpan.FromMinutes(10));
         var cutoffTime = timeProvider.GetUtcNow();
 
         timeProvider.Advance(TimeSpan.FromMinutes(5));
         var message2 = new TestMessage();
-        await storage.AddAsync(message2, new InboxOptions());
+        await storage.AddAsync(message2, new InboxOptions(), TestContext.Current.CancellationToken);
 
         var query = new InboxQuery { NewerThan = cutoffTime };
 
         // Act
-        var results = await storage.GetPendingAsync(query);
+        var results = await storage.GetPendingAsync(query, TestContext.Current.CancellationToken);
 
         // Assert
         var resultsList = results.ToList();
@@ -504,13 +507,13 @@ public sealed class InMemoryInboxStorageTests
 
         for (int i = 0; i < 10; i++)
         {
-            await storage.AddAsync(new TestMessage(), new InboxOptions());
+            await storage.AddAsync(new TestMessage(), new InboxOptions(), TestContext.Current.CancellationToken);
         }
 
         var query = new InboxQuery { Limit = 5 };
 
         // Act
-        var results = await storage.GetPendingAsync(query);
+        var results = await storage.GetPendingAsync(query, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(5, results.Count());
@@ -528,14 +531,14 @@ public sealed class InMemoryInboxStorageTests
         {
             var message = new TestMessage();
             messages.Add(message);
-            await storage.AddAsync(message, new InboxOptions());
+            await storage.AddAsync(message, new InboxOptions(), TestContext.Current.CancellationToken);
             timeProvider.Advance(TimeSpan.FromSeconds(1));
         }
 
         var query = new InboxQuery { Limit = 100 };
 
         // Act
-        var results = await storage.GetPendingAsync(query);
+        var results = await storage.GetPendingAsync(query, TestContext.Current.CancellationToken);
 
         // Assert
         var resultsList = results.ToList();
@@ -554,7 +557,7 @@ public sealed class InMemoryInboxStorageTests
         var query = new InboxQuery();
 
         // Act
-        var results = await storage.GetPendingAsync(query);
+        var results = await storage.GetPendingAsync(query, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(results);
@@ -575,14 +578,14 @@ public sealed class InMemoryInboxStorageTests
         var message2 = new TestMessage();
         var message3 = new TestMessage();
 
-        await storage.AddAsync(message1, new InboxOptions());
-        await storage.AddAsync(message2, new InboxOptions());
-        await storage.AddAsync(message3, new InboxOptions());
+        await storage.AddAsync(message1, new InboxOptions(), TestContext.Current.CancellationToken);
+        await storage.AddAsync(message2, new InboxOptions(), TestContext.Current.CancellationToken);
+        await storage.AddAsync(message3, new InboxOptions(), TestContext.Current.CancellationToken);
 
-        await storage.MarkProcessedAsync(message2.MessageId.ToString());
+        await storage.MarkProcessedAsync(message2.MessageId.ToString(), TestContext.Current.CancellationToken);
 
         // Act
-        var results = await storage.GetUnprocessedAsync();
+        var results = await storage.GetUnprocessedAsync(TestContext.Current.CancellationToken);
 
         // Assert
         var resultsList = results.ToList();
@@ -599,11 +602,11 @@ public sealed class InMemoryInboxStorageTests
 
         for (int i = 0; i < 10; i++)
         {
-            await storage.AddAsync(new TestMessage(), new InboxOptions());
+            await storage.AddAsync(new TestMessage(), new InboxOptions(), TestContext.Current.CancellationToken);
         }
 
         // Act
-        var results = await storage.GetUnprocessedAsync(limit: 5);
+        var results = await storage.GetUnprocessedAsync(5, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(5, results.Count());
@@ -621,12 +624,12 @@ public sealed class InMemoryInboxStorageTests
         {
             var message = new TestMessage();
             messages.Add(message);
-            await storage.AddAsync(message, new InboxOptions());
+            await storage.AddAsync(message, new InboxOptions(), TestContext.Current.CancellationToken);
             timeProvider.Advance(TimeSpan.FromSeconds(1));
         }
 
         // Act
-        var results = await storage.GetUnprocessedAsync();
+        var results = await storage.GetUnprocessedAsync(TestContext.Current.CancellationToken);
 
         // Assert
         var resultsList = results.ToList();
@@ -648,7 +651,7 @@ public sealed class InMemoryInboxStorageTests
         var storage = new InMemoryInboxStorage(timeProvider);
 
         // Act
-        var count = await storage.GetUnprocessedCountAsync();
+        var count = await storage.GetUnprocessedCountAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(0, count);
@@ -661,12 +664,12 @@ public sealed class InMemoryInboxStorageTests
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryInboxStorage(timeProvider);
 
-        await storage.AddAsync(new TestMessage(), new InboxOptions());
-        await storage.AddAsync(new TestMessage(), new InboxOptions());
-        await storage.AddAsync(new TestMessage(), new InboxOptions());
+        await storage.AddAsync(new TestMessage(), new InboxOptions(), TestContext.Current.CancellationToken);
+        await storage.AddAsync(new TestMessage(), new InboxOptions(), TestContext.Current.CancellationToken);
+        await storage.AddAsync(new TestMessage(), new InboxOptions(), TestContext.Current.CancellationToken);
 
         // Act
-        var count = await storage.GetUnprocessedCountAsync();
+        var count = await storage.GetUnprocessedCountAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(3, count);
@@ -683,14 +686,14 @@ public sealed class InMemoryInboxStorageTests
         var message2 = new TestMessage();
         var message3 = new TestMessage();
 
-        await storage.AddAsync(message1, new InboxOptions());
-        await storage.AddAsync(message2, new InboxOptions());
-        await storage.AddAsync(message3, new InboxOptions());
+        await storage.AddAsync(message1, new InboxOptions(), TestContext.Current.CancellationToken);
+        await storage.AddAsync(message2, new InboxOptions(), TestContext.Current.CancellationToken);
+        await storage.AddAsync(message3, new InboxOptions(), TestContext.Current.CancellationToken);
 
-        await storage.MarkProcessedAsync(message2.MessageId.ToString());
+        await storage.MarkProcessedAsync(message2.MessageId.ToString(), TestContext.Current.CancellationToken);
 
         // Act
-        var count = await storage.GetUnprocessedCountAsync();
+        var count = await storage.GetUnprocessedCountAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(2, count);
@@ -708,21 +711,21 @@ public sealed class InMemoryInboxStorageTests
         var storage = new InMemoryInboxStorage(timeProvider);
 
         var message1 = new TestMessage();
-        await storage.AddAsync(message1, new InboxOptions());
-        await storage.MarkProcessedAsync(message1.MessageId.ToString());
+        await storage.AddAsync(message1, new InboxOptions(), TestContext.Current.CancellationToken);
+        await storage.MarkProcessedAsync(message1.MessageId.ToString(, TestContext.Current.CancellationToken));
 
         timeProvider.Advance(TimeSpan.FromHours(2));
 
         var message2 = new TestMessage();
-        await storage.AddAsync(message2, new InboxOptions());
-        await storage.MarkProcessedAsync(message2.MessageId.ToString());
+        await storage.AddAsync(message2, new InboxOptions(), TestContext.Current.CancellationToken);
+        await storage.MarkProcessedAsync(message2.MessageId.ToString(), TestContext.Current.CancellationToken);
 
         // Act
-        await storage.CleanupOldEntriesAsync(TimeSpan.FromHours(1));
+        await storage.CleanupOldEntriesAsync(TimeSpan.FromHours(1), TestContext.Current.CancellationToken);
 
         // Assert
-        var entry1 = await storage.GetAsync(message1.MessageId.ToString());
-        var entry2 = await storage.GetAsync(message2.MessageId.ToString());
+        var entry1 = await storage.GetAsync(message1.MessageId.ToString(), TestContext.Current.CancellationToken);
+        var entry2 = await storage.GetAsync(message2.MessageId.ToString(, TestContext.Current.CancellationToken));
 
         Assert.Null(entry1);
         Assert.NotNull(entry2);
@@ -736,15 +739,15 @@ public sealed class InMemoryInboxStorageTests
         var storage = new InMemoryInboxStorage(timeProvider);
 
         var message = new TestMessage();
-        await storage.AddAsync(message, new InboxOptions());
+        await storage.AddAsync(message, new InboxOptions(), TestContext.Current.CancellationToken);
 
         timeProvider.Advance(TimeSpan.FromHours(2));
 
         // Act
-        await storage.CleanupOldEntriesAsync(TimeSpan.FromHours(1));
+        await storage.CleanupOldEntriesAsync(TimeSpan.FromHours(1), TestContext.Current.CancellationToken);
 
         // Assert
-        var entry = await storage.GetAsync(message.MessageId.ToString());
+        var entry = await storage.GetAsync(message.MessageId.ToString(), TestContext.Current.CancellationToken);
         Assert.NotNull(entry);
     }
 
@@ -756,16 +759,16 @@ public sealed class InMemoryInboxStorageTests
         var storage = new InMemoryInboxStorage(timeProvider);
 
         var message = new TestMessage();
-        await storage.AddAsync(message, new InboxOptions());
-        await storage.MarkFailedAsync(message.MessageId.ToString(), "Error");
+        await storage.AddAsync(message, new InboxOptions(), TestContext.Current.CancellationToken);
+        await storage.MarkFailedAsync(message.MessageId.ToString(), "Error", TestContext.Current.CancellationToken);
 
         timeProvider.Advance(TimeSpan.FromHours(2));
 
         // Act
-        await storage.CleanupOldEntriesAsync(TimeSpan.FromHours(1));
+        await storage.CleanupOldEntriesAsync(TimeSpan.FromHours(1), TestContext.Current.CancellationToken);
 
         // Assert
-        var entry = await storage.GetAsync(message.MessageId.ToString());
+        var entry = await storage.GetAsync(message.MessageId.ToString(), TestContext.Current.CancellationToken);
         Assert.NotNull(entry);
     }
 
@@ -777,7 +780,7 @@ public sealed class InMemoryInboxStorageTests
         var storage = new InMemoryInboxStorage(timeProvider);
 
         // Act & Assert
-        await storage.CleanupOldEntriesAsync(TimeSpan.FromHours(1));
+        await storage.CleanupOldEntriesAsync(TimeSpan.FromHours(1), TestContext.Current.CancellationToken);
     }
 
     #endregion
@@ -800,7 +803,7 @@ public sealed class InMemoryInboxStorageTests
             messages.Add(message);
             tasks.Add(Task.Run(async () =>
             {
-                await storage.AddAsync(message, new InboxOptions());
+                await storage.AddAsync(message, new InboxOptions(), TestContext.Current.CancellationToken);
             }));
         }
 
@@ -809,7 +812,7 @@ public sealed class InMemoryInboxStorageTests
         // Assert - All messages should be retrievable
         foreach (var message in messages)
         {
-            var entry = await storage.GetAsync(message.MessageId.ToString());
+            var entry = await storage.GetAsync(message.MessageId.ToString(), TestContext.Current.CancellationToken);
             Assert.NotNull(entry);
             Assert.Equal(message.MessageId.ToString(), entry.Id);
         }
@@ -827,18 +830,18 @@ public sealed class InMemoryInboxStorageTests
         {
             var message = new TestMessage();
             messages.Add(message);
-            await storage.AddAsync(message, new InboxOptions());
+            await storage.AddAsync(message, new InboxOptions(), TestContext.Current.CancellationToken);
         }
 
         // Act - Mark processed concurrently
         var tasks = messages.Select(m =>
-            Task.Run(async () => await storage.MarkProcessedAsync(m.MessageId.ToString()))
+            Task.Run(async () => await storage.MarkProcessedAsync(m.MessageId.ToString(), TestContext.Current.CancellationToken))
         );
 
         await Task.WhenAll(tasks);
 
         // Assert
-        var count = await storage.GetUnprocessedCountAsync();
+        var count = await storage.GetUnprocessedCountAsync(TestContext.Current.CancellationToken);
         Assert.Equal(0, count);
     }
 
@@ -862,10 +865,10 @@ public sealed class InMemoryInboxStorageTests
         };
 
         // Act
-        await storage.AddAsync(message, new InboxOptions());
+        await storage.AddAsync(message, new InboxOptions(), TestContext.Current.CancellationToken);
 
         // Assert
-        var entry = await storage.GetAsync(message.MessageId.ToString());
+        var entry = await storage.GetAsync(message.MessageId.ToString(), TestContext.Current.CancellationToken);
         Assert.NotNull(entry);
         Assert.NotNull(entry.Message.Metadata);
         Assert.Equal("value1", entry.Message.Metadata["key1"]);
@@ -882,14 +885,14 @@ public sealed class InMemoryInboxStorageTests
         var messages = new[] { new TestMessage(), new TestMessage(), new TestMessage() };
         foreach (var message in messages)
         {
-            await storage.AddAsync(message, new InboxOptions());
-            await storage.MarkProcessedAsync(message.MessageId.ToString());
+            await storage.AddAsync(message, new InboxOptions(), TestContext.Current.CancellationToken);
+            await storage.MarkProcessedAsync(message.MessageId.ToString(), TestContext.Current.CancellationToken);
         }
 
         var query = new InboxQuery();
 
         // Act
-        var results = await storage.GetPendingAsync(query);
+        var results = await storage.GetPendingAsync(query, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(results);
@@ -902,18 +905,20 @@ public sealed class InMemoryInboxStorageTests
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryInboxStorage(timeProvider);
         var message = new TestMessage();
-        await storage.AddAsync(message, new InboxOptions());
+        await storage.AddAsync(message, new InboxOptions(), TestContext.Current.CancellationToken);
 
         // Act - Check with 1 millisecond window
         var isDuplicate1 = await storage.IsDuplicateAsync(
             message.MessageId.ToString(),
-            TimeSpan.FromMilliseconds(1));
+            TimeSpan.FromMilliseconds(1),
+            TestContext.Current.CancellationToken);
 
         timeProvider.Advance(TimeSpan.FromMilliseconds(2));
 
         var isDuplicate2 = await storage.IsDuplicateAsync(
             message.MessageId.ToString(),
-            TimeSpan.FromMilliseconds(1));
+            TimeSpan.FromMilliseconds(1),
+            TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(isDuplicate1);

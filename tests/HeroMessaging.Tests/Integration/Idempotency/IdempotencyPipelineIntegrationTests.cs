@@ -38,10 +38,10 @@ public sealed class IdempotencyPipelineIntegrationTests
         var context = new ProcessingContext();
 
         // Act - First execution
-        var result1 = await decorator.ProcessAsync(message, context, CancellationToken.None);
+        var result1 = await decorator.ProcessAsync(message, context, CancellationToken.None, TestContext.Current.CancellationToken);
 
         // Act - Second execution (should hit cache)
-        var result2 = await decorator.ProcessAsync(message, context, CancellationToken.None);
+        var result2 = await decorator.ProcessAsync(message, context, CancellationToken.None, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result1.Success);
@@ -85,19 +85,19 @@ public sealed class IdempotencyPipelineIntegrationTests
         Assert.Equal(TimeSpan.FromMinutes(30), policy.FailureTtl);
 
         // Act - Execute and cache
-        var result1 = await decorator.ProcessAsync(message, context, CancellationToken.None);
+        var result1 = await decorator.ProcessAsync(message, context, CancellationToken.None, TestContext.Current.CancellationToken);
         Assert.True(result1.Success);
         Assert.Equal(1, handler.ExecutionCount);
 
         // Act - Advance time within TTL
         fakeTimeProvider.Advance(TimeSpan.FromMinutes(30));
-        var result2 = await decorator.ProcessAsync(message, context, CancellationToken.None);
+        var result2 = await decorator.ProcessAsync(message, context, CancellationToken.None, TestContext.Current.CancellationToken);
         Assert.True(result2.Success);
         Assert.Equal(1, handler.ExecutionCount); // Still cached
 
         // Act - Advance time beyond TTL
         fakeTimeProvider.Advance(TimeSpan.FromMinutes(31));
-        var result3 = await decorator.ProcessAsync(message, context, CancellationToken.None);
+        var result3 = await decorator.ProcessAsync(message, context, CancellationToken.None, TestContext.Current.CancellationToken);
         Assert.True(result3.Success);
         Assert.Equal(2, handler.ExecutionCount); // Re-executed after expiration
     }
@@ -126,10 +126,10 @@ public sealed class IdempotencyPipelineIntegrationTests
         var context = new ProcessingContext();
 
         // Act - First execution (should fail and cache)
-        var result1 = await decorator.ProcessAsync(message, context, CancellationToken.None);
+        var result1 = await decorator.ProcessAsync(message, context, CancellationToken.None, TestContext.Current.CancellationToken);
 
         // Act - Second execution (should return cached failure)
-        var result2 = await decorator.ProcessAsync(message, context, CancellationToken.None);
+        var result2 = await decorator.ProcessAsync(message, context, CancellationToken.None, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result1.Success);
@@ -167,10 +167,10 @@ public sealed class IdempotencyPipelineIntegrationTests
         var context = new ProcessingContext();
 
         // Act - First execution (should fail)
-        var result1 = await decorator.ProcessAsync(message, context, CancellationToken.None);
+        var result1 = await decorator.ProcessAsync(message, context, CancellationToken.None, TestContext.Current.CancellationToken);
 
         // Act - Second execution (should retry, not use cache)
-        var result2 = await decorator.ProcessAsync(message, context, CancellationToken.None);
+        var result2 = await decorator.ProcessAsync(message, context, CancellationToken.None, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result1.Success);
@@ -204,10 +204,10 @@ public sealed class IdempotencyPipelineIntegrationTests
         var context = new ProcessingContext();
 
         // Act - First execution (should fail)
-        var result1 = await decorator.ProcessAsync(message, context, CancellationToken.None);
+        var result1 = await decorator.ProcessAsync(message, context, CancellationToken.None, TestContext.Current.CancellationToken);
 
         // Act - Second execution (should retry, non-idempotent failure)
-        var result2 = await decorator.ProcessAsync(message, context, CancellationToken.None);
+        var result2 = await decorator.ProcessAsync(message, context, CancellationToken.None, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result1.Success);
@@ -240,11 +240,11 @@ public sealed class IdempotencyPipelineIntegrationTests
         var context = new ProcessingContext();
 
         // Act
-        await decorator.ProcessAsync(message, context, CancellationToken.None);
+        await decorator.ProcessAsync(message, context, CancellationToken.None, TestContext.Current.CancellationToken);
 
         // Assert - Verify custom key format is used
         var customKey = $"custom:{message.MessageId}";
-        var exists = await store.ExistsAsync(customKey, CancellationToken.None);
+        var exists = await store.ExistsAsync(customKey, CancellationToken.None, TestContext.Current.CancellationToken);
         Assert.True(exists);
     }
 
@@ -269,10 +269,10 @@ public sealed class IdempotencyPipelineIntegrationTests
         var context = new ProcessingContext();
 
         // Act
-        await decorator.ProcessAsync(message1, context, CancellationToken.None);
-        await decorator.ProcessAsync(message2, context, CancellationToken.None);
-        await decorator.ProcessAsync(message1, context, CancellationToken.None); // Duplicate of message1
-        await decorator.ProcessAsync(message2, context, CancellationToken.None); // Duplicate of message2
+        await decorator.ProcessAsync(message1, context, CancellationToken.None, TestContext.Current.CancellationToken);
+        await decorator.ProcessAsync(message2, context, CancellationToken.None, TestContext.Current.CancellationToken);
+        await decorator.ProcessAsync(message1, context, CancellationToken.None, TestContext.Current.CancellationToken); // Duplicate of message1
+        await decorator.ProcessAsync(message2, context, CancellationToken.None, TestContext.Current.CancellationToken); // Duplicate of message2
 
         // Assert
         Assert.Equal(2, handler.ExecutionCount); // Only 2 unique messages executed
@@ -335,8 +335,8 @@ public sealed class IdempotencyPipelineIntegrationTests
         var message = new TestMessage { MessageId = Guid.NewGuid() };
         var context = new ProcessingContext();
 
-        var result1 = await decorator.ProcessAsync(message, context, CancellationToken.None);
-        var result2 = await decorator.ProcessAsync(message, context, CancellationToken.None);
+        var result1 = await decorator.ProcessAsync(message, context, CancellationToken.None, TestContext.Current.CancellationToken);
+        var result2 = await decorator.ProcessAsync(message, context, CancellationToken.None, TestContext.Current.CancellationToken);
 
         // Assert - Idempotency working
         Assert.True(result1.Success);

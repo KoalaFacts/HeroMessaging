@@ -71,7 +71,7 @@ public class OpenTelemetryIntegrationTests : IDisposable
         var context = new ProcessingContext("IntegrationTest");
 
         // Act
-        var result = await pipeline.ProcessAsync(message, context);
+        var result = await pipeline.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -103,7 +103,7 @@ public class OpenTelemetryIntegrationTests : IDisposable
         // Act
         foreach (var message in messages)
         {
-            await pipeline.ProcessAsync(message, context);
+            await pipeline.ProcessAsync(message, context, TestContext.Current.CancellationToken);
         }
 
         // Assert
@@ -130,7 +130,7 @@ public class OpenTelemetryIntegrationTests : IDisposable
         var context = new ProcessingContext("ErrorTest");
 
         // Act
-        var result = await pipeline.ProcessAsync(message, context);
+        var result = await pipeline.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.Success);
@@ -158,7 +158,7 @@ public class OpenTelemetryIntegrationTests : IDisposable
         var context = new ProcessingContext("MultiDecoratorTest");
 
         // Act
-        var result = await pipeline.ProcessAsync(message, context);
+        var result = await pipeline.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -183,7 +183,7 @@ public class OpenTelemetryIntegrationTests : IDisposable
         var context = new ProcessingContext("ParentTest");
 
         // Act
-        var result = await pipeline.ProcessAsync(message, context);
+        var result = await pipeline.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -206,7 +206,7 @@ public class OpenTelemetryIntegrationTests : IDisposable
         var context = new ProcessingContext("RetryTest").WithRetry(3);
 
         // Act
-        var result = await pipeline.ProcessAsync(message, context);
+        var result = await pipeline.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -273,7 +273,7 @@ public class OpenTelemetryIntegrationTests : IDisposable
         var context = new ProcessingContext("MetricsTest");
 
         // Act
-        await pipeline.ProcessAsync(message, context);
+        await pipeline.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert - Verify processing duration metric was recorded
         Assert.Contains(metricRecordings,

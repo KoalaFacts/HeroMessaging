@@ -412,7 +412,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             context.Compensation.AddCompensation("TestAction", () => { compensated = true; });
 
             // Act
-            await context.Compensation.CompensateAsync();
+            await context.Compensation.CompensateAsync(TestContext.Current.CancellationToken);
 
             // Assert
             Assert.True(compensated);

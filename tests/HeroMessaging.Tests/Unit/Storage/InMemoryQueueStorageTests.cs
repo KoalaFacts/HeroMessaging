@@ -59,7 +59,7 @@ public sealed class InMemoryQueueStorageTests
         var storage = new InMemoryQueueStorage(timeProvider);
 
         // Act
-        var result = await storage.CreateQueueAsync("test-queue");
+        var result = await storage.CreateQueueAsync("test-queue", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
@@ -71,10 +71,10 @@ public sealed class InMemoryQueueStorageTests
         // Arrange
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryQueueStorage(timeProvider);
-        await storage.CreateQueueAsync("test-queue");
+        await storage.CreateQueueAsync("test-queue", TestContext.Current.CancellationToken);
 
         // Act
-        var result = await storage.CreateQueueAsync("test-queue");
+        var result = await storage.CreateQueueAsync("test-queue", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);
@@ -95,10 +95,10 @@ public sealed class InMemoryQueueStorageTests
         };
 
         // Act
-        await storage.CreateQueueAsync("test-queue", options);
+        await storage.CreateQueueAsync("test-queue", options, TestContext.Current.CancellationToken);
 
         // Assert - Verify queue exists
-        var exists = await storage.QueueExistsAsync("test-queue");
+        var exists = await storage.QueueExistsAsync("test-queue", TestContext.Current.CancellationToken);
         Assert.True(exists);
     }
 
@@ -112,10 +112,10 @@ public sealed class InMemoryQueueStorageTests
         // Arrange
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryQueueStorage(timeProvider);
-        await storage.CreateQueueAsync("test-queue");
+        await storage.CreateQueueAsync("test-queue", TestContext.Current.CancellationToken);
 
         // Act
-        var result = await storage.DeleteQueueAsync("test-queue");
+        var result = await storage.DeleteQueueAsync("test-queue", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
@@ -129,7 +129,7 @@ public sealed class InMemoryQueueStorageTests
         var storage = new InMemoryQueueStorage(timeProvider);
 
         // Act
-        var result = await storage.DeleteQueueAsync("non-existent-queue");
+        var result = await storage.DeleteQueueAsync("non-existent-queue", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);
@@ -143,15 +143,15 @@ public sealed class InMemoryQueueStorageTests
         var storage = new InMemoryQueueStorage(timeProvider);
         var queueName = "test-queue";
 
-        await storage.CreateQueueAsync(queueName);
-        await storage.EnqueueAsync(queueName, new TestMessage());
-        await storage.EnqueueAsync(queueName, new TestMessage());
+        await storage.CreateQueueAsync(queueName, TestContext.Current.CancellationToken);
+        await storage.EnqueueAsync(queueName, new TestMessage(, TestContext.Current.CancellationToken));
+        await storage.EnqueueAsync(queueName, new TestMessage(, TestContext.Current.CancellationToken));
 
         // Act
-        await storage.DeleteQueueAsync(queueName);
+        await storage.DeleteQueueAsync(queueName, TestContext.Current.CancellationToken);
 
         // Assert
-        var exists = await storage.QueueExistsAsync(queueName);
+        var exists = await storage.QueueExistsAsync(queueName, TestContext.Current.CancellationToken);
         Assert.False(exists);
     }
 
@@ -167,7 +167,7 @@ public sealed class InMemoryQueueStorageTests
         var storage = new InMemoryQueueStorage(timeProvider);
 
         // Act
-        var queues = await storage.GetQueuesAsync();
+        var queues = await storage.GetQueuesAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(queues);
@@ -180,12 +180,12 @@ public sealed class InMemoryQueueStorageTests
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryQueueStorage(timeProvider);
 
-        await storage.CreateQueueAsync("queue1");
-        await storage.CreateQueueAsync("queue2");
-        await storage.CreateQueueAsync("queue3");
+        await storage.CreateQueueAsync("queue1", TestContext.Current.CancellationToken);
+        await storage.CreateQueueAsync("queue2", TestContext.Current.CancellationToken);
+        await storage.CreateQueueAsync("queue3", TestContext.Current.CancellationToken);
 
         // Act
-        var queues = await storage.GetQueuesAsync();
+        var queues = await storage.GetQueuesAsync(TestContext.Current.CancellationToken);
 
         // Assert
         var queueList = queues.ToList();
@@ -207,7 +207,7 @@ public sealed class InMemoryQueueStorageTests
         var storage = new InMemoryQueueStorage(timeProvider);
 
         // Act
-        var exists = await storage.QueueExistsAsync("non-existent-queue");
+        var exists = await storage.QueueExistsAsync("non-existent-queue", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(exists);
@@ -219,10 +219,10 @@ public sealed class InMemoryQueueStorageTests
         // Arrange
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryQueueStorage(timeProvider);
-        await storage.CreateQueueAsync("test-queue");
+        await storage.CreateQueueAsync("test-queue", TestContext.Current.CancellationToken);
 
         // Act
-        var exists = await storage.QueueExistsAsync("test-queue");
+        var exists = await storage.QueueExistsAsync("test-queue", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(exists);
@@ -242,7 +242,7 @@ public sealed class InMemoryQueueStorageTests
         var queueName = "test-queue";
 
         // Act
-        var entry = await storage.EnqueueAsync(queueName, message);
+        var entry = await storage.EnqueueAsync(queueName, message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(entry);
@@ -261,12 +261,12 @@ public sealed class InMemoryQueueStorageTests
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryQueueStorage(timeProvider);
         var queueName = "test-queue";
-        await storage.CreateQueueAsync(queueName);
+        await storage.CreateQueueAsync(queueName, TestContext.Current.CancellationToken);
 
         var message = new TestMessage();
 
         // Act
-        var entry = await storage.EnqueueAsync(queueName, message);
+        var entry = await storage.EnqueueAsync(queueName, message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(entry);
@@ -284,7 +284,7 @@ public sealed class InMemoryQueueStorageTests
         var options = new EnqueueOptions { Delay = delay };
 
         // Act
-        var entry = await storage.EnqueueAsync("test-queue", message, options);
+        var entry = await storage.EnqueueAsync("test-queue", message, options, TestContext.Current.CancellationToken);
 
         // Assert
         var expectedVisibleAt = timeProvider.GetUtcNow().Add(delay);
@@ -306,7 +306,7 @@ public sealed class InMemoryQueueStorageTests
         };
 
         // Act
-        var entry = await storage.EnqueueAsync("test-queue", message, options);
+        var entry = await storage.EnqueueAsync("test-queue", message, options, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(10, entry.Options.Priority);
@@ -326,7 +326,7 @@ public sealed class InMemoryQueueStorageTests
         // Act
         for (int i = 0; i < 100; i++)
         {
-            var entry = await storage.EnqueueAsync("test-queue", new TestMessage());
+            var entry = await storage.EnqueueAsync("test-queue", new TestMessage(, TestContext.Current.CancellationToken));
             ids.Add(entry.Id);
         }
 
@@ -346,7 +346,7 @@ public sealed class InMemoryQueueStorageTests
         var storage = new InMemoryQueueStorage(timeProvider);
 
         // Act
-        var entry = await storage.DequeueAsync("non-existent-queue");
+        var entry = await storage.DequeueAsync("non-existent-queue", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(entry);
@@ -358,10 +358,10 @@ public sealed class InMemoryQueueStorageTests
         // Arrange
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryQueueStorage(timeProvider);
-        await storage.CreateQueueAsync("test-queue");
+        await storage.CreateQueueAsync("test-queue", TestContext.Current.CancellationToken);
 
         // Act
-        var entry = await storage.DequeueAsync("test-queue");
+        var entry = await storage.DequeueAsync("test-queue", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(entry);
@@ -376,10 +376,10 @@ public sealed class InMemoryQueueStorageTests
         var queueName = "test-queue";
         var message = new TestMessage { Content = "Test" };
 
-        await storage.EnqueueAsync(queueName, message);
+        await storage.EnqueueAsync(queueName, message, TestContext.Current.CancellationToken);
 
         // Act
-        var entry = await storage.DequeueAsync(queueName);
+        var entry = await storage.DequeueAsync(queueName, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(entry);
@@ -394,10 +394,10 @@ public sealed class InMemoryQueueStorageTests
         var storage = new InMemoryQueueStorage(timeProvider);
         var queueName = "test-queue";
 
-        await storage.EnqueueAsync(queueName, new TestMessage());
+        await storage.EnqueueAsync(queueName, new TestMessage(, TestContext.Current.CancellationToken));
 
         // Act
-        var entry = await storage.DequeueAsync(queueName);
+        var entry = await storage.DequeueAsync(queueName, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(entry);
@@ -413,11 +413,11 @@ public sealed class InMemoryQueueStorageTests
         var queueName = "test-queue";
         var visibilityTimeout = TimeSpan.FromMinutes(5);
 
-        await storage.CreateQueueAsync(queueName, new QueueOptions { VisibilityTimeout = visibilityTimeout });
-        await storage.EnqueueAsync(queueName, new TestMessage());
+        await storage.CreateQueueAsync(queueName, new QueueOptions { VisibilityTimeout = visibilityTimeout }, TestContext.Current.CancellationToken);
+        await storage.EnqueueAsync(queueName, new TestMessage(, TestContext.Current.CancellationToken));
 
         // Act
-        var entry = await storage.DequeueAsync(queueName);
+        var entry = await storage.DequeueAsync(queueName, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(entry);
@@ -437,7 +437,7 @@ public sealed class InMemoryQueueStorageTests
         await storage.EnqueueAsync(queueName, new TestMessage(), new EnqueueOptions { Delay = delay });
 
         // Act
-        var entry = await storage.DequeueAsync(queueName);
+        var entry = await storage.DequeueAsync(queueName, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(entry);
@@ -458,7 +458,7 @@ public sealed class InMemoryQueueStorageTests
         timeProvider.Advance(TimeSpan.FromMinutes(6));
 
         // Act
-        var entry = await storage.DequeueAsync(queueName);
+        var entry = await storage.DequeueAsync(queueName, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(entry);
@@ -476,12 +476,12 @@ public sealed class InMemoryQueueStorageTests
         var message2 = new TestMessage { Content = "Priority 10" };
         var message3 = new TestMessage { Content = "Priority 5" };
 
-        await storage.EnqueueAsync(queueName, message1, new EnqueueOptions { Priority = 1 });
-        await storage.EnqueueAsync(queueName, message2, new EnqueueOptions { Priority = 10 });
-        await storage.EnqueueAsync(queueName, message3, new EnqueueOptions { Priority = 5 });
+        await storage.EnqueueAsync(queueName, message1, new EnqueueOptions { Priority = 1 }, TestContext.Current.CancellationToken);
+        await storage.EnqueueAsync(queueName, message2, new EnqueueOptions { Priority = 10 }, TestContext.Current.CancellationToken);
+        await storage.EnqueueAsync(queueName, message3, new EnqueueOptions { Priority = 5 }, TestContext.Current.CancellationToken);
 
         // Act
-        var entry = await storage.DequeueAsync(queueName);
+        var entry = await storage.DequeueAsync(queueName, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(entry);
@@ -500,16 +500,16 @@ public sealed class InMemoryQueueStorageTests
         var message2 = new TestMessage { Content = "Second" };
         var message3 = new TestMessage { Content = "Third" };
 
-        await storage.EnqueueAsync(queueName, message1, new EnqueueOptions { Priority = 5 });
+        await storage.EnqueueAsync(queueName, message1, new EnqueueOptions { Priority = 5 }, TestContext.Current.CancellationToken);
         timeProvider.Advance(TimeSpan.FromSeconds(1));
-        await storage.EnqueueAsync(queueName, message2, new EnqueueOptions { Priority = 5 });
+        await storage.EnqueueAsync(queueName, message2, new EnqueueOptions { Priority = 5 }, TestContext.Current.CancellationToken);
         timeProvider.Advance(TimeSpan.FromSeconds(1));
-        await storage.EnqueueAsync(queueName, message3, new EnqueueOptions { Priority = 5 });
+        await storage.EnqueueAsync(queueName, message3, new EnqueueOptions { Priority = 5 }, TestContext.Current.CancellationToken);
 
         // Act
-        var entry1 = await storage.DequeueAsync(queueName);
-        var entry2 = await storage.DequeueAsync(queueName);
-        var entry3 = await storage.DequeueAsync(queueName);
+        var entry1 = await storage.DequeueAsync(queueName, TestContext.Current.CancellationToken);
+        var entry2 = await storage.DequeueAsync(queueName, TestContext.Current.CancellationToken);
+        var entry3 = await storage.DequeueAsync(queueName, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(entry1);
@@ -529,19 +529,19 @@ public sealed class InMemoryQueueStorageTests
         var queueName = "test-queue";
         var maxDequeueCount = 3;
 
-        await storage.CreateQueueAsync(queueName, new QueueOptions { MaxDequeueCount = maxDequeueCount });
-        await storage.EnqueueAsync(queueName, new TestMessage());
+        await storage.CreateQueueAsync(queueName, new QueueOptions { MaxDequeueCount = maxDequeueCount }, TestContext.Current.CancellationToken);
+        await storage.EnqueueAsync(queueName, new TestMessage(, TestContext.Current.CancellationToken));
 
         // Dequeue multiple times
         for (int i = 0; i < maxDequeueCount; i++)
         {
-            var entry = await storage.DequeueAsync(queueName);
+            var entry = await storage.DequeueAsync(queueName, TestContext.Current.CancellationToken);
             Assert.NotNull(entry);
             timeProvider.Advance(TimeSpan.FromMinutes(2)); // Advance to make visible again
         }
 
         // Act - Should not return message as max dequeue count reached
-        var finalEntry = await storage.DequeueAsync(queueName);
+        var finalEntry = await storage.DequeueAsync(queueName, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(finalEntry);
@@ -559,7 +559,7 @@ public sealed class InMemoryQueueStorageTests
         var storage = new InMemoryQueueStorage(timeProvider);
 
         // Act
-        var entries = await storage.PeekAsync("non-existent-queue");
+        var entries = await storage.PeekAsync("non-existent-queue", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(entries);
@@ -571,10 +571,10 @@ public sealed class InMemoryQueueStorageTests
         // Arrange
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryQueueStorage(timeProvider);
-        await storage.CreateQueueAsync("test-queue");
+        await storage.CreateQueueAsync("test-queue", TestContext.Current.CancellationToken);
 
         // Act
-        var entries = await storage.PeekAsync("test-queue");
+        var entries = await storage.PeekAsync("test-queue", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(entries);
@@ -588,11 +588,11 @@ public sealed class InMemoryQueueStorageTests
         var storage = new InMemoryQueueStorage(timeProvider);
         var queueName = "test-queue";
 
-        await storage.EnqueueAsync(queueName, new TestMessage());
-        await storage.EnqueueAsync(queueName, new TestMessage());
+        await storage.EnqueueAsync(queueName, new TestMessage(, TestContext.Current.CancellationToken));
+        await storage.EnqueueAsync(queueName, new TestMessage(, TestContext.Current.CancellationToken));
 
         // Act
-        var entries = await storage.PeekAsync(queueName, count: 2);
+        var entries = await storage.PeekAsync(queueName, count: 2, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(2, entries.Count());
@@ -606,10 +606,10 @@ public sealed class InMemoryQueueStorageTests
         var storage = new InMemoryQueueStorage(timeProvider);
         var queueName = "test-queue";
 
-        await storage.EnqueueAsync(queueName, new TestMessage());
+        await storage.EnqueueAsync(queueName, new TestMessage(, TestContext.Current.CancellationToken));
 
         // Act
-        var entries = await storage.PeekAsync(queueName);
+        var entries = await storage.PeekAsync(queueName, TestContext.Current.CancellationToken);
 
         // Assert
         var entry = entries.First();
@@ -624,11 +624,11 @@ public sealed class InMemoryQueueStorageTests
         var storage = new InMemoryQueueStorage(timeProvider);
         var queueName = "test-queue";
 
-        var originalEntry = await storage.EnqueueAsync(queueName, new TestMessage());
+        var originalEntry = await storage.EnqueueAsync(queueName, new TestMessage(, TestContext.Current.CancellationToken));
         var originalVisibleAt = originalEntry.VisibleAt;
 
         // Act
-        await storage.PeekAsync(queueName);
+        await storage.PeekAsync(queueName, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(originalVisibleAt, originalEntry.VisibleAt);
@@ -644,11 +644,11 @@ public sealed class InMemoryQueueStorageTests
 
         for (int i = 0; i < 10; i++)
         {
-            await storage.EnqueueAsync(queueName, new TestMessage());
+            await storage.EnqueueAsync(queueName, new TestMessage(, TestContext.Current.CancellationToken));
         }
 
         // Act
-        var entries = await storage.PeekAsync(queueName, count: 5);
+        var entries = await storage.PeekAsync(queueName, count: 5, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(5, entries.Count());
@@ -666,14 +666,14 @@ public sealed class InMemoryQueueStorageTests
         var message2 = new TestMessage { Content = "High priority" };
         var message3 = new TestMessage { Content = "Medium priority" };
 
-        await storage.EnqueueAsync(queueName, message1, new EnqueueOptions { Priority = 1 });
+        await storage.EnqueueAsync(queueName, message1, new EnqueueOptions { Priority = 1 }, TestContext.Current.CancellationToken);
         timeProvider.Advance(TimeSpan.FromSeconds(1));
-        await storage.EnqueueAsync(queueName, message2, new EnqueueOptions { Priority = 10 });
+        await storage.EnqueueAsync(queueName, message2, new EnqueueOptions { Priority = 10 }, TestContext.Current.CancellationToken);
         timeProvider.Advance(TimeSpan.FromSeconds(1));
-        await storage.EnqueueAsync(queueName, message3, new EnqueueOptions { Priority = 5 });
+        await storage.EnqueueAsync(queueName, message3, new EnqueueOptions { Priority = 5 }, TestContext.Current.CancellationToken);
 
         // Act
-        var entries = await storage.PeekAsync(queueName, count: 3);
+        var entries = await storage.PeekAsync(queueName, count: 3, TestContext.Current.CancellationToken);
 
         // Assert
         var entriesList = entries.ToList();
@@ -690,11 +690,11 @@ public sealed class InMemoryQueueStorageTests
         var storage = new InMemoryQueueStorage(timeProvider);
         var queueName = "test-queue";
 
-        await storage.EnqueueAsync(queueName, new TestMessage());
+        await storage.EnqueueAsync(queueName, new TestMessage(, TestContext.Current.CancellationToken));
         await storage.EnqueueAsync(queueName, new TestMessage(), new EnqueueOptions { Delay = TimeSpan.FromMinutes(10) });
 
         // Act
-        var entries = await storage.PeekAsync(queueName, count: 10);
+        var entries = await storage.PeekAsync(queueName, count: 10, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(entries);
@@ -712,7 +712,7 @@ public sealed class InMemoryQueueStorageTests
         var storage = new InMemoryQueueStorage(timeProvider);
 
         // Act
-        var result = await storage.AcknowledgeAsync("non-existent-queue", "entry-id");
+        var result = await storage.AcknowledgeAsync("non-existent-queue", "entry-id", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);
@@ -724,10 +724,10 @@ public sealed class InMemoryQueueStorageTests
         // Arrange
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryQueueStorage(timeProvider);
-        await storage.CreateQueueAsync("test-queue");
+        await storage.CreateQueueAsync("test-queue", TestContext.Current.CancellationToken);
 
         // Act
-        var result = await storage.AcknowledgeAsync("test-queue", "non-existent-id");
+        var result = await storage.AcknowledgeAsync("test-queue", "non-existent-id", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);
@@ -741,10 +741,10 @@ public sealed class InMemoryQueueStorageTests
         var storage = new InMemoryQueueStorage(timeProvider);
         var queueName = "test-queue";
 
-        var entry = await storage.EnqueueAsync(queueName, new TestMessage());
+        var entry = await storage.EnqueueAsync(queueName, new TestMessage(, TestContext.Current.CancellationToken));
 
         // Act
-        var result = await storage.AcknowledgeAsync(queueName, entry.Id);
+        var result = await storage.AcknowledgeAsync(queueName, entry.Id, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
@@ -758,11 +758,11 @@ public sealed class InMemoryQueueStorageTests
         var storage = new InMemoryQueueStorage(timeProvider);
         var queueName = "test-queue";
 
-        var entry = await storage.EnqueueAsync(queueName, new TestMessage());
-        await storage.AcknowledgeAsync(queueName, entry.Id);
+        var entry = await storage.EnqueueAsync(queueName, new TestMessage(, TestContext.Current.CancellationToken));
+        await storage.AcknowledgeAsync(queueName, entry.Id, TestContext.Current.CancellationToken);
 
         // Act
-        var depth = await storage.GetQueueDepthAsync(queueName);
+        var depth = await storage.GetQueueDepthAsync(queueName, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(0, depth);
@@ -780,7 +780,7 @@ public sealed class InMemoryQueueStorageTests
         var storage = new InMemoryQueueStorage(timeProvider);
 
         // Act
-        var result = await storage.RejectAsync("non-existent-queue", "entry-id");
+        var result = await storage.RejectAsync("non-existent-queue", "entry-id", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);
@@ -792,10 +792,10 @@ public sealed class InMemoryQueueStorageTests
         // Arrange
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryQueueStorage(timeProvider);
-        await storage.CreateQueueAsync("test-queue");
+        await storage.CreateQueueAsync("test-queue", TestContext.Current.CancellationToken);
 
         // Act
-        var result = await storage.RejectAsync("test-queue", "non-existent-id");
+        var result = await storage.RejectAsync("test-queue", "non-existent-id", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);
@@ -809,10 +809,10 @@ public sealed class InMemoryQueueStorageTests
         var storage = new InMemoryQueueStorage(timeProvider);
         var queueName = "test-queue";
 
-        var entry = await storage.EnqueueAsync(queueName, new TestMessage());
+        var entry = await storage.EnqueueAsync(queueName, new TestMessage(, TestContext.Current.CancellationToken));
 
         // Act
-        var result = await storage.RejectAsync(queueName, entry.Id, requeue: true);
+        var result = await storage.RejectAsync(queueName, entry.Id, requeue: true, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
@@ -826,10 +826,10 @@ public sealed class InMemoryQueueStorageTests
         var storage = new InMemoryQueueStorage(timeProvider);
         var queueName = "test-queue";
 
-        var entry = await storage.EnqueueAsync(queueName, new TestMessage());
+        var entry = await storage.EnqueueAsync(queueName, new TestMessage(, TestContext.Current.CancellationToken));
 
         // Act
-        var result = await storage.RejectAsync(queueName, entry.Id, requeue: false);
+        var result = await storage.RejectAsync(queueName, entry.Id, requeue: false, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
@@ -843,15 +843,15 @@ public sealed class InMemoryQueueStorageTests
         var storage = new InMemoryQueueStorage(timeProvider);
         var queueName = "test-queue";
 
-        var entry = await storage.EnqueueAsync(queueName, new TestMessage());
-        var dequeuedEntry = await storage.DequeueAsync(queueName);
+        var entry = await storage.EnqueueAsync(queueName, new TestMessage(, TestContext.Current.CancellationToken));
+        var dequeuedEntry = await storage.DequeueAsync(queueName, TestContext.Current.CancellationToken);
         Assert.NotNull(dequeuedEntry);
 
         // Act
-        await storage.RejectAsync(queueName, entry.Id, requeue: true);
+        await storage.RejectAsync(queueName, entry.Id, requeue: true, TestContext.Current.CancellationToken);
 
         // Assert - Message should be immediately visible
-        var requeuedEntry = await storage.DequeueAsync(queueName);
+        var requeuedEntry = await storage.DequeueAsync(queueName, TestContext.Current.CancellationToken);
         Assert.NotNull(requeuedEntry);
         Assert.Equal(entry.Id, requeuedEntry.Id);
     }
@@ -864,12 +864,12 @@ public sealed class InMemoryQueueStorageTests
         var storage = new InMemoryQueueStorage(timeProvider);
         var queueName = "test-queue";
 
-        var entry = await storage.EnqueueAsync(queueName, new TestMessage());
-        var dequeuedEntry = await storage.DequeueAsync(queueName);
+        var entry = await storage.EnqueueAsync(queueName, new TestMessage(, TestContext.Current.CancellationToken));
+        var dequeuedEntry = await storage.DequeueAsync(queueName, TestContext.Current.CancellationToken);
         Assert.Equal(1, dequeuedEntry!.DequeueCount);
 
         // Act
-        await storage.RejectAsync(queueName, entry.Id, requeue: true);
+        await storage.RejectAsync(queueName, entry.Id, requeue: true, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(0, entry.DequeueCount);
@@ -883,13 +883,13 @@ public sealed class InMemoryQueueStorageTests
         var storage = new InMemoryQueueStorage(timeProvider);
         var queueName = "test-queue";
 
-        var entry = await storage.EnqueueAsync(queueName, new TestMessage());
+        var entry = await storage.EnqueueAsync(queueName, new TestMessage(, TestContext.Current.CancellationToken));
 
         // Act
-        await storage.RejectAsync(queueName, entry.Id, requeue: false);
+        await storage.RejectAsync(queueName, entry.Id, requeue: false, TestContext.Current.CancellationToken);
 
         // Assert
-        var depth = await storage.GetQueueDepthAsync(queueName);
+        var depth = await storage.GetQueueDepthAsync(queueName, TestContext.Current.CancellationToken);
         Assert.Equal(0, depth);
     }
 
@@ -905,7 +905,7 @@ public sealed class InMemoryQueueStorageTests
         var storage = new InMemoryQueueStorage(timeProvider);
 
         // Act
-        var depth = await storage.GetQueueDepthAsync("non-existent-queue");
+        var depth = await storage.GetQueueDepthAsync("non-existent-queue", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(0, depth);
@@ -917,10 +917,10 @@ public sealed class InMemoryQueueStorageTests
         // Arrange
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryQueueStorage(timeProvider);
-        await storage.CreateQueueAsync("test-queue");
+        await storage.CreateQueueAsync("test-queue", TestContext.Current.CancellationToken);
 
         // Act
-        var depth = await storage.GetQueueDepthAsync("test-queue");
+        var depth = await storage.GetQueueDepthAsync("test-queue", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(0, depth);
@@ -934,12 +934,12 @@ public sealed class InMemoryQueueStorageTests
         var storage = new InMemoryQueueStorage(timeProvider);
         var queueName = "test-queue";
 
-        await storage.EnqueueAsync(queueName, new TestMessage());
-        await storage.EnqueueAsync(queueName, new TestMessage());
-        await storage.EnqueueAsync(queueName, new TestMessage());
+        await storage.EnqueueAsync(queueName, new TestMessage(, TestContext.Current.CancellationToken));
+        await storage.EnqueueAsync(queueName, new TestMessage(, TestContext.Current.CancellationToken));
+        await storage.EnqueueAsync(queueName, new TestMessage(, TestContext.Current.CancellationToken));
 
         // Act
-        var depth = await storage.GetQueueDepthAsync(queueName);
+        var depth = await storage.GetQueueDepthAsync(queueName, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(3, depth);
@@ -953,12 +953,12 @@ public sealed class InMemoryQueueStorageTests
         var storage = new InMemoryQueueStorage(timeProvider);
         var queueName = "test-queue";
 
-        await storage.EnqueueAsync(queueName, new TestMessage());
+        await storage.EnqueueAsync(queueName, new TestMessage(, TestContext.Current.CancellationToken));
         await storage.EnqueueAsync(queueName, new TestMessage(), new EnqueueOptions { Delay = TimeSpan.FromMinutes(10) });
-        await storage.EnqueueAsync(queueName, new TestMessage());
+        await storage.EnqueueAsync(queueName, new TestMessage(, TestContext.Current.CancellationToken));
 
         // Act
-        var depth = await storage.GetQueueDepthAsync(queueName);
+        var depth = await storage.GetQueueDepthAsync(queueName, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(2, depth);
@@ -972,13 +972,13 @@ public sealed class InMemoryQueueStorageTests
         var storage = new InMemoryQueueStorage(timeProvider);
         var queueName = "test-queue";
 
-        await storage.EnqueueAsync(queueName, new TestMessage());
-        await storage.EnqueueAsync(queueName, new TestMessage());
+        await storage.EnqueueAsync(queueName, new TestMessage(, TestContext.Current.CancellationToken));
+        await storage.EnqueueAsync(queueName, new TestMessage(, TestContext.Current.CancellationToken));
 
-        await storage.DequeueAsync(queueName);
+        await storage.DequeueAsync(queueName, TestContext.Current.CancellationToken);
 
         // Act
-        var depth = await storage.GetQueueDepthAsync(queueName);
+        var depth = await storage.GetQueueDepthAsync(queueName, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(1, depth); // One is dequeued and invisible
@@ -1002,14 +1002,14 @@ public sealed class InMemoryQueueStorageTests
         {
             tasks.Add(Task.Run(async () =>
             {
-                await storage.EnqueueAsync(queueName, new TestMessage());
+                await storage.EnqueueAsync(queueName, new TestMessage(, TestContext.Current.CancellationToken));
             }));
         }
 
         await Task.WhenAll(tasks);
 
         // Assert
-        var depth = await storage.GetQueueDepthAsync(queueName);
+        var depth = await storage.GetQueueDepthAsync(queueName, TestContext.Current.CancellationToken);
         Assert.Equal(100, depth);
     }
 
@@ -1023,7 +1023,7 @@ public sealed class InMemoryQueueStorageTests
 
         for (int i = 0; i < 50; i++)
         {
-            await storage.EnqueueAsync(queueName, new TestMessage());
+            await storage.EnqueueAsync(queueName, new TestMessage(, TestContext.Current.CancellationToken));
         }
 
         // Act - Dequeue concurrently
@@ -1060,7 +1060,7 @@ public sealed class InMemoryQueueStorageTests
         var entries = new List<QueueEntry>();
         for (int i = 0; i < 50; i++)
         {
-            var entry = await storage.EnqueueAsync(queueName, new TestMessage());
+            var entry = await storage.EnqueueAsync(queueName, new TestMessage(, TestContext.Current.CancellationToken));
             entries.Add(entry);
         }
 
@@ -1072,7 +1072,7 @@ public sealed class InMemoryQueueStorageTests
         await Task.WhenAll(tasks);
 
         // Assert
-        var depth = await storage.GetQueueDepthAsync(queueName);
+        var depth = await storage.GetQueueDepthAsync(queueName, TestContext.Current.CancellationToken);
         Assert.Equal(0, depth);
     }
 
@@ -1096,7 +1096,7 @@ public sealed class InMemoryQueueStorageTests
         };
 
         // Act
-        var entry = await storage.EnqueueAsync("test-queue", message);
+        var entry = await storage.EnqueueAsync("test-queue", message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(entry.Message.Metadata);
@@ -1112,18 +1112,18 @@ public sealed class InMemoryQueueStorageTests
         var storage = new InMemoryQueueStorage(timeProvider);
         var queueName = "test-queue";
 
-        await storage.EnqueueAsync(queueName, new TestMessage());
+        await storage.EnqueueAsync(queueName, new TestMessage(, TestContext.Current.CancellationToken));
 
         // Dequeue 10 times
         for (int i = 0; i < 10; i++)
         {
-            var entry = await storage.DequeueAsync(queueName);
+            var entry = await storage.DequeueAsync(queueName, TestContext.Current.CancellationToken);
             Assert.NotNull(entry);
             timeProvider.Advance(TimeSpan.FromMinutes(2));
         }
 
         // Act - 11th dequeue should return null
-        var finalEntry = await storage.DequeueAsync(queueName);
+        var finalEntry = await storage.DequeueAsync(queueName, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(finalEntry);
@@ -1137,10 +1137,10 @@ public sealed class InMemoryQueueStorageTests
         var storage = new InMemoryQueueStorage(timeProvider);
         var queueName = "test-queue";
 
-        await storage.EnqueueAsync(queueName, new TestMessage());
+        await storage.EnqueueAsync(queueName, new TestMessage(, TestContext.Current.CancellationToken));
 
         // Act
-        var entry = await storage.DequeueAsync(queueName);
+        var entry = await storage.DequeueAsync(queueName, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(entry);
@@ -1156,11 +1156,11 @@ public sealed class InMemoryQueueStorageTests
         var storage = new InMemoryQueueStorage(timeProvider);
         var queueName = "test-queue";
 
-        await storage.EnqueueAsync(queueName, new TestMessage());
-        await storage.DequeueAsync(queueName);
+        await storage.EnqueueAsync(queueName, new TestMessage(, TestContext.Current.CancellationToken));
+        await storage.DequeueAsync(queueName, TestContext.Current.CancellationToken);
 
         // Act - Peek should not show invisible message
-        var entries = await storage.PeekAsync(queueName);
+        var entries = await storage.PeekAsync(queueName, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(entries); // Message is invisible after dequeue
@@ -1177,7 +1177,7 @@ public sealed class InMemoryQueueStorageTests
         await storage.EnqueueAsync(queueName, new TestMessage(), new EnqueueOptions { Delay = TimeSpan.Zero });
 
         // Act
-        var entry = await storage.DequeueAsync(queueName);
+        var entry = await storage.DequeueAsync(queueName, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(entry);
@@ -1194,13 +1194,13 @@ public sealed class InMemoryQueueStorageTests
 
         await storage.EnqueueAsync(queueName, new TestMessage(), new EnqueueOptions { Delay = delay });
 
-        var depthBefore = await storage.GetQueueDepthAsync(queueName);
+        var depthBefore = await storage.GetQueueDepthAsync(queueName, TestContext.Current.CancellationToken);
 
         // Advance time
         timeProvider.Advance(TimeSpan.FromMinutes(6));
 
         // Act
-        var depthAfter = await storage.GetQueueDepthAsync(queueName);
+        var depthAfter = await storage.GetQueueDepthAsync(queueName, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(0, depthBefore);

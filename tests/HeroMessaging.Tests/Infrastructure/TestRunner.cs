@@ -128,7 +128,7 @@ internal class TestRunner
             var semaphore = new SemaphoreSlim(_config.MaxParallelism, _config.MaxParallelism);
             var tasks = testGroups.Select(async group =>
             {
-                await semaphore.WaitAsync(cancellationToken);
+                await semaphore.WaitAsync(cancellationToken, TestContext.Current.CancellationToken);
                 try
                 {
                     return await ExecuteTestGroupAsync(group.Key!, [.. group], cancellationToken);
@@ -454,7 +454,7 @@ internal class TestRunner
                 WriteIndented = true
             });
 
-            await File.WriteAllTextAsync(reportPath, json);
+            await File.WriteAllTextAsync(reportPath, json, TestContext.Current.CancellationToken);
             LogMessage($"Detailed report saved to: {reportPath}");
         }
         catch (Exception ex)

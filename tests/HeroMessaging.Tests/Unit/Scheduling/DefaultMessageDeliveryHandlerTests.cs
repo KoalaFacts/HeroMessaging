@@ -68,7 +68,7 @@ public sealed class DefaultMessageDeliveryHandlerTests
     {
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentNullException>(async () =>
-            await _handler.DeliverAsync(null!));
+            await _handler.DeliverAsync(null!, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -83,7 +83,7 @@ public sealed class DefaultMessageDeliveryHandlerTests
             .Returns(Task.CompletedTask);
 
         // Act
-        await _handler.DeliverAsync(scheduledMessage);
+        await _handler.DeliverAsync(scheduledMessage, TestContext.Current.CancellationToken);
 
         // Assert
         _messagingMock.Verify(
@@ -99,7 +99,7 @@ public sealed class DefaultMessageDeliveryHandlerTests
         var scheduledMessage = CreateScheduledMessage(command);
 
         // Act
-        await _handler.DeliverAsync(scheduledMessage);
+        await _handler.DeliverAsync(scheduledMessage, TestContext.Current.CancellationToken);
 
         // Assert
         _messagingMock.Verify(
@@ -133,7 +133,7 @@ public sealed class DefaultMessageDeliveryHandlerTests
             .Returns(Task.CompletedTask);
 
         // Act
-        await _handler.DeliverAsync(scheduledMessage);
+        await _handler.DeliverAsync(scheduledMessage, TestContext.Current.CancellationToken);
 
         // Assert
         _messagingMock.Verify(
@@ -154,7 +154,7 @@ public sealed class DefaultMessageDeliveryHandlerTests
             .Returns(Task.CompletedTask);
 
         // Act
-        await _handler.DeliverAsync(scheduledMessage);
+        await _handler.DeliverAsync(scheduledMessage, TestContext.Current.CancellationToken);
 
         // Assert
         _messagingMock.Verify(
@@ -174,7 +174,7 @@ public sealed class DefaultMessageDeliveryHandlerTests
         var scheduledMessage = CreateScheduledMessage(query);
 
         // Act
-        await _handler.DeliverAsync(scheduledMessage);
+        await _handler.DeliverAsync(scheduledMessage, TestContext.Current.CancellationToken);
 
         // Assert
         _messagingMock.Verify(
@@ -208,7 +208,7 @@ public sealed class DefaultMessageDeliveryHandlerTests
             .Returns(Task.CompletedTask);
 
         // Act
-        await _handler.DeliverAsync(scheduledMessage);
+        await _handler.DeliverAsync(scheduledMessage, TestContext.Current.CancellationToken);
 
         // Assert
         _messagingMock.Verify(
@@ -229,7 +229,7 @@ public sealed class DefaultMessageDeliveryHandlerTests
             .Returns(Task.CompletedTask);
 
         // Act
-        await _handler.DeliverAsync(scheduledMessage);
+        await _handler.DeliverAsync(scheduledMessage, TestContext.Current.CancellationToken);
 
         // Assert
         _messagingMock.Verify(
@@ -254,7 +254,7 @@ public sealed class DefaultMessageDeliveryHandlerTests
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await _handler.DeliverAsync(scheduledMessage));
+            await _handler.DeliverAsync(scheduledMessage, TestContext.Current.CancellationToken));
 
         Assert.Equal("Delivery failed", ex.Message);
 
@@ -303,7 +303,7 @@ public sealed class DefaultMessageDeliveryHandlerTests
         var exception = new InvalidOperationException("Test error");
 
         // Act
-        await _handler.HandleDeliveryFailureAsync(scheduleId, exception);
+        await _handler.HandleDeliveryFailureAsync(scheduleId, exception, TestContext.Current.CancellationToken);
 
         // Assert - Verify error was logged
         _loggerMock.Verify(
@@ -325,7 +325,7 @@ public sealed class DefaultMessageDeliveryHandlerTests
         using var cts = new CancellationTokenSource();
 
         // Act
-        await _handler.HandleDeliveryFailureAsync(scheduleId, exception, cts.Token);
+        await _handler.HandleDeliveryFailureAsync(scheduleId, exception, cts.Token, TestContext.Current.CancellationToken);
 
         // Assert - Should complete without throwing
         Assert.True(true);

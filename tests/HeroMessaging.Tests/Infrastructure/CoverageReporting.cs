@@ -340,7 +340,7 @@ internal class CoverageReporting
     {
         var assemblies = new List<AssemblyCoverage>();
 
-        var xml = await File.ReadAllTextAsync(filePath);
+        var xml = await File.ReadAllTextAsync(filePath, TestContext.Current.CancellationToken);
         var doc = XDocument.Parse(xml);
 
         var packagesElement = doc.Descendants("packages").FirstOrDefault();
@@ -436,11 +436,11 @@ internal class CoverageReporting
         };
 
         process.Start();
-        await process.WaitForExitAsync();
+        await process.WaitForExitAsync(TestContext.Current.CancellationToken);
 
         if (process.ExitCode != 0)
         {
-            var error = await process.StandardError.ReadToEndAsync();
+            var error = await process.StandardError.ReadToEndAsync(TestContext.Current.CancellationToken);
             throw new InvalidOperationException($"ReportGenerator failed: {error}");
         }
 
@@ -469,7 +469,7 @@ internal class CoverageReporting
         };
 
         process.Start();
-        await process.WaitForExitAsync();
+        await process.WaitForExitAsync(TestContext.Current.CancellationToken);
 
         return badgesOutputPath;
     }
@@ -500,7 +500,7 @@ internal class CoverageReporting
             summary.Add($"| {lineIcon} {assembly.Name} | {assembly.LinePercentage:F1}% | {assembly.BranchPercentage:F1}% |");
         }
 
-        await File.WriteAllTextAsync(summaryPath, string.Join(Environment.NewLine, summary));
+        await File.WriteAllTextAsync(summaryPath, string.Join(Environment.NewLine, summary, TestContext.Current.CancellationToken));
         return summaryPath;
     }
 
@@ -545,7 +545,7 @@ internal class CoverageReporting
 
         try
         {
-            var json = await File.ReadAllTextAsync(filePath);
+            var json = await File.ReadAllTextAsync(filePath, TestContext.Current.CancellationToken);
             return JsonSerializer.Deserialize<List<CoverageDataPoint>>(json) ?? [];
         }
         catch
@@ -564,7 +564,7 @@ internal class CoverageReporting
             WriteIndented = true
         });
 
-        await File.WriteAllTextAsync(filePath, json);
+        await File.WriteAllTextAsync(filePath, json, TestContext.Current.CancellationToken);
     }
 
     private TrendChartData GenerateTrendChartData(List<CoverageDataPoint> historicalData)
@@ -605,7 +605,7 @@ internal class CoverageReporting
             report.Add("✅ No significant coverage changes detected.");
         }
 
-        await File.WriteAllTextAsync(filePath, string.Join(Environment.NewLine, report));
+        await File.WriteAllTextAsync(filePath, string.Join(Environment.NewLine, report, TestContext.Current.CancellationToken));
     }
 }
 

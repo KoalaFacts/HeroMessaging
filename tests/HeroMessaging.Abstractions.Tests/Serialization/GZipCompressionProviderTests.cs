@@ -21,7 +21,7 @@ public class GZipCompressionProviderTests
         var data = Encoding.UTF8.GetBytes("This is test data for compression");
 
         // Act
-        var compressed = await _provider.CompressAsync(data, CompressionLevel.Optimal);
+        var compressed = await _provider.CompressAsync(data, CompressionLevel.Optimal, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(compressed);
@@ -36,7 +36,7 @@ public class GZipCompressionProviderTests
         var data = Array.Empty<byte>();
 
         // Act
-        var compressed = await _provider.CompressAsync(data, CompressionLevel.Optimal);
+        var compressed = await _provider.CompressAsync(data, CompressionLevel.Optimal, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(compressed);
@@ -50,7 +50,7 @@ public class GZipCompressionProviderTests
         byte[]? data = null;
 
         // Act
-        var compressed = await _provider.CompressAsync(data!, CompressionLevel.Optimal);
+        var compressed = await _provider.CompressAsync(data!, CompressionLevel.Optimal, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(compressed);
@@ -62,10 +62,10 @@ public class GZipCompressionProviderTests
     {
         // Arrange
         var original = Encoding.UTF8.GetBytes("This is test data for compression");
-        var compressed = await _provider.CompressAsync(original, CompressionLevel.Optimal);
+        var compressed = await _provider.CompressAsync(original, CompressionLevel.Optimal, TestContext.Current.CancellationToken);
 
         // Act
-        var decompressed = await _provider.DecompressAsync(compressed);
+        var decompressed = await _provider.DecompressAsync(compressed, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(original, decompressed);
@@ -78,7 +78,7 @@ public class GZipCompressionProviderTests
         var data = Array.Empty<byte>();
 
         // Act
-        var decompressed = await _provider.DecompressAsync(data);
+        var decompressed = await _provider.DecompressAsync(data, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(decompressed);
@@ -92,7 +92,7 @@ public class GZipCompressionProviderTests
         byte[]? data = null;
 
         // Act
-        var decompressed = await _provider.DecompressAsync(data!);
+        var decompressed = await _provider.DecompressAsync(data!, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(decompressed);
@@ -106,8 +106,8 @@ public class GZipCompressionProviderTests
         var original = Encoding.UTF8.GetBytes("The quick brown fox jumps over the lazy dog");
 
         // Act
-        var compressed = await _provider.CompressAsync(original, CompressionLevel.Optimal);
-        var decompressed = await _provider.DecompressAsync(compressed);
+        var compressed = await _provider.CompressAsync(original, CompressionLevel.Optimal, TestContext.Current.CancellationToken);
+        var decompressed = await _provider.DecompressAsync(compressed, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(original, decompressed);
@@ -120,9 +120,9 @@ public class GZipCompressionProviderTests
         var data = Encoding.UTF8.GetBytes(new string('A', 1000));
 
         // Act
-        var fastest = await _provider.CompressAsync(data, CompressionLevel.Fastest);
-        var optimal = await _provider.CompressAsync(data, CompressionLevel.Optimal);
-        var maximum = await _provider.CompressAsync(data, CompressionLevel.Maximum);
+        var fastest = await _provider.CompressAsync(data, CompressionLevel.Fastest, TestContext.Current.CancellationToken);
+        var optimal = await _provider.CompressAsync(data, CompressionLevel.Optimal, TestContext.Current.CancellationToken);
+        var maximum = await _provider.CompressAsync(data, CompressionLevel.Maximum, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotEmpty(fastest);
@@ -145,7 +145,7 @@ public class GZipCompressionProviderTests
         // Act & Assert
         await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
         {
-            await _provider.CompressAsync(data, CompressionLevel.Optimal, cts.Token);
+            await _provider.CompressAsync(data, CompressionLevel.Optimal, cts.Token, TestContext.Current.CancellationToken);
         });
     }
 
@@ -308,8 +308,8 @@ public class GZipCompressionProviderTests
         new Random(42).NextBytes(largeData);
 
         // Act
-        var compressed = await _provider.CompressAsync(largeData, CompressionLevel.Optimal);
-        var decompressed = await _provider.DecompressAsync(compressed);
+        var compressed = await _provider.CompressAsync(largeData, CompressionLevel.Optimal, TestContext.Current.CancellationToken);
+        var decompressed = await _provider.DecompressAsync(compressed, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(largeData, decompressed);
@@ -323,7 +323,7 @@ public class GZipCompressionProviderTests
         var repetitiveData = Encoding.UTF8.GetBytes(new string('A', 10000));
 
         // Act
-        var compressed = await _provider.CompressAsync(repetitiveData, CompressionLevel.Optimal);
+        var compressed = await _provider.CompressAsync(repetitiveData, CompressionLevel.Optimal, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(compressed.Length < repetitiveData.Length / 10); // Should compress very well
@@ -337,7 +337,7 @@ public class GZipCompressionProviderTests
         new Random(42).NextBytes(randomData);
 
         // Act
-        var compressed = await _provider.CompressAsync(randomData, CompressionLevel.Optimal);
+        var compressed = await _provider.CompressAsync(randomData, CompressionLevel.Optimal, TestContext.Current.CancellationToken);
 
         // Assert
         // Random data doesn't compress well, might even be larger
@@ -361,8 +361,8 @@ public class GZipCompressionProviderTests
         var data = Encoding.UTF8.GetBytes("Consistent test data");
 
         // Act
-        var compressed1 = await _provider.CompressAsync(data, CompressionLevel.Optimal);
-        var compressed2 = await _provider.CompressAsync(data, CompressionLevel.Optimal);
+        var compressed1 = await _provider.CompressAsync(data, CompressionLevel.Optimal, TestContext.Current.CancellationToken);
+        var compressed2 = await _provider.CompressAsync(data, CompressionLevel.Optimal, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(compressed1, compressed2);
@@ -378,7 +378,7 @@ public class GZipCompressionProviderTests
         // Act
         for (int i = 0; i < 10; i++)
         {
-            tasks.Add(_provider.CompressAsync(data, CompressionLevel.Optimal).AsTask());
+            tasks.Add(_provider.CompressAsync(data, CompressionLevel.Optimal, TestContext.Current.CancellationToken).AsTask());
         }
         Task.WaitAll(tasks.ToArray());
 

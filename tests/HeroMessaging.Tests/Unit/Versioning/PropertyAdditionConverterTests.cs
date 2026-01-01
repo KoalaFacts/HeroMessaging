@@ -161,7 +161,7 @@ public sealed class PropertyAdditionConverterTests
         var message = new TestMessage { MessageId = Guid.NewGuid() };
 
         // Act
-        var result = await converter.ConvertAsync(message, version, version);
+        var result = await converter.ConvertAsync(message, version, version, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Same(message, result);
@@ -177,7 +177,7 @@ public sealed class PropertyAdditionConverterTests
         var message = new TestMessage { MessageId = Guid.NewGuid() };
 
         // Act
-        var result = await converter.ConvertAsync(message, fromVersion, toVersion);
+        var result = await converter.ConvertAsync(message, fromVersion, toVersion, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Same(message, result);
@@ -194,7 +194,7 @@ public sealed class PropertyAdditionConverterTests
         var message = new TestMessage { MessageId = messageId };
 
         // Act
-        var result = await converter.ConvertAsync(message, fromVersion, toVersion);
+        var result = await converter.ConvertAsync(message, fromVersion, toVersion, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(messageId, result.MessageId);
@@ -214,7 +214,7 @@ public sealed class PropertyAdditionConverterTests
         };
 
         // Act
-        var result = await converter.ConvertAsync(message, fromVersion, toVersion);
+        var result = await converter.ConvertAsync(message, fromVersion, toVersion, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result.Metadata);
@@ -236,7 +236,7 @@ public sealed class PropertyAdditionConverterTests
         };
 
         // Act
-        var result = await converter.ConvertAsync(message, fromVersion, toVersion);
+        var result = await converter.ConvertAsync(message, fromVersion, toVersion, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(correlationId, result.CorrelationId);
@@ -257,7 +257,7 @@ public sealed class PropertyAdditionConverterTests
         };
 
         // Act
-        var result = await converter.ConvertAsync(message, fromVersion, toVersion);
+        var result = await converter.ConvertAsync(message, fromVersion, toVersion, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(causationId, result.CausationId);
@@ -276,7 +276,7 @@ public sealed class PropertyAdditionConverterTests
 
         // Act & Assert - Converter completes synchronously, so cancellation won't throw
         // This is expected behavior for property addition converter
-        var result = await converter.ConvertAsync(message, fromVersion, toVersion, cts.Token);
+        var result = await converter.ConvertAsync(message, fromVersion, toVersion, cts.Token, TestContext.Current.CancellationToken);
         Assert.NotNull(result);
     }
 
@@ -340,7 +340,7 @@ public sealed class PropertyAdditionConverterTests
         };
 
         // Act
-        var result = await converter.ConvertAsync(message, fromVersion, toVersion);
+        var result = await converter.ConvertAsync(message, fromVersion, toVersion, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result.Metadata);
@@ -360,7 +360,7 @@ public sealed class PropertyAdditionConverterTests
         };
 
         // Act
-        var result = await converter.ConvertAsync(message, fromVersion, toVersion);
+        var result = await converter.ConvertAsync(message, fromVersion, toVersion, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result.Metadata);

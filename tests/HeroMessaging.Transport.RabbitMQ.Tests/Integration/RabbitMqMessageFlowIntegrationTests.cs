@@ -56,7 +56,7 @@ public class RabbitMqMessageFlowIntegrationTests : RabbitMqIntegrationTestBase
         Assert.Equal("Hello RabbitMQ!", System.Text.Encoding.UTF8.GetString(receivedEnvelope.Body.ToArray()));
 
         // Cleanup
-        await consumer.DisposeAsync();
+        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -104,7 +104,7 @@ public class RabbitMqMessageFlowIntegrationTests : RabbitMqIntegrationTestBase
         Assert.Equal(5, receivedMessages.Count);
 
         // Cleanup
-        await consumer.DisposeAsync();
+        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -145,7 +145,7 @@ public class RabbitMqMessageFlowIntegrationTests : RabbitMqIntegrationTestBase
         Assert.Equal("CustomValue", receivedEnvelope.Headers["CustomHeader"].ToString());
 
         // Cleanup
-        await consumer.DisposeAsync();
+        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
     }
 
     #endregion
@@ -215,8 +215,8 @@ public class RabbitMqMessageFlowIntegrationTests : RabbitMqIntegrationTestBase
         Assert.True(queue2Received.Task.IsCompletedSuccessfully);
 
         // Cleanup
-        await consumer1.DisposeAsync();
-        await consumer2.DisposeAsync();
+        await consumer1.DisposeAsync(TestContext.Current.CancellationToken);
+        await consumer2.DisposeAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -301,8 +301,8 @@ public class RabbitMqMessageFlowIntegrationTests : RabbitMqIntegrationTestBase
         Assert.Contains("Event occurred", eventsReceived);
 
         // Cleanup
-        await consumer1.DisposeAsync();
-        await consumer2.DisposeAsync();
+        await consumer1.DisposeAsync(TestContext.Current.CancellationToken);
+        await consumer2.DisposeAsync(TestContext.Current.CancellationToken);
     }
 
     #endregion
@@ -363,8 +363,8 @@ public class RabbitMqMessageFlowIntegrationTests : RabbitMqIntegrationTestBase
         Assert.Equal(10, consumer1Messages.Count + consumer2Messages.Count);
 
         // Cleanup
-        await consumer1.DisposeAsync();
-        await consumer2.DisposeAsync();
+        await consumer1.DisposeAsync(TestContext.Current.CancellationToken);
+        await consumer2.DisposeAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -394,7 +394,7 @@ public class RabbitMqMessageFlowIntegrationTests : RabbitMqIntegrationTestBase
         await Task.Delay(500); // Wait for delivery
 
         // Act - stop consumer
-        await consumer.StopAsync();
+        await consumer.StopAsync(TestContext.Current.CancellationToken);
 
         var countAfterStop = receivedCount;
 
@@ -410,7 +410,7 @@ public class RabbitMqMessageFlowIntegrationTests : RabbitMqIntegrationTestBase
         Assert.Equal(countAfterStop, receivedCount);
 
         // Cleanup
-        await consumer.DisposeAsync();
+        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
     }
 
     #endregion

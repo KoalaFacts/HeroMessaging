@@ -164,7 +164,7 @@ public class MessageContextTests
         };
 
         // Act
-        await context.AcknowledgeAsync();
+        await context.AcknowledgeAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(invoked);
@@ -177,7 +177,7 @@ public class MessageContextTests
         var context = new MessageContext("test", new TransportAddress("queue"));
 
         // Act & Assert
-        await context.AcknowledgeAsync();
+        await context.AcknowledgeAsync(TestContext.Current.CancellationToken);
         // No exception should be thrown
     }
 
@@ -196,7 +196,7 @@ public class MessageContextTests
         };
 
         // Act
-        await context.RejectAsync(requeue: true);
+        await context.RejectAsync(requeue: true, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(invokedRequeue);
@@ -209,7 +209,7 @@ public class MessageContextTests
         var context = new MessageContext("test", new TransportAddress("queue"));
 
         // Act & Assert
-        await context.RejectAsync();
+        await context.RejectAsync(TestContext.Current.CancellationToken);
         // No exception should be thrown
     }
 
@@ -228,7 +228,7 @@ public class MessageContextTests
         };
 
         // Act
-        await context.DeferAsync(TimeSpan.FromSeconds(30));
+        await context.DeferAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(TimeSpan.FromSeconds(30), capturedDelay);
@@ -241,7 +241,7 @@ public class MessageContextTests
         var context = new MessageContext("test", new TransportAddress("queue"));
 
         // Act & Assert
-        await context.DeferAsync();
+        await context.DeferAsync(TestContext.Current.CancellationToken);
         // No exception should be thrown
     }
 
@@ -260,7 +260,7 @@ public class MessageContextTests
         };
 
         // Act
-        await context.DeadLetterAsync("Test reason");
+        await context.DeadLetterAsync("Test reason", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal("Test reason", capturedReason);
@@ -273,7 +273,7 @@ public class MessageContextTests
         var context = new MessageContext("test", new TransportAddress("queue"));
 
         // Act & Assert
-        await context.DeadLetterAsync();
+        await context.DeadLetterAsync(TestContext.Current.CancellationToken);
         // No exception should be thrown
     }
 
@@ -335,7 +335,7 @@ public class MessageContextTests
         };
 
         // Act
-        await context.AcknowledgeAsync(cts.Token);
+        await context.AcknowledgeAsync(cts.Token, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(tokenPassed);

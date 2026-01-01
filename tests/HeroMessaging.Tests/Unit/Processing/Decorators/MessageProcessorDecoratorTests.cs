@@ -54,7 +54,7 @@ public class MessageProcessorDecoratorTests
         var decorator = new TestMessageProcessorDecorator(innerMock.Object);
 
         // Act
-        var result = await decorator.ProcessAsync(message, context);
+        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         innerMock.Verify(p => p.ProcessAsync(message, context, It.IsAny<CancellationToken>()), Times.Once);
@@ -78,7 +78,7 @@ public class MessageProcessorDecoratorTests
         var decorator = new TestMessageProcessorDecorator(innerMock.Object);
 
         // Act
-        var result = await decorator.ProcessAsync(message, context, cts.Token);
+        var result = await decorator.ProcessAsync(message, context, cts.Token, TestContext.Current.CancellationToken);
 
         // Assert
         innerMock.Verify(p => p.ProcessAsync(message, context, cts.Token), Times.Once);
@@ -101,7 +101,7 @@ public class MessageProcessorDecoratorTests
         var decorator = new TestMessageProcessorDecorator(innerMock.Object);
 
         // Act
-        var result = await decorator.ProcessAsync(message, context);
+        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -123,7 +123,7 @@ public class MessageProcessorDecoratorTests
         var decorator = new TestMessageProcessorDecorator(innerMock.Object);
 
         // Act
-        var result = await decorator.ProcessAsync(message, context);
+        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.Success);
@@ -147,7 +147,7 @@ public class MessageProcessorDecoratorTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await decorator.ProcessAsync(message, context));
+            await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken));
 
         Assert.Equal("Inner processor error", exception.Message);
     }
@@ -170,7 +170,7 @@ public class MessageProcessorDecoratorTests
 
         // Act & Assert
         await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
-            await decorator.ProcessAsync(message, context, cts.Token));
+            await decorator.ProcessAsync(message, context, cts.Token, TestContext.Current.CancellationToken));
     }
 
     #endregion
@@ -198,7 +198,7 @@ public class MessageProcessorDecoratorTests
         var decorator2 = new TrackingDecorator(decorator1, callOrder, "Decorator2");
 
         // Act
-        await decorator2.ProcessAsync(message, context);
+        await decorator2.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(3, callOrder.Count);
@@ -227,7 +227,7 @@ public class MessageProcessorDecoratorTests
         var decorator = new TestMessageProcessorDecorator(innerMock.Object);
 
         // Act
-        var result = await decorator.ProcessAsync(message, context);
+        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -249,7 +249,7 @@ public class MessageProcessorDecoratorTests
         var decorator = new TestMessageProcessorDecorator(innerMock.Object);
 
         // Act
-        var result = await decorator.ProcessAsync(message, context);
+        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);

@@ -42,7 +42,7 @@ public sealed class MetricsDecoratorTests
             .ReturnsAsync(ProcessingResult.Successful());
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         _metricsCollectorMock.Verify(
@@ -63,7 +63,7 @@ public sealed class MetricsDecoratorTests
             .ReturnsAsync(ProcessingResult.Successful());
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         _metricsCollectorMock.Verify(
@@ -84,7 +84,7 @@ public sealed class MetricsDecoratorTests
             .ReturnsAsync(ProcessingResult.Successful());
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         _metricsCollectorMock.Verify(
@@ -105,7 +105,7 @@ public sealed class MetricsDecoratorTests
             .ReturnsAsync(ProcessingResult.Successful());
 
         // Act
-        var result = await decorator.ProcessAsync(message, context);
+        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -126,7 +126,7 @@ public sealed class MetricsDecoratorTests
             .ReturnsAsync(ProcessingResult.Successful("Success", expectedData));
 
         // Act
-        var result = await decorator.ProcessAsync(message, context);
+        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -151,7 +151,7 @@ public sealed class MetricsDecoratorTests
             .ReturnsAsync(ProcessingResult.Failed(new Exception("Test error")));
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         _metricsCollectorMock.Verify(
@@ -172,7 +172,7 @@ public sealed class MetricsDecoratorTests
             .ReturnsAsync(ProcessingResult.Failed(new Exception("Test error")));
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         _metricsCollectorMock.Verify(
@@ -193,7 +193,7 @@ public sealed class MetricsDecoratorTests
             .ReturnsAsync(ProcessingResult.Failed(new Exception("Test error")));
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         _metricsCollectorMock.Verify(
@@ -215,7 +215,7 @@ public sealed class MetricsDecoratorTests
             .ReturnsAsync(ProcessingResult.Failed(testException, "Failure message"));
 
         // Act
-        var result = await decorator.ProcessAsync(message, context);
+        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.Success);
@@ -240,7 +240,7 @@ public sealed class MetricsDecoratorTests
             .ReturnsAsync(ProcessingResult.Failed(new Exception("Test error")));
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         _metricsCollectorMock.Verify(
@@ -261,7 +261,7 @@ public sealed class MetricsDecoratorTests
             .ReturnsAsync(ProcessingResult.Failed(new Exception("Test error")));
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         _metricsCollectorMock.Verify(
@@ -282,7 +282,7 @@ public sealed class MetricsDecoratorTests
             .ReturnsAsync(ProcessingResult.Successful());
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         _metricsCollectorMock.Verify(
@@ -308,7 +308,7 @@ public sealed class MetricsDecoratorTests
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await decorator.ProcessAsync(message, context));
+            async () => await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken));
 
         _metricsCollectorMock.Verify(
             m => m.IncrementCounter($"messages.{nameof(TestMessage)}.started", 1),
@@ -329,7 +329,7 @@ public sealed class MetricsDecoratorTests
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await decorator.ProcessAsync(message, context));
+            async () => await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken));
 
         _metricsCollectorMock.Verify(
             m => m.IncrementCounter($"messages.{nameof(TestMessage)}.exceptions", 1),
@@ -350,7 +350,7 @@ public sealed class MetricsDecoratorTests
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await decorator.ProcessAsync(message, context));
+            async () => await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken));
 
         _metricsCollectorMock.Verify(
             m => m.RecordDuration($"messages.{nameof(TestMessage)}.duration", It.IsAny<TimeSpan>()),
@@ -372,7 +372,7 @@ public sealed class MetricsDecoratorTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await decorator.ProcessAsync(message, context));
+            async () => await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken));
 
         Assert.Equal("Test exception", exception.Message);
     }
@@ -405,7 +405,7 @@ public sealed class MetricsDecoratorTests
             .Callback<string, TimeSpan>((name, duration) => recordedDuration = duration);
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(recordedDuration);
@@ -431,7 +431,7 @@ public sealed class MetricsDecoratorTests
             .ReturnsAsync(ProcessingResult.Successful());
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         _metricsCollectorMock.Verify(

@@ -20,7 +20,7 @@ public class CoverageAnalyzer
             throw new FileNotFoundException($"Coverage file not found: {coverageFilePath}");
         }
 
-        var coverageData = await File.ReadAllTextAsync(coverageFilePath);
+        var coverageData = await File.ReadAllTextAsync(coverageFilePath, TestContext.Current.CancellationToken);
         return ParseCoverageData(coverageData);
     }
 

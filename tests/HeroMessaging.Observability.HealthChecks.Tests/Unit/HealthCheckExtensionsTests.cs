@@ -36,7 +36,7 @@ public class HealthCheckExtensionsTests
         Assert.NotNull(healthCheckService);
 
         // Execute health checks to verify they're registered and work
-        var result = await healthCheckService.CheckHealthAsync();
+        var result = await healthCheckService.CheckHealthAsync(TestContext.Current.CancellationToken);
         Assert.NotNull(result);
 
         // Verify all expected health checks are present
@@ -66,7 +66,7 @@ public class HealthCheckExtensionsTests
         var serviceProvider = services.BuildServiceProvider();
         var healthCheckService = serviceProvider.GetRequiredService<HealthCheckService>();
 
-        var result = await healthCheckService.CheckHealthAsync();
+        var result = await healthCheckService.CheckHealthAsync(TestContext.Current.CancellationToken);
 
         // Verify no hero messaging health checks are registered
         Assert.DoesNotContain(result.Entries, e => e.Key.StartsWith("hero_messaging_"));
@@ -98,7 +98,7 @@ public class HealthCheckExtensionsTests
         var serviceProvider = services.BuildServiceProvider();
         var healthCheckService = serviceProvider.GetRequiredService<HealthCheckService>();
 
-        var result = await healthCheckService.CheckHealthAsync();
+        var result = await healthCheckService.CheckHealthAsync(TestContext.Current.CancellationToken);
 
         Assert.Contains(result.Entries, e => e.Key == "hero_messaging_message_storage");
         Assert.Contains(result.Entries, e => e.Key == "hero_messaging_outbox_storage");
@@ -131,7 +131,7 @@ public class HealthCheckExtensionsTests
         var serviceProvider = services.BuildServiceProvider();
         var healthCheckService = serviceProvider.GetRequiredService<HealthCheckService>();
 
-        var result = await healthCheckService.CheckHealthAsync();
+        var result = await healthCheckService.CheckHealthAsync(TestContext.Current.CancellationToken);
 
         Assert.Contains(result.Entries, e => e.Key == "hero_messaging_message_storage");
         // Note: We can't easily test the FailureStatus property directly without causing a failure,
@@ -164,7 +164,7 @@ public class HealthCheckExtensionsTests
         var serviceProvider = services.BuildServiceProvider();
         var healthCheckService = serviceProvider.GetRequiredService<HealthCheckService>();
 
-        var result = await healthCheckService.CheckHealthAsync();
+        var result = await healthCheckService.CheckHealthAsync(TestContext.Current.CancellationToken);
 
         Assert.Contains(result.Entries, e => e.Key == "hero_messaging_message_storage");
         // Note: We can't easily inspect tags after registration, but we verify the health check
@@ -190,7 +190,7 @@ public class HealthCheckExtensionsTests
         var serviceProvider = services.BuildServiceProvider();
         var healthCheckService = serviceProvider.GetRequiredService<HealthCheckService>();
 
-        var result = await healthCheckService.CheckHealthAsync();
+        var result = await healthCheckService.CheckHealthAsync(TestContext.Current.CancellationToken);
 
         Assert.NotNull(result);
         Assert.Equal(HealthStatus.Healthy, result.Status);
@@ -221,7 +221,7 @@ public class HealthCheckExtensionsTests
         var serviceProvider = services.BuildServiceProvider();
         var healthCheckService = serviceProvider.GetRequiredService<HealthCheckService>();
 
-        var result = await healthCheckService.CheckHealthAsync();
+        var result = await healthCheckService.CheckHealthAsync(TestContext.Current.CancellationToken);
 
         Assert.NotNull(result);
         Assert.Contains(result.Entries, e => e.Key == compositeName);

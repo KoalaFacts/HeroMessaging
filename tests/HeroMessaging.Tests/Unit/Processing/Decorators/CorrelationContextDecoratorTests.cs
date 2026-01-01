@@ -53,7 +53,7 @@ public sealed class CorrelationContextDecoratorTests
             });
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(correlationId, capturedCorrelationId);
@@ -84,7 +84,7 @@ public sealed class CorrelationContextDecoratorTests
             });
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(messageId.ToString(), capturedCorrelationId);
@@ -107,7 +107,7 @@ public sealed class CorrelationContextDecoratorTests
             .ReturnsAsync(ProcessingResult.Successful());
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert - Context should be cleared after processing
         Assert.Null(CorrelationContext.Current);
@@ -131,7 +131,7 @@ public sealed class CorrelationContextDecoratorTests
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await decorator.ProcessAsync(message, context));
+            async () => await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken));
 
         // Assert - Context should be cleared even after exception
         Assert.Null(CorrelationContext.Current);
@@ -165,7 +165,7 @@ public sealed class CorrelationContextDecoratorTests
             });
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(capturedContext);
@@ -197,7 +197,7 @@ public sealed class CorrelationContextDecoratorTests
             });
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(capturedContext);
@@ -228,7 +228,7 @@ public sealed class CorrelationContextDecoratorTests
             });
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(capturedContext);
@@ -259,7 +259,7 @@ public sealed class CorrelationContextDecoratorTests
             });
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(capturedContext);
@@ -284,7 +284,7 @@ public sealed class CorrelationContextDecoratorTests
             .ReturnsAsync(ProcessingResult.Successful());
 
         // Act
-        var result = await decorator.ProcessAsync(message, context);
+        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -307,7 +307,7 @@ public sealed class CorrelationContextDecoratorTests
             .ReturnsAsync(expectedResult);
 
         // Act
-        var result = await decorator.ProcessAsync(message, context);
+        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -328,7 +328,7 @@ public sealed class CorrelationContextDecoratorTests
             .ReturnsAsync(ProcessingResult.Failed(testException));
 
         // Act
-        var result = await decorator.ProcessAsync(message, context);
+        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.Success);
@@ -360,7 +360,7 @@ public sealed class CorrelationContextDecoratorTests
             .ReturnsAsync(ProcessingResult.Successful());
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         _loggerMock.Verify(
@@ -390,7 +390,7 @@ public sealed class CorrelationContextDecoratorTests
             .ReturnsAsync(ProcessingResult.Successful());
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         _loggerMock.Verify(
@@ -420,7 +420,7 @@ public sealed class CorrelationContextDecoratorTests
             .ReturnsAsync(ProcessingResult.Successful());
 
         // Act
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         _loggerMock.Verify(

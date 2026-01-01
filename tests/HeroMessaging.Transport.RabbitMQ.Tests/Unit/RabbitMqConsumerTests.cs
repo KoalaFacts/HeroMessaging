@@ -96,7 +96,7 @@ public class RabbitMqConsumerTests : IAsyncLifetime
     {
         if (_consumer != null)
         {
-            await _consumer.DisposeAsync();
+            await _consumer.DisposeAsync(TestContext.Current.CancellationToken);
         }
     }
 
@@ -205,7 +205,7 @@ public class RabbitMqConsumerTests : IAsyncLifetime
         await _consumer!.StartAsync();
 
         // Act
-        await _consumer.StartAsync();
+        await _consumer.StartAsync(TestContext.Current.CancellationToken);
 
         // Assert
         _mockChannel!.Verify(ch => ch.BasicConsumeAsync(
@@ -226,7 +226,7 @@ public class RabbitMqConsumerTests : IAsyncLifetime
         Assert.False(_consumer!.IsActive);
 
         // Act
-        await _consumer.StartAsync();
+        await _consumer.StartAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(_consumer.IsActive);
@@ -243,7 +243,7 @@ public class RabbitMqConsumerTests : IAsyncLifetime
         await _consumer!.StartAsync();
 
         // Act
-        await _consumer.StopAsync();
+        await _consumer.StopAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(_consumer.IsActive);
@@ -265,7 +265,7 @@ public class RabbitMqConsumerTests : IAsyncLifetime
         _mockChannel!.Setup(ch => ch.IsOpen).Returns(false);
 
         // Act & Assert - should not throw
-        await _consumer.StopAsync();
+        await _consumer.StopAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -277,7 +277,7 @@ public class RabbitMqConsumerTests : IAsyncLifetime
             .Throws(new InvalidOperationException("Test exception"));
 
         // Act & Assert - should not throw
-        await _consumer.StopAsync();
+        await _consumer.StopAsync(TestContext.Current.CancellationToken);
 
         // Verify warning was logged
         _mockLogger!.Verify(
@@ -328,7 +328,7 @@ public class RabbitMqConsumerTests : IAsyncLifetime
         await _consumer!.StartAsync();
 
         // Act
-        await _consumer.DisposeAsync();
+        await _consumer.DisposeAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(_consumer.IsActive);
@@ -400,7 +400,7 @@ public class RabbitMqConsumerTests : IAsyncLifetime
         Assert.False(_consumer!.IsActive);
 
         // Act
-        await _consumer.StartAsync();
+        await _consumer.StartAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(_consumer.IsActive);
@@ -414,7 +414,7 @@ public class RabbitMqConsumerTests : IAsyncLifetime
         Assert.True(_consumer.IsActive);
 
         // Act
-        await _consumer.StopAsync();
+        await _consumer.StopAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(_consumer.IsActive);
@@ -538,7 +538,7 @@ public class RabbitMqConsumerTests : IAsyncLifetime
             _mockLogger!.Object);
 
         // Act
-        await consumer.StartAsync();
+        await consumer.StartAsync(TestContext.Current.CancellationToken);
 
         // Assert - Verify BasicQos was called (though we can't easily verify the prefetch count without more setup)
         _mockChannel!.Verify(ch => ch.BasicQosAsync(It.IsAny<uint>(), It.IsAny<ushort>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
@@ -559,7 +559,7 @@ public class RabbitMqConsumerTests : IAsyncLifetime
             _mockLogger!.Object);
 
         // Act
-        await consumer.StartAsync();
+        await consumer.StartAsync(TestContext.Current.CancellationToken);
 
         // Assert
         _mockChannel!.Verify(ch => ch.BasicConsumeAsync(
@@ -588,7 +588,7 @@ public class RabbitMqConsumerTests : IAsyncLifetime
             _mockLogger!.Object);
 
         // Act
-        await consumer.StartAsync();
+        await consumer.StartAsync(TestContext.Current.CancellationToken);
 
         // Assert - Basic consume is called with autoAck=false (manual acknowledgment)
         _mockChannel!.Verify(ch => ch.BasicConsumeAsync(
@@ -616,9 +616,9 @@ public class RabbitMqConsumerTests : IAsyncLifetime
             _mockLogger!.Object);
 
         // Act
-        await consumer.StartAsync();
-        await consumer.StartAsync();
-        await consumer.StartAsync();
+        await consumer.StartAsync(TestContext.Current.CancellationToken);
+        await consumer.StartAsync(TestContext.Current.CancellationToken);
+        await consumer.StartAsync(TestContext.Current.CancellationToken);
 
         // Assert - BasicConsume called exactly once
         _mockChannel!.Verify(ch => ch.BasicConsumeAsync(
@@ -641,8 +641,8 @@ public class RabbitMqConsumerTests : IAsyncLifetime
     {
         // Act & Assert
         await _consumer!.StopAsync();
-        await _consumer.StopAsync();
-        await _consumer.StopAsync();
+        await _consumer.StopAsync(TestContext.Current.CancellationToken);
+        await _consumer.StopAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -653,7 +653,7 @@ public class RabbitMqConsumerTests : IAsyncLifetime
         var cts = new CancellationTokenSource();
 
         // Act
-        await _consumer.StopAsync(cts.Token);
+        await _consumer.StopAsync(cts.Token, TestContext.Current.CancellationToken);
 
         // Assert
         _mockChannel!.Verify(ch => ch.BasicCancelAsync(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
@@ -667,7 +667,7 @@ public class RabbitMqConsumerTests : IAsyncLifetime
         Assert.True(_consumer.IsActive);
 
         // Act
-        await _consumer.StopAsync();
+        await _consumer.StopAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(_consumer.IsActive);
@@ -709,8 +709,8 @@ public class RabbitMqConsumerTests : IAsyncLifetime
     {
         // Act & Assert - Should not throw
         await _consumer!.DisposeAsync();
-        await _consumer.DisposeAsync();
-        await _consumer.DisposeAsync();
+        await _consumer.DisposeAsync(TestContext.Current.CancellationToken);
+        await _consumer.DisposeAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -820,7 +820,7 @@ public class RabbitMqConsumerTests : IAsyncLifetime
             _mockLogger!.Object);
 
         // Act
-        await consumer.StartAsync();
+        await consumer.StartAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(_consumer!.IsActive || !consumer.IsActive); // One should be false
@@ -882,7 +882,7 @@ public class RabbitMqConsumerTests : IAsyncLifetime
             _mockLogger!.Object);
 
         // Act
-        await consumer.StartAsync();
+        await consumer.StartAsync(TestContext.Current.CancellationToken);
 
         // Assert
         mockChannelLocal.Verify(ch => ch.BasicConsumeAsync(

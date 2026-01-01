@@ -64,7 +64,7 @@ public sealed class EventBusTests : IDisposable
             .Returns(Task.CompletedTask);
 
         // Act
-        await eventBus.PublishAsync(testEvent);
+        await eventBus.PublishAsync(testEvent, TestContext.Current.CancellationToken);
 
         // Wait for async processing
         await Task.Delay(100);
@@ -81,7 +81,7 @@ public sealed class EventBusTests : IDisposable
         var testEvent = new TestEvent();
 
         // Act & Assert - Should not throw
-        await eventBus.PublishAsync(testEvent);
+        await eventBus.PublishAsync(testEvent, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -104,7 +104,7 @@ public sealed class EventBusTests : IDisposable
         handler3Mock.Setup(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
         // Act
-        await eventBus.PublishAsync(testEvent);
+        await eventBus.PublishAsync(testEvent, TestContext.Current.CancellationToken);
 
         // Wait for async processing
         await Task.Delay(200);
@@ -128,9 +128,9 @@ public sealed class EventBusTests : IDisposable
             .Returns(Task.CompletedTask);
 
         // Act
-        await eventBus.PublishAsync(new TestEvent());
-        await eventBus.PublishAsync(new TestEvent());
-        await eventBus.PublishAsync(new TestEvent());
+        await eventBus.PublishAsync(new TestEvent(, TestContext.Current.CancellationToken));
+        await eventBus.PublishAsync(new TestEvent(, TestContext.Current.CancellationToken));
+        await eventBus.PublishAsync(new TestEvent(, TestContext.Current.CancellationToken));
 
         // Wait for async processing
         await Task.Delay(200);
@@ -165,7 +165,7 @@ public sealed class EventBusTests : IDisposable
             .Returns(Task.CompletedTask);
 
         // Act
-        await eventBus.PublishAsync(testEvent);
+        await eventBus.PublishAsync(testEvent, TestContext.Current.CancellationToken);
 
         // Wait for async processing
         await Task.Delay(200);
@@ -188,7 +188,7 @@ public sealed class EventBusTests : IDisposable
             .ThrowsAsync(new InvalidOperationException("Handler failed"));
 
         // Act
-        await eventBus.PublishAsync(testEvent);
+        await eventBus.PublishAsync(testEvent, TestContext.Current.CancellationToken);
 
         // Wait for async processing
         await Task.Delay(200);
@@ -212,7 +212,7 @@ public sealed class EventBusTests : IDisposable
             .ThrowsAsync(new InvalidOperationException("Handler failed"));
 
         // Act
-        await eventBus.PublishAsync(testEvent);
+        await eventBus.PublishAsync(testEvent, TestContext.Current.CancellationToken);
 
         // Wait for async processing
         await Task.Delay(200);
@@ -247,7 +247,7 @@ public sealed class EventBusTests : IDisposable
             .Returns(Task.CompletedTask);
 
         // Act
-        await eventBus.PublishAsync(testEvent, cts.Token);
+        await eventBus.PublishAsync(testEvent, cts.Token, TestContext.Current.CancellationToken);
 
         // Wait for async processing
         await Task.Delay(100);
@@ -268,7 +268,7 @@ public sealed class EventBusTests : IDisposable
         cts.Cancel();
 
         // Act & Assert - Should not throw, cancellation is handled gracefully
-        await eventBus.PublishAsync(testEvent, cts.Token);
+        await eventBus.PublishAsync(testEvent, cts.Token, TestContext.Current.CancellationToken);
     }
 
     #endregion
@@ -304,7 +304,7 @@ public sealed class EventBusTests : IDisposable
             .Returns(Task.CompletedTask);
 
         // Act
-        await eventBus.PublishAsync(testEvent);
+        await eventBus.PublishAsync(testEvent, TestContext.Current.CancellationToken);
 
         // Assert
         var metrics = eventBus.GetMetrics();
@@ -328,7 +328,7 @@ public sealed class EventBusTests : IDisposable
         handler2Mock.Setup(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
         // Act
-        await eventBus.PublishAsync(testEvent);
+        await eventBus.PublishAsync(testEvent, TestContext.Current.CancellationToken);
 
         // Assert
         var metrics = eventBus.GetMetrics();
@@ -348,9 +348,9 @@ public sealed class EventBusTests : IDisposable
             .Returns(Task.CompletedTask);
 
         // Act
-        await eventBus.PublishAsync(new TestEvent());
-        await eventBus.PublishAsync(new TestEvent());
-        await eventBus.PublishAsync(new TestEvent());
+        await eventBus.PublishAsync(new TestEvent(, TestContext.Current.CancellationToken));
+        await eventBus.PublishAsync(new TestEvent(, TestContext.Current.CancellationToken));
+        await eventBus.PublishAsync(new TestEvent(, TestContext.Current.CancellationToken));
 
         // Assert
         var metrics = eventBus.GetMetrics();
@@ -389,7 +389,7 @@ public sealed class EventBusTests : IDisposable
             .Returns(Task.CompletedTask);
 
         // Act
-        await eventBus.PublishAsync(testEvent);
+        await eventBus.PublishAsync(testEvent, TestContext.Current.CancellationToken);
 
         // Wait for async processing through pipeline
         await Task.Delay(100);
@@ -435,7 +435,7 @@ public sealed class EventBusTests : IDisposable
             });
 
         // Act
-        await eventBus.PublishAsync(testEvent);
+        await eventBus.PublishAsync(testEvent, TestContext.Current.CancellationToken);
 
         // Wait a bit for parallel execution to start
         await Task.Delay(30);
@@ -467,8 +467,8 @@ public sealed class EventBusTests : IDisposable
         handler2Mock.Setup(h => h.HandleAsync(anotherEvent, It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
         // Act
-        await eventBus.PublishAsync(testEvent);
-        await eventBus.PublishAsync(anotherEvent);
+        await eventBus.PublishAsync(testEvent, TestContext.Current.CancellationToken);
+        await eventBus.PublishAsync(anotherEvent, TestContext.Current.CancellationToken);
 
         // Wait for async processing
         await Task.Delay(200);

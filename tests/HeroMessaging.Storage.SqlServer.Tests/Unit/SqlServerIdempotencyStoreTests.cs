@@ -77,7 +77,7 @@ public sealed class SqlServerIdempotencyStoreTests : IDisposable
         var store = CreateStore();
         var idempotencyKey = "idempotency:test-key";
 
-        var result = await store.GetAsync(idempotencyKey);
+        var result = await store.GetAsync(idempotencyKey, TestContext.Current.CancellationToken);
         Assert.Null(result);
     }
 
@@ -87,7 +87,7 @@ public sealed class SqlServerIdempotencyStoreTests : IDisposable
         var store = CreateStore();
 
         await Assert.ThrowsAsync<ArgumentNullException>(async () =>
-            await store.GetAsync(null!));
+            await store.GetAsync(null!, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -96,7 +96,7 @@ public sealed class SqlServerIdempotencyStoreTests : IDisposable
         var store = CreateStore();
 
         await Assert.ThrowsAsync<ArgumentException>(async () =>
-            await store.GetAsync(string.Empty));
+            await store.GetAsync(string.Empty, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -107,7 +107,7 @@ public sealed class SqlServerIdempotencyStoreTests : IDisposable
         var result = new { Message = "Success" };
         var ttl = TimeSpan.FromHours(24);
 
-        await store.StoreSuccessAsync(idempotencyKey, result, ttl);
+        await store.StoreSuccessAsync(idempotencyKey, result, ttl, TestContext.Current.CancellationToken);
         Assert.NotNull(store);
     }
 
@@ -128,7 +128,7 @@ public sealed class SqlServerIdempotencyStoreTests : IDisposable
         var idempotencyKey = "idempotency:test-key";
         var ttl = TimeSpan.FromHours(24);
 
-        await store.StoreSuccessAsync(idempotencyKey, null, ttl);
+        await store.StoreSuccessAsync(idempotencyKey, null, ttl, TestContext.Current.CancellationToken);
         Assert.NotNull(store);
     }
 
@@ -140,7 +140,7 @@ public sealed class SqlServerIdempotencyStoreTests : IDisposable
         var exception = new InvalidOperationException("Test error");
         var ttl = TimeSpan.FromHours(1);
 
-        await store.StoreFailureAsync(idempotencyKey, exception, ttl);
+        await store.StoreFailureAsync(idempotencyKey, exception, ttl, TestContext.Current.CancellationToken);
         Assert.NotNull(store);
     }
 
@@ -152,7 +152,7 @@ public sealed class SqlServerIdempotencyStoreTests : IDisposable
         var ttl = TimeSpan.FromHours(1);
 
         await Assert.ThrowsAsync<ArgumentNullException>(async () =>
-            await store.StoreFailureAsync(null!, exception, ttl));
+            await store.StoreFailureAsync(null!, exception, ttl, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -163,7 +163,7 @@ public sealed class SqlServerIdempotencyStoreTests : IDisposable
         var ttl = TimeSpan.FromHours(1);
 
         await Assert.ThrowsAsync<ArgumentNullException>(async () =>
-            await store.StoreFailureAsync(idempotencyKey, null!, ttl));
+            await store.StoreFailureAsync(idempotencyKey, null!, ttl, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -172,7 +172,7 @@ public sealed class SqlServerIdempotencyStoreTests : IDisposable
         var store = CreateStore();
         var idempotencyKey = "idempotency:test-key";
 
-        var result = await store.ExistsAsync(idempotencyKey);
+        var result = await store.ExistsAsync(idempotencyKey, TestContext.Current.CancellationToken);
         Assert.False(result);
     }
 
@@ -182,7 +182,7 @@ public sealed class SqlServerIdempotencyStoreTests : IDisposable
         var store = CreateStore();
 
         await Assert.ThrowsAsync<ArgumentNullException>(async () =>
-            await store.ExistsAsync(null!));
+            await store.ExistsAsync(null!, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -190,7 +190,7 @@ public sealed class SqlServerIdempotencyStoreTests : IDisposable
     {
         var store = CreateStore();
 
-        var result = await store.CleanupExpiredAsync();
+        var result = await store.CleanupExpiredAsync(TestContext.Current.CancellationToken);
         Assert.IsType<int>(result);
         Assert.True(result >= 0);
     }
@@ -203,7 +203,7 @@ public sealed class SqlServerIdempotencyStoreTests : IDisposable
         cts.Cancel();
 
         await Assert.ThrowsAsync<OperationCanceledException>(async () =>
-            await store.CleanupExpiredAsync(cts.Token));
+            await store.CleanupExpiredAsync(cts.Token, TestContext.Current.CancellationToken));
     }
 
     private SqlServerIdempotencyStore CreateStore()

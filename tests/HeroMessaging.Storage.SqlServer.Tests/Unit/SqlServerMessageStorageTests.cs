@@ -67,7 +67,7 @@ public sealed class SqlServerMessageStorageTests : IDisposable
         var message = CreateTestMessage();
         var options = new MessageStorageOptions { Collection = "test" };
 
-        var messageId = await storage.StoreAsync(message, options);
+        var messageId = await storage.StoreAsync(message, options, TestContext.Current.CancellationToken);
         Assert.NotNull(messageId);
         Assert.NotEmpty(messageId);
     }
@@ -80,7 +80,7 @@ public sealed class SqlServerMessageStorageTests : IDisposable
         var ttl = TimeSpan.FromHours(24);
         var options = new MessageStorageOptions { Ttl = ttl };
 
-        var messageId = await storage.StoreAsync(message, options);
+        var messageId = await storage.StoreAsync(message, options, TestContext.Current.CancellationToken);
         Assert.NotNull(messageId);
     }
 
@@ -100,7 +100,7 @@ public sealed class SqlServerMessageStorageTests : IDisposable
         var storage = CreateStorage();
         var messageId = Guid.NewGuid().ToString();
 
-        var result = await storage.DeleteAsync(messageId);
+        var result = await storage.DeleteAsync(messageId, TestContext.Current.CancellationToken);
         Assert.False(result);
     }
 
@@ -110,7 +110,7 @@ public sealed class SqlServerMessageStorageTests : IDisposable
         var storage = CreateStorage();
         var messageId = Guid.NewGuid().ToString();
 
-        var result = await storage.ExistsAsync(messageId);
+        var result = await storage.ExistsAsync(messageId, TestContext.Current.CancellationToken);
         Assert.False(result);
     }
 
@@ -144,7 +144,7 @@ public sealed class SqlServerMessageStorageTests : IDisposable
         var messageId = Guid.NewGuid().ToString();
         var message = CreateTestMessage();
 
-        var result = await storage.UpdateAsync(messageId, message);
+        var result = await storage.UpdateAsync(messageId, message, TestContext.Current.CancellationToken);
         Assert.False(result);
     }
 
@@ -153,7 +153,7 @@ public sealed class SqlServerMessageStorageTests : IDisposable
     {
         var storage = CreateStorage();
 
-        var result = await storage.CountAsync();
+        var result = await storage.CountAsync(TestContext.Current.CancellationToken);
         Assert.IsType<long>(result);
         Assert.True(result >= 0);
     }
@@ -164,7 +164,7 @@ public sealed class SqlServerMessageStorageTests : IDisposable
         var storage = CreateStorage();
         var query = new MessageQuery { Collection = "test" };
 
-        var result = await storage.CountAsync(query);
+        var result = await storage.CountAsync(query, TestContext.Current.CancellationToken);
         Assert.IsType<long>(result);
     }
 
@@ -173,7 +173,7 @@ public sealed class SqlServerMessageStorageTests : IDisposable
     {
         var storage = CreateStorage();
 
-        await storage.ClearAsync();
+        await storage.ClearAsync(TestContext.Current.CancellationToken);
         Assert.NotNull(storage);
     }
 

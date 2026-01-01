@@ -229,7 +229,7 @@ public sealed class PolicyAuthorizationProviderTests
         var provider = new PolicyAuthorizationProvider(requireAuthenticatedUser: true);
 
         // Act
-        var result = await provider.AuthorizeAsync(null, "TestMessage", "Send");
+        var result = await provider.AuthorizeAsync(null!, "TestMessage", "Send", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.Succeeded);
@@ -245,7 +245,7 @@ public sealed class PolicyAuthorizationProviderTests
         var principal = CreateUnauthenticatedPrincipal();
 
         // Act
-        var result = await provider.AuthorizeAsync(principal, "TestMessage", "Send");
+        var result = await provider.AuthorizeAsync(principal, "TestMessage", "Send", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.Succeeded);
@@ -260,7 +260,7 @@ public sealed class PolicyAuthorizationProviderTests
         var principal = CreatePrincipal("TestUser");
 
         // Act
-        var result = await provider.AuthorizeAsync(principal, "TestMessage", "Send");
+        var result = await provider.AuthorizeAsync(principal, "TestMessage", "Send", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Succeeded);
@@ -277,7 +277,7 @@ public sealed class PolicyAuthorizationProviderTests
         var principal = CreateUnauthenticatedPrincipal();
 
         // Act
-        var result = await provider.AuthorizeAsync(principal, "PublicMessage", "Receive");
+        var result = await provider.AuthorizeAsync(principal, "PublicMessage", "Receive", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Succeeded);
@@ -295,7 +295,7 @@ public sealed class PolicyAuthorizationProviderTests
         var principal = CreatePrincipal("TestUser", claims);
 
         // Act
-        var result = await provider.AuthorizeAsync(principal, "UserCreated", "Send");
+        var result = await provider.AuthorizeAsync(principal, "UserCreated", "Send", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Succeeded);
@@ -313,7 +313,7 @@ public sealed class PolicyAuthorizationProviderTests
         var principal = CreatePrincipal("TestUser", claims);
 
         // Act
-        var result = await provider.AuthorizeAsync(principal, "UserCreated", "Send");
+        var result = await provider.AuthorizeAsync(principal, "UserCreated", "Send", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.Succeeded);
@@ -332,7 +332,7 @@ public sealed class PolicyAuthorizationProviderTests
         var principal = CreatePrincipal("TestUser", claims);
 
         // Act
-        var result = await provider.AuthorizeAsync(principal, "SecureMessage", "Send");
+        var result = await provider.AuthorizeAsync(principal, "SecureMessage", "Send", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Succeeded);
@@ -349,7 +349,7 @@ public sealed class PolicyAuthorizationProviderTests
         var principal = CreatePrincipal("TestUser");
 
         // Act
-        var result = await provider.AuthorizeAsync(principal, "SecureMessage", "Send");
+        var result = await provider.AuthorizeAsync(principal, "SecureMessage", "Send", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.Succeeded);
@@ -367,7 +367,7 @@ public sealed class PolicyAuthorizationProviderTests
         var principal = CreatePrincipal("TestUser", claims);
 
         // Act
-        var result = await provider.AuthorizeAsync(principal, "AnyMessageType", "Send");
+        var result = await provider.AuthorizeAsync(principal, "AnyMessageType", "Send", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Succeeded);
@@ -385,7 +385,7 @@ public sealed class PolicyAuthorizationProviderTests
         var principal = CreateUnauthenticatedPrincipal();
 
         // Act
-        var result = await provider.AuthorizeAsync(principal, "SpecificMessage", "Send");
+        var result = await provider.AuthorizeAsync(principal, "SpecificMessage", "Send", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Succeeded); // Specific policy should take precedence
@@ -401,7 +401,7 @@ public sealed class PolicyAuthorizationProviderTests
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<ArgumentException>(
-            () => provider.AuthorizeAsync(principal, null!, "Send"));
+            () => provider.AuthorizeAsync(principal, null!, "Send", TestContext.Current.CancellationToken));
         Assert.Equal("messageType", ex.ParamName);
     }
 
@@ -415,7 +415,7 @@ public sealed class PolicyAuthorizationProviderTests
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<ArgumentException>(
-            () => provider.AuthorizeAsync(principal, "TestMessage", null!));
+            () => provider.AuthorizeAsync(principal, "TestMessage", null!, TestContext.Current.CancellationToken));
         Assert.Equal("operation", ex.ParamName);
     }
 
@@ -428,7 +428,7 @@ public sealed class PolicyAuthorizationProviderTests
         var principal = CreateUnauthenticatedPrincipal();
 
         // Act
-        var result = await provider.AuthorizeAsync(principal, "TestMessage", "Send");
+        var result = await provider.AuthorizeAsync(principal, "TestMessage", "Send", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Succeeded);
@@ -448,7 +448,7 @@ public sealed class PolicyAuthorizationProviderTests
         var principal = CreatePrincipal("TestUser", claims);
 
         // Act
-        var result = await provider.HasPermissionAsync(principal, "write");
+        var result = await provider.HasPermissionAsync(principal, "write", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
@@ -463,7 +463,7 @@ public sealed class PolicyAuthorizationProviderTests
         var principal = CreatePrincipal("TestUser");
 
         // Act
-        var result = await provider.HasPermissionAsync(principal, "write");
+        var result = await provider.HasPermissionAsync(principal, "write", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);
@@ -479,7 +479,7 @@ public sealed class PolicyAuthorizationProviderTests
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<ArgumentException>(
-            () => provider.HasPermissionAsync(principal, null!));
+            () => provider.HasPermissionAsync(principal, null!, TestContext.Current.CancellationToken));
         Assert.Equal("permission", ex.ParamName);
     }
 
@@ -491,7 +491,7 @@ public sealed class PolicyAuthorizationProviderTests
         var provider = new PolicyAuthorizationProvider();
 
         // Act
-        var result = await provider.HasPermissionAsync(null, "write");
+        var result = await provider.HasPermissionAsync(null!, "write", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);
@@ -507,7 +507,7 @@ public sealed class PolicyAuthorizationProviderTests
         var principal = CreatePrincipal("TestUser", claims);
 
         // Act
-        var result = await provider.HasPermissionAsync(principal, "write");
+        var result = await provider.HasPermissionAsync(principal, "write", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
@@ -528,9 +528,9 @@ public sealed class PolicyAuthorizationProviderTests
         var principal = CreatePrincipal("TestUser", claims);
 
         // Act
-        var canRead = await provider.HasPermissionAsync(principal, "read");
-        var canWrite = await provider.HasPermissionAsync(principal, "write");
-        var canDelete = await provider.HasPermissionAsync(principal, "delete");
+        var canRead = await provider.HasPermissionAsync(principal, "read", TestContext.Current.CancellationToken);
+        var canWrite = await provider.HasPermissionAsync(principal, "write", TestContext.Current.CancellationToken);
+        var canDelete = await provider.HasPermissionAsync(principal, "delete", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(canRead);
@@ -781,7 +781,7 @@ public sealed class PolicyAuthorizationProviderTests
         var cts = new CancellationTokenSource();
 
         // Act
-        var result = await provider.AuthorizeAsync(principal, "TestMessage", "Send", cts.Token);
+        var result = await provider.AuthorizeAsync(principal, "TestMessage", "Send", cts.Token, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Succeeded);
@@ -798,7 +798,7 @@ public sealed class PolicyAuthorizationProviderTests
         var cts = new CancellationTokenSource();
 
         // Act
-        var result = await provider.HasPermissionAsync(principal, "write", cts.Token);
+        var result = await provider.HasPermissionAsync(principal, "write", cts.Token, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
@@ -820,7 +820,7 @@ public sealed class PolicyAuthorizationProviderTests
         var principal = CreatePrincipal("TestUser", claims);
 
         // Act
-        var result = await provider.AuthorizeAsync(principal, "FinancialReport", "Send");
+        var result = await provider.AuthorizeAsync(principal, "FinancialReport", "Send", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Succeeded);
@@ -838,7 +838,7 @@ public sealed class PolicyAuthorizationProviderTests
         var principal = CreatePrincipal("TestUser", claims);
 
         // Act
-        var result = await provider.AuthorizeAsync(principal, "SecureMessage", "Send");
+        var result = await provider.AuthorizeAsync(principal, "SecureMessage", "Send", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Succeeded);
@@ -862,7 +862,7 @@ public sealed class PolicyAuthorizationProviderTests
         var principal = CreatePrincipal("TestUser", claims);
 
         // Act
-        var result = await provider.AuthorizeAsync(principal, "AdvancedMessage", "Send");
+        var result = await provider.AuthorizeAsync(principal, "AdvancedMessage", "Send", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Succeeded);
@@ -882,7 +882,7 @@ public sealed class PolicyAuthorizationProviderTests
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<ArgumentException>(
-            () => provider.AuthorizeAsync(principal, "", "Send"));
+            () => provider.AuthorizeAsync(principal, "", "Send", TestContext.Current.CancellationToken));
         Assert.Equal("messageType", ex.ParamName);
     }
 
@@ -896,7 +896,7 @@ public sealed class PolicyAuthorizationProviderTests
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<ArgumentException>(
-            () => provider.AuthorizeAsync(principal, "   ", "Send"));
+            () => provider.AuthorizeAsync(principal, "   ", "Send", TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -909,7 +909,7 @@ public sealed class PolicyAuthorizationProviderTests
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<ArgumentException>(
-            () => provider.HasPermissionAsync(principal, ""));
+            () => provider.HasPermissionAsync(principal, "", TestContext.Current.CancellationToken));
         Assert.Equal("permission", ex.ParamName);
     }
 
@@ -921,7 +921,7 @@ public sealed class PolicyAuthorizationProviderTests
         var policy = new AuthorizationPolicy("TestPolicy");
 
         // Act - Pass empty strings which should be filtered
-        policy.RequireRole("Admin", "", null);
+        policy.RequireRole("Admin", "", null!);
 
         // Assert
         Assert.NotNull(policy);

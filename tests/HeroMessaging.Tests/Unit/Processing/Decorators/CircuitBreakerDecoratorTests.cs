@@ -42,7 +42,7 @@ public sealed class CircuitBreakerDecoratorTests
             .ReturnsAsync(ProcessingResult.Successful());
 
         // Act
-        var result = await decorator.ProcessAsync(message, context);
+        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -62,7 +62,7 @@ public sealed class CircuitBreakerDecoratorTests
             .ReturnsAsync(ProcessingResult.Successful());
 
         // Act
-        var result = await decorator.ProcessAsync(message, context);
+        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -91,7 +91,7 @@ public sealed class CircuitBreakerDecoratorTests
             .ReturnsAsync(ProcessingResult.Failed(new Exception("Test error")));
 
         // Act
-        var result = await decorator.ProcessAsync(message, context);
+        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.Success);
@@ -112,7 +112,7 @@ public sealed class CircuitBreakerDecoratorTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await decorator.ProcessAsync(message, context));
+            async () => await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken));
 
         Assert.Equal("Test exception", exception.Message);
     }
@@ -141,7 +141,7 @@ public sealed class CircuitBreakerDecoratorTests
         // Act - Trigger failures to open circuit
         for (int i = 0; i < 3; i++)
         {
-            await decorator.ProcessAsync(new TestMessage(), context);
+            await decorator.ProcessAsync(new TestMessage(), context, TestContext.Current.CancellationToken);
         }
 
         // Circuit should now be open
@@ -172,7 +172,7 @@ public sealed class CircuitBreakerDecoratorTests
         // Act - Trigger 5 failures (below minimum throughput)
         for (int i = 0; i < 5; i++)
         {
-            await decorator.ProcessAsync(new TestMessage(), context);
+            await decorator.ProcessAsync(new TestMessage(), context, TestContext.Current.CancellationToken);
         }
 
         // Act - Next call should still process (circuit not open)
@@ -221,7 +221,7 @@ public sealed class CircuitBreakerDecoratorTests
         // Act - Make requests until circuit opens
         for (int i = 0; i < 11; i++)
         {
-            await decorator.ProcessAsync(new TestMessage(), context);
+            await decorator.ProcessAsync(new TestMessage(), context, TestContext.Current.CancellationToken);
         }
 
         // Circuit should now be open (opened on 11th request which was a failure)
@@ -256,8 +256,8 @@ public sealed class CircuitBreakerDecoratorTests
             .ReturnsAsync(ProcessingResult.Failed(new Exception("Test error")));
 
         // Act - Open the circuit
-        await decorator.ProcessAsync(new TestMessage(), context);
-        await decorator.ProcessAsync(new TestMessage(), context);
+        await decorator.ProcessAsync(new TestMessage(), context, TestContext.Current.CancellationToken);
+        await decorator.ProcessAsync(new TestMessage(), context, TestContext.Current.CancellationToken);
 
         _innerMock.ResetCalls();
 
@@ -288,12 +288,12 @@ public sealed class CircuitBreakerDecoratorTests
             .ReturnsAsync(ProcessingResult.Failed(new Exception("Test error")));
 
         // Act - Open the circuit
-        await decorator.ProcessAsync(new TestMessage(), context);
-        await decorator.ProcessAsync(new TestMessage(), context);
+        await decorator.ProcessAsync(new TestMessage(), context, TestContext.Current.CancellationToken);
+        await decorator.ProcessAsync(new TestMessage(), context, TestContext.Current.CancellationToken);
 
         // Act - Try to process while circuit is open
         var message = new TestMessage();
-        await decorator.ProcessAsync(message, context);
+        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         _loggerMock.Verify(
@@ -329,8 +329,8 @@ public sealed class CircuitBreakerDecoratorTests
             .ReturnsAsync(ProcessingResult.Failed(new Exception("Test error")));
 
         // Act - Open the circuit
-        await decorator.ProcessAsync(new TestMessage(), context);
-        await decorator.ProcessAsync(new TestMessage(), context);
+        await decorator.ProcessAsync(new TestMessage(), context, TestContext.Current.CancellationToken);
+        await decorator.ProcessAsync(new TestMessage(), context, TestContext.Current.CancellationToken);
 
         // Advance time past break duration
         _timeProvider.Advance(TimeSpan.FromSeconds(31));
@@ -367,8 +367,8 @@ public sealed class CircuitBreakerDecoratorTests
             .ReturnsAsync(ProcessingResult.Failed(new Exception("Test error")));
 
         // Act - Open the circuit
-        await decorator.ProcessAsync(new TestMessage(), context);
-        await decorator.ProcessAsync(new TestMessage(), context);
+        await decorator.ProcessAsync(new TestMessage(), context, TestContext.Current.CancellationToken);
+        await decorator.ProcessAsync(new TestMessage(), context, TestContext.Current.CancellationToken);
 
         // Advance time to half-open
         _timeProvider.Advance(TimeSpan.FromSeconds(31));
@@ -379,9 +379,9 @@ public sealed class CircuitBreakerDecoratorTests
             .ReturnsAsync(ProcessingResult.Successful());
 
         // Act - 3 successful requests to close circuit
-        await decorator.ProcessAsync(new TestMessage(), context);
-        await decorator.ProcessAsync(new TestMessage(), context);
-        await decorator.ProcessAsync(new TestMessage(), context);
+        await decorator.ProcessAsync(new TestMessage(), context, TestContext.Current.CancellationToken);
+        await decorator.ProcessAsync(new TestMessage(), context, TestContext.Current.CancellationToken);
+        await decorator.ProcessAsync(new TestMessage(), context, TestContext.Current.CancellationToken);
 
         // Act - Should now be closed and continue processing
         var result = await decorator.ProcessAsync(new TestMessage(), context);
@@ -410,14 +410,14 @@ public sealed class CircuitBreakerDecoratorTests
             .ReturnsAsync(ProcessingResult.Failed(new Exception("Test error")));
 
         // Act - Open the circuit
-        await decorator.ProcessAsync(new TestMessage(), context);
-        await decorator.ProcessAsync(new TestMessage(), context);
+        await decorator.ProcessAsync(new TestMessage(), context, TestContext.Current.CancellationToken);
+        await decorator.ProcessAsync(new TestMessage(), context, TestContext.Current.CancellationToken);
 
         // Advance time to half-open
         _timeProvider.Advance(TimeSpan.FromSeconds(31));
 
         // Act - Fail in half-open state (should re-open circuit)
-        await decorator.ProcessAsync(new TestMessage(), context);
+        await decorator.ProcessAsync(new TestMessage(), context, TestContext.Current.CancellationToken);
 
         _innerMock.ResetCalls();
 
@@ -451,8 +451,8 @@ public sealed class CircuitBreakerDecoratorTests
             .ReturnsAsync(ProcessingResult.Failed(new Exception("Test error")));
 
         // Act
-        await decorator.ProcessAsync(new TestMessage(), context);
-        await decorator.ProcessAsync(new TestMessage(), context);
+        await decorator.ProcessAsync(new TestMessage(), context, TestContext.Current.CancellationToken);
+        await decorator.ProcessAsync(new TestMessage(), context, TestContext.Current.CancellationToken);
 
         // Assert
         _loggerMock.Verify(
@@ -484,8 +484,8 @@ public sealed class CircuitBreakerDecoratorTests
             .ReturnsAsync(ProcessingResult.Failed(new Exception("Test error")));
 
         // Act - Open the circuit
-        await decorator.ProcessAsync(new TestMessage(), context);
-        await decorator.ProcessAsync(new TestMessage(), context);
+        await decorator.ProcessAsync(new TestMessage(), context, TestContext.Current.CancellationToken);
+        await decorator.ProcessAsync(new TestMessage(), context, TestContext.Current.CancellationToken);
 
         // Advance time to half-open
         _timeProvider.Advance(TimeSpan.FromSeconds(31));
@@ -498,9 +498,9 @@ public sealed class CircuitBreakerDecoratorTests
         _loggerMock.ResetCalls();
 
         // Act - 3 successes to close circuit
-        await decorator.ProcessAsync(new TestMessage(), context);
-        await decorator.ProcessAsync(new TestMessage(), context);
-        await decorator.ProcessAsync(new TestMessage(), context);
+        await decorator.ProcessAsync(new TestMessage(), context, TestContext.Current.CancellationToken);
+        await decorator.ProcessAsync(new TestMessage(), context, TestContext.Current.CancellationToken);
+        await decorator.ProcessAsync(new TestMessage(), context, TestContext.Current.CancellationToken);
 
         // Assert
         _loggerMock.Verify(
@@ -561,8 +561,8 @@ public sealed class CircuitBreakerDecoratorTests
             .ReturnsAsync(ProcessingResult.Failed(new Exception("Test error")));
 
         // Act - Generate failures
-        await decorator.ProcessAsync(new TestMessage(), context);
-        await decorator.ProcessAsync(new TestMessage(), context);
+        await decorator.ProcessAsync(new TestMessage(), context, TestContext.Current.CancellationToken);
+        await decorator.ProcessAsync(new TestMessage(), context, TestContext.Current.CancellationToken);
 
         // Advance time beyond sampling duration
         _timeProvider.Advance(TimeSpan.FromMinutes(2));

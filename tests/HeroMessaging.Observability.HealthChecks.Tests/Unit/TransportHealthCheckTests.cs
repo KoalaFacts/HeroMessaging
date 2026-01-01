@@ -39,7 +39,7 @@ public class TransportHealthCheckTests
         var context = new HealthCheckContext();
 
         // Act
-        var result = await healthCheck.CheckHealthAsync(context, CancellationToken.None);
+        var result = await healthCheck.CheckHealthAsync(context, CancellationToken.None, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Healthy, result.Status);
@@ -78,7 +78,7 @@ public class TransportHealthCheckTests
         var context = new HealthCheckContext();
 
         // Act
-        var result = await healthCheck.CheckHealthAsync(context, CancellationToken.None);
+        var result = await healthCheck.CheckHealthAsync(context, CancellationToken.None, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Degraded, result.Status);
@@ -115,7 +115,7 @@ public class TransportHealthCheckTests
         var context = new HealthCheckContext();
 
         // Act
-        var result = await healthCheck.CheckHealthAsync(context, CancellationToken.None);
+        var result = await healthCheck.CheckHealthAsync(context, CancellationToken.None, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Unhealthy, result.Status);
@@ -144,7 +144,7 @@ public class TransportHealthCheckTests
         var context = new HealthCheckContext();
 
         // Act
-        var result = await healthCheck.CheckHealthAsync(context, CancellationToken.None);
+        var result = await healthCheck.CheckHealthAsync(context, CancellationToken.None, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Unhealthy, result.Status);
@@ -185,7 +185,7 @@ public class TransportHealthCheckTests
         var context = new HealthCheckContext();
 
         // Act
-        var result = await healthCheck.CheckHealthAsync(context, CancellationToken.None);
+        var result = await healthCheck.CheckHealthAsync(context, CancellationToken.None, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Healthy, result.Status);
@@ -219,7 +219,7 @@ public class TransportHealthCheckTests
         var context = new HealthCheckContext();
 
         // Act
-        var result = await healthCheck.CheckHealthAsync(context, cts.Token);
+        var result = await healthCheck.CheckHealthAsync(context, cts.Token, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Unhealthy, result.Status);
@@ -250,7 +250,7 @@ public class TransportHealthCheckTests
         var context = new HealthCheckContext();
 
         // Act
-        var result = await healthCheck.CheckHealthAsync(context, CancellationToken.None);
+        var result = await healthCheck.CheckHealthAsync(context, CancellationToken.None, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Healthy, result.Status);
@@ -283,7 +283,7 @@ public class TransportHealthCheckTests
         var context = new HealthCheckContext();
 
         // Act
-        var result = await healthCheck.CheckHealthAsync(context, CancellationToken.None);
+        var result = await healthCheck.CheckHealthAsync(context, CancellationToken.None, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Degraded, result.Status);

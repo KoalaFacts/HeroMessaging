@@ -19,8 +19,8 @@ public class MessagePackSerializationIntegrationTests
         var originalMessage = TestMessageBuilder.CreateValidMessage("MessagePack serialization test");
 
         // Act
-        var serializedData = await serializer.SerializeAsync(originalMessage);
-        var deserializedMessage = await serializer.DeserializeAsync<TestMessage>(serializedData);
+        var serializedData = await serializer.SerializeAsync(originalMessage, TestContext.Current.CancellationToken);
+        var deserializedMessage = await serializer.DeserializeAsync<TestMessage>(serializedData, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(deserializedMessage);
@@ -38,8 +38,8 @@ public class MessagePackSerializationIntegrationTests
         var message = TestMessageBuilder.CreateValidMessage("Compact test");
 
         // Act
-        var messagePackData = await messagePackSerializer.SerializeAsync(message);
-        var jsonData = await jsonSerializer.SerializeAsync(message);
+        var messagePackData = await messagePackSerializer.SerializeAsync(message, TestContext.Current.CancellationToken);
+        var jsonData = await jsonSerializer.SerializeAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(messagePackData.Length < jsonData.Length,
@@ -54,8 +54,8 @@ public class MessagePackSerializationIntegrationTests
         var largeMessage = TestMessageBuilder.CreateLargeMessage(50000);
 
         // Act
-        var serializedData = await serializer.SerializeAsync(largeMessage);
-        var deserializedMessage = await serializer.DeserializeAsync<TestMessage>(serializedData);
+        var serializedData = await serializer.SerializeAsync(largeMessage, TestContext.Current.CancellationToken);
+        var deserializedMessage = await serializer.DeserializeAsync<TestMessage>(serializedData, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(deserializedMessage);
@@ -73,10 +73,10 @@ public class MessagePackSerializationIntegrationTests
             .ToList();
 
         // Act
-        var serializeTasks = messages.Select(m => serializer.SerializeAsync(m).AsTask()).ToArray();
+        var serializeTasks = messages.Select(m => serializer.SerializeAsync(m, TestContext.Current.CancellationToken).AsTask()).ToArray();
         var serializedData = await Task.WhenAll(serializeTasks);
 
-        var deserializeTasks = serializedData.Select(d => serializer.DeserializeAsync<TestMessage>(d).AsTask()).ToArray();
+        var deserializeTasks = serializedData.Select(d => serializer.DeserializeAsync<TestMessage>(d, TestContext.Current.CancellationToken).AsTask()).ToArray();
         var deserializedMessages = await Task.WhenAll(deserializeTasks);
 
         // Assert

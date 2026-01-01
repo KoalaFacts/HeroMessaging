@@ -87,7 +87,7 @@ public sealed class SqlServerSagaRepositoryTests : IDisposable
         var repository = CreateRepository();
         var correlationId = Guid.NewGuid();
 
-        var result = await repository.FindAsync(correlationId);
+        var result = await repository.FindAsync(correlationId, TestContext.Current.CancellationToken);
         Assert.Null(result);
     }
 
@@ -97,7 +97,7 @@ public sealed class SqlServerSagaRepositoryTests : IDisposable
         var repository = CreateRepository();
         var state = "InitialState";
 
-        var result = await repository.FindByStateAsync(state);
+        var result = await repository.FindByStateAsync(state, TestContext.Current.CancellationToken);
         Assert.NotNull(result);
         Assert.Empty(result);
     }
@@ -108,7 +108,7 @@ public sealed class SqlServerSagaRepositoryTests : IDisposable
         var repository = CreateRepository();
 
         await Assert.ThrowsAsync<ArgumentException>(async () =>
-            await repository.FindByStateAsync(null!));
+            await repository.FindByStateAsync(null!, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -117,7 +117,7 @@ public sealed class SqlServerSagaRepositoryTests : IDisposable
         var repository = CreateRepository();
         var saga = new TestSaga { CorrelationId = Guid.NewGuid() };
 
-        await repository.SaveAsync(saga);
+        await repository.SaveAsync(saga, TestContext.Current.CancellationToken);
         Assert.NotNull(repository);
     }
 
@@ -127,7 +127,7 @@ public sealed class SqlServerSagaRepositoryTests : IDisposable
         var repository = CreateRepository();
 
         await Assert.ThrowsAsync<ArgumentNullException>(async () =>
-            await repository.SaveAsync(null!));
+            await repository.SaveAsync(null!, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -137,7 +137,7 @@ public sealed class SqlServerSagaRepositoryTests : IDisposable
         var saga = new TestSaga { CorrelationId = Guid.NewGuid(), Version = 0 };
 
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await repository.UpdateAsync(saga));
+            await repository.UpdateAsync(saga, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -146,7 +146,7 @@ public sealed class SqlServerSagaRepositoryTests : IDisposable
         var repository = CreateRepository();
 
         await Assert.ThrowsAsync<ArgumentNullException>(async () =>
-            await repository.UpdateAsync(null!));
+            await repository.UpdateAsync(null!, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -155,7 +155,7 @@ public sealed class SqlServerSagaRepositoryTests : IDisposable
         var repository = CreateRepository();
         var correlationId = Guid.NewGuid();
 
-        await repository.DeleteAsync(correlationId);
+        await repository.DeleteAsync(correlationId, TestContext.Current.CancellationToken);
         Assert.NotNull(repository);
     }
 
@@ -165,7 +165,7 @@ public sealed class SqlServerSagaRepositoryTests : IDisposable
         var repository = CreateRepository();
         var olderThan = TimeSpan.FromHours(1);
 
-        var result = await repository.FindStaleAsync(olderThan);
+        var result = await repository.FindStaleAsync(olderThan, TestContext.Current.CancellationToken);
         Assert.NotNull(result);
         Assert.Empty(result);
     }

@@ -88,7 +88,7 @@ public class RabbitMqErrorScenarioIntegrationTests : RabbitMqIntegrationTestBase
         Assert.Equal(largeContent, receivedBody);
 
         // Cleanup
-        await consumer.DisposeAsync();
+        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -140,7 +140,7 @@ public class RabbitMqErrorScenarioIntegrationTests : RabbitMqIntegrationTestBase
         Assert.Equal(2, attemptCount); // Message redelivered after failure
 
         // Cleanup
-        await consumer.DisposeAsync();
+        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -172,7 +172,7 @@ public class RabbitMqErrorScenarioIntegrationTests : RabbitMqIntegrationTestBase
         // Act & Assert
         await Assert.ThrowsAsync<Exception>(async () =>
         {
-            await Transport.ConfigureTopologyAsync(topology2);
+            await Transport.ConfigureTopologyAsync(topology2, TestContext.Current.CancellationToken);
         });
     }
 
@@ -221,7 +221,7 @@ public class RabbitMqErrorScenarioIntegrationTests : RabbitMqIntegrationTestBase
         Assert.Empty(receivedBody);
 
         // Cleanup
-        await consumer.DisposeAsync();
+        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -266,7 +266,7 @@ public class RabbitMqErrorScenarioIntegrationTests : RabbitMqIntegrationTestBase
         Assert.Equal(100, receivedCount);
 
         // Cleanup
-        await consumer.DisposeAsync();
+        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -283,9 +283,9 @@ public class RabbitMqErrorScenarioIntegrationTests : RabbitMqIntegrationTestBase
             async (envelope, context, ct) => await Task.CompletedTask);
 
         // Act & Assert - should not throw
-        await consumer.DisposeAsync();
-        await consumer.DisposeAsync();
-        await consumer.DisposeAsync();
+        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
+        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
+        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -302,16 +302,16 @@ public class RabbitMqErrorScenarioIntegrationTests : RabbitMqIntegrationTestBase
             new TransportAddress(queueName, TransportAddressType.Queue),
             async (envelope, context, ct) => await Task.CompletedTask);
 
-        var health = await Transport.GetHealthAsync();
+        var health = await Transport.GetHealthAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(1, health.ActiveConsumers);
 
         // Cleanup
-        await consumer.DisposeAsync();
+        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
 
         // Check health after cleanup
-        var healthAfter = await Transport.GetHealthAsync();
+        var healthAfter = await Transport.GetHealthAsync(TestContext.Current.CancellationToken);
         Assert.Equal(0, healthAfter.ActiveConsumers);
     }
 

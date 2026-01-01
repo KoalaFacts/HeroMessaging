@@ -60,7 +60,7 @@ public class InMemoryTransportTests : IAsyncLifetime
         // Assert
         Assert.Equal(TransportState.Connected, transport.State);
 
-        await transport.DisposeAsync();
+        await transport.DisposeAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -79,7 +79,7 @@ public class InMemoryTransportTests : IAsyncLifetime
         Assert.Equal(TransportState.Disconnected, eventArgs.PreviousState);
         Assert.Equal(TransportState.Connected, eventArgs.CurrentState);
 
-        await transport.DisposeAsync();
+        await transport.DisposeAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -134,7 +134,7 @@ public class InMemoryTransportTests : IAsyncLifetime
         await Assert.ThrowsAsync<InvalidOperationException>(
             async () => await transport.SendAsync(destination, envelope, TestContext.Current.CancellationToken));
 
-        await transport.DisposeAsync();
+        await transport.DisposeAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -199,7 +199,7 @@ public class InMemoryTransportTests : IAsyncLifetime
         Assert.Equal(source, consumer.Source);
         Assert.False(handlerCalled);
 
-        await consumer.DisposeAsync();
+        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -216,7 +216,7 @@ public class InMemoryTransportTests : IAsyncLifetime
             async (env, ctx, ct) =>
             {
                 messageReceived = true;
-                await ctx.AcknowledgeAsync(ct);
+                await ctx.AcknowledgeAsync(ct, TestContext.Current.CancellationToken);
             },
             new ConsumerOptions { StartImmediately = true }, TestContext.Current.CancellationToken);
 
@@ -226,7 +226,7 @@ public class InMemoryTransportTests : IAsyncLifetime
         // Assert
         Assert.True(messageReceived);
 
-        await consumer.DisposeAsync();
+        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -287,7 +287,7 @@ public class InMemoryTransportTests : IAsyncLifetime
             async (env, ctx, ct) =>
             {
                 await Task.Delay(10, TestContext.Current.CancellationToken); // Simulate processing
-                await ctx.AcknowledgeAsync(ct);
+                await ctx.AcknowledgeAsync(ct, TestContext.Current.CancellationToken);
             },
             new ConsumerOptions { StartImmediately = true }, TestContext.Current.CancellationToken);
 
@@ -303,7 +303,7 @@ public class InMemoryTransportTests : IAsyncLifetime
         Assert.Equal(0, metrics.MessagesFailed);
         Assert.Equal(1.0, metrics.SuccessRate);
 
-        await consumer.DisposeAsync();
+        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -323,7 +323,7 @@ public class InMemoryTransportTests : IAsyncLifetime
                 {
                     throw new InvalidOperationException("Simulated failure");
                 }
-                await ctx.AcknowledgeAsync(ct);
+                await ctx.AcknowledgeAsync(ct, TestContext.Current.CancellationToken);
             },
             new ConsumerOptions
             {
@@ -343,7 +343,7 @@ public class InMemoryTransportTests : IAsyncLifetime
         // Assert
         Assert.Equal(3, attemptCount);
 
-        await consumer.DisposeAsync();
+        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -358,7 +358,7 @@ public class InMemoryTransportTests : IAsyncLifetime
             async (env, ctx, ct) =>
             {
                 processedCount++;
-                await ctx.AcknowledgeAsync(ct);
+                await ctx.AcknowledgeAsync(ct, TestContext.Current.CancellationToken);
             },
             new ConsumerOptions { StartImmediately = true }, TestContext.Current.CancellationToken);
 
@@ -371,6 +371,6 @@ public class InMemoryTransportTests : IAsyncLifetime
         Assert.False(consumer.IsActive);
         Assert.Equal(0, processedCount); // Should not process after stop
 
-        await consumer.DisposeAsync();
+        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
     }
 }

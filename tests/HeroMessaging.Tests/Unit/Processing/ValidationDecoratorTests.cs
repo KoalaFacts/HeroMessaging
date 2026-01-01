@@ -46,7 +46,7 @@ namespace HeroMessaging.Tests.Unit.Processing
                 .ReturnsAsync(ProcessingResult.Successful());
 
             // Act
-            var result = await decorator.ProcessAsync(message, context);
+            var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.True(result.Success);
@@ -71,7 +71,7 @@ namespace HeroMessaging.Tests.Unit.Processing
                 .ReturnsAsync(ValidationResult.Failure(validationErrors));
 
             // Act
-            var result = await decorator.ProcessAsync(message, context);
+            var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.False(result.Success);
@@ -95,7 +95,7 @@ namespace HeroMessaging.Tests.Unit.Processing
                 .ReturnsAsync(ValidationResult.Failure("Validation failed"));
 
             // Act
-            await decorator.ProcessAsync(message, context);
+            await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
             // Assert
             _loggerMock.Verify(
@@ -195,7 +195,7 @@ namespace HeroMessaging.Tests.Unit.Processing
             var message = new TestMessage();
 
             // Act
-            var result = await validator.ValidateAsync(message);
+            var result = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.True(result.IsValid);
@@ -218,7 +218,7 @@ namespace HeroMessaging.Tests.Unit.Processing
             var message = new TestMessage();
 
             // Act
-            var result = await validator.ValidateAsync(message);
+            var result = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.True(result.IsValid);
@@ -240,7 +240,7 @@ namespace HeroMessaging.Tests.Unit.Processing
             var message = new TestMessage();
 
             // Act
-            var result = await validator.ValidateAsync(message);
+            var result = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.False(result.IsValid);
@@ -263,7 +263,7 @@ namespace HeroMessaging.Tests.Unit.Processing
             var message = new TestMessage();
 
             // Act
-            var result = await validator.ValidateAsync(message);
+            var result = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
             // Assert
             Assert.False(result.IsValid);

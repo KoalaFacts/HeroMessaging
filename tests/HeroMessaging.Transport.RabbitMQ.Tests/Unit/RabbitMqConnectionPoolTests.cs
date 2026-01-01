@@ -44,7 +44,7 @@ public class RabbitMqConnectionPoolTests : IAsyncLifetime
     {
         if (_connectionPool != null)
         {
-            await _connectionPool.DisposeAsync();
+            await _connectionPool.DisposeAsync(TestContext.Current.CancellationToken);
         }
     }
 
@@ -99,12 +99,12 @@ public class RabbitMqConnectionPoolTests : IAsyncLifetime
         _connectionPool = new RabbitMqConnectionPool(_options!, _mockLogger!.Object, TimeProvider.System);
 
         // Act
-        await _connectionPool.DisposeAsync();
+        await _connectionPool.DisposeAsync(TestContext.Current.CancellationToken);
 
         // Assert
         // Should not throw
         await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
-            await _connectionPool.GetConnectionAsync());
+            await _connectionPool.GetConnectionAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -114,9 +114,9 @@ public class RabbitMqConnectionPoolTests : IAsyncLifetime
         _connectionPool = new RabbitMqConnectionPool(_options!, _mockLogger!.Object, TimeProvider.System);
 
         // Act
-        await _connectionPool.DisposeAsync();
-        await _connectionPool.DisposeAsync();
-        await _connectionPool.DisposeAsync();
+        await _connectionPool.DisposeAsync(TestContext.Current.CancellationToken);
+        await _connectionPool.DisposeAsync(TestContext.Current.CancellationToken);
+        await _connectionPool.DisposeAsync(TestContext.Current.CancellationToken);
 
         // Assert - should not throw
     }
@@ -151,11 +151,11 @@ public class RabbitMqConnectionPoolTests : IAsyncLifetime
     {
         // Arrange
         _connectionPool = new RabbitMqConnectionPool(_options!, _mockLogger!.Object, TimeProvider.System);
-        await _connectionPool.DisposeAsync();
+        await _connectionPool.DisposeAsync(TestContext.Current.CancellationToken);
 
         // Act & Assert
         await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
-            await _connectionPool.GetConnectionAsync());
+            await _connectionPool.GetConnectionAsync(TestContext.Current.CancellationToken));
     }
 
     // Note: More comprehensive tests would require refactoring to inject IConnectionFactory

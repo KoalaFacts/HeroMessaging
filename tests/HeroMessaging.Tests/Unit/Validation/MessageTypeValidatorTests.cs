@@ -75,7 +75,7 @@ public sealed class MessageTypeValidatorTests
         var message = new TestCommand();
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsValid);
@@ -90,7 +90,7 @@ public sealed class MessageTypeValidatorTests
         var message = new TestEvent();
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsValid);
@@ -109,7 +109,7 @@ public sealed class MessageTypeValidatorTests
         var message = new TestMessage();
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.IsValid);
@@ -126,7 +126,7 @@ public sealed class MessageTypeValidatorTests
         var message = new TestMessage();
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.IsValid);
@@ -146,7 +146,7 @@ public sealed class MessageTypeValidatorTests
         var message = new TestCommand();
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsValid);
@@ -160,7 +160,7 @@ public sealed class MessageTypeValidatorTests
         var message = new TestEvent();
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.IsValid);
@@ -177,8 +177,8 @@ public sealed class MessageTypeValidatorTests
         var eventMessage = new TestEvent();
 
         // Act
-        var commandResult = await validator.ValidateAsync(commandMessage);
-        var eventResult = await validator.ValidateAsync(eventMessage);
+        var commandResult = await validator.ValidateAsync(commandMessage, TestContext.Current.CancellationToken);
+        var eventResult = await validator.ValidateAsync(eventMessage, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(commandResult.IsValid);
@@ -193,7 +193,7 @@ public sealed class MessageTypeValidatorTests
         var message = new TestCommand();
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.IsValid);
@@ -213,7 +213,7 @@ public sealed class MessageTypeValidatorTests
         var message = new TestCommandEvent(); // Implements both ICommand and IEvent
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsValid);
@@ -227,7 +227,7 @@ public sealed class MessageTypeValidatorTests
         var message = new TestCommandEvent(); // Implements both ICommand and IEvent
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsValid);
@@ -241,7 +241,7 @@ public sealed class MessageTypeValidatorTests
         var message = new DerivedTestCommand();
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsValid);
@@ -259,7 +259,7 @@ public sealed class MessageTypeValidatorTests
         var message = new TestMessage();
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsValid);
@@ -273,7 +273,7 @@ public sealed class MessageTypeValidatorTests
         var message = new CustomMarkerMessage();
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsValid);
@@ -287,7 +287,7 @@ public sealed class MessageTypeValidatorTests
         var message = new TestCommand();
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.IsValid);
@@ -306,7 +306,7 @@ public sealed class MessageTypeValidatorTests
         var cts = new CancellationTokenSource();
 
         // Act
-        var result = await validator.ValidateAsync(message, cts.Token);
+        var result = await validator.ValidateAsync(message, cts.Token, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsValid);
@@ -322,7 +322,7 @@ public sealed class MessageTypeValidatorTests
         cts.Cancel();
 
         // Act
-        var result = await validator.ValidateAsync(message, cts.Token);
+        var result = await validator.ValidateAsync(message, cts.Token, TestContext.Current.CancellationToken);
 
         // Assert - No exception, validation completes
         Assert.True(result.IsValid);
@@ -340,8 +340,8 @@ public sealed class MessageTypeValidatorTests
         var message = new TestCommand();
 
         // Act
-        var result1 = await validator.ValidateAsync(message);
-        var result2 = await validator.ValidateAsync(message);
+        var result1 = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
+        var result2 = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result1.IsValid);
@@ -357,8 +357,8 @@ public sealed class MessageTypeValidatorTests
         var invalidMessage = new TestEvent();
 
         // Act
-        var result1 = await validator.ValidateAsync(validMessage);
-        var result2 = await validator.ValidateAsync(invalidMessage);
+        var result1 = await validator.ValidateAsync(validMessage, TestContext.Current.CancellationToken);
+        var result2 = await validator.ValidateAsync(invalidMessage, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result1.IsValid);
@@ -377,7 +377,7 @@ public sealed class MessageTypeValidatorTests
         var message = new TestEvent();
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.IsValid);
@@ -392,7 +392,7 @@ public sealed class MessageTypeValidatorTests
         var message = new TestMessage();
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.IsValid);
@@ -408,7 +408,7 @@ public sealed class MessageTypeValidatorTests
         var message = new TestMessage();
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.IsValid);

@@ -22,7 +22,7 @@ public sealed class SqlServerIdempotencyStoreFixture : IAsyncLifetime
             .WithPassword("YourStrong@Passw0rd")
             .Build();
 
-        await _container.StartAsync();
+        await _container.StartAsync(TestContext.Current.CancellationToken);
 
         ConnectionString = _container.GetConnectionString();
 
@@ -33,7 +33,7 @@ public sealed class SqlServerIdempotencyStoreFixture : IAsyncLifetime
     private static async Task InitializeDatabaseSchemaAsync(string connectionString)
     {
         await using var connection = new SqlConnection(connectionString);
-        await connection.OpenAsync();
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
 
         const string createTableSql = """
             IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[IdempotencyResponses]') AND type in (N'U'))
@@ -61,7 +61,7 @@ public sealed class SqlServerIdempotencyStoreFixture : IAsyncLifetime
 
         await using var command = connection.CreateCommand();
         command.CommandText = createTableSql;
-        await command.ExecuteNonQueryAsync();
+        await command.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
     }
 
     public async ValueTask DisposeAsync()
@@ -69,8 +69,8 @@ public sealed class SqlServerIdempotencyStoreFixture : IAsyncLifetime
         // Stop and dispose container when all tests are done
         if (_container != null)
         {
-            await _container.StopAsync();
-            await _container.DisposeAsync();
+            await _container.StopAsync(TestContext.Current.CancellationToken);
+            await _container.DisposeAsync(TestContext.Current.CancellationToken);
         }
     }
 }

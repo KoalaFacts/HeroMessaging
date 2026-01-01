@@ -21,7 +21,7 @@ public class PostgreSqlStorageIntegrationTests : PostgreSqlIntegrationTestBase
 
         // Act
         await storage.StoreAsync(message, (IStorageTransaction?)null);
-        var retrievedMessage = await storage.RetrieveAsync(message.MessageId, null);
+        var retrievedMessage = await storage.RetrieveAsync(message.MessageId, null, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(retrievedMessage);
@@ -42,16 +42,16 @@ public class PostgreSqlStorageIntegrationTests : PostgreSqlIntegrationTestBase
         };
 
         // Act
-        using var transaction = await storage.BeginTransactionAsync();
+        using var transaction = await storage.BeginTransactionAsync(TestContext.Current.CancellationToken);
 
-        await storage.StoreAsync(messages[0], transaction);
-        await storage.StoreAsync(messages[1], transaction);
+        await storage.StoreAsync(messages[0], transaction, TestContext.Current.CancellationToken);
+        await storage.StoreAsync(messages[1], transaction, TestContext.Current.CancellationToken);
 
-        await transaction.CommitAsync();
+        await transaction.CommitAsync(TestContext.Current.CancellationToken);
 
         // Assert - Messages should be visible after commit
-        var retrievedMessage1 = await storage.RetrieveAsync(messages[0].MessageId);
-        var retrievedMessage2 = await storage.RetrieveAsync(messages[1].MessageId);
+        var retrievedMessage1 = await storage.RetrieveAsync(messages[0].MessageId, TestContext.Current.CancellationToken);
+        var retrievedMessage2 = await storage.RetrieveAsync(messages[1].MessageId, TestContext.Current.CancellationToken);
 
         Assert.NotNull(retrievedMessage1);
         Assert.NotNull(retrievedMessage2);
@@ -140,14 +140,14 @@ public class PostgreSqlStorageIntegrationTests : PostgreSqlIntegrationTestBase
         await storage.StoreAsync(message, (IStorageTransaction?)null);
 
         // Verify it exists
-        var retrievedBeforeDelete = await storage.RetrieveAsync(message.MessageId, null);
+        var retrievedBeforeDelete = await storage.RetrieveAsync(message.MessageId, null, TestContext.Current.CancellationToken);
         Assert.NotNull(retrievedBeforeDelete);
 
         // Delete it
-        await storage.DeleteAsync(message.MessageId);
+        await storage.DeleteAsync(message.MessageId, TestContext.Current.CancellationToken);
 
         // Verify it's gone
-        var retrievedAfterDelete = await storage.RetrieveAsync(message.MessageId);
+        var retrievedAfterDelete = await storage.RetrieveAsync(message.MessageId, TestContext.Current.CancellationToken);
         Assert.Null(retrievedAfterDelete);
     }
 

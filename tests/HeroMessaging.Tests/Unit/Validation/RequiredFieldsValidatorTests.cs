@@ -34,7 +34,7 @@ public sealed class RequiredFieldsValidatorTests
         var message = TestMessageBuilder.CreateValidMessage();
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsValid);
@@ -54,7 +54,7 @@ public sealed class RequiredFieldsValidatorTests
         };
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsValid);
@@ -75,7 +75,7 @@ public sealed class RequiredFieldsValidatorTests
         };
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsValid);
@@ -99,7 +99,7 @@ public sealed class RequiredFieldsValidatorTests
         };
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.IsValid);
@@ -120,7 +120,7 @@ public sealed class RequiredFieldsValidatorTests
         };
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Contains("MessageId", result.Errors[0]);
@@ -145,7 +145,7 @@ public sealed class RequiredFieldsValidatorTests
         };
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.IsValid);
@@ -166,7 +166,7 @@ public sealed class RequiredFieldsValidatorTests
         };
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.IsValid);
@@ -190,7 +190,7 @@ public sealed class RequiredFieldsValidatorTests
         };
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.IsValid);
@@ -213,7 +213,7 @@ public sealed class RequiredFieldsValidatorTests
         };
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.IsValid);
@@ -241,7 +241,7 @@ public sealed class RequiredFieldsValidatorTests
         };
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.IsValid);
@@ -262,7 +262,7 @@ public sealed class RequiredFieldsValidatorTests
         };
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.IsValid);
@@ -283,7 +283,7 @@ public sealed class RequiredFieldsValidatorTests
         };
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.IsValid);
@@ -304,7 +304,7 @@ public sealed class RequiredFieldsValidatorTests
         };
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsValid);
@@ -327,7 +327,7 @@ public sealed class RequiredFieldsValidatorTests
         };
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.IsValid);
@@ -354,7 +354,7 @@ public sealed class RequiredFieldsValidatorTests
         };
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsValid);
@@ -375,7 +375,7 @@ public sealed class RequiredFieldsValidatorTests
         };
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsValid);
@@ -398,7 +398,7 @@ public sealed class RequiredFieldsValidatorTests
         };
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsValid);
@@ -418,7 +418,7 @@ public sealed class RequiredFieldsValidatorTests
         };
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsValid);
@@ -438,7 +438,7 @@ public sealed class RequiredFieldsValidatorTests
         };
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsValid);
@@ -457,7 +457,7 @@ public sealed class RequiredFieldsValidatorTests
         };
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsValid);
@@ -476,7 +476,7 @@ public sealed class RequiredFieldsValidatorTests
         };
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsValid);
@@ -495,7 +495,7 @@ public sealed class RequiredFieldsValidatorTests
         var cts = new CancellationTokenSource();
 
         // Act
-        var result = await validator.ValidateAsync(message, cts.Token);
+        var result = await validator.ValidateAsync(message, cts.Token, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsValid);
@@ -511,7 +511,7 @@ public sealed class RequiredFieldsValidatorTests
         cts.Cancel();
 
         // Act
-        var result = await validator.ValidateAsync(message, cts.Token);
+        var result = await validator.ValidateAsync(message, cts.Token, TestContext.Current.CancellationToken);
 
         // Assert - No exception, validation completes
         Assert.True(result.IsValid);
@@ -529,8 +529,8 @@ public sealed class RequiredFieldsValidatorTests
         var message = TestMessageBuilder.CreateValidMessage();
 
         // Act
-        var result1 = await validator.ValidateAsync(message);
-        var result2 = await validator.ValidateAsync(message);
+        var result1 = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
+        var result2 = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result1.IsValid);
@@ -551,8 +551,8 @@ public sealed class RequiredFieldsValidatorTests
         };
 
         // Act
-        var result1 = await validator.ValidateAsync(validMessage);
-        var result2 = await validator.ValidateAsync(invalidMessage);
+        var result1 = await validator.ValidateAsync(validMessage, TestContext.Current.CancellationToken);
+        var result2 = await validator.ValidateAsync(invalidMessage, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result1.IsValid);
@@ -577,7 +577,7 @@ public sealed class RequiredFieldsValidatorTests
         };
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.IsValid);
@@ -598,7 +598,7 @@ public sealed class RequiredFieldsValidatorTests
         };
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsValid);

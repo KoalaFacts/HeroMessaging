@@ -19,7 +19,7 @@ public abstract class PostgreSqlIntegrationTestBase : IAsyncLifetime
             .WithPassword("postgres")
             .Build();
 
-        await Container.StartAsync();
+        await Container.StartAsync(TestContext.Current.CancellationToken);
 
         Options = new PostgreSqlStorageOptions
         {
@@ -33,8 +33,8 @@ public abstract class PostgreSqlIntegrationTestBase : IAsyncLifetime
     {
         if (Container != null)
         {
-            await Container.StopAsync();
-            await Container.DisposeAsync();
+            await Container.StopAsync(TestContext.Current.CancellationToken);
+            await Container.DisposeAsync(TestContext.Current.CancellationToken);
         }
     }
 

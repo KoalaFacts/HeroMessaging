@@ -52,7 +52,7 @@ public class TransportHealthCheckIntegrationTests : IAsyncDisposable
         var healthCheckService = serviceProvider.GetRequiredService<HealthCheckService>();
 
         // Act
-        var report = await healthCheckService.CheckHealthAsync();
+        var report = await healthCheckService.CheckHealthAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(report);
@@ -104,7 +104,7 @@ public class TransportHealthCheckIntegrationTests : IAsyncDisposable
         var healthCheckService = serviceProvider.GetRequiredService<HealthCheckService>();
 
         // Act
-        var report = await healthCheckService.CheckHealthAsync();
+        var report = await healthCheckService.CheckHealthAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(report);
@@ -154,7 +154,7 @@ public class TransportHealthCheckIntegrationTests : IAsyncDisposable
         var healthCheckService = serviceProvider.GetRequiredService<HealthCheckService>();
 
         // Act
-        var report = await healthCheckService.CheckHealthAsync();
+        var report = await healthCheckService.CheckHealthAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(report);
@@ -187,7 +187,7 @@ public class TransportHealthCheckIntegrationTests : IAsyncDisposable
         var healthCheckService = serviceProvider.GetRequiredService<HealthCheckService>();
 
         // Act
-        var report = await healthCheckService.CheckHealthAsync();
+        var report = await healthCheckService.CheckHealthAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(report);
@@ -220,7 +220,7 @@ public class TransportHealthCheckIntegrationTests : IAsyncDisposable
         var healthCheckService = serviceProvider.GetRequiredService<HealthCheckService>();
 
         // Act
-        var report = await healthCheckService.CheckHealthAsync();
+        var report = await healthCheckService.CheckHealthAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(report);
@@ -266,7 +266,7 @@ public class TransportHealthCheckIntegrationTests : IAsyncDisposable
         var healthCheckService = serviceProvider.GetRequiredService<HealthCheckService>();
 
         // Act
-        var report = await healthCheckService.CheckHealthAsync();
+        var report = await healthCheckService.CheckHealthAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(report);
@@ -281,7 +281,7 @@ public class TransportHealthCheckIntegrationTests : IAsyncDisposable
         {
             if (disposable != null)
             {
-                await disposable.DisposeAsync();
+                await disposable.DisposeAsync(TestContext.Current.CancellationToken);
             }
         }
         _disposables.Clear();

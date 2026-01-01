@@ -43,7 +43,7 @@ public sealed class InMemoryIdempotencyStoreTests
         var store = new InMemoryIdempotencyStore(timeProvider);
 
         // Act
-        var result = await store.GetAsync("non-existent-key");
+        var result = await store.GetAsync("non-existent-key", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result);
@@ -59,10 +59,10 @@ public sealed class InMemoryIdempotencyStoreTests
         var data = new { Value = 42 };
         var ttl = TimeSpan.FromHours(1);
 
-        await store.StoreSuccessAsync(key, data, ttl);
+        await store.StoreSuccessAsync(key, data, ttl, TestContext.Current.CancellationToken);
 
         // Act
-        var result = await store.GetAsync(key);
+        var result = await store.GetAsync(key, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -83,10 +83,10 @@ public sealed class InMemoryIdempotencyStoreTests
         var exception = new InvalidOperationException("Test error");
         var ttl = TimeSpan.FromMinutes(30);
 
-        await store.StoreFailureAsync(key, exception, ttl);
+        await store.StoreFailureAsync(key, exception, ttl, TestContext.Current.CancellationToken);
 
         // Act
-        var result = await store.GetAsync(key);
+        var result = await store.GetAsync(key, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -106,13 +106,13 @@ public sealed class InMemoryIdempotencyStoreTests
         var key = "test-key";
         var ttl = TimeSpan.FromHours(1);
 
-        await store.StoreSuccessAsync(key, "data", ttl);
+        await store.StoreSuccessAsync(key, "data", ttl, TestContext.Current.CancellationToken);
 
         // Advance time beyond TTL
         timeProvider.Advance(TimeSpan.FromHours(2));
 
         // Act
-        var result = await store.GetAsync(key);
+        var result = await store.GetAsync(key, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result);
@@ -127,12 +127,12 @@ public sealed class InMemoryIdempotencyStoreTests
         var key = "test-key";
         var ttl = TimeSpan.FromMinutes(30);
 
-        await store.StoreSuccessAsync(key, "data", ttl);
+        await store.StoreSuccessAsync(key, "data", ttl, TestContext.Current.CancellationToken);
         timeProvider.Advance(TimeSpan.FromHours(1));
 
         // Act
-        var result1 = await store.GetAsync(key);
-        var exists = await store.ExistsAsync(key);
+        var result1 = await store.GetAsync(key, TestContext.Current.CancellationToken);
+        var exists = await store.ExistsAsync(key, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result1);
@@ -148,11 +148,11 @@ public sealed class InMemoryIdempotencyStoreTests
         var key = "test-key";
         var ttl = TimeSpan.FromHours(1);
 
-        await store.StoreSuccessAsync(key, "data", ttl);
+        await store.StoreSuccessAsync(key, "data", ttl, TestContext.Current.CancellationToken);
         timeProvider.Advance(ttl); // Exactly at expiry
 
         // Act
-        var result = await store.GetAsync(key);
+        var result = await store.GetAsync(key, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result);
@@ -167,11 +167,11 @@ public sealed class InMemoryIdempotencyStoreTests
         var key = "test-key";
         var ttl = TimeSpan.FromHours(1);
 
-        await store.StoreSuccessAsync(key, "data", ttl);
+        await store.StoreSuccessAsync(key, "data", ttl, TestContext.Current.CancellationToken);
         timeProvider.Advance(ttl - TimeSpan.FromMilliseconds(1));
 
         // Act
-        var result = await store.GetAsync(key);
+        var result = await store.GetAsync(key, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -222,8 +222,8 @@ public sealed class InMemoryIdempotencyStoreTests
         var ttl = TimeSpan.FromHours(24);
 
         // Act
-        await store.StoreSuccessAsync(key, result, ttl);
-        var retrieved = await store.GetAsync(key);
+        await store.StoreSuccessAsync(key, result, ttl, TestContext.Current.CancellationToken);
+        var retrieved = await store.GetAsync(key, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(retrieved);
@@ -242,8 +242,8 @@ public sealed class InMemoryIdempotencyStoreTests
         var ttl = TimeSpan.FromHours(1);
 
         // Act
-        await store.StoreSuccessAsync(key, null, ttl);
-        var retrieved = await store.GetAsync(key);
+        await store.StoreSuccessAsync(key, null, ttl, TestContext.Current.CancellationToken);
+        var retrieved = await store.GetAsync(key, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(retrieved);
@@ -263,8 +263,8 @@ public sealed class InMemoryIdempotencyStoreTests
         var expectedExpiresAt = expectedStoredAt.Add(ttl);
 
         // Act
-        await store.StoreSuccessAsync(key, "data", ttl);
-        var retrieved = await store.GetAsync(key);
+        await store.StoreSuccessAsync(key, "data", ttl, TestContext.Current.CancellationToken);
+        var retrieved = await store.GetAsync(key, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(retrieved);
@@ -284,9 +284,9 @@ public sealed class InMemoryIdempotencyStoreTests
         var ttl = TimeSpan.FromHours(1);
 
         // Act
-        await store.StoreSuccessAsync(key, firstData, ttl);
-        await store.StoreSuccessAsync(key, secondData, ttl);
-        var retrieved = await store.GetAsync(key);
+        await store.StoreSuccessAsync(key, firstData, ttl, TestContext.Current.CancellationToken);
+        await store.StoreSuccessAsync(key, secondData, ttl, TestContext.Current.CancellationToken);
+        var retrieved = await store.GetAsync(key, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(retrieved);
@@ -346,8 +346,8 @@ public sealed class InMemoryIdempotencyStoreTests
         var ttl = TimeSpan.FromMinutes(30);
 
         // Act
-        await store.StoreFailureAsync(key, exception, ttl);
-        var retrieved = await store.GetAsync(key);
+        await store.StoreFailureAsync(key, exception, ttl, TestContext.Current.CancellationToken);
+        var retrieved = await store.GetAsync(key, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(retrieved);
@@ -369,8 +369,8 @@ public sealed class InMemoryIdempotencyStoreTests
         var ttl = TimeSpan.FromMinutes(30);
 
         // Act
-        await store.StoreFailureAsync(key, exception, ttl);
-        var retrieved = await store.GetAsync(key);
+        await store.StoreFailureAsync(key, exception, ttl, TestContext.Current.CancellationToken);
+        var retrieved = await store.GetAsync(key, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(retrieved);
@@ -390,8 +390,8 @@ public sealed class InMemoryIdempotencyStoreTests
         var expectedExpiresAt = expectedStoredAt.Add(ttl);
 
         // Act
-        await store.StoreFailureAsync(key, exception, ttl);
-        var retrieved = await store.GetAsync(key);
+        await store.StoreFailureAsync(key, exception, ttl, TestContext.Current.CancellationToken);
+        var retrieved = await store.GetAsync(key, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(retrieved);
@@ -454,7 +454,7 @@ public sealed class InMemoryIdempotencyStoreTests
         var store = new InMemoryIdempotencyStore(timeProvider);
 
         // Act
-        var exists = await store.ExistsAsync("non-existent");
+        var exists = await store.ExistsAsync("non-existent", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(exists);
@@ -468,10 +468,10 @@ public sealed class InMemoryIdempotencyStoreTests
         var store = new InMemoryIdempotencyStore(timeProvider);
         var key = "test-key";
 
-        await store.StoreSuccessAsync(key, "data", TimeSpan.FromHours(1));
+        await store.StoreSuccessAsync(key, "data", TimeSpan.FromHours(1, TestContext.Current.CancellationToken));
 
         // Act
-        var exists = await store.ExistsAsync(key);
+        var exists = await store.ExistsAsync(key, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(exists);
@@ -486,11 +486,11 @@ public sealed class InMemoryIdempotencyStoreTests
         var key = "test-key";
         var ttl = TimeSpan.FromMinutes(30);
 
-        await store.StoreSuccessAsync(key, "data", ttl);
+        await store.StoreSuccessAsync(key, "data", ttl, TestContext.Current.CancellationToken);
         timeProvider.Advance(TimeSpan.FromHours(1));
 
         // Act
-        var exists = await store.ExistsAsync(key);
+        var exists = await store.ExistsAsync(key, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(exists);
@@ -504,12 +504,12 @@ public sealed class InMemoryIdempotencyStoreTests
         var store = new InMemoryIdempotencyStore(timeProvider);
         var key = "test-key";
 
-        await store.StoreSuccessAsync(key, "data", TimeSpan.FromMinutes(10));
+        await store.StoreSuccessAsync(key, "data", TimeSpan.FromMinutes(10, TestContext.Current.CancellationToken));
         timeProvider.Advance(TimeSpan.FromMinutes(15));
 
         // Act
-        var exists1 = await store.ExistsAsync(key);
-        var exists2 = await store.ExistsAsync(key);
+        var exists1 = await store.ExistsAsync(key, TestContext.Current.CancellationToken);
+        var exists2 = await store.ExistsAsync(key, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(exists1);
@@ -556,7 +556,7 @@ public sealed class InMemoryIdempotencyStoreTests
         var store = new InMemoryIdempotencyStore(timeProvider);
 
         // Act
-        var count = await store.CleanupExpiredAsync();
+        var count = await store.CleanupExpiredAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(0, count);
@@ -569,11 +569,11 @@ public sealed class InMemoryIdempotencyStoreTests
         var timeProvider = new FakeTimeProvider();
         var store = new InMemoryIdempotencyStore(timeProvider);
 
-        await store.StoreSuccessAsync("key1", "data1", TimeSpan.FromHours(1));
-        await store.StoreSuccessAsync("key2", "data2", TimeSpan.FromHours(2));
+        await store.StoreSuccessAsync("key1", "data1", TimeSpan.FromHours(1, TestContext.Current.CancellationToken));
+        await store.StoreSuccessAsync("key2", "data2", TimeSpan.FromHours(2, TestContext.Current.CancellationToken));
 
         // Act
-        var count = await store.CleanupExpiredAsync();
+        var count = await store.CleanupExpiredAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(0, count);
@@ -586,18 +586,18 @@ public sealed class InMemoryIdempotencyStoreTests
         var timeProvider = new FakeTimeProvider();
         var store = new InMemoryIdempotencyStore(timeProvider);
 
-        await store.StoreSuccessAsync("key1", "data1", TimeSpan.FromMinutes(30));
-        await store.StoreSuccessAsync("key2", "data2", TimeSpan.FromMinutes(45));
+        await store.StoreSuccessAsync("key1", "data1", TimeSpan.FromMinutes(30, TestContext.Current.CancellationToken));
+        await store.StoreSuccessAsync("key2", "data2", TimeSpan.FromMinutes(45, TestContext.Current.CancellationToken));
 
         timeProvider.Advance(TimeSpan.FromHours(1));
 
         // Act
-        var count = await store.CleanupExpiredAsync();
+        var count = await store.CleanupExpiredAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(2, count);
-        Assert.False(await store.ExistsAsync("key1"));
-        Assert.False(await store.ExistsAsync("key2"));
+        Assert.False(await store.ExistsAsync("key1", TestContext.Current.CancellationToken));
+        Assert.False(await store.ExistsAsync("key2", TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -607,22 +607,22 @@ public sealed class InMemoryIdempotencyStoreTests
         var timeProvider = new FakeTimeProvider();
         var store = new InMemoryIdempotencyStore(timeProvider);
 
-        await store.StoreSuccessAsync("expired1", "data1", TimeSpan.FromMinutes(30));
-        await store.StoreSuccessAsync("expired2", "data2", TimeSpan.FromMinutes(45));
-        await store.StoreSuccessAsync("valid1", "data3", TimeSpan.FromHours(2));
-        await store.StoreSuccessAsync("valid2", "data4", TimeSpan.FromHours(3));
+        await store.StoreSuccessAsync("expired1", "data1", TimeSpan.FromMinutes(30, TestContext.Current.CancellationToken));
+        await store.StoreSuccessAsync("expired2", "data2", TimeSpan.FromMinutes(45, TestContext.Current.CancellationToken));
+        await store.StoreSuccessAsync("valid1", "data3", TimeSpan.FromHours(2, TestContext.Current.CancellationToken));
+        await store.StoreSuccessAsync("valid2", "data4", TimeSpan.FromHours(3, TestContext.Current.CancellationToken));
 
         timeProvider.Advance(TimeSpan.FromHours(1));
 
         // Act
-        var count = await store.CleanupExpiredAsync();
+        var count = await store.CleanupExpiredAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(2, count);
-        Assert.False(await store.ExistsAsync("expired1"));
-        Assert.False(await store.ExistsAsync("expired2"));
-        Assert.True(await store.ExistsAsync("valid1"));
-        Assert.True(await store.ExistsAsync("valid2"));
+        Assert.False(await store.ExistsAsync("expired1", TestContext.Current.CancellationToken));
+        Assert.False(await store.ExistsAsync("expired2", TestContext.Current.CancellationToken));
+        Assert.True(await store.ExistsAsync("valid1", TestContext.Current.CancellationToken));
+        Assert.True(await store.ExistsAsync("valid2", TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -633,15 +633,15 @@ public sealed class InMemoryIdempotencyStoreTests
         var store = new InMemoryIdempotencyStore(timeProvider);
         var ttl = TimeSpan.FromMinutes(30);
 
-        await store.StoreSuccessAsync("key1", "data1", ttl);
+        await store.StoreSuccessAsync("key1", "data1", ttl, TestContext.Current.CancellationToken);
         timeProvider.Advance(ttl); // Exactly at expiry
 
         // Act
-        var count = await store.CleanupExpiredAsync();
+        var count = await store.CleanupExpiredAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(1, count);
-        Assert.False(await store.ExistsAsync("key1"));
+        Assert.False(await store.ExistsAsync("key1", TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -651,29 +651,29 @@ public sealed class InMemoryIdempotencyStoreTests
         var timeProvider = new FakeTimeProvider();
         var store = new InMemoryIdempotencyStore(timeProvider);
 
-        await store.StoreSuccessAsync("key1", "data1", TimeSpan.FromMinutes(10));
-        await store.StoreSuccessAsync("key2", "data2", TimeSpan.FromMinutes(20));
-        await store.StoreSuccessAsync("key3", "data3", TimeSpan.FromMinutes(30));
+        await store.StoreSuccessAsync("key1", "data1", TimeSpan.FromMinutes(10, TestContext.Current.CancellationToken));
+        await store.StoreSuccessAsync("key2", "data2", TimeSpan.FromMinutes(20, TestContext.Current.CancellationToken));
+        await store.StoreSuccessAsync("key3", "data3", TimeSpan.FromMinutes(30, TestContext.Current.CancellationToken));
 
         // Act & Assert - First cleanup
         timeProvider.Advance(TimeSpan.FromMinutes(15));
-        var count1 = await store.CleanupExpiredAsync();
+        var count1 = await store.CleanupExpiredAsync(TestContext.Current.CancellationToken);
         Assert.Equal(1, count1);
 
         // Act & Assert - Second cleanup
         timeProvider.Advance(TimeSpan.FromMinutes(10));
-        var count2 = await store.CleanupExpiredAsync();
+        var count2 = await store.CleanupExpiredAsync(TestContext.Current.CancellationToken);
         Assert.Equal(1, count2);
 
         // Act & Assert - Third cleanup
         timeProvider.Advance(TimeSpan.FromMinutes(10));
-        var count3 = await store.CleanupExpiredAsync();
+        var count3 = await store.CleanupExpiredAsync(TestContext.Current.CancellationToken);
         Assert.Equal(1, count3);
 
         // Verify all removed
-        Assert.False(await store.ExistsAsync("key1"));
-        Assert.False(await store.ExistsAsync("key2"));
-        Assert.False(await store.ExistsAsync("key3"));
+        Assert.False(await store.ExistsAsync("key1", TestContext.Current.CancellationToken));
+        Assert.False(await store.ExistsAsync("key2", TestContext.Current.CancellationToken));
+        Assert.False(await store.ExistsAsync("key3", TestContext.Current.CancellationToken));
     }
 
     #endregion
@@ -694,7 +694,7 @@ public sealed class InMemoryIdempotencyStoreTests
             var index = i;
             tasks.Add(Task.Run(async () =>
             {
-                await store.StoreSuccessAsync($"key-{index}", $"data-{index}", TimeSpan.FromHours(1));
+                await store.StoreSuccessAsync($"key-{index}", $"data-{index}", TimeSpan.FromHours(1, TestContext.Current.CancellationToken));
             }));
         }
 
@@ -708,7 +708,7 @@ public sealed class InMemoryIdempotencyStoreTests
             var index = i;
             tasks.Add(Task.Run(async () =>
             {
-                results[index] = await store.GetAsync($"key-{index}");
+                results[index] = await store.GetAsync($"key-{index}", TestContext.Current.CancellationToken);
             }));
         }
 
@@ -736,11 +736,11 @@ public sealed class InMemoryIdempotencyStoreTests
         var key = "duplicate-key";
 
         // Act
-        await store.StoreSuccessAsync(key, "first", TimeSpan.FromHours(1));
-        await store.StoreSuccessAsync(key, "second", TimeSpan.FromHours(1));
-        await store.StoreSuccessAsync(key, "third", TimeSpan.FromHours(1));
+        await store.StoreSuccessAsync(key, "first", TimeSpan.FromHours(1, TestContext.Current.CancellationToken));
+        await store.StoreSuccessAsync(key, "second", TimeSpan.FromHours(1, TestContext.Current.CancellationToken));
+        await store.StoreSuccessAsync(key, "third", TimeSpan.FromHours(1, TestContext.Current.CancellationToken));
 
-        var result = await store.GetAsync(key);
+        var result = await store.GetAsync(key, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -756,10 +756,10 @@ public sealed class InMemoryIdempotencyStoreTests
         var key = "test-key";
 
         // Act
-        await store.StoreSuccessAsync(key, "success-data", TimeSpan.FromHours(1));
+        await store.StoreSuccessAsync(key, "success-data", TimeSpan.FromHours(1, TestContext.Current.CancellationToken));
         await store.StoreFailureAsync(key, new Exception("Error"), TimeSpan.FromMinutes(30));
 
-        var result = await store.GetAsync(key);
+        var result = await store.GetAsync(key, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -777,10 +777,10 @@ public sealed class InMemoryIdempotencyStoreTests
         var ttl = TimeSpan.FromMilliseconds(100);
 
         // Act
-        await store.StoreSuccessAsync(key, "data", ttl);
+        await store.StoreSuccessAsync(key, "data", ttl, TestContext.Current.CancellationToken);
         timeProvider.Advance(TimeSpan.FromMilliseconds(101));
 
-        var result = await store.GetAsync(key);
+        var result = await store.GetAsync(key, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result);
@@ -796,10 +796,10 @@ public sealed class InMemoryIdempotencyStoreTests
         var ttl = TimeSpan.FromDays(365);
 
         // Act
-        await store.StoreSuccessAsync(key, "data", ttl);
+        await store.StoreSuccessAsync(key, "data", ttl, TestContext.Current.CancellationToken);
         timeProvider.Advance(TimeSpan.FromDays(364));
 
-        var result = await store.GetAsync(key);
+        var result = await store.GetAsync(key, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);

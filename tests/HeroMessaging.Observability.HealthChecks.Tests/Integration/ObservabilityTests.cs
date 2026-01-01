@@ -28,7 +28,7 @@ public class ObservabilityTests : IAsyncDisposable
         healthCheckRegistry.RegisterHealthCheck("MessageProcessor", messageProcessorCheck);
         healthCheckRegistry.RegisterHealthCheck("Storage", storageHealthCheck);
 
-        var healthReport = await healthCheckRegistry.ExecuteHealthChecksAsync();
+        var healthReport = await healthCheckRegistry.ExecuteHealthChecksAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(healthReport);
@@ -54,7 +54,7 @@ public class ObservabilityTests : IAsyncDisposable
         healthCheckRegistry.RegisterHealthCheck("Healthy", healthyCheck);
         healthCheckRegistry.RegisterHealthCheck("Unhealthy", unhealthyCheck);
 
-        var healthReport = await healthCheckRegistry.ExecuteHealthChecksAsync();
+        var healthReport = await healthCheckRegistry.ExecuteHealthChecksAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HealthStatus.Unhealthy, healthReport.OverallStatus);
@@ -80,7 +80,7 @@ public class ObservabilityTests : IAsyncDisposable
         // Act
         foreach (var message in messages)
         {
-            await messageProcessor.ProcessAsync(message);
+            await messageProcessor.ProcessAsync(message, TestContext.Current.CancellationToken);
         }
 
         // Simulate processing time
@@ -112,7 +112,7 @@ public class ObservabilityTests : IAsyncDisposable
         var message = TestMessageBuilder.CreateValidMessage("Tracing test");
 
         // Act
-        await messageProcessor.ProcessAsync(message);
+        await messageProcessor.ProcessAsync(message, TestContext.Current.CancellationToken);
 
         var traces = tracer.GetCollectedTraces();
 
@@ -175,7 +175,7 @@ public class ObservabilityTests : IAsyncDisposable
         {
             try
             {
-                await failingProcessor.ProcessAsync(message);
+                await failingProcessor.ProcessAsync(message, TestContext.Current.CancellationToken);
             }
             catch (InvalidOperationException)
             {
@@ -211,8 +211,8 @@ public class ObservabilityTests : IAsyncDisposable
         // Act
         var traceContext = tracer.StartTrace("DistributedOperation");
 
-        await processor1.ProcessAsync(message, traceContext);
-        await processor2.ProcessAsync(message, traceContext);
+        await processor1.ProcessAsync(message, traceContext, TestContext.Current.CancellationToken);
+        await processor2.ProcessAsync(message, traceContext, TestContext.Current.CancellationToken);
 
         tracer.FinishTrace(traceContext);
 
@@ -246,7 +246,7 @@ public class ObservabilityTests : IAsyncDisposable
             await Task.Delay(10, TestContext.Current.CancellationToken);
         }
 
-        var aggregatedMetrics = await metricsAggregator.GetAggregatedMetricsAsync(TimeSpan.FromSeconds(1));
+        var aggregatedMetrics = await metricsAggregator.GetAggregatedMetricsAsync(TimeSpan.FromSeconds(1, TestContext.Current.CancellationToken));
 
         // Assert
         Assert.NotNull(aggregatedMetrics);
@@ -311,7 +311,7 @@ public class ObservabilityTests : IAsyncDisposable
         _disposables.Add(observabilityProvider);
 
         // Act
-        await observabilityProvider.InitializeAsync();
+        await observabilityProvider.InitializeAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(observabilityProvider.IsMetricsEnabled);
@@ -325,7 +325,7 @@ public class ObservabilityTests : IAsyncDisposable
     {
         foreach (var disposable in _disposables)
         {
-            await disposable.DisposeAsync();
+            await disposable.DisposeAsync(TestContext.Current.CancellationToken);
         }
     }
 
@@ -345,7 +345,7 @@ public class ObservabilityTests : IAsyncDisposable
 
             foreach (var kvp in _healthChecks)
             {
-                var result = await kvp.Value.CheckHealthAsync();
+                var result = await kvp.Value.CheckHealthAsync(TestContext.Current.CancellationToken);
                 entries[kvp.Key] = new HealthEntry
                 {
                     Status = result.Status,

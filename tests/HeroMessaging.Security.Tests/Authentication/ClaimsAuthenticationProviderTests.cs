@@ -206,7 +206,7 @@ public sealed class ClaimsAuthenticationProviderTests
         var credentials = new AuthenticationCredentials("ApiKey", apiKey);
 
         // Act
-        var result = await provider.AuthenticateAsync(credentials);
+        var result = await provider.AuthenticateAsync(credentials, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -223,7 +223,7 @@ public sealed class ClaimsAuthenticationProviderTests
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<ArgumentNullException>(
-            () => provider.AuthenticateAsync(null!));
+            () => provider.AuthenticateAsync(null!, TestContext.Current.CancellationToken));
         Assert.Equal("credentials", ex.ParamName);
     }
 
@@ -242,7 +242,7 @@ public sealed class ClaimsAuthenticationProviderTests
         var wrongSchemeCredentials = new AuthenticationCredentials("Bearer", apiKey);
 
         // Act
-        var result = await provider.AuthenticateAsync(wrongSchemeCredentials);
+        var result = await provider.AuthenticateAsync(wrongSchemeCredentials, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result);
@@ -263,7 +263,7 @@ public sealed class ClaimsAuthenticationProviderTests
         var unknownKeyCredentials = new AuthenticationCredentials("ApiKey", "unknown-key");
 
         // Act
-        var result = await provider.AuthenticateAsync(unknownKeyCredentials);
+        var result = await provider.AuthenticateAsync(unknownKeyCredentials, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result);
@@ -286,7 +286,7 @@ public sealed class ClaimsAuthenticationProviderTests
         var credentials = new AuthenticationCredentials("CustomScheme", apiKey);
 
         // Act
-        var result = await provider.AuthenticateAsync(credentials);
+        var result = await provider.AuthenticateAsync(credentials, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -310,7 +310,7 @@ public sealed class ClaimsAuthenticationProviderTests
         var lowerCaseCredentials = new AuthenticationCredentials("ApiKey", "testkey123");
 
         // Act
-        var result = await provider.AuthenticateAsync(lowerCaseCredentials);
+        var result = await provider.AuthenticateAsync(lowerCaseCredentials, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result); // Should not match due to case sensitivity
@@ -334,7 +334,7 @@ public sealed class ClaimsAuthenticationProviderTests
         provider.RegisterApiKey(token, principal);
 
         // Act
-        var result = await provider.ValidateTokenAsync(token);
+        var result = await provider.ValidateTokenAsync(token, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -349,7 +349,7 @@ public sealed class ClaimsAuthenticationProviderTests
         var provider = new ClaimsAuthenticationProvider();
 
         // Act
-        var result = await provider.ValidateTokenAsync(null!);
+        var result = await provider.ValidateTokenAsync(null!, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result);
@@ -363,7 +363,7 @@ public sealed class ClaimsAuthenticationProviderTests
         var provider = new ClaimsAuthenticationProvider();
 
         // Act
-        var result = await provider.ValidateTokenAsync("");
+        var result = await provider.ValidateTokenAsync("", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result);
@@ -377,7 +377,7 @@ public sealed class ClaimsAuthenticationProviderTests
         var provider = new ClaimsAuthenticationProvider();
 
         // Act
-        var result = await provider.ValidateTokenAsync("   ");
+        var result = await provider.ValidateTokenAsync("   ", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result);
@@ -396,7 +396,7 @@ public sealed class ClaimsAuthenticationProviderTests
         provider.RegisterApiKey(token, principal);
 
         // Act
-        var result = await provider.ValidateTokenAsync("unknown-token");
+        var result = await provider.ValidateTokenAsync("unknown-token", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result);
@@ -415,7 +415,7 @@ public sealed class ClaimsAuthenticationProviderTests
         provider.RegisterApiKey(token, principal);
 
         // Act
-        var result = await provider.ValidateTokenAsync("mytoken123");
+        var result = await provider.ValidateTokenAsync("mytoken123", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result); // Should not match due to case sensitivity
@@ -446,8 +446,8 @@ public sealed class ClaimsAuthenticationProviderTests
         provider.RegisterApiKey(key2, principal2);
 
         // Act
-        var result1 = await provider.ValidateTokenAsync(key1);
-        var result2 = await provider.ValidateTokenAsync(key2);
+        var result1 = await provider.ValidateTokenAsync(key1, TestContext.Current.CancellationToken);
+        var result2 = await provider.ValidateTokenAsync(key2, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result1);
@@ -470,7 +470,7 @@ public sealed class ClaimsAuthenticationProviderTests
         provider.RegisterApiKey(key2, "User2", []);
 
         // Act
-        var result = await provider.ValidateTokenAsync("invalid-key");
+        var result = await provider.ValidateTokenAsync("invalid-key", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result);
@@ -499,7 +499,7 @@ public sealed class ClaimsAuthenticationProviderTests
         provider.RegisterApiKey(apiKey, "John Doe", claims);
 
         // Act
-        var result = await provider.ValidateTokenAsync(apiKey);
+        var result = await provider.ValidateTokenAsync(apiKey, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -519,7 +519,7 @@ public sealed class ClaimsAuthenticationProviderTests
 
         // Act & Assert - Should not throw, empty claims should be handled
         provider.RegisterApiKey(apiKey, "TestUser", []);
-        var result = await provider.ValidateTokenAsync(apiKey);
+        var result = await provider.ValidateTokenAsync(apiKey, TestContext.Current.CancellationToken);
 
         Assert.NotNull(result);
     }
@@ -539,7 +539,7 @@ public sealed class ClaimsAuthenticationProviderTests
 
         // Act
         provider.RegisterApiKey(apiKey, "TestUser", claims);
-        var result = await provider.ValidateTokenAsync(apiKey);
+        var result = await provider.ValidateTokenAsync(apiKey, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -568,7 +568,7 @@ public sealed class ClaimsAuthenticationProviderTests
         var cts = new CancellationTokenSource();
 
         // Act
-        var result = await provider.AuthenticateAsync(credentials, cts.Token);
+        var result = await provider.AuthenticateAsync(credentials, cts.Token, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -588,7 +588,7 @@ public sealed class ClaimsAuthenticationProviderTests
         var cts = new CancellationTokenSource();
 
         // Act
-        var result = await provider.ValidateTokenAsync(token, cts.Token);
+        var result = await provider.ValidateTokenAsync(token, cts.Token, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -613,7 +613,7 @@ public sealed class ClaimsAuthenticationProviderTests
         var credentials = new AuthenticationCredentials("ApiKey", apiKey);
 
         // Act
-        var result = await provider.AuthenticateAsync(credentials);
+        var result = await provider.AuthenticateAsync(credentials, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -634,7 +634,7 @@ public sealed class ClaimsAuthenticationProviderTests
         var credentials = new AuthenticationCredentials("ApiKey", apiKey);
 
         // Act
-        var result = await provider.AuthenticateAsync(credentials);
+        var result = await provider.AuthenticateAsync(credentials, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -653,7 +653,7 @@ public sealed class ClaimsAuthenticationProviderTests
         provider.RegisterApiKey(token, principal);
 
         // Act
-        var result = await provider.ValidateTokenAsync(token);
+        var result = await provider.ValidateTokenAsync(token, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);

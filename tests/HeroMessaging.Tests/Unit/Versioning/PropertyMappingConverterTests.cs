@@ -165,7 +165,7 @@ public sealed class PropertyMappingConverterTests
         var message = new TestMessage { MessageId = Guid.NewGuid() };
 
         // Act
-        var result = await converter.ConvertAsync(message, version, version);
+        var result = await converter.ConvertAsync(message, version, version, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Same(message, result);
@@ -182,7 +182,7 @@ public sealed class PropertyMappingConverterTests
         var message = new TestMessage { MessageId = Guid.NewGuid() };
 
         // Act
-        var result = await converter.ConvertAsync(message, fromVersion, toVersion);
+        var result = await converter.ConvertAsync(message, fromVersion, toVersion, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Same(message, result);
@@ -199,7 +199,7 @@ public sealed class PropertyMappingConverterTests
         var message = new TestMessage { MessageId = Guid.NewGuid() };
 
         // Act
-        var result = await converter.ConvertAsync(message, fromVersion, toVersion);
+        var result = await converter.ConvertAsync(message, fromVersion, toVersion, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -222,7 +222,7 @@ public sealed class PropertyMappingConverterTests
         var message = new TestMessage { MessageId = Guid.NewGuid() };
 
         // Act
-        var result = await converter.ConvertAsync(message, fromVersion, toVersion);
+        var result = await converter.ConvertAsync(message, fromVersion, toVersion, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -241,7 +241,7 @@ public sealed class PropertyMappingConverterTests
         var message = new TestMessage { MessageId = messageId };
 
         // Act
-        var result = await converter.ConvertAsync(message, fromVersion, toVersion);
+        var result = await converter.ConvertAsync(message, fromVersion, toVersion, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(messageId, result.MessageId);
@@ -262,7 +262,7 @@ public sealed class PropertyMappingConverterTests
         };
 
         // Act
-        var result = await converter.ConvertAsync(message, fromVersion, toVersion);
+        var result = await converter.ConvertAsync(message, fromVersion, toVersion, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result.Metadata);
@@ -285,7 +285,7 @@ public sealed class PropertyMappingConverterTests
         };
 
         // Act
-        var result = await converter.ConvertAsync(message, fromVersion, toVersion);
+        var result = await converter.ConvertAsync(message, fromVersion, toVersion, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(correlationId, result.CorrelationId);
@@ -307,7 +307,7 @@ public sealed class PropertyMappingConverterTests
         };
 
         // Act
-        var result = await converter.ConvertAsync(message, fromVersion, toVersion);
+        var result = await converter.ConvertAsync(message, fromVersion, toVersion, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(causationId, result.CausationId);
@@ -326,7 +326,7 @@ public sealed class PropertyMappingConverterTests
         cts.Cancel();
 
         // Act & Assert - Converter completes synchronously, so cancellation won't throw
-        var result = await converter.ConvertAsync(message, fromVersion, toVersion, cts.Token);
+        var result = await converter.ConvertAsync(message, fromVersion, toVersion, cts.Token, TestContext.Current.CancellationToken);
         Assert.NotNull(result);
     }
 
@@ -369,7 +369,7 @@ public sealed class PropertyMappingConverterTests
         };
 
         // Act
-        var result = await converter.ConvertAsync(message, fromVersion, toVersion);
+        var result = await converter.ConvertAsync(message, fromVersion, toVersion, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result.Metadata);
@@ -390,7 +390,7 @@ public sealed class PropertyMappingConverterTests
         };
 
         // Act
-        var result = await converter.ConvertAsync(message, fromVersion, toVersion);
+        var result = await converter.ConvertAsync(message, fromVersion, toVersion, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result.Metadata);
@@ -422,7 +422,7 @@ public sealed class PropertyMappingConverterTests
         var message = new TestMessage { MessageId = Guid.NewGuid() };
 
         // Act
-        var result = await converter.ConvertAsync(message, fromVersion, toVersion);
+        var result = await converter.ConvertAsync(message, fromVersion, toVersion, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -444,7 +444,7 @@ public sealed class PropertyMappingConverterTests
         var message = new TestMessage { MessageId = Guid.NewGuid() };
 
         // Act
-        var result = await converter.ConvertAsync(message, fromVersion, toVersion);
+        var result = await converter.ConvertAsync(message, fromVersion, toVersion, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -489,7 +489,7 @@ public sealed class PropertyMappingConverterTests
         var message = new TestMessage { MessageId = Guid.NewGuid() };
 
         // Act
-        var result = await converter.ConvertAsync(message, fromVersion, toVersion);
+        var result = await converter.ConvertAsync(message, fromVersion, toVersion, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -508,7 +508,7 @@ public sealed class PropertyMappingConverterTests
         var message = new TestMessage { MessageId = Guid.NewGuid() };
 
         // Act - Convert from version 2.0.0 (within range) to version 1.0.0 (within range)
-        var result = await converter.ConvertAsync(message, maxVersion, minVersion);
+        var result = await converter.ConvertAsync(message, maxVersion, minVersion, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);

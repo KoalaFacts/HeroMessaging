@@ -107,7 +107,7 @@ public sealed class PostgreSqlMessageStorageTests : IDisposable
         var options = new MessageStorageOptions { Collection = "test" };
 
         // Act
-        var messageId = await storage.StoreAsync(message, options);
+        var messageId = await storage.StoreAsync(message, options, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(messageId);
@@ -122,7 +122,7 @@ public sealed class PostgreSqlMessageStorageTests : IDisposable
         var message = CreateTestMessage();
 
         // Act
-        var messageId = await storage.StoreAsync(message, (MessageStorageOptions?)null);
+        var messageId = await storage.StoreAsync(message, (MessageStorageOptions?)null, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(messageId);
@@ -139,7 +139,7 @@ public sealed class PostgreSqlMessageStorageTests : IDisposable
         var options = new MessageStorageOptions { Ttl = ttl };
 
         // Act
-        var messageId = await storage.StoreAsync(message, options);
+        var messageId = await storage.StoreAsync(message, options, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(messageId);
@@ -154,7 +154,7 @@ public sealed class PostgreSqlMessageStorageTests : IDisposable
         var options = new MessageStorageOptions { Ttl = null };
 
         // Act
-        var messageId = await storage.StoreAsync(message, options);
+        var messageId = await storage.StoreAsync(message, options, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(messageId);
@@ -168,7 +168,7 @@ public sealed class PostgreSqlMessageStorageTests : IDisposable
         var messageId = Guid.NewGuid().ToString();
 
         // Act
-        var result = await storage.RetrieveAsync<IMessage>(messageId);
+        var result = await storage.RetrieveAsync<IMessage>(messageId, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result); // No data with mocked connection
@@ -182,7 +182,7 @@ public sealed class PostgreSqlMessageStorageTests : IDisposable
         var messageId = Guid.NewGuid().ToString();
 
         // Act
-        var result = await storage.RetrieveAsync<IMessage>(messageId);
+        var result = await storage.RetrieveAsync<IMessage>(messageId, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result);
@@ -196,7 +196,7 @@ public sealed class PostgreSqlMessageStorageTests : IDisposable
         var messageId = Guid.NewGuid().ToString();
 
         // Act
-        var result = await storage.DeleteAsync(messageId);
+        var result = await storage.DeleteAsync(messageId, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);
@@ -210,7 +210,7 @@ public sealed class PostgreSqlMessageStorageTests : IDisposable
         var messageId = Guid.NewGuid().ToString();
 
         // Act
-        var result = await storage.DeleteAsync(messageId);
+        var result = await storage.DeleteAsync(messageId, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);
@@ -224,7 +224,7 @@ public sealed class PostgreSqlMessageStorageTests : IDisposable
         var messageId = Guid.NewGuid().ToString();
 
         // Act
-        var result = await storage.ExistsAsync(messageId);
+        var result = await storage.ExistsAsync(messageId, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);
@@ -238,7 +238,7 @@ public sealed class PostgreSqlMessageStorageTests : IDisposable
         var messageId = Guid.NewGuid().ToString();
 
         // Act
-        var result = await storage.ExistsAsync(messageId);
+        var result = await storage.ExistsAsync(messageId, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);
@@ -252,7 +252,7 @@ public sealed class PostgreSqlMessageStorageTests : IDisposable
         var messageId = Guid.NewGuid().ToString();
 
         // Act
-        var result = await storage.ExistsAsync(messageId);
+        var result = await storage.ExistsAsync(messageId, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);
@@ -266,7 +266,7 @@ public sealed class PostgreSqlMessageStorageTests : IDisposable
         var query = new MessageQuery { Collection = "test", Limit = 100 };
 
         // Act
-        var result = await storage.QueryAsync<IMessage>(query);
+        var result = await storage.QueryAsync<IMessage>(query, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -281,7 +281,7 @@ public sealed class PostgreSqlMessageStorageTests : IDisposable
         var query = new MessageQuery { Limit = 100 };
 
         // Act
-        var result = await storage.QueryAsync<IMessage>(query);
+        var result = await storage.QueryAsync<IMessage>(query, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -297,7 +297,7 @@ public sealed class PostgreSqlMessageStorageTests : IDisposable
         var query = new MessageQuery { FromTimestamp = from, ToTimestamp = to, Limit = 100 };
 
         // Act
-        var result = await storage.QueryAsync<IMessage>(query);
+        var result = await storage.QueryAsync<IMessage>(query, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -311,7 +311,7 @@ public sealed class PostgreSqlMessageStorageTests : IDisposable
         var query = new MessageQuery { Limit = 50, Offset = 100 };
 
         // Act
-        var result = await storage.QueryAsync<IMessage>(query);
+        var result = await storage.QueryAsync<IMessage>(query, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -326,7 +326,7 @@ public sealed class PostgreSqlMessageStorageTests : IDisposable
         var message = CreateTestMessage();
 
         // Act
-        var result = await storage.UpdateAsync(messageId, message);
+        var result = await storage.UpdateAsync(messageId, message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);
@@ -341,7 +341,7 @@ public sealed class PostgreSqlMessageStorageTests : IDisposable
         var message = CreateTestMessage();
 
         // Act
-        var result = await storage.UpdateAsync(messageId, message);
+        var result = await storage.UpdateAsync(messageId, message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);
@@ -354,7 +354,7 @@ public sealed class PostgreSqlMessageStorageTests : IDisposable
         var storage = CreateStorage();
 
         // Act
-        var result = await storage.CountAsync();
+        var result = await storage.CountAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<long>(result);
@@ -369,7 +369,7 @@ public sealed class PostgreSqlMessageStorageTests : IDisposable
         var query = new MessageQuery { Collection = "test" };
 
         // Act
-        var result = await storage.CountAsync(query);
+        var result = await storage.CountAsync(query, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<long>(result);
@@ -383,7 +383,7 @@ public sealed class PostgreSqlMessageStorageTests : IDisposable
         var storage = CreateStorage();
 
         // Act
-        await storage.ClearAsync();
+        await storage.ClearAsync(TestContext.Current.CancellationToken);
 
         // Assert - no exception thrown
         Assert.NotNull(storage);

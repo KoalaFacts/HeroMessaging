@@ -116,7 +116,7 @@ namespace HeroMessaging.Tests.Unit.Plugins
                 .ReturnsAsync([]);
 
             // Act
-            await service.DiscoverAndRegisterPluginsAsync();
+            await service.DiscoverAndRegisterPluginsAsync(TestContext.Current.CancellationToken);
 
             // Assert
             _discoveryMock.Verify(d => d.DiscoverPluginsAsync(It.IsAny<CancellationToken>()), Times.Once);
@@ -140,7 +140,7 @@ namespace HeroMessaging.Tests.Unit.Plugins
                 .ReturnsAsync(plugins);
 
             // Act
-            await service.DiscoverAndRegisterPluginsAsync();
+            await service.DiscoverAndRegisterPluginsAsync(TestContext.Current.CancellationToken);
 
             // Assert
             _registryMock.Verify(r => r.RegisterRange(plugins), Times.Once);
@@ -159,7 +159,7 @@ namespace HeroMessaging.Tests.Unit.Plugins
                 .ReturnsAsync(plugins);
 
             // Act
-            await service.DiscoverAndRegisterPluginsAsync();
+            await service.DiscoverAndRegisterPluginsAsync(TestContext.Current.CancellationToken);
 
             // Assert
             Assert.Contains(_services, sd => sd.ServiceType == plugin.PluginType);
@@ -175,7 +175,7 @@ namespace HeroMessaging.Tests.Unit.Plugins
                 .ThrowsAsync(new InvalidOperationException("Discovery failed"));
 
             // Act & Assert - Should not throw
-            await service.DiscoverAndRegisterPluginsAsync();
+            await service.DiscoverAndRegisterPluginsAsync(TestContext.Current.CancellationToken);
         }
 
         [Fact]
@@ -194,7 +194,7 @@ namespace HeroMessaging.Tests.Unit.Plugins
                 .ReturnsAsync(plugins);
 
             // Act - Should handle exceptions gracefully
-            await service.DiscoverAndRegisterPluginsAsync();
+            await service.DiscoverAndRegisterPluginsAsync(TestContext.Current.CancellationToken);
 
             // Assert - Both plugins should be attempted
             _registryMock.Verify(r => r.RegisterRange(plugins), Times.Once);
