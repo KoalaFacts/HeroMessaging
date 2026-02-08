@@ -130,7 +130,7 @@ jobs:
         run: dotnet build tests/HeroMessaging.Benchmarks --configuration Release --no-restore
 
       - name: Download baseline benchmarks
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         continue-on-error: true  # Baseline may not exist on first run
         with:
           name: performance-baseline
@@ -194,7 +194,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Download all test results
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           path: ./all-test-results
         continue-on-error: true
