@@ -69,7 +69,7 @@ public sealed class InMemoryMessageStorageTests
         var message = new TestMessage { Content = "Test" };
 
         // Act
-        var id = await storage.StoreAsync(message, TestContext.Current.CancellationToken);
+        var id = await storage.StoreAsync(message);
 
         // Assert
         Assert.NotNull(id);
@@ -91,7 +91,7 @@ public sealed class InMemoryMessageStorageTests
         };
 
         // Act
-        var id = await storage.StoreAsync(message, options, TestContext.Current.CancellationToken);
+        var id = await storage.StoreAsync(message, options);
 
         // Assert
         var retrieved = await storage.RetrieveAsync<TestMessage>(id);
@@ -110,7 +110,7 @@ public sealed class InMemoryMessageStorageTests
         var options = new MessageStorageOptions { Ttl = ttl };
 
         // Act
-        var id = await storage.StoreAsync(message, options, TestContext.Current.CancellationToken);
+        var id = await storage.StoreAsync(message, options);
 
         // Verify message is retrievable before expiration
         var retrieved1 = await storage.RetrieveAsync<TestMessage>(id);
@@ -135,7 +135,7 @@ public sealed class InMemoryMessageStorageTests
         // Act
         for (int i = 0; i < 100; i++)
         {
-            var id = await storage.StoreAsync(new TestMessage(, TestContext.Current.CancellationToken));
+            var id = await storage.StoreAsync(new TestMessage());
             ids.Add(id);
         }
 
@@ -168,7 +168,7 @@ public sealed class InMemoryMessageStorageTests
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryMessageStorage(timeProvider);
         var message = new TestMessage { Content = "Test" };
-        var id = await storage.StoreAsync(message, TestContext.Current.CancellationToken);
+        var id = await storage.StoreAsync(message);
 
         // Act
         var retrieved = await storage.RetrieveAsync<TestMessage>(id);
@@ -187,7 +187,7 @@ public sealed class InMemoryMessageStorageTests
         var storage = new InMemoryMessageStorage(timeProvider);
         var message = new TestMessage();
         var options = new MessageStorageOptions { Ttl = TimeSpan.FromMinutes(30) };
-        var id = await storage.StoreAsync(message, options, TestContext.Current.CancellationToken);
+        var id = await storage.StoreAsync(message, options);
 
         timeProvider.Advance(TimeSpan.FromHours(1));
 
@@ -206,13 +206,13 @@ public sealed class InMemoryMessageStorageTests
         var storage = new InMemoryMessageStorage(timeProvider);
         var message = new TestMessage();
         var options = new MessageStorageOptions { Ttl = TimeSpan.FromMinutes(10) };
-        var id = await storage.StoreAsync(message, options, TestContext.Current.CancellationToken);
+        var id = await storage.StoreAsync(message, options);
 
         timeProvider.Advance(TimeSpan.FromMinutes(15));
 
         // Act
         var retrieved1 = await storage.RetrieveAsync<TestMessage>(id);
-        var exists = await storage.ExistsAsync(id, TestContext.Current.CancellationToken);
+        var exists = await storage.ExistsAsync(id);
 
         // Assert
         Assert.Null(retrieved1);
@@ -226,7 +226,7 @@ public sealed class InMemoryMessageStorageTests
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryMessageStorage(timeProvider);
         var message = new TestMessage { Content = "Test" };
-        var id = await storage.StoreAsync(message, TestContext.Current.CancellationToken);
+        var id = await storage.StoreAsync(message);
 
         // Act
         var retrieved = await storage.RetrieveAsync<SpecificTestMessage>(id);
@@ -242,7 +242,7 @@ public sealed class InMemoryMessageStorageTests
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryMessageStorage(timeProvider);
         var message = new SpecificTestMessage { SpecificContent = "Specific" };
-        var id = await storage.StoreAsync(message, TestContext.Current.CancellationToken);
+        var id = await storage.StoreAsync(message);
 
         // Act
         var retrieved = await storage.RetrieveAsync<SpecificTestMessage>(id);
@@ -299,14 +299,14 @@ public sealed class InMemoryMessageStorageTests
         var storage = new InMemoryMessageStorage(timeProvider);
 
         var message1 = new TestMessage { Timestamp = timeProvider.GetUtcNow() };
-        await storage.StoreAsync(message1, TestContext.Current.CancellationToken);
+        await storage.StoreAsync(message1);
 
         timeProvider.Advance(TimeSpan.FromMinutes(10));
         var cutoffTime = timeProvider.GetUtcNow();
 
         timeProvider.Advance(TimeSpan.FromMinutes(5));
         var message2 = new TestMessage { Timestamp = timeProvider.GetUtcNow() };
-        await storage.StoreAsync(message2, TestContext.Current.CancellationToken);
+        await storage.StoreAsync(message2);
 
         var query = new MessageQuery { FromTimestamp = cutoffTime };
 
@@ -327,14 +327,14 @@ public sealed class InMemoryMessageStorageTests
         var storage = new InMemoryMessageStorage(timeProvider);
 
         var message1 = new TestMessage { Timestamp = timeProvider.GetUtcNow() };
-        await storage.StoreAsync(message1, TestContext.Current.CancellationToken);
+        await storage.StoreAsync(message1);
 
         timeProvider.Advance(TimeSpan.FromMinutes(10));
         var cutoffTime = timeProvider.GetUtcNow();
 
         timeProvider.Advance(TimeSpan.FromMinutes(5));
         var message2 = new TestMessage { Timestamp = timeProvider.GetUtcNow() };
-        await storage.StoreAsync(message2, TestContext.Current.CancellationToken);
+        await storage.StoreAsync(message2);
 
         var query = new MessageQuery { ToTimestamp = cutoffTime };
 
@@ -435,7 +435,7 @@ public sealed class InMemoryMessageStorageTests
         {
             var message = new TestMessage { Timestamp = timeProvider.GetUtcNow() };
             messages.Add(message);
-            await storage.StoreAsync(message, TestContext.Current.CancellationToken);
+            await storage.StoreAsync(message);
             timeProvider.Advance(TimeSpan.FromSeconds(1));
         }
 
@@ -464,7 +464,7 @@ public sealed class InMemoryMessageStorageTests
         {
             var message = new TestMessage { Timestamp = timeProvider.GetUtcNow() };
             messages.Add(message);
-            await storage.StoreAsync(message, TestContext.Current.CancellationToken);
+            await storage.StoreAsync(message);
             timeProvider.Advance(TimeSpan.FromSeconds(1));
         }
 
@@ -493,7 +493,7 @@ public sealed class InMemoryMessageStorageTests
         {
             var message = new TestMessage();
             messages.Add(message);
-            await storage.StoreAsync(message, TestContext.Current.CancellationToken);
+            await storage.StoreAsync(message);
             timeProvider.Advance(TimeSpan.FromSeconds(1));
         }
 
@@ -522,7 +522,7 @@ public sealed class InMemoryMessageStorageTests
         {
             var message = new TestMessage { Timestamp = timeProvider.GetUtcNow() };
             messages.Add(message);
-            await storage.StoreAsync(message, TestContext.Current.CancellationToken);
+            await storage.StoreAsync(message);
             timeProvider.Advance(TimeSpan.FromSeconds(1));
         }
 
@@ -546,7 +546,7 @@ public sealed class InMemoryMessageStorageTests
 
         for (int i = 0; i < 20; i++)
         {
-            await storage.StoreAsync(new TestMessage(, TestContext.Current.CancellationToken));
+            await storage.StoreAsync(new TestMessage());
         }
 
         var query = new MessageQuery { Limit = 5 };
@@ -570,7 +570,7 @@ public sealed class InMemoryMessageStorageTests
         {
             var message = new TestMessage { Timestamp = timeProvider.GetUtcNow() };
             messages.Add(message);
-            await storage.StoreAsync(message, TestContext.Current.CancellationToken);
+            await storage.StoreAsync(message);
             timeProvider.Advance(TimeSpan.FromSeconds(1));
         }
 
@@ -602,7 +602,7 @@ public sealed class InMemoryMessageStorageTests
         var storage = new InMemoryMessageStorage(timeProvider);
 
         // Act
-        var result = await storage.DeleteAsync("non-existent-id", TestContext.Current.CancellationToken);
+        var result = await storage.DeleteAsync("non-existent-id");
 
         // Assert
         Assert.False(result);
@@ -615,10 +615,10 @@ public sealed class InMemoryMessageStorageTests
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryMessageStorage(timeProvider);
         var message = new TestMessage();
-        var id = await storage.StoreAsync(message, TestContext.Current.CancellationToken);
+        var id = await storage.StoreAsync(message);
 
         // Act
-        var result = await storage.DeleteAsync(id, TestContext.Current.CancellationToken);
+        var result = await storage.DeleteAsync(id);
 
         // Assert
         Assert.True(result);
@@ -634,13 +634,13 @@ public sealed class InMemoryMessageStorageTests
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryMessageStorage(timeProvider);
         var message = new TestMessage();
-        var id = await storage.StoreAsync(message, TestContext.Current.CancellationToken);
+        var id = await storage.StoreAsync(message);
 
         // Act
-        await storage.DeleteAsync(id, TestContext.Current.CancellationToken);
+        await storage.DeleteAsync(id);
 
         // Assert
-        var exists = await storage.ExistsAsync(id, TestContext.Current.CancellationToken);
+        var exists = await storage.ExistsAsync(id);
         Assert.False(exists);
     }
 
@@ -657,7 +657,7 @@ public sealed class InMemoryMessageStorageTests
         var message = new TestMessage();
 
         // Act
-        var result = await storage.UpdateAsync("non-existent-id", message, TestContext.Current.CancellationToken);
+        var result = await storage.UpdateAsync("non-existent-id", message);
 
         // Assert
         Assert.False(result);
@@ -670,7 +670,7 @@ public sealed class InMemoryMessageStorageTests
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryMessageStorage(timeProvider);
         var originalMessage = new TestMessage { Content = "Original" };
-        var id = await storage.StoreAsync(originalMessage, TestContext.Current.CancellationToken);
+        var id = await storage.StoreAsync(originalMessage);
 
         var updatedMessage = new TestMessage
         {
@@ -679,7 +679,7 @@ public sealed class InMemoryMessageStorageTests
         };
 
         // Act
-        var result = await storage.UpdateAsync(id, updatedMessage, TestContext.Current.CancellationToken);
+        var result = await storage.UpdateAsync(id, updatedMessage);
 
         // Assert
         Assert.True(result);
@@ -697,13 +697,13 @@ public sealed class InMemoryMessageStorageTests
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryMessageStorage(timeProvider);
         var originalMessage = new TestMessage();
-        var id = await storage.StoreAsync(originalMessage, TestContext.Current.CancellationToken);
+        var id = await storage.StoreAsync(originalMessage);
 
         timeProvider.Advance(TimeSpan.FromMinutes(5));
         var updatedMessage = new TestMessage();
 
         // Act
-        await storage.UpdateAsync(id, updatedMessage, TestContext.Current.CancellationToken);
+        await storage.UpdateAsync(id, updatedMessage);
 
         // Assert - Verify message was updated (checking existence is enough for this test)
         var retrieved = await storage.RetrieveAsync<TestMessage>(id);
@@ -723,7 +723,7 @@ public sealed class InMemoryMessageStorageTests
         var storage = new InMemoryMessageStorage(timeProvider);
 
         // Act
-        var exists = await storage.ExistsAsync("non-existent-id", TestContext.Current.CancellationToken);
+        var exists = await storage.ExistsAsync("non-existent-id");
 
         // Assert
         Assert.False(exists);
@@ -736,10 +736,10 @@ public sealed class InMemoryMessageStorageTests
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryMessageStorage(timeProvider);
         var message = new TestMessage();
-        var id = await storage.StoreAsync(message, TestContext.Current.CancellationToken);
+        var id = await storage.StoreAsync(message);
 
         // Act
-        var exists = await storage.ExistsAsync(id, TestContext.Current.CancellationToken);
+        var exists = await storage.ExistsAsync(id);
 
         // Assert
         Assert.True(exists);
@@ -752,12 +752,12 @@ public sealed class InMemoryMessageStorageTests
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryMessageStorage(timeProvider);
         var message = new TestMessage();
-        var id = await storage.StoreAsync(message, TestContext.Current.CancellationToken);
+        var id = await storage.StoreAsync(message);
 
-        await storage.DeleteAsync(id, TestContext.Current.CancellationToken);
+        await storage.DeleteAsync(id);
 
         // Act
-        var exists = await storage.ExistsAsync(id, TestContext.Current.CancellationToken);
+        var exists = await storage.ExistsAsync(id);
 
         // Assert
         Assert.False(exists);
@@ -775,7 +775,7 @@ public sealed class InMemoryMessageStorageTests
         var storage = new InMemoryMessageStorage(timeProvider);
 
         // Act
-        var count = await storage.CountAsync(TestContext.Current.CancellationToken);
+        var count = await storage.CountAsync();
 
         // Assert
         Assert.Equal(0, count);
@@ -790,11 +790,11 @@ public sealed class InMemoryMessageStorageTests
 
         for (int i = 0; i < 10; i++)
         {
-            await storage.StoreAsync(new TestMessage(, TestContext.Current.CancellationToken));
+            await storage.StoreAsync(new TestMessage());
         }
 
         // Act
-        var count = await storage.CountAsync(TestContext.Current.CancellationToken);
+        var count = await storage.CountAsync();
 
         // Assert
         Assert.Equal(10, count);
@@ -814,7 +814,7 @@ public sealed class InMemoryMessageStorageTests
         var query = new MessageQuery { Collection = "collection1" };
 
         // Act
-        var count = await storage.CountAsync(query, TestContext.Current.CancellationToken);
+        var count = await storage.CountAsync(query);
 
         // Assert
         Assert.Equal(2, count);
@@ -833,14 +833,14 @@ public sealed class InMemoryMessageStorageTests
 
         for (int i = 0; i < 10; i++)
         {
-            await storage.StoreAsync(new TestMessage(, TestContext.Current.CancellationToken));
+            await storage.StoreAsync(new TestMessage());
         }
 
         // Act
-        await storage.ClearAsync(TestContext.Current.CancellationToken);
+        await storage.ClearAsync();
 
         // Assert
-        var count = await storage.CountAsync(TestContext.Current.CancellationToken);
+        var count = await storage.CountAsync();
         Assert.Equal(0, count);
     }
 
@@ -852,9 +852,9 @@ public sealed class InMemoryMessageStorageTests
         var storage = new InMemoryMessageStorage(timeProvider);
 
         // Act & Assert
-        await storage.ClearAsync(TestContext.Current.CancellationToken);
+        await storage.ClearAsync();
 
-        var count = await storage.CountAsync(TestContext.Current.CancellationToken);
+        var count = await storage.CountAsync();
         Assert.Equal(0, count);
     }
 
@@ -870,7 +870,7 @@ public sealed class InMemoryMessageStorageTests
         var storage = new InMemoryMessageStorage(timeProvider);
 
         // Act
-        var transaction = await storage.BeginTransactionAsync(TestContext.Current.CancellationToken);
+        var transaction = await storage.BeginTransactionAsync();
 
         // Assert
         Assert.NotNull(transaction);
@@ -882,10 +882,10 @@ public sealed class InMemoryMessageStorageTests
         // Arrange
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryMessageStorage(timeProvider);
-        var transaction = await storage.BeginTransactionAsync(TestContext.Current.CancellationToken);
+        var transaction = await storage.BeginTransactionAsync();
 
         // Act & Assert
-        await transaction.CommitAsync(TestContext.Current.CancellationToken);
+        await transaction.CommitAsync();
     }
 
     [Fact]
@@ -894,10 +894,10 @@ public sealed class InMemoryMessageStorageTests
         // Arrange
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryMessageStorage(timeProvider);
-        var transaction = await storage.BeginTransactionAsync(TestContext.Current.CancellationToken);
+        var transaction = await storage.BeginTransactionAsync();
 
         // Act & Assert
-        await transaction.RollbackAsync(TestContext.Current.CancellationToken);
+        await transaction.RollbackAsync();
     }
 
     [Fact]
@@ -906,7 +906,7 @@ public sealed class InMemoryMessageStorageTests
         // Arrange
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryMessageStorage(timeProvider);
-        var transaction = storage.BeginTransactionAsync(TestContext.Current.CancellationToken).Result;
+        var transaction = storage.BeginTransactionAsync().Result;
 
         // Act & Assert
         transaction.Dispose();
@@ -923,13 +923,13 @@ public sealed class InMemoryMessageStorageTests
         var timeProvider = new FakeTimeProvider();
         IMessageStorage storage = new InMemoryMessageStorage(timeProvider);
         var message = new TestMessage();
-        var transaction = await storage.BeginTransactionAsync(TestContext.Current.CancellationToken);
+        var transaction = await storage.BeginTransactionAsync();
 
         // Act
-        await storage.StoreAsync(message, transaction, TestContext.Current.CancellationToken);
+        await storage.StoreAsync(message, transaction);
 
         // Assert
-        var retrieved = await storage.RetrieveAsync(message.MessageId, transaction, TestContext.Current.CancellationToken);
+        var retrieved = await storage.RetrieveAsync(message.MessageId, transaction);
         Assert.NotNull(retrieved);
         Assert.Equal(message.MessageId, retrieved.MessageId);
     }
@@ -941,10 +941,10 @@ public sealed class InMemoryMessageStorageTests
         var timeProvider = new FakeTimeProvider();
         IMessageStorage storage = new InMemoryMessageStorage(timeProvider);
         var message = new TestMessage();
-        await storage.StoreAsync(message, transaction: null, TestContext.Current.CancellationToken);
+        await storage.StoreAsync(message, transaction: null);
 
         // Act
-        var retrieved = await storage.RetrieveAsync(message.MessageId, TestContext.Current.CancellationToken);
+        var retrieved = await storage.RetrieveAsync(message.MessageId);
 
         // Assert
         Assert.NotNull(retrieved);
@@ -964,7 +964,7 @@ public sealed class InMemoryMessageStorageTests
         var query = new MessageQuery();
 
         // Act
-        var results = await storage.QueryAsync(query, TestContext.Current.CancellationToken);
+        var results = await storage.QueryAsync(query);
 
         // Assert
         Assert.Equal(2, results.Count);
@@ -977,13 +977,13 @@ public sealed class InMemoryMessageStorageTests
         var timeProvider = new FakeTimeProvider();
         IMessageStorage storage = new InMemoryMessageStorage(timeProvider);
         var message = new TestMessage();
-        await storage.StoreAsync(message, transaction: null, TestContext.Current.CancellationToken);
+        await storage.StoreAsync(message, transaction: null);
 
         // Act
-        await storage.DeleteAsync(message.MessageId, TestContext.Current.CancellationToken);
+        await storage.DeleteAsync(message.MessageId);
 
         // Assert
-        var retrieved = await storage.RetrieveAsync(message.MessageId, TestContext.Current.CancellationToken);
+        var retrieved = await storage.RetrieveAsync(message.MessageId);
         Assert.Null(retrieved);
     }
 
@@ -1005,7 +1005,7 @@ public sealed class InMemoryMessageStorageTests
             tasks.Add(Task.Run(async () =>
             {
                 var message = new TestMessage { Content = $"Message {i}" };
-                return await storage.StoreAsync(message, TestContext.Current.CancellationToken);
+                return await storage.StoreAsync(message);
             }));
         }
 
@@ -1030,7 +1030,7 @@ public sealed class InMemoryMessageStorageTests
         for (int i = 0; i < 50; i++)
         {
             var message = new TestMessage { Content = $"Original {i}" };
-            var id = await storage.StoreAsync(message, TestContext.Current.CancellationToken);
+            var id = await storage.StoreAsync(message);
             messages.Add((id, message));
         }
 
@@ -1039,7 +1039,7 @@ public sealed class InMemoryMessageStorageTests
             Task.Run(async () =>
             {
                 var updatedMessage = new TestMessage { Content = $"Updated {m.Id}" };
-                return await storage.UpdateAsync(m.Id, updatedMessage, TestContext.Current.CancellationToken);
+                return await storage.UpdateAsync(m.Id, updatedMessage);
             })
         );
 
@@ -1070,7 +1070,7 @@ public sealed class InMemoryMessageStorageTests
         };
 
         // Act
-        var id = await storage.StoreAsync(message, TestContext.Current.CancellationToken);
+        var id = await storage.StoreAsync(message);
         var retrieved = await storage.RetrieveAsync<TestMessage>(id);
 
         // Assert
@@ -1091,7 +1091,7 @@ public sealed class InMemoryMessageStorageTests
 
         for (int i = 0; i < 5; i++)
         {
-            await storage.StoreAsync(new TestMessage(, TestContext.Current.CancellationToken));
+            await storage.StoreAsync(new TestMessage());
         }
 
         var query = new MessageQuery();
@@ -1112,7 +1112,7 @@ public sealed class InMemoryMessageStorageTests
         var message = new TestMessage();
         var ttl = TimeSpan.FromMinutes(30);
         var options = new MessageStorageOptions { Ttl = ttl };
-        var id = await storage.StoreAsync(message, options, TestContext.Current.CancellationToken);
+        var id = await storage.StoreAsync(message, options);
 
         timeProvider.Advance(ttl);
 

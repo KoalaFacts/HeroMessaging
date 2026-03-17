@@ -24,7 +24,7 @@ public class PipelineTests : IAsyncDisposable
         var message = TestMessageBuilder.CreateValidMessage("End-to-end pipeline test");
 
         // Act
-        var result = await pipeline.ProcessMessageAsync(message, TestContext.Current.CancellationToken);
+        var result = await pipeline.ProcessMessageAsync(message);
 
         // Assert
         Assert.NotNull(result);
@@ -35,7 +35,7 @@ public class PipelineTests : IAsyncDisposable
         Assert.True(result.ProcessingDuration > TimeSpan.Zero);
 
         // Verify message was stored
-        var storedMessage = await pipeline.RetrieveMessageAsync(message.MessageId, TestContext.Current.CancellationToken);
+        var storedMessage = await pipeline.RetrieveMessageAsync(message.MessageId);
         Assert.NotNull(storedMessage);
         TestMessageExtensions.AssertSameContent(message, storedMessage);
     }
@@ -56,9 +56,9 @@ public class PipelineTests : IAsyncDisposable
         var message = TestMessageBuilder.CreateValidMessage("Plugin combination test");
 
         // Act
-        var jsonResult = await jsonPipeline.ProcessMessageAsync(message, TestContext.Current.CancellationToken);
-        var messagePackResult = await messagePackPipeline.ProcessMessageAsync(message, TestContext.Current.CancellationToken);
-        var protobufResult = await protobufPipeline.ProcessMessageAsync(message, TestContext.Current.CancellationToken);
+        var jsonResult = await jsonPipeline.ProcessMessageAsync(message);
+        var messagePackResult = await messagePackPipeline.ProcessMessageAsync(message);
+        var protobufResult = await protobufPipeline.ProcessMessageAsync(message);
 
         // Assert
         Assert.True(jsonResult.Success);
@@ -115,7 +115,7 @@ public class PipelineTests : IAsyncDisposable
         // Verify all messages were processed and stored
         foreach (var message in messages.Take(10)) // Check first 10 for verification
         {
-            var storedMessage = await pipeline.RetrieveMessageAsync(message.MessageId, TestContext.Current.CancellationToken);
+            var storedMessage = await pipeline.RetrieveMessageAsync(message.MessageId);
             Assert.NotNull(storedMessage);
             Assert.Equal(message.MessageId, storedMessage.MessageId);
         }
@@ -146,7 +146,7 @@ public class PipelineTests : IAsyncDisposable
         {
             try
             {
-                var result = await pipeline.ProcessMessageAsync(message, TestContext.Current.CancellationToken);
+                var result = await pipeline.ProcessMessageAsync(message);
                 failureResults.Add(result);
             }
             catch (Exception)
@@ -186,7 +186,7 @@ public class PipelineTests : IAsyncDisposable
         {
             try
             {
-                var result = await pipeline.ProcessMessageAsync(message, TestContext.Current.CancellationToken);
+                var result = await pipeline.ProcessMessageAsync(message);
                 results.Add(result);
             }
             catch (Exception)
@@ -295,7 +295,7 @@ public class PipelineTests : IAsyncDisposable
         _disposables.Add(pipeline);
 
         // Act - Healthy state
-        var healthyReport = await pipeline.CheckHealthAsync(TestContext.Current.CancellationToken);
+        var healthyReport = await pipeline.CheckHealthAsync();
 
         // Assert
         Assert.Equal(HealthStatus.Healthy, healthyReport.OverallStatus);
@@ -305,7 +305,7 @@ public class PipelineTests : IAsyncDisposable
 
         // Act - Simulate component failure
         pipeline.SimulateStorageFailure();
-        var unhealthyReport = await pipeline.CheckHealthAsync(TestContext.Current.CancellationToken);
+        var unhealthyReport = await pipeline.CheckHealthAsync();
 
         // Assert
         Assert.Equal(HealthStatus.Unhealthy, unhealthyReport.OverallStatus);
@@ -323,7 +323,7 @@ public class PipelineTests : IAsyncDisposable
         var message = TestMessageBuilder.CreateValidMessage("Custom processor test");
 
         // Act
-        var result = await pipeline.ProcessMessageAsync(message, TestContext.Current.CancellationToken);
+        var result = await pipeline.ProcessMessageAsync(message);
 
         // Assert
         Assert.True(result.Success);
@@ -345,7 +345,7 @@ public class PipelineTests : IAsyncDisposable
     {
         foreach (var disposable in _disposables)
         {
-            await disposable.DisposeAsync(TestContext.Current.CancellationToken);
+            await disposable.DisposeAsync();
         }
     }
 
@@ -353,49 +353,49 @@ public class PipelineTests : IAsyncDisposable
     private async Task<TestMessagePipeline> CreateCompletePipelineAsync()
     {
         var pipeline = new TestMessagePipeline();
-        await pipeline.InitializeAsync("json", "postgresql", includeObservability: true, TestContext.Current.CancellationToken);
+        await pipeline.InitializeAsync("json", "postgresql", includeObservability: true);
         return pipeline;
     }
 
     private async Task<TestMessagePipeline> CreatePipelineAsync(string serialization, string storage)
     {
         var pipeline = new TestMessagePipeline();
-        await pipeline.InitializeAsync(serialization, storage, TestContext.Current.CancellationToken);
+        await pipeline.InitializeAsync(serialization, storage);
         return pipeline;
     }
 
     private async Task<TestMessagePipeline> CreateHighPerformancePipelineAsync()
     {
         var pipeline = new TestMessagePipeline();
-        await pipeline.InitializeAsync("messagepack", "inmemory", optimizeForPerformance: true, TestContext.Current.CancellationToken);
+        await pipeline.InitializeAsync("messagepack", "inmemory", optimizeForPerformance: true);
         return pipeline;
     }
 
     private async Task<TestMessagePipeline> CreateResilientPipelineAsync()
     {
         var pipeline = new TestMessagePipeline();
-        await pipeline.InitializeAsync("json", "postgresql", includeResilience: true, TestContext.Current.CancellationToken);
+        await pipeline.InitializeAsync("json", "postgresql", includeResilience: true);
         return pipeline;
     }
 
     private async Task<TestMessagePipeline> CreatePipelineWithResilienceAsync()
     {
         var pipeline = new TestMessagePipeline();
-        await pipeline.InitializeAsync("json", "postgresql", includeResilience: true, includeRetry: true, TestContext.Current.CancellationToken);
+        await pipeline.InitializeAsync("json", "postgresql", includeResilience: true, includeRetry: true);
         return pipeline;
     }
 
     private async Task<TestMessagePipeline> CreateObservablePipelineAsync()
     {
         var pipeline = new TestMessagePipeline();
-        await pipeline.InitializeAsync("json", "postgresql", includeObservability: true, TestContext.Current.CancellationToken);
+        await pipeline.InitializeAsync("json", "postgresql", includeObservability: true);
         return pipeline;
     }
 
     private async Task<TestMessagePipeline> CreateCustomProcessorPipelineAsync()
     {
         var pipeline = new TestMessagePipeline();
-        await pipeline.InitializeAsync("json", "postgresql", includeCustomProcessors: true, TestContext.Current.CancellationToken);
+        await pipeline.InitializeAsync("json", "postgresql", includeCustomProcessors: true);
         return pipeline;
     }
 

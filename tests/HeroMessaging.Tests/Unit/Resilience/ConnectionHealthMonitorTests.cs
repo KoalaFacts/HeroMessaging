@@ -23,7 +23,7 @@ namespace HeroMessaging.Tests.Unit.Resilience
         {
             if (_monitor != null)
             {
-                await _monitor.StopAsync(CancellationToken.None, TestContext.Current.CancellationToken);
+                await _monitor.StopAsync(CancellationToken.None);
                 _monitor.Dispose();
             }
         }

@@ -102,7 +102,7 @@ public class VersionedMessageServiceTests
             .Returns(version);
 
         // Act
-        var result = await _service.ConvertToVersionAsync(message, version, TestContext.Current.CancellationToken);
+        var result = await _service.ConvertToVersionAsync(message, version);
 
         // Assert
         Assert.Same(message, result);
@@ -125,7 +125,7 @@ public class VersionedMessageServiceTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<MessageConversionException>(async () =>
-            await _service.ConvertToVersionAsync(message, toVersion, TestContext.Current.CancellationToken));
+            await _service.ConvertToVersionAsync(message, toVersion));
         Assert.Contains("No conversion path found", exception.Message);
         Assert.Contains("TestMessage", exception.Message);
         Assert.Contains("1.0", exception.Message);
@@ -160,7 +160,7 @@ public class VersionedMessageServiceTests
             .Returns(conversionPath);
 
         // Act
-        var result = await _service.ConvertToVersionAsync(message, toVersion, TestContext.Current.CancellationToken);
+        var result = await _service.ConvertToVersionAsync(message, toVersion);
 
         // Assert
         Assert.Same(convertedMessage, result);
@@ -203,7 +203,7 @@ public class VersionedMessageServiceTests
             .Returns(conversionPath);
 
         // Act
-        var result = await _service.ConvertToVersionAsync(message, v3, TestContext.Current.CancellationToken);
+        var result = await _service.ConvertToVersionAsync(message, v3);
 
         // Assert
         Assert.Same(finalMessage, result);
@@ -240,7 +240,7 @@ public class VersionedMessageServiceTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<MessageConversionException>(async () =>
-            await _service.ConvertToVersionAsync(message, toVersion, TestContext.Current.CancellationToken));
+            await _service.ConvertToVersionAsync(message, toVersion));
         Assert.Contains("Conversion failed at step", exception.Message);
         Assert.Same(innerException, exception.InnerException);
     }
@@ -274,7 +274,7 @@ public class VersionedMessageServiceTests
             .Returns(conversionPath);
 
         // Act
-        var result = await _service.ConvertToVersionAsync(message, toVersion, cts.Token, TestContext.Current.CancellationToken);
+        var result = await _service.ConvertToVersionAsync(message, toVersion, cts.Token);
 
         // Assert
         Assert.Same(convertedMessage, result);
@@ -310,7 +310,7 @@ public class VersionedMessageServiceTests
             .Returns(currentVersion);
 
         // Act
-        var result = await _service.EnsureCompatibilityAsync(message, requiredVersion, TestContext.Current.CancellationToken);
+        var result = await _service.EnsureCompatibilityAsync(message, requiredVersion);
 
         // Assert
         Assert.Same(message, result);
@@ -345,7 +345,7 @@ public class VersionedMessageServiceTests
             .Returns(conversionPath);
 
         // Act
-        var result = await _service.EnsureCompatibilityAsync(message, requiredVersion, TestContext.Current.CancellationToken);
+        var result = await _service.EnsureCompatibilityAsync(message, requiredVersion);
 
         // Assert
         Assert.Same(convertedMessage, result);

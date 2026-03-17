@@ -48,7 +48,7 @@ public class OrchestrationWorkflowTests
         {
             CorrelationId = correlationId.ToString()
         };
-        await orchestrator.ProcessAsync(orderCreated, TestContext.Current.CancellationToken);
+        await orchestrator.ProcessAsync(orderCreated);
 
         var paymentProcessed = new PaymentProcessedEvent(
             orderId,
@@ -57,7 +57,7 @@ public class OrchestrationWorkflowTests
         {
             CorrelationId = correlationId.ToString()
         };
-        await orchestrator.ProcessAsync(paymentProcessed, TestContext.Current.CancellationToken);
+        await orchestrator.ProcessAsync(paymentProcessed);
 
         var inventoryReserved = new InventoryReservedEvent(
             orderId,
@@ -66,7 +66,7 @@ public class OrchestrationWorkflowTests
         {
             CorrelationId = correlationId.ToString()
         };
-        await orchestrator.ProcessAsync(inventoryReserved, TestContext.Current.CancellationToken);
+        await orchestrator.ProcessAsync(inventoryReserved);
 
         var orderShipped = new OrderShippedEvent(
             orderId,
@@ -74,10 +74,10 @@ public class OrchestrationWorkflowTests
         {
             CorrelationId = correlationId.ToString()
         };
-        await orchestrator.ProcessAsync(orderShipped, TestContext.Current.CancellationToken);
+        await orchestrator.ProcessAsync(orderShipped);
 
         // Assert
-        var saga = await repository.FindAsync(correlationId, TestContext.Current.CancellationToken);
+        var saga = await repository.FindAsync(correlationId);
         Assert.NotNull(saga);
         Assert.Equal("Completed", saga!.CurrentState);
         Assert.True(saga.IsCompleted);
@@ -111,7 +111,7 @@ public class OrchestrationWorkflowTests
         {
             CorrelationId = correlationId.ToString()
         };
-        await orchestrator.ProcessAsync(orderCreated, TestContext.Current.CancellationToken);
+        await orchestrator.ProcessAsync(orderCreated);
 
         var paymentFailed = new PaymentFailedEvent(
             orderId,
@@ -119,10 +119,10 @@ public class OrchestrationWorkflowTests
         {
             CorrelationId = correlationId.ToString()
         };
-        await orchestrator.ProcessAsync(paymentFailed, TestContext.Current.CancellationToken);
+        await orchestrator.ProcessAsync(paymentFailed);
 
         // Assert
-        var saga = await repository.FindAsync(correlationId, TestContext.Current.CancellationToken);
+        var saga = await repository.FindAsync(correlationId);
         Assert.NotNull(saga);
         Assert.Equal("Failed", saga!.CurrentState);
         Assert.Equal("Insufficient funds", saga.FailureReason);
@@ -156,7 +156,7 @@ public class OrchestrationWorkflowTests
         { CorrelationId = correlationId.ToString() });
 
         // Assert
-        var saga = await repository.FindAsync(correlationId, TestContext.Current.CancellationToken);
+        var saga = await repository.FindAsync(correlationId);
         Assert.NotNull(saga);
         Assert.Equal("Failed", saga!.CurrentState);
         Assert.Equal("Out of stock", saga.FailureReason);
@@ -195,7 +195,7 @@ public class OrchestrationWorkflowTests
         { CorrelationId = correlationId.ToString() });
 
         // Assert
-        var saga = await repository.FindAsync(correlationId, TestContext.Current.CancellationToken);
+        var saga = await repository.FindAsync(correlationId);
         Assert.NotNull(saga);
         Assert.Equal("Failed", saga!.CurrentState);
         Assert.Equal("Carrier unavailable", saga.FailureReason);
@@ -227,7 +227,7 @@ public class OrchestrationWorkflowTests
         { CorrelationId = correlationId.ToString() });
 
         // Assert
-        var saga = await repository.FindAsync(correlationId, TestContext.Current.CancellationToken);
+        var saga = await repository.FindAsync(correlationId);
         Assert.NotNull(saga);
         Assert.Equal("Cancelled", saga!.CurrentState);
         Assert.True(saga.IsCompleted); // Cancelled is a final state
@@ -261,7 +261,7 @@ public class OrchestrationWorkflowTests
         { CorrelationId = correlationId.ToString() });
 
         // Assert
-        var saga = await repository.FindAsync(correlationId, TestContext.Current.CancellationToken);
+        var saga = await repository.FindAsync(correlationId);
         Assert.NotNull(saga);
         Assert.Equal("Cancelled", saga!.CurrentState);
         Assert.True(saga.IsCompleted);
@@ -293,9 +293,9 @@ public class OrchestrationWorkflowTests
         await Task.WhenAll(tasks);
 
         // Assert - All three orders completed independently
-        var saga1 = await repository.FindAsync(correlation1, TestContext.Current.CancellationToken);
-        var saga2 = await repository.FindAsync(correlation2, TestContext.Current.CancellationToken);
-        var saga3 = await repository.FindAsync(correlation3, TestContext.Current.CancellationToken);
+        var saga1 = await repository.FindAsync(correlation1);
+        var saga2 = await repository.FindAsync(correlation2);
+        var saga3 = await repository.FindAsync(correlation3);
 
         Assert.NotNull(saga1);
         Assert.NotNull(saga2);
@@ -328,7 +328,7 @@ public class OrchestrationWorkflowTests
             orderId, "CUST-123", 99.99m, [])
         { CorrelationId = correlationId.ToString() });
 
-        var sagaAfterCreation = await repository.FindAsync(correlationId, TestContext.Current.CancellationToken);
+        var sagaAfterCreation = await repository.FindAsync(correlationId);
         var createdTime = sagaAfterCreation!.UpdatedAt;
 
         await Task.Delay(10); // Small delay to ensure timestamp difference
@@ -337,7 +337,7 @@ public class OrchestrationWorkflowTests
             orderId, "TXN-123", 99.99m)
         { CorrelationId = correlationId.ToString() });
 
-        var sagaAfterPayment = await repository.FindAsync(correlationId, TestContext.Current.CancellationToken);
+        var sagaAfterPayment = await repository.FindAsync(correlationId);
 
         // Assert
         Assert.True(sagaAfterPayment!.UpdatedAt > createdTime);
@@ -385,7 +385,7 @@ public class OrchestrationWorkflowTests
         { CorrelationId = correlationId.ToString() });
 
         // Assert
-        var saga = await repository.FindAsync(correlationId, TestContext.Current.CancellationToken);
+        var saga = await repository.FindAsync(correlationId);
         Assert.NotNull(saga);
         Assert.Equal("Failed", saga!.CurrentState);
 
@@ -419,7 +419,7 @@ public class OrchestrationWorkflowTests
         { CorrelationId = correlationId.ToString() });
 
         // Assert
-        var saga = await repository.FindAsync(correlationId, TestContext.Current.CancellationToken);
+        var saga = await repository.FindAsync(correlationId);
         Assert.NotNull(saga);
         Assert.Equal("Failed", saga!.CurrentState);
 
@@ -487,7 +487,7 @@ public class OrchestrationWorkflowTests
         OrderSaga? timedOutSaga = null;
         while (fakeTime.GetUtcNow() < pollTimeout)
         {
-            timedOutSaga = await repository.FindAsync(correlationId, TestContext.Current.CancellationToken);
+            timedOutSaga = await repository.FindAsync(correlationId);
             if (timedOutSaga?.CurrentState == "TimedOut")
             {
                 break;
@@ -497,7 +497,7 @@ public class OrchestrationWorkflowTests
         }
 
         // Stop the handler properly
-        await timeoutHandler.StopAsync(cts.Token, TestContext.Current.CancellationToken);
+        await timeoutHandler.StopAsync(cts.Token);
         cts.Cancel();
         try
         {
@@ -573,7 +573,7 @@ public class OrchestrationWorkflowTests
                     {
                         ctx.Instance.FailureReason = "Simulated failure after registering compensations";
                         // Execute all compensations in LIFO order (Step3, Step2, Step1)
-                        await ctx.Compensation.CompensateAsync(TestContext.Current.CancellationToken);
+                        await ctx.Compensation.CompensateAsync();
                         ctx.Instance.TransitionTo(failed.Name);
                     }
                     else

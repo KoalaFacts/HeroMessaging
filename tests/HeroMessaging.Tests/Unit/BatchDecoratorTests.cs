@@ -74,7 +74,7 @@ public class BatchDecoratorTests
         await Assert.ThrowsAsync<ArgumentNullException>(async () =>
         {
             await using var decorator = await BatchDecorator.CreateAsync(
-                mockInnerProcessor.Object, null!, mockLogger.Object, timeProvider, TestContext.Current.CancellationToken);
+                mockInnerProcessor.Object, null!, mockLogger.Object, timeProvider);
         });
     }
 
@@ -91,7 +91,7 @@ public class BatchDecoratorTests
         await Assert.ThrowsAsync<ArgumentNullException>(async () =>
         {
             await using var decorator = await BatchDecorator.CreateAsync(
-                mockInnerProcessor.Object, options, null!, timeProvider, TestContext.Current.CancellationToken);
+                mockInnerProcessor.Object, options, null!, timeProvider);
         });
     }
 
@@ -114,7 +114,7 @@ public class BatchDecoratorTests
         await Assert.ThrowsAsync<ArgumentException>(async () =>
         {
             await using var decorator = await BatchDecorator.CreateAsync(
-                mockInnerProcessor.Object, options, mockLogger.Object, timeProvider, TestContext.Current.CancellationToken);
+                mockInnerProcessor.Object, options, mockLogger.Object, timeProvider);
         });
     }
 
@@ -400,7 +400,7 @@ public class BatchDecoratorTests
         await decorator.WaitForBatchIterationAsync(TestContext.Current.CancellationToken);
 
         // Dispose processes remaining messages
-        await decorator.DisposeAsync(TestContext.Current.CancellationToken);
+        await decorator.DisposeAsync();
 
         // Complete the task
         var result = await task;

@@ -53,7 +53,7 @@ public sealed class TransactionCommandProcessorDecoratorTests
             .Returns(Task.CompletedTask);
 
         // Act
-        await decorator.SendAsync(command, TestContext.Current.CancellationToken);
+        await decorator.SendAsync(command);
 
         // Assert
         _transactionExecutorMock.Verify(
@@ -86,7 +86,7 @@ public sealed class TransactionCommandProcessorDecoratorTests
             .Returns(Task.CompletedTask);
 
         // Act
-        await decorator.SendAsync(command, TestContext.Current.CancellationToken);
+        await decorator.SendAsync(command);
 
         // Assert
         _innerMock.Verify(p => p.SendAsync(command, It.IsAny<CancellationToken>()), Times.Once);
@@ -113,7 +113,7 @@ public sealed class TransactionCommandProcessorDecoratorTests
             .Returns(Task.CompletedTask);
 
         // Act
-        await decorator.SendAsync(command, TestContext.Current.CancellationToken);
+        await decorator.SendAsync(command);
 
         // Assert
         _transactionExecutorMock.Verify(
@@ -186,7 +186,7 @@ public sealed class TransactionCommandProcessorDecoratorTests
             .ReturnsAsync(expectedResponse);
 
         // Act
-        var result = await decorator.SendAsync(command, TestContext.Current.CancellationToken);
+        var result = await decorator.SendAsync(command);
 
         // Assert
         Assert.Equal(expectedResponse, result);
@@ -221,7 +221,7 @@ public sealed class TransactionCommandProcessorDecoratorTests
             .ReturnsAsync(expectedResponse);
 
         // Act
-        var result = await decorator.SendAsync(command, TestContext.Current.CancellationToken);
+        var result = await decorator.SendAsync(command);
 
         // Assert
         Assert.Equal(expectedResponse, result);
@@ -250,7 +250,7 @@ public sealed class TransactionCommandProcessorDecoratorTests
             .ReturnsAsync(expectedResponse);
 
         // Act
-        var result = await decorator.SendAsync(command, TestContext.Current.CancellationToken);
+        var result = await decorator.SendAsync(command);
 
         // Assert
         Assert.Equal(99, result.Value);
@@ -278,7 +278,7 @@ public sealed class TransactionCommandProcessorDecoratorTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await decorator.SendAsync(command, TestContext.Current.CancellationToken));
+            async () => await decorator.SendAsync(command));
 
         Assert.Equal("Test error", exception.Message);
     }
@@ -301,7 +301,7 @@ public sealed class TransactionCommandProcessorDecoratorTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await decorator.SendAsync(command, TestContext.Current.CancellationToken));
+            async () => await decorator.SendAsync(command));
 
         Assert.Equal("Test error", exception.Message);
     }
@@ -402,7 +402,7 @@ public sealed class TransactionQueryProcessorDecoratorTests
             .ReturnsAsync(expectedResponse);
 
         // Act
-        var result = await decorator.SendAsync(query, TestContext.Current.CancellationToken);
+        var result = await decorator.SendAsync(query);
 
         // Assert
         Assert.Equal(expectedResponse, result);
@@ -437,7 +437,7 @@ public sealed class TransactionQueryProcessorDecoratorTests
             .ReturnsAsync(expectedResponse);
 
         // Act
-        var result = await decorator.SendAsync(query, TestContext.Current.CancellationToken);
+        var result = await decorator.SendAsync(query);
 
         // Assert
         Assert.Equal(expectedResponse, result);
@@ -466,7 +466,7 @@ public sealed class TransactionQueryProcessorDecoratorTests
             .ReturnsAsync(expectedResponse);
 
         // Act
-        var result = await decorator.SendAsync(query, TestContext.Current.CancellationToken);
+        var result = await decorator.SendAsync(query);
 
         // Assert
         Assert.Equal("Expected data", result.Data);
@@ -494,7 +494,7 @@ public sealed class TransactionQueryProcessorDecoratorTests
             .ReturnsAsync(expectedResponse);
 
         // Act
-        await decorator.SendAsync(query, TestContext.Current.CancellationToken);
+        await decorator.SendAsync(query);
 
         // Assert - Verified by mock setup
         _transactionExecutorMock.Verify(
@@ -564,7 +564,7 @@ public sealed class TransactionQueryProcessorDecoratorTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await decorator.SendAsync(query, TestContext.Current.CancellationToken));
+            async () => await decorator.SendAsync(query));
 
         Assert.Equal("Query failed", exception.Message);
     }

@@ -63,7 +63,7 @@ public sealed class InboxProcessorTests : IDisposable
             .ReturnsAsync(entry);
 
         // Act
-        var result = await processor.ProcessIncomingAsync(message, TestContext.Current.CancellationToken);
+        var result = await processor.ProcessIncomingAsync(message);
 
         // Assert
         Assert.True(result);
@@ -82,7 +82,7 @@ public sealed class InboxProcessorTests : IDisposable
             .ReturnsAsync((InboxEntry?)null);
 
         // Act
-        var result = await processor.ProcessIncomingAsync(message, TestContext.Current.CancellationToken);
+        var result = await processor.ProcessIncomingAsync(message);
 
         // Assert
         Assert.False(result);
@@ -108,7 +108,7 @@ public sealed class InboxProcessorTests : IDisposable
             .ReturnsAsync(true);
 
         // Act
-        var result = await processor.ProcessIncomingAsync(message, options, TestContext.Current.CancellationToken);
+        var result = await processor.ProcessIncomingAsync(message, options);
 
         // Assert
         Assert.False(result);
@@ -137,7 +137,7 @@ public sealed class InboxProcessorTests : IDisposable
             .ReturnsAsync(entry);
 
         // Act
-        var result = await processor.ProcessIncomingAsync(message, options, TestContext.Current.CancellationToken);
+        var result = await processor.ProcessIncomingAsync(message, options);
 
         // Assert
         Assert.True(result);
@@ -163,7 +163,7 @@ public sealed class InboxProcessorTests : IDisposable
             .ReturnsAsync(expectedCount);
 
         // Act
-        var count = await processor.GetUnprocessedCountAsync(TestContext.Current.CancellationToken);
+        var count = await processor.GetUnprocessedCountAsync();
 
         // Assert
         Assert.Equal(expectedCount, count);
@@ -199,7 +199,7 @@ public sealed class InboxProcessorTests : IDisposable
         // This test verifies the structure and flow
 
         // Act
-        var result = await processor.ProcessIncomingAsync(command, TestContext.Current.CancellationToken);
+        var result = await processor.ProcessIncomingAsync(command);
 
         // Assert
         Assert.True(result);
@@ -232,7 +232,7 @@ public sealed class InboxProcessorTests : IDisposable
             .ReturnsAsync(true);
 
         // Act
-        var result = await processor.ProcessIncomingAsync(@event, TestContext.Current.CancellationToken);
+        var result = await processor.ProcessIncomingAsync(@event);
 
         // Assert
         Assert.True(result);
@@ -254,7 +254,7 @@ public sealed class InboxProcessorTests : IDisposable
             .ReturnsAsync([]);
 
         // Act
-        await processor.StartAsync(cts.Token, TestContext.Current.CancellationToken);
+        await processor.StartAsync(cts.Token);
 
         // Wait a bit for background processing to start
         await Task.Delay(100);
@@ -263,7 +263,7 @@ public sealed class InboxProcessorTests : IDisposable
         Assert.True(processor.IsRunning);
 
         // Cleanup
-        await processor.StopAsync(TestContext.Current.CancellationToken);
+        await processor.StopAsync();
     }
 
     [Fact]
@@ -276,11 +276,11 @@ public sealed class InboxProcessorTests : IDisposable
             .Setup(s => s.GetUnprocessedAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
 
-        await processor.StartAsync(TestContext.Current.CancellationToken);
+        await processor.StartAsync();
         await Task.Delay(100);
 
         // Act
-        await processor.StopAsync(TestContext.Current.CancellationToken);
+        await processor.StopAsync();
 
         // Assert - Processor should have stopped gracefully
         Assert.True(true); // If we get here without hanging, the test passes
@@ -306,14 +306,14 @@ public sealed class InboxProcessorTests : IDisposable
             .ReturnsAsync(entries);
 
         // Act
-        await processor.StartAsync(TestContext.Current.CancellationToken);
+        await processor.StartAsync();
         await Task.Delay(200); // Wait for polling
 
         // Assert
         _storageMock.Verify(s => s.GetUnprocessedAsync(100, It.IsAny<CancellationToken>()), Times.AtLeastOnce);
 
         // Cleanup
-        await processor.StopAsync(TestContext.Current.CancellationToken);
+        await processor.StopAsync();
     }
 
     #endregion
@@ -335,13 +335,13 @@ public sealed class InboxProcessorTests : IDisposable
             .Returns(Task.CompletedTask);
 
         // Act
-        await processor.StartAsync(TestContext.Current.CancellationToken);
+        await processor.StartAsync();
 
         // Cleanup happens after 1 hour by default, so we can't wait that long in a test
         // We verify the setup is correct
         await Task.Delay(100);
 
-        await processor.StopAsync(TestContext.Current.CancellationToken);
+        await processor.StopAsync();
 
         // Assert - Verify cleanup was configured (actual execution would take 1 hour)
         Assert.True(true);
@@ -388,7 +388,7 @@ public sealed class InboxProcessorTests : IDisposable
             .ReturnsAsync(true);
 
         // Act
-        await processor.ProcessIncomingAsync(message, options, TestContext.Current.CancellationToken);
+        await processor.ProcessIncomingAsync(message, options);
 
         // Assert
         _loggerMock.Verify(
@@ -413,7 +413,7 @@ public sealed class InboxProcessorTests : IDisposable
             .ReturnsAsync((InboxEntry?)null);
 
         // Act
-        await processor.ProcessIncomingAsync(message, TestContext.Current.CancellationToken);
+        await processor.ProcessIncomingAsync(message);
 
         // Assert
         _loggerMock.Verify(
@@ -450,13 +450,13 @@ public sealed class InboxProcessorTests : IDisposable
             .ReturnsAsync([]);
 
         // Act
-        await processor.StartAsync(TestContext.Current.CancellationToken);
+        await processor.StartAsync();
 
         // Assert - After starting, IsRunning should be true
         Assert.True(processor.IsRunning);
 
         // Cleanup
-        await processor.StopAsync(TestContext.Current.CancellationToken);
+        await processor.StopAsync();
     }
 
     [Fact]
@@ -469,8 +469,8 @@ public sealed class InboxProcessorTests : IDisposable
             .ReturnsAsync([]);
 
         // Act
-        await processor.StartAsync(TestContext.Current.CancellationToken);
-        await processor.StopAsync(TestContext.Current.CancellationToken);
+        await processor.StartAsync();
+        await processor.StopAsync();
 
         // Assert - After stopping, IsRunning should be false
         Assert.False(processor.IsRunning);
