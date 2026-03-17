@@ -42,7 +42,7 @@ public class SqlServerSagaRepositoryTests : IAsyncLifetime
         if (_sqlContainer != null)
         {
             await _sqlContainer.StopAsync(TestContext.Current.CancellationToken);
-            await _sqlContainer.DisposeAsync(TestContext.Current.CancellationToken);
+            await _sqlContainer.DisposeAsync();
         }
     }
 
@@ -337,7 +337,7 @@ public class SqlServerSagaRepositoryTests : IAsyncLifetime
         await repository.SaveAsync(recentSaga, TestContext.Current.CancellationToken);
 
         // Act
-        var staleSagas = await repository.FindStaleAsync(TimeSpan.FromHours(1, TestContext.Current.CancellationToken));
+        var staleSagas = await repository.FindStaleAsync(TimeSpan.FromHours(1));
 
         // Assert
         var sagaList = staleSagas.ToList();
@@ -364,7 +364,7 @@ public class SqlServerSagaRepositoryTests : IAsyncLifetime
         await repository.UpdateAsync(retrieved, TestContext.Current.CancellationToken);
 
         // Act
-        var staleSagas = await repository.FindStaleAsync(TimeSpan.FromMinutes(30, TestContext.Current.CancellationToken));
+        var staleSagas = await repository.FindStaleAsync(TimeSpan.FromMinutes(30));
 
         // Assert
         Assert.Empty(staleSagas);

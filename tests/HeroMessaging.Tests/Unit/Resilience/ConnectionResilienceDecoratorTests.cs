@@ -184,7 +184,7 @@ public class ConnectionResilienceDecoratorTests
             .Returns<Func<Task>, string, CancellationToken>((func, _, _) => func());
 
         // Act
-        await _decorator.BeginTransactionAsync(TestContext.Current.CancellationToken);
+        await _decorator.BeginTransactionAsync();
 
         // Assert
         _mockResiliencePolicy.Verify(
@@ -212,7 +212,7 @@ public class ConnectionResilienceDecoratorTests
             .Returns<Func<Task>, string, CancellationToken>((func, _, _) => func());
 
         // Act
-        await _decorator.BeginTransactionAsync(isolationLevel, TestContext.Current.CancellationToken);
+        await _decorator.BeginTransactionAsync(isolationLevel);
 
         // Assert
         _mockUnitOfWork.Verify(
@@ -262,7 +262,7 @@ public class ConnectionResilienceDecoratorTests
             .Returns<Func<Task>, string, CancellationToken>((func, _, _) => func());
 
         // Act
-        await _decorator.CommitAsync(TestContext.Current.CancellationToken);
+        await _decorator.CommitAsync();
 
         // Assert
         _mockResiliencePolicy.Verify(
@@ -288,7 +288,7 @@ public class ConnectionResilienceDecoratorTests
             .Returns<Func<Task>, string, CancellationToken>((func, _, _) => func());
 
         // Act
-        await _decorator.CommitAsync(cancellationToken, TestContext.Current.CancellationToken);
+        await _decorator.CommitAsync(cancellationToken);
 
         // Assert
         _mockResiliencePolicy.Verify(
@@ -316,7 +316,7 @@ public class ConnectionResilienceDecoratorTests
             .Returns<Func<Task>, string, CancellationToken>((func, _, _) => func());
 
         // Act
-        await _decorator.RollbackAsync(TestContext.Current.CancellationToken);
+        await _decorator.RollbackAsync();
 
         // Assert
         _mockResiliencePolicy.Verify(
@@ -342,7 +342,7 @@ public class ConnectionResilienceDecoratorTests
             .Returns<Func<Task>, string, CancellationToken>((func, _, _) => func());
 
         // Act
-        await _decorator.RollbackAsync(cancellationToken, TestContext.Current.CancellationToken);
+        await _decorator.RollbackAsync(cancellationToken);
 
         // Assert
         _mockResiliencePolicy.Verify(
@@ -371,7 +371,7 @@ public class ConnectionResilienceDecoratorTests
             .Returns<Func<Task>, string, CancellationToken>((func, _, _) => func());
 
         // Act
-        await _decorator.SavepointAsync(savepointName, TestContext.Current.CancellationToken);
+        await _decorator.SavepointAsync(savepointName);
 
         // Assert
         _mockResiliencePolicy.Verify(
@@ -429,7 +429,7 @@ public class ConnectionResilienceDecoratorTests
             .Returns<Func<Task>, string, CancellationToken>((func, _, _) => func());
 
         // Act
-        await _decorator.RollbackToSavepointAsync(savepointName, TestContext.Current.CancellationToken);
+        await _decorator.RollbackToSavepointAsync(savepointName);
 
         // Assert
         _mockResiliencePolicy.Verify(
@@ -481,7 +481,7 @@ public class ConnectionResilienceDecoratorTests
         _mockUnitOfWork.Setup(x => x.DisposeAsync()).Returns(ValueTask.CompletedTask);
 
         // Act
-        await _decorator.DisposeAsync(TestContext.Current.CancellationToken);
+        await _decorator.DisposeAsync();
 
         // Assert
         _mockUnitOfWork.Verify(x => x.DisposeAsync(), Times.Once);
@@ -496,7 +496,7 @@ public class ConnectionResilienceDecoratorTests
         _mockUnitOfWork.Setup(x => x.DisposeAsync()).ThrowsAsync(exception);
 
         // Act & Assert - Should not throw
-        await _decorator.DisposeAsync(TestContext.Current.CancellationToken);
+        await _decorator.DisposeAsync();
 
         // Verify logging occurred
         _mockLogger.Verify(
@@ -528,7 +528,7 @@ public class ConnectionResilienceDecoratorTests
 
         // Act & Assert
         await Assert.ThrowsAsync<ConnectionResilienceException>(
-            () => _decorator.BeginTransactionAsync(TestContext.Current.CancellationToken));
+            () => _decorator.BeginTransactionAsync());
     }
 
     [Fact]
@@ -546,7 +546,7 @@ public class ConnectionResilienceDecoratorTests
 
         // Act & Assert
         await Assert.ThrowsAsync<ConnectionResilienceException>(
-            () => _decorator.CommitAsync(TestContext.Current.CancellationToken));
+            () => _decorator.CommitAsync());
     }
 
     #endregion
@@ -566,9 +566,9 @@ public class ConnectionResilienceDecoratorTests
             .Returns<Func<Task>, string, CancellationToken>((func, _, _) => func());
 
         // Act
-        await _decorator.BeginTransactionAsync(TestContext.Current.CancellationToken);
-        await _decorator.SavepointAsync("sp1", TestContext.Current.CancellationToken);
-        await _decorator.CommitAsync(TestContext.Current.CancellationToken);
+        await _decorator.BeginTransactionAsync();
+        await _decorator.SavepointAsync("sp1");
+        await _decorator.CommitAsync();
 
         // Assert
         _mockResiliencePolicy.Verify(
@@ -604,10 +604,10 @@ public class ConnectionResilienceDecoratorTests
             .Returns<Func<Task>, string, CancellationToken>((func, _, _) => func());
 
         // Act
-        await _decorator.BeginTransactionAsync(TestContext.Current.CancellationToken);
-        await _decorator.SavepointAsync("sp1", TestContext.Current.CancellationToken);
-        await _decorator.RollbackToSavepointAsync("sp1", TestContext.Current.CancellationToken);
-        await _decorator.RollbackAsync(TestContext.Current.CancellationToken);
+        await _decorator.BeginTransactionAsync();
+        await _decorator.SavepointAsync("sp1");
+        await _decorator.RollbackToSavepointAsync("sp1");
+        await _decorator.RollbackAsync();
 
         // Assert
         _mockResiliencePolicy.Verify(

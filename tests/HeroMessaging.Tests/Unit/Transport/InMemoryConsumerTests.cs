@@ -99,12 +99,12 @@ public class InMemoryConsumerTests : IDisposable
         var consumer = CreateConsumer(handler);
 
         // Act
-        await consumer.StartAsync(TestContext.Current.CancellationToken);
+        await consumer.StartAsync();
 
         // Assert
         Assert.True(consumer.IsActive);
 
-        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
+        await consumer.DisposeAsync();
     }
 
     [Fact]
@@ -114,15 +114,15 @@ public class InMemoryConsumerTests : IDisposable
         var handler = new Func<TransportEnvelope, MessageContext, CancellationToken, Task>(
             (env, ctx, ct) => Task.CompletedTask);
         var consumer = CreateConsumer(handler);
-        await consumer.StartAsync(TestContext.Current.CancellationToken);
+        await consumer.StartAsync();
 
         // Act
-        await consumer.StartAsync(TestContext.Current.CancellationToken);
+        await consumer.StartAsync();
 
         // Assert
         Assert.True(consumer.IsActive);
 
-        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
+        await consumer.DisposeAsync();
     }
 
     [Fact]
@@ -132,10 +132,10 @@ public class InMemoryConsumerTests : IDisposable
         var handler = new Func<TransportEnvelope, MessageContext, CancellationToken, Task>(
             (env, ctx, ct) => Task.CompletedTask);
         var consumer = CreateConsumer(handler);
-        await consumer.StartAsync(TestContext.Current.CancellationToken);
+        await consumer.StartAsync();
 
         // Act
-        await consumer.StopAsync(TestContext.Current.CancellationToken);
+        await consumer.StopAsync();
 
         // Assert
         Assert.False(consumer.IsActive);
@@ -150,7 +150,7 @@ public class InMemoryConsumerTests : IDisposable
         var consumer = CreateConsumer(handler);
 
         // Act
-        await consumer.StopAsync(TestContext.Current.CancellationToken);
+        await consumer.StopAsync();
 
         // Assert
         Assert.False(consumer.IsActive);
@@ -168,7 +168,7 @@ public class InMemoryConsumerTests : IDisposable
                 return Task.CompletedTask;
             });
         var consumer = CreateConsumer(handler);
-        await consumer.StartAsync(TestContext.Current.CancellationToken);
+        await consumer.StartAsync();
 
         var envelope = CreateTestEnvelope();
 
@@ -179,7 +179,7 @@ public class InMemoryConsumerTests : IDisposable
         // Assert
         Assert.True(messageReceived);
 
-        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
+        await consumer.DisposeAsync();
     }
 
     [Fact]
@@ -225,7 +225,7 @@ public class InMemoryConsumerTests : IDisposable
         };
 
         var consumer = CreateConsumer(handler, options: options);
-        await consumer.StartAsync(TestContext.Current.CancellationToken);
+        await consumer.StartAsync();
 
         var envelope = CreateTestEnvelope();
 
@@ -238,7 +238,7 @@ public class InMemoryConsumerTests : IDisposable
         Assert.True(metrics.MessagesReceived > 0);
         Assert.True(metrics.MessagesAcknowledged > 0);
 
-        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
+        await consumer.DisposeAsync();
     }
 
     [Fact]
@@ -249,7 +249,7 @@ public class InMemoryConsumerTests : IDisposable
         var handler = new Func<TransportEnvelope, MessageContext, CancellationToken, Task>(
             async (env, ctx, ct) =>
             {
-                await ctx.AcknowledgeAsync(ct, TestContext.Current.CancellationToken);
+                await ctx.AcknowledgeAsync(ct);
                 manuallyAcknowledged = true;
             });
 
@@ -262,7 +262,7 @@ public class InMemoryConsumerTests : IDisposable
         };
 
         var consumer = CreateConsumer(handler, options: options);
-        await consumer.StartAsync(TestContext.Current.CancellationToken);
+        await consumer.StartAsync();
 
         var envelope = CreateTestEnvelope();
 
@@ -275,7 +275,7 @@ public class InMemoryConsumerTests : IDisposable
         var metrics = consumer.GetMetrics();
         Assert.Equal(1, metrics.MessagesAcknowledged);
 
-        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
+        await consumer.DisposeAsync();
     }
 
     [Fact]
@@ -285,11 +285,11 @@ public class InMemoryConsumerTests : IDisposable
         var handler = new Func<TransportEnvelope, MessageContext, CancellationToken, Task>(
             async (env, ctx, ct) =>
             {
-                await ctx.RejectAsync(requeue: false, ct, TestContext.Current.CancellationToken);
+                await ctx.RejectAsync(requeue: false, ct);
             });
 
         var consumer = CreateConsumer(handler);
-        await consumer.StartAsync(TestContext.Current.CancellationToken);
+        await consumer.StartAsync();
 
         var envelope = CreateTestEnvelope();
 
@@ -301,7 +301,7 @@ public class InMemoryConsumerTests : IDisposable
         var metrics = consumer.GetMetrics();
         Assert.Equal(1, metrics.MessagesRejected);
 
-        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
+        await consumer.DisposeAsync();
     }
 
     [Fact]
@@ -315,16 +315,16 @@ public class InMemoryConsumerTests : IDisposable
                 processCount++;
                 if (processCount == 1)
                 {
-                    await ctx.RejectAsync(requeue: true, ct, TestContext.Current.CancellationToken);
+                    await ctx.RejectAsync(requeue: true, ct);
                 }
                 else
                 {
-                    await ctx.AcknowledgeAsync(ct, TestContext.Current.CancellationToken);
+                    await ctx.AcknowledgeAsync(ct);
                 }
             });
 
         var consumer = CreateConsumer(handler);
-        await consumer.StartAsync(TestContext.Current.CancellationToken);
+        await consumer.StartAsync();
 
         var envelope = CreateTestEnvelope();
 
@@ -337,7 +337,7 @@ public class InMemoryConsumerTests : IDisposable
         var metrics = consumer.GetMetrics();
         Assert.True(metrics.MessagesRejected > 0);
 
-        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
+        await consumer.DisposeAsync();
     }
 
     [Fact]
@@ -347,11 +347,11 @@ public class InMemoryConsumerTests : IDisposable
         var handler = new Func<TransportEnvelope, MessageContext, CancellationToken, Task>(
             async (env, ctx, ct) =>
             {
-                await ctx.DeadLetterAsync("Test reason", ct, TestContext.Current.CancellationToken);
+                await ctx.DeadLetterAsync("Test reason", ct);
             });
 
         var consumer = CreateConsumer(handler);
-        await consumer.StartAsync(TestContext.Current.CancellationToken);
+        await consumer.StartAsync();
 
         var envelope = CreateTestEnvelope();
 
@@ -363,7 +363,7 @@ public class InMemoryConsumerTests : IDisposable
         var metrics = consumer.GetMetrics();
         Assert.Equal(1, metrics.MessagesDeadLettered);
 
-        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
+        await consumer.DisposeAsync();
     }
 
     [Fact]
@@ -383,7 +383,7 @@ public class InMemoryConsumerTests : IDisposable
         };
 
         var consumer = CreateConsumer(handler, options: options);
-        await consumer.StartAsync(TestContext.Current.CancellationToken);
+        await consumer.StartAsync();
 
         var envelope = CreateTestEnvelope();
 
@@ -395,7 +395,7 @@ public class InMemoryConsumerTests : IDisposable
         var metrics = consumer.GetMetrics();
         Assert.True(metrics.MessagesFailed > 0);
 
-        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
+        await consumer.DisposeAsync();
     }
 
     [Fact]
@@ -420,7 +420,7 @@ public class InMemoryConsumerTests : IDisposable
         };
 
         var consumer = CreateConsumer(handler, options: options);
-        await consumer.StartAsync(TestContext.Current.CancellationToken);
+        await consumer.StartAsync();
 
         var envelope = CreateTestEnvelope();
 
@@ -433,7 +433,7 @@ public class InMemoryConsumerTests : IDisposable
         var metrics = consumer.GetMetrics();
         Assert.True(metrics.MessagesFailed > 0);
 
-        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
+        await consumer.DisposeAsync();
     }
 
     [Fact]
@@ -453,7 +453,7 @@ public class InMemoryConsumerTests : IDisposable
         };
 
         var consumer = CreateConsumer(handler, options: options);
-        await consumer.StartAsync(TestContext.Current.CancellationToken);
+        await consumer.StartAsync();
 
         var envelope = CreateTestEnvelope();
 
@@ -465,7 +465,7 @@ public class InMemoryConsumerTests : IDisposable
         var metrics = consumer.GetMetrics();
         Assert.True(metrics.MessagesDeadLettered > 0);
 
-        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
+        await consumer.DisposeAsync();
     }
 
     [Fact]
@@ -475,11 +475,11 @@ public class InMemoryConsumerTests : IDisposable
         var handler = new Func<TransportEnvelope, MessageContext, CancellationToken, Task>(
             async (env, ctx, ct) =>
             {
-                await ctx.AcknowledgeAsync(ct, TestContext.Current.CancellationToken);
+                await ctx.AcknowledgeAsync(ct);
             });
 
         var consumer = CreateConsumer(handler);
-        await consumer.StartAsync(TestContext.Current.CancellationToken);
+        await consumer.StartAsync();
 
         var envelope = CreateTestEnvelope();
 
@@ -495,7 +495,7 @@ public class InMemoryConsumerTests : IDisposable
         Assert.Equal(0, metrics.MessagesFailed);
         Assert.NotNull(metrics.LastMessageReceived);
 
-        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
+        await consumer.DisposeAsync();
     }
 
     [Fact]
@@ -507,11 +507,11 @@ public class InMemoryConsumerTests : IDisposable
             async (env, ctx, ct) =>
             {
                 await tcs.Task;
-                await ctx.AcknowledgeAsync(ct, TestContext.Current.CancellationToken);
+                await ctx.AcknowledgeAsync(ct);
             });
 
         var consumer = CreateConsumer(handler);
-        await consumer.StartAsync(TestContext.Current.CancellationToken);
+        await consumer.StartAsync();
 
         var envelope = CreateTestEnvelope();
 
@@ -530,7 +530,7 @@ public class InMemoryConsumerTests : IDisposable
         Assert.True(metricsWhileProcessing.CurrentlyProcessing >= 0);
         Assert.Equal(0, metricsAfterProcessing.CurrentlyProcessing);
 
-        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
+        await consumer.DisposeAsync();
     }
 
     [Fact]
@@ -541,11 +541,11 @@ public class InMemoryConsumerTests : IDisposable
             async (env, ctx, ct) =>
             {
                 await Task.Delay(50);
-                await ctx.AcknowledgeAsync(ct, TestContext.Current.CancellationToken);
+                await ctx.AcknowledgeAsync(ct);
             });
 
         var consumer = CreateConsumer(handler);
-        await consumer.StartAsync(TestContext.Current.CancellationToken);
+        await consumer.StartAsync();
 
         var envelope = CreateTestEnvelope();
 
@@ -557,7 +557,7 @@ public class InMemoryConsumerTests : IDisposable
         var metrics = consumer.GetMetrics();
         Assert.True(metrics.AverageProcessingDuration >= TimeSpan.Zero);
 
-        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
+        await consumer.DisposeAsync();
     }
 
     [Fact]
@@ -567,10 +567,10 @@ public class InMemoryConsumerTests : IDisposable
         var handler = new Func<TransportEnvelope, MessageContext, CancellationToken, Task>(
             (env, ctx, ct) => Task.CompletedTask);
         var consumer = CreateConsumer(handler);
-        await consumer.StartAsync(TestContext.Current.CancellationToken);
+        await consumer.StartAsync();
 
         // Act
-        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
+        await consumer.DisposeAsync();
 
         // Assert
         Assert.False(consumer.IsActive);
@@ -586,7 +586,7 @@ public class InMemoryConsumerTests : IDisposable
             MaxQueueLength = 100
         };
         var transport = new InMemoryTransport(transportOptions, _timeProvider);
-        await transport.ConnectAsync(TestContext.Current.CancellationToken);
+        await transport.ConnectAsync();
 
         var handler = new Func<TransportEnvelope, MessageContext, CancellationToken, Task>(
             (env, ctx, ct) => Task.CompletedTask);
@@ -594,16 +594,16 @@ public class InMemoryConsumerTests : IDisposable
         var consumer = await transport.SubscribeAsync(
             _source,
             handler,
-            new ConsumerOptions { StartImmediately = false }, TestContext.Current.CancellationToken);
+            new ConsumerOptions { StartImmediately = false });
 
         // Act
-        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
+        await consumer.DisposeAsync();
 
         // Assert - Consumer should be removed
-        var health = await transport.GetHealthAsync(TestContext.Current.CancellationToken);
+        var health = await transport.GetHealthAsync();
         Assert.Equal(0, health.ActiveConsumers);
 
-        await transport.DisposeAsync(TestContext.Current.CancellationToken);
+        await transport.DisposeAsync();
     }
 
     [Fact]
@@ -632,7 +632,7 @@ public class InMemoryConsumerTests : IDisposable
                     concurrentCount--;
                 }
 
-                await ctx.AcknowledgeAsync(ct, TestContext.Current.CancellationToken);
+                await ctx.AcknowledgeAsync(ct);
             });
 
         var options = new ConsumerOptions
@@ -644,7 +644,7 @@ public class InMemoryConsumerTests : IDisposable
         };
 
         var consumer = CreateConsumer(handler, options: options);
-        await consumer.StartAsync(TestContext.Current.CancellationToken);
+        await consumer.StartAsync();
 
         // Act
         for (int i = 0; i < 5; i++)
@@ -657,7 +657,7 @@ public class InMemoryConsumerTests : IDisposable
         // Assert
         Assert.True(maxConcurrent <= 2);
 
-        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
+        await consumer.DisposeAsync();
     }
 
     [Fact]
@@ -667,11 +667,11 @@ public class InMemoryConsumerTests : IDisposable
         var handler = new Func<TransportEnvelope, MessageContext, CancellationToken, Task>(
             async (env, ctx, ct) =>
             {
-                await ctx.AcknowledgeAsync(ct, TestContext.Current.CancellationToken);
+                await ctx.AcknowledgeAsync(ct);
             });
 
         var consumer = CreateConsumer(handler);
-        await consumer.StartAsync(TestContext.Current.CancellationToken);
+        await consumer.StartAsync();
 
         var envelope = CreateTestEnvelope();
 
@@ -692,7 +692,7 @@ public class InMemoryConsumerTests : IDisposable
             "receive",
             "success"), Times.AtLeastOnce());
 
-        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
+        await consumer.DisposeAsync();
     }
 
     [Fact]
@@ -712,7 +712,7 @@ public class InMemoryConsumerTests : IDisposable
         };
 
         var consumer = CreateConsumer(handler, options: options);
-        await consumer.StartAsync(TestContext.Current.CancellationToken);
+        await consumer.StartAsync();
 
         var envelope = CreateTestEnvelope();
 
@@ -730,7 +730,7 @@ public class InMemoryConsumerTests : IDisposable
             "receive",
             "failure"), Times.AtLeastOnce());
 
-        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
+        await consumer.DisposeAsync();
     }
 
     // Helper methods

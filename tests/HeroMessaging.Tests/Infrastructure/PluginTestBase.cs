@@ -35,12 +35,12 @@ public abstract class PluginTestBase<TPlugin> : IAsyncDisposable where TPlugin :
 
         if (plugin is IPluginWithConfiguration configurable && configuration != null)
         {
-            await configurable.ConfigureAsync(configuration, TestContext.Current.CancellationToken);
+            await configurable.ConfigureAsync(configuration);
         }
 
         if (plugin is IPluginWithLifecycle lifecycle)
         {
-            await lifecycle.InitializeAsync(TestContext.Current.CancellationToken);
+            await lifecycle.InitializeAsync();
             Context.RegisterForCleanup(lifecycle);
         }
 
@@ -68,7 +68,7 @@ public abstract class PluginTestBase<TPlugin> : IAsyncDisposable where TPlugin :
 
         if (plugin is IPluginWithLifecycle lifecycle)
         {
-            await lifecycle.InitializeAsync(TestContext.Current.CancellationToken);
+            await lifecycle.InitializeAsync();
             Context.RegisterForCleanup(lifecycle);
         }
 
@@ -159,12 +159,12 @@ public abstract class PluginTestBase<TPlugin> : IAsyncDisposable where TPlugin :
             if (instance1 is IPluginWithState stateful1 && instance2 is IPluginWithState stateful2)
             {
                 // Modify state in instance1
-                await stateful1.SetStateAsync("test-key", "test-value-1", TestContext.Current.CancellationToken);
-                await stateful2.SetStateAsync("test-key", "test-value-2", TestContext.Current.CancellationToken);
+                await stateful1.SetStateAsync("test-key", "test-value-1");
+                await stateful2.SetStateAsync("test-key", "test-value-2");
 
                 // Verify isolation
-                var value1 = await stateful1.GetStateAsync("test-key", TestContext.Current.CancellationToken);
-                var value2 = await stateful2.GetStateAsync("test-key", TestContext.Current.CancellationToken);
+                var value1 = await stateful1.GetStateAsync("test-key");
+                var value2 = await stateful2.GetStateAsync("test-key");
 
                 results.StateIsIsolated = value1?.ToString() == "test-value-1" &&
                                         value2?.ToString() == "test-value-2";
@@ -258,7 +258,7 @@ public abstract class PluginTestBase<TPlugin> : IAsyncDisposable where TPlugin :
 
                     try
                     {
-                        await configurable.ConfigureAsync(config, TestContext.Current.CancellationToken);
+                        await configurable.ConfigureAsync(config);
                         configResult.Success = true;
                     }
                     catch (Exception ex)
@@ -334,7 +334,7 @@ public abstract class PluginTestBase<TPlugin> : IAsyncDisposable where TPlugin :
         for (int i = 0; i < iterations; i++)
         {
             var start = DateTimeOffset.UtcNow;
-            await plugin.ExecutePerformanceTestAsync(TestContext.Current.CancellationToken);
+            await plugin.ExecutePerformanceTestAsync();
             var end = DateTimeOffset.UtcNow;
 
             latencies.Add((end - start).TotalMilliseconds);
@@ -362,7 +362,7 @@ public abstract class PluginTestBase<TPlugin> : IAsyncDisposable where TPlugin :
 
         while (DateTimeOffset.UtcNow < end)
         {
-            await plugin.ExecutePerformanceTestAsync(TestContext.Current.CancellationToken);
+            await plugin.ExecutePerformanceTestAsync();
             operations++;
         }
 
@@ -384,7 +384,7 @@ public abstract class PluginTestBase<TPlugin> : IAsyncDisposable where TPlugin :
         // Execute operations to measure memory impact
         for (int i = 0; i < 1000; i++)
         {
-            await plugin.ExecutePerformanceTestAsync(TestContext.Current.CancellationToken);
+            await plugin.ExecutePerformanceTestAsync();
         }
 
         var endMemory = GC.GetTotalMemory(false);
@@ -403,11 +403,11 @@ public abstract class PluginTestBase<TPlugin> : IAsyncDisposable where TPlugin :
     {
         if (!_disposed)
         {
-            await Context.DisposeAsync(TestContext.Current.CancellationToken);
+            await Context.DisposeAsync();
 
             foreach (var disposable in _disposables)
             {
-                await disposable.DisposeAsync(TestContext.Current.CancellationToken);
+                await disposable.DisposeAsync();
             }
 
             _disposed = true;
@@ -443,7 +443,7 @@ public class PluginTestContext<TPlugin> : IAsyncDisposable
             {
                 try
                 {
-                    await plugin.DisposeAsync(TestContext.Current.CancellationToken);
+                    await plugin.DisposeAsync();
                 }
                 catch (Exception ex)
                 {

@@ -102,7 +102,7 @@ public sealed class InMemoryTransportInstrumentationIntegrationTests
         }
         finally
         {
-            await transport.DisposeAsync(TestContext.Current.CancellationToken);
+            await transport.DisposeAsync();
         }
     }
 
@@ -149,7 +149,7 @@ public sealed class InMemoryTransportInstrumentationIntegrationTests
             // Service B consumer (middle of chain) - forwards to Service C
             await sharedTransport.SubscribeAsync(queueAB, async (env, ctx, ct) =>
             {
-                await sharedTransport.SendAsync(queueBC, env, ct, TestContext.Current.CancellationToken);
+                await sharedTransport.SendAsync(queueBC, env, ct);
             }, new ConsumerOptions { StartImmediately = true, AutoAcknowledge = true }, TestContext.Current.CancellationToken);
 
             // Act - Service A sends the original message
@@ -174,7 +174,7 @@ public sealed class InMemoryTransportInstrumentationIntegrationTests
         }
         finally
         {
-            await sharedTransport.DisposeAsync(TestContext.Current.CancellationToken);
+            await sharedTransport.DisposeAsync();
         }
     }
 
@@ -222,7 +222,7 @@ public sealed class InMemoryTransportInstrumentationIntegrationTests
             using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
             await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
             {
-                await transport.SendAsync(destination, envelope2, cts.Token, TestContext.Current.CancellationToken);
+                await transport.SendAsync(destination, envelope2, cts.Token);
             });
 
             // Assert - Check that send activities were recorded
@@ -235,7 +235,7 @@ public sealed class InMemoryTransportInstrumentationIntegrationTests
         }
         finally
         {
-            await transport.DisposeAsync(TestContext.Current.CancellationToken);
+            await transport.DisposeAsync();
         }
     }
 

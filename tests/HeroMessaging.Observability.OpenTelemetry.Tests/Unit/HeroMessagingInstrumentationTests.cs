@@ -510,6 +510,8 @@ public class HeroMessagingInstrumentationTests : IDisposable
     {
         public Guid MessageId { get; set; }
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
-        public IDictionary<string, object>? Metadata { get; set; }
+        public string? CorrelationId { get; set; }
+        public string? CausationId { get; set; }
+        public Dictionary<string, object>? Metadata { get; set; }
     }
 }

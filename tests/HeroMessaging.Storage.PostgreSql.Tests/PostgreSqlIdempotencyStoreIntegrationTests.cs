@@ -227,8 +227,8 @@ public sealed class PostgreSqlIdempotencyStoreIntegrationTests : IAsyncDisposabl
         _keysToCleanup.Add(key2);
 
         // Store two entries with different TTLs
-        await _store.StoreSuccessAsync(key1, "test1", TimeSpan.FromMinutes(30, TestContext.Current.CancellationToken));
-        await _store.StoreSuccessAsync(key2, "test2", TimeSpan.FromHours(2, TestContext.Current.CancellationToken));
+        await _store.StoreSuccessAsync(key1, "test1", TimeSpan.FromMinutes(30), TestContext.Current.CancellationToken);
+        await _store.StoreSuccessAsync(key2, "test2", TimeSpan.FromHours(2), TestContext.Current.CancellationToken);
 
         // Advance time to expire first entry
         _timeProvider.Advance(TimeSpan.FromHours(1));

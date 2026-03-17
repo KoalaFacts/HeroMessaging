@@ -279,7 +279,7 @@ public class MultipleTransportHealthCheckTests : IAsyncDisposable
         {
             if (disposable != null)
             {
-                await disposable.DisposeAsync(TestContext.Current.CancellationToken);
+                await disposable.DisposeAsync();
             }
         }
         _disposables.Clear();

@@ -451,10 +451,9 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
         var provider = new PolicyAuthorizationProvider();
         var identity = new ClaimsIdentity([], "TestAuth");
         var principal = new ClaimsPrincipal(identity);
-        var cts = new CancellationTokenSource();
 
         // Act
-        var result = await provider.AuthorizeAsync(principal, "Message", "Op", cts.Token, TestContext.Current.CancellationToken);
+        var result = await provider.AuthorizeAsync(principal, "Message", "Op", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Succeeded);
@@ -470,10 +469,9 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
             new Claim("permission", "test")
         ], "TestAuth");
         var principal = new ClaimsPrincipal(identity);
-        var cts = new CancellationTokenSource();
 
         // Act
-        var hasPermission = await provider.HasPermissionAsync(principal, "test", cts.Token, TestContext.Current.CancellationToken);
+        var hasPermission = await provider.HasPermissionAsync(principal, "test", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(hasPermission);

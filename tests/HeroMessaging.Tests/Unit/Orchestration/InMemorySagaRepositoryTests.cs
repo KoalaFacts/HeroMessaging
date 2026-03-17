@@ -49,7 +49,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
 
             // Act & Assert
             var ex = await Assert.ThrowsAsync<ArgumentNullException>(
-                async () => await repository.SaveAsync(null!, TestContext.Current.CancellationToken));
+                async () => await repository.SaveAsync(null!));
             Assert.Equal("saga", ex.ParamName);
         }
 
@@ -61,11 +61,11 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             var saga = new TestSaga { CorrelationId = Guid.NewGuid() };
 
             // Act
-            await repository.SaveAsync(saga, TestContext.Current.CancellationToken);
+            await repository.SaveAsync(saga);
 
             // Assert
             Assert.Equal(1, repository.Count);
-            var retrieved = await repository.FindAsync(saga.CorrelationId, TestContext.Current.CancellationToken);
+            var retrieved = await repository.FindAsync(saga.CorrelationId);
             Assert.NotNull(retrieved);
             Assert.Equal(saga.CorrelationId, retrieved.CorrelationId);
         }
@@ -79,7 +79,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             var expectedTime = _timeProvider.GetUtcNow();
 
             // Act
-            await repository.SaveAsync(saga, TestContext.Current.CancellationToken);
+            await repository.SaveAsync(saga);
 
             // Assert
             Assert.Equal(expectedTime, saga.CreatedAt);
@@ -94,7 +94,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             var expectedTime = _timeProvider.GetUtcNow();
 
             // Act
-            await repository.SaveAsync(saga, TestContext.Current.CancellationToken);
+            await repository.SaveAsync(saga);
 
             // Assert
             Assert.Equal(expectedTime, saga.UpdatedAt);
@@ -108,7 +108,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             var saga = new TestSaga { CorrelationId = Guid.NewGuid() };
 
             // Act
-            await repository.SaveAsync(saga, TestContext.Current.CancellationToken);
+            await repository.SaveAsync(saga);
 
             // Assert
             Assert.Equal(0, saga.Version);
@@ -123,11 +123,11 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             var saga1 = new TestSaga { CorrelationId = correlationId };
             var saga2 = new TestSaga { CorrelationId = correlationId };
 
-            await repository.SaveAsync(saga1, TestContext.Current.CancellationToken);
+            await repository.SaveAsync(saga1);
 
             // Act & Assert
             var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-                async () => await repository.SaveAsync(saga2, TestContext.Current.CancellationToken));
+                async () => await repository.SaveAsync(saga2));
             Assert.Contains("already exists", ex.Message);
             Assert.Contains("UpdateAsync", ex.Message);
         }
@@ -143,7 +143,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
 
             // Act & Assert
             await Assert.ThrowsAsync<OperationCanceledException>(
-                async () => await repository.SaveAsync(saga, cts.Token, TestContext.Current.CancellationToken));
+                async () => await repository.SaveAsync(saga, cts.Token));
         }
 
         #endregion
@@ -157,7 +157,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             var repository = new InMemorySagaRepository<TestSaga>(_timeProvider);
 
             // Act
-            var result = await repository.FindAsync(Guid.NewGuid(, TestContext.Current.CancellationToken));
+            var result = await repository.FindAsync(Guid.NewGuid());
 
             // Assert
             Assert.Null(result);
@@ -169,10 +169,10 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             // Arrange
             var repository = new InMemorySagaRepository<TestSaga>(_timeProvider);
             var saga = new TestSaga { CorrelationId = Guid.NewGuid(), CurrentState = "TestState" };
-            await repository.SaveAsync(saga, TestContext.Current.CancellationToken);
+            await repository.SaveAsync(saga);
 
             // Act
-            var result = await repository.FindAsync(saga.CorrelationId, TestContext.Current.CancellationToken);
+            var result = await repository.FindAsync(saga.CorrelationId);
 
             // Assert
             Assert.NotNull(result);
@@ -205,7 +205,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
 
             // Act & Assert
             var ex = await Assert.ThrowsAsync<ArgumentNullException>(
-                async () => await repository.UpdateAsync(null!, TestContext.Current.CancellationToken));
+                async () => await repository.UpdateAsync(null!));
             Assert.Equal("saga", ex.ParamName);
         }
 
@@ -218,7 +218,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
 
             // Act & Assert
             var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-                async () => await repository.UpdateAsync(saga, TestContext.Current.CancellationToken));
+                async () => await repository.UpdateAsync(saga));
             Assert.Contains("not found", ex.Message);
             Assert.Contains("SaveAsync", ex.Message);
         }
@@ -229,14 +229,14 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             // Arrange
             var repository = new InMemorySagaRepository<TestSaga>(_timeProvider);
             var saga = new TestSaga { CorrelationId = Guid.NewGuid(), CurrentState = "Initial" };
-            await repository.SaveAsync(saga, TestContext.Current.CancellationToken);
+            await repository.SaveAsync(saga);
 
             // Act
             saga.CurrentState = "Updated";
-            await repository.UpdateAsync(saga, TestContext.Current.CancellationToken);
+            await repository.UpdateAsync(saga);
 
             // Assert
-            var retrieved = await repository.FindAsync(saga.CorrelationId, TestContext.Current.CancellationToken);
+            var retrieved = await repository.FindAsync(saga.CorrelationId);
             Assert.NotNull(retrieved);
             Assert.Equal("Updated", retrieved.CurrentState);
         }
@@ -247,10 +247,10 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             // Arrange
             var repository = new InMemorySagaRepository<TestSaga>(_timeProvider);
             var saga = new TestSaga { CorrelationId = Guid.NewGuid() };
-            await repository.SaveAsync(saga, TestContext.Current.CancellationToken);
+            await repository.SaveAsync(saga);
 
             // Act
-            await repository.UpdateAsync(saga, TestContext.Current.CancellationToken);
+            await repository.UpdateAsync(saga);
 
             // Assert
             Assert.Equal(1, saga.Version);
@@ -262,13 +262,13 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             // Arrange
             var repository = new InMemorySagaRepository<TestSaga>(_timeProvider);
             var saga = new TestSaga { CorrelationId = Guid.NewGuid() };
-            await repository.SaveAsync(saga, TestContext.Current.CancellationToken);
+            await repository.SaveAsync(saga);
 
             var originalUpdatedAt = saga.UpdatedAt;
             _timeProvider.Advance(TimeSpan.FromMinutes(5));
 
             // Act
-            await repository.UpdateAsync(saga, TestContext.Current.CancellationToken);
+            await repository.UpdateAsync(saga);
 
             // Assert
             Assert.NotEqual(originalUpdatedAt, saga.UpdatedAt);
@@ -281,15 +281,15 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             // Arrange
             var repository = new InMemorySagaRepository<TestSaga>(_timeProvider);
             var saga = new TestSaga { CorrelationId = Guid.NewGuid() };
-            await repository.SaveAsync(saga, TestContext.Current.CancellationToken);
+            await repository.SaveAsync(saga);
 
             // Simulate concurrent update
-            await repository.UpdateAsync(saga, TestContext.Current.CancellationToken);
+            await repository.UpdateAsync(saga);
 
             // Act - Try to update with stale version
             saga.Version = 0; // Reset to old version
             var ex = await Assert.ThrowsAsync<SagaConcurrencyException>(
-                async () => await repository.UpdateAsync(saga, TestContext.Current.CancellationToken));
+                async () => await repository.UpdateAsync(saga));
 
             // Assert
             Assert.Equal(saga.CorrelationId, ex.CorrelationId);
@@ -303,12 +303,12 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             // Arrange
             var repository = new InMemorySagaRepository<TestSaga>(_timeProvider);
             var saga = new TestSaga { CorrelationId = Guid.NewGuid() };
-            await repository.SaveAsync(saga, TestContext.Current.CancellationToken);
+            await repository.SaveAsync(saga);
 
             // Act
-            await repository.UpdateAsync(saga, TestContext.Current.CancellationToken);
-            await repository.UpdateAsync(saga, TestContext.Current.CancellationToken);
-            await repository.UpdateAsync(saga, TestContext.Current.CancellationToken);
+            await repository.UpdateAsync(saga);
+            await repository.UpdateAsync(saga);
+            await repository.UpdateAsync(saga);
 
             // Assert
             Assert.Equal(3, saga.Version);
@@ -320,14 +320,14 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             // Arrange
             var repository = new InMemorySagaRepository<TestSaga>(_timeProvider);
             var saga = new TestSaga { CorrelationId = Guid.NewGuid() };
-            await repository.SaveAsync(saga, TestContext.Current.CancellationToken);
+            await repository.SaveAsync(saga);
 
             var cts = new CancellationTokenSource();
             cts.Cancel();
 
             // Act & Assert
             await Assert.ThrowsAsync<OperationCanceledException>(
-                async () => await repository.UpdateAsync(saga, cts.Token, TestContext.Current.CancellationToken));
+                async () => await repository.UpdateAsync(saga, cts.Token));
         }
 
         #endregion
@@ -341,7 +341,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             var repository = new InMemorySagaRepository<TestSaga>(_timeProvider);
 
             // Act & Assert - should not throw
-            await repository.DeleteAsync(Guid.NewGuid(, TestContext.Current.CancellationToken));
+            await repository.DeleteAsync(Guid.NewGuid());
         }
 
         [Fact]
@@ -350,13 +350,13 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             // Arrange
             var repository = new InMemorySagaRepository<TestSaga>(_timeProvider);
             var saga = new TestSaga { CorrelationId = Guid.NewGuid() };
-            await repository.SaveAsync(saga, TestContext.Current.CancellationToken);
+            await repository.SaveAsync(saga);
 
             // Act
-            await repository.DeleteAsync(saga.CorrelationId, TestContext.Current.CancellationToken);
+            await repository.DeleteAsync(saga.CorrelationId);
 
             // Assert
-            var result = await repository.FindAsync(saga.CorrelationId, TestContext.Current.CancellationToken);
+            var result = await repository.FindAsync(saga.CorrelationId);
             Assert.Null(result);
             Assert.Equal(0, repository.Count);
         }
@@ -385,7 +385,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             var repository = new InMemorySagaRepository<TestSaga>(_timeProvider);
 
             // Act
-            var result = await repository.FindByStateAsync("TestState", TestContext.Current.CancellationToken);
+            var result = await repository.FindByStateAsync("TestState");
 
             // Assert
             Assert.NotNull(result);
@@ -401,12 +401,12 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             var saga2 = new TestSaga { CorrelationId = Guid.NewGuid(), CurrentState = "Active" };
             var saga3 = new TestSaga { CorrelationId = Guid.NewGuid(), CurrentState = "Completed" };
 
-            await repository.SaveAsync(saga1, TestContext.Current.CancellationToken);
-            await repository.SaveAsync(saga2, TestContext.Current.CancellationToken);
-            await repository.SaveAsync(saga3, TestContext.Current.CancellationToken);
+            await repository.SaveAsync(saga1);
+            await repository.SaveAsync(saga2);
+            await repository.SaveAsync(saga3);
 
             // Act
-            var result = await repository.FindByStateAsync("Active", TestContext.Current.CancellationToken);
+            var result = await repository.FindByStateAsync("Active");
 
             // Assert
             var sagas = result.ToList();
@@ -420,10 +420,10 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             // Arrange
             var repository = new InMemorySagaRepository<TestSaga>(_timeProvider);
             var saga = new TestSaga { CorrelationId = Guid.NewGuid(), CurrentState = "Active" };
-            await repository.SaveAsync(saga, TestContext.Current.CancellationToken);
+            await repository.SaveAsync(saga);
 
             // Act
-            var result = await repository.FindByStateAsync("Completed", TestContext.Current.CancellationToken);
+            var result = await repository.FindByStateAsync("Completed");
 
             // Assert
             Assert.Empty(result);
@@ -439,7 +439,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
 
             // Act & Assert
             await Assert.ThrowsAsync<OperationCanceledException>(
-                async () => await repository.FindByStateAsync("TestState", cts.Token, TestContext.Current.CancellationToken));
+                async () => await repository.FindByStateAsync("TestState", cts.Token));
         }
 
         #endregion
@@ -452,10 +452,10 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             // Arrange
             var repository = new InMemorySagaRepository<TestSaga>(_timeProvider);
             var saga = new TestSaga { CorrelationId = Guid.NewGuid() };
-            await repository.SaveAsync(saga, TestContext.Current.CancellationToken);
+            await repository.SaveAsync(saga);
 
             // Act
-            var result = await repository.FindStaleAsync(TimeSpan.FromHours(1, TestContext.Current.CancellationToken));
+            var result = await repository.FindStaleAsync(TimeSpan.FromHours(1));
 
             // Assert
             Assert.Empty(result);
@@ -467,13 +467,13 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             // Arrange
             var repository = new InMemorySagaRepository<TestSaga>(_timeProvider);
             var saga = new TestSaga { CorrelationId = Guid.NewGuid() };
-            await repository.SaveAsync(saga, TestContext.Current.CancellationToken);
+            await repository.SaveAsync(saga);
 
             // Advance time to make saga stale
             _timeProvider.Advance(TimeSpan.FromHours(2));
 
             // Act
-            var result = await repository.FindStaleAsync(TimeSpan.FromHours(1, TestContext.Current.CancellationToken));
+            var result = await repository.FindStaleAsync(TimeSpan.FromHours(1));
 
             // Assert
             var staleSagas = result.ToList();
@@ -487,13 +487,13 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             // Arrange
             var repository = new InMemorySagaRepository<TestSaga>(_timeProvider);
             var saga = new TestSaga { CorrelationId = Guid.NewGuid(), IsCompleted = true };
-            await repository.SaveAsync(saga, TestContext.Current.CancellationToken);
+            await repository.SaveAsync(saga);
 
             // Advance time
             _timeProvider.Advance(TimeSpan.FromHours(2));
 
             // Act
-            var result = await repository.FindStaleAsync(TimeSpan.FromHours(1, TestContext.Current.CancellationToken));
+            var result = await repository.FindStaleAsync(TimeSpan.FromHours(1));
 
             // Assert
             Assert.Empty(result);
@@ -505,13 +505,13 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             // Arrange
             var repository = new InMemorySagaRepository<TestSaga>(_timeProvider);
             var saga = new TestSaga { CorrelationId = Guid.NewGuid() };
-            await repository.SaveAsync(saga, TestContext.Current.CancellationToken);
+            await repository.SaveAsync(saga);
 
             // Advance time but not past threshold
             _timeProvider.Advance(TimeSpan.FromMinutes(30));
 
             // Act
-            var result = await repository.FindStaleAsync(TimeSpan.FromHours(1, TestContext.Current.CancellationToken));
+            var result = await repository.FindStaleAsync(TimeSpan.FromHours(1));
 
             // Assert
             Assert.Empty(result);
@@ -523,15 +523,15 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             // Arrange
             var repository = new InMemorySagaRepository<TestSaga>(_timeProvider);
             var oldSaga = new TestSaga { CorrelationId = Guid.NewGuid() };
-            await repository.SaveAsync(oldSaga, TestContext.Current.CancellationToken);
+            await repository.SaveAsync(oldSaga);
 
             _timeProvider.Advance(TimeSpan.FromHours(2));
 
             var newSaga = new TestSaga { CorrelationId = Guid.NewGuid() };
-            await repository.SaveAsync(newSaga, TestContext.Current.CancellationToken);
+            await repository.SaveAsync(newSaga);
 
             // Act
-            var result = await repository.FindStaleAsync(TimeSpan.FromHours(1, TestContext.Current.CancellationToken));
+            var result = await repository.FindStaleAsync(TimeSpan.FromHours(1));
 
             // Assert
             var staleSagas = result.ToList();
@@ -579,9 +579,9 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             var saga2 = new TestSaga { CorrelationId = Guid.NewGuid() };
             var saga3 = new TestSaga { CorrelationId = Guid.NewGuid() };
 
-            await repository.SaveAsync(saga1, TestContext.Current.CancellationToken);
-            await repository.SaveAsync(saga2, TestContext.Current.CancellationToken);
-            await repository.SaveAsync(saga3, TestContext.Current.CancellationToken);
+            await repository.SaveAsync(saga1);
+            await repository.SaveAsync(saga2);
+            await repository.SaveAsync(saga3);
 
             // Act
             var result = repository.GetAll().ToList();
@@ -660,7 +660,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             // Arrange
             var repository = new InMemorySagaRepository<TestSaga>(_timeProvider);
             var saga = new TestSaga { CorrelationId = Guid.NewGuid() };
-            await repository.SaveAsync(saga, TestContext.Current.CancellationToken);
+            await repository.SaveAsync(saga);
 
             var tasks = new List<Task>();
             var successCount = 0;
@@ -676,10 +676,10 @@ namespace HeroMessaging.Tests.Unit.Orchestration
                 {
                     try
                     {
-                        var currentSaga = await repository.FindAsync(saga.CorrelationId, TestContext.Current.CancellationToken);
+                        var currentSaga = await repository.FindAsync(saga.CorrelationId);
                         if (currentSaga != null)
                         {
-                            await repository.UpdateAsync(currentSaga, TestContext.Current.CancellationToken);
+                            await repository.UpdateAsync(currentSaga);
                             Interlocked.Increment(ref successCount);
                         }
                     }
@@ -699,7 +699,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             Assert.Equal(10, successCount + failureCount);
 
             // Version should be incremented 10 times (once per update)
-            var finalSaga = await repository.FindAsync(saga.CorrelationId, TestContext.Current.CancellationToken);
+            var finalSaga = await repository.FindAsync(saga.CorrelationId);
             Assert.NotNull(finalSaga);
             Assert.Equal(10, finalSaga!.Version);
         }
@@ -710,14 +710,14 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             // Arrange
             var repository = new InMemorySagaRepository<TestSaga>(_timeProvider);
             var saga = new TestSaga { CorrelationId = Guid.NewGuid() };
-            await repository.SaveAsync(saga, TestContext.Current.CancellationToken);
+            await repository.SaveAsync(saga);
 
             // Get initial reference and capture version
-            var staleSaga = await repository.FindAsync(saga.CorrelationId, TestContext.Current.CancellationToken);
+            var staleSaga = await repository.FindAsync(saga.CorrelationId);
             Assert.NotNull(staleSaga);
 
             // Update the saga to increment version
-            await repository.UpdateAsync(staleSaga!, TestContext.Current.CancellationToken);
+            await repository.UpdateAsync(staleSaga!);
 
             // Create a new saga instance with the OLD version to simulate stale read
             var staleSagaCopy = new TestSaga
@@ -729,7 +729,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
 
             // Act & Assert - Trying to update with stale version should fail
             await Assert.ThrowsAsync<SagaConcurrencyException>(
-                () => repository.UpdateAsync(staleSagaCopy, TestContext.Current.CancellationToken));
+                () => repository.UpdateAsync(staleSagaCopy));
         }
 
         #endregion

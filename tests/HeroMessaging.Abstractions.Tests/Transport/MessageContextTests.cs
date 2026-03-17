@@ -209,7 +209,7 @@ public class MessageContextTests
         var context = new MessageContext("test", new TransportAddress("queue"));
 
         // Act & Assert
-        await context.RejectAsync(TestContext.Current.CancellationToken);
+        await context.RejectAsync(cancellationToken: TestContext.Current.CancellationToken);
         // No exception should be thrown
     }
 
@@ -241,7 +241,7 @@ public class MessageContextTests
         var context = new MessageContext("test", new TransportAddress("queue"));
 
         // Act & Assert
-        await context.DeferAsync(TestContext.Current.CancellationToken);
+        await context.DeferAsync(cancellationToken: TestContext.Current.CancellationToken);
         // No exception should be thrown
     }
 
@@ -273,7 +273,7 @@ public class MessageContextTests
         var context = new MessageContext("test", new TransportAddress("queue"));
 
         // Act & Assert
-        await context.DeadLetterAsync(TestContext.Current.CancellationToken);
+        await context.DeadLetterAsync(cancellationToken: TestContext.Current.CancellationToken);
         // No exception should be thrown
     }
 
@@ -335,7 +335,7 @@ public class MessageContextTests
         };
 
         // Act
-        await context.AcknowledgeAsync(cts.Token, TestContext.Current.CancellationToken);
+        await context.AcknowledgeAsync(cts.Token);
 
         // Assert
         Assert.True(tokenPassed);

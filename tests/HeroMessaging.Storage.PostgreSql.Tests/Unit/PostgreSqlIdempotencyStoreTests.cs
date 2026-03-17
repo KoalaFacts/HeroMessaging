@@ -338,7 +338,7 @@ public sealed class PostgreSqlIdempotencyStoreTests : IDisposable
 
         // Act & Assert
         await Assert.ThrowsAsync<OperationCanceledException>(async () =>
-            await store.CleanupExpiredAsync(cts.Token, TestContext.Current.CancellationToken));
+            await store.CleanupExpiredAsync(cts.Token));
     }
 
     [Fact]

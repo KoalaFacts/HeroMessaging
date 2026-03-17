@@ -173,7 +173,7 @@ public sealed class PostgreSqlDeadLetterQueueTests : IDisposable
         var queue = CreateDeadLetterQueue();
 
         // Act
-        var result = await queue.GetDeadLettersAsync<IMessage>(TestContext.Current.CancellationToken);
+        var result = await queue.GetDeadLettersAsync<IMessage>();
 
         // Assert
         Assert.NotNull(result);
@@ -310,7 +310,7 @@ public sealed class PostgreSqlDeadLetterQueueTests : IDisposable
 
         // Act & Assert
         await Assert.ThrowsAsync<OperationCanceledException>(async () =>
-            await queue.SendToDeadLetterAsync(message, context, cts.Token, TestContext.Current.CancellationToken));
+            await queue.SendToDeadLetterAsync(message, context, cts.Token));
     }
 
     [Fact]

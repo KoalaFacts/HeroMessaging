@@ -22,7 +22,7 @@ public sealed class SqlServerUnitOfWorkTests : IAsyncDisposable
     {
         foreach (var disposable in _disposables)
         {
-            await disposable.DisposeAsync(TestContext.Current.CancellationToken);
+            await disposable.DisposeAsync();
         }
         _disposables.Clear();
     }
@@ -344,7 +344,7 @@ public sealed class SqlServerUnitOfWorkTests : IAsyncDisposable
         var uow = new SqlServerUnitOfWork(ValidConnectionString, _timeProvider);
 
         // Act
-        await uow.DisposeAsync(TestContext.Current.CancellationToken);
+        await uow.DisposeAsync();
 
         // Assert - No exception thrown
         Assert.True(true);
@@ -357,9 +357,9 @@ public sealed class SqlServerUnitOfWorkTests : IAsyncDisposable
         var uow = new SqlServerUnitOfWork(ValidConnectionString, _timeProvider);
 
         // Act
-        await uow.DisposeAsync(TestContext.Current.CancellationToken);
-        await uow.DisposeAsync(TestContext.Current.CancellationToken);
-        await uow.DisposeAsync(TestContext.Current.CancellationToken);
+        await uow.DisposeAsync();
+        await uow.DisposeAsync();
+        await uow.DisposeAsync();
 
         // Assert - No exception thrown
         Assert.True(true);

@@ -222,7 +222,7 @@ public sealed class SqlServerDeadLetterQueueTests : IDisposable
         cts.Cancel();
 
         await Assert.ThrowsAsync<OperationCanceledException>(async () =>
-            await queue.SendToDeadLetterAsync(message, context, cts.Token, TestContext.Current.CancellationToken));
+            await queue.SendToDeadLetterAsync(message, context, cts.Token));
     }
 
     private SqlServerDeadLetterQueue CreateDeadLetterQueue()

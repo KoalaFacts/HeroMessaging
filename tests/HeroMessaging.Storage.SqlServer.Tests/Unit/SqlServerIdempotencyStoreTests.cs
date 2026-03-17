@@ -203,7 +203,7 @@ public sealed class SqlServerIdempotencyStoreTests : IDisposable
         cts.Cancel();
 
         await Assert.ThrowsAsync<OperationCanceledException>(async () =>
-            await store.CleanupExpiredAsync(cts.Token, TestContext.Current.CancellationToken));
+            await store.CleanupExpiredAsync(cts.Token));
     }
 
     private SqlServerIdempotencyStore CreateStore()

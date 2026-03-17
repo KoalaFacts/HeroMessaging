@@ -37,7 +37,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -62,13 +62,12 @@ jobs:
           # Custom queries can be added here
           # config-file: ./.github/codeql/codeql-config.yml
 
-      # Autobuild attempts to build any compiled languages (C#, C++, Go, Java, Swift)
-      - name: Autobuild
-        if: matrix.build-mode == 'none'
-        uses: github/codeql-action/autobuild@v4
-
-      # Manual build alternative (if autobuild fails):
+      # Note: build-mode 'none' uses buildless analysis for both C# and Actions.
+      # For C#, this requires CodeQL 2.24.0+ with .NET 10 support.
+      # If buildless analysis is insufficient, change build-mode to 'autobuild'
+      # or use manual build steps:
       # - name: Build solution
+      #   if: matrix.language == 'csharp'
       #   run: |
       #     dotnet restore
       #     dotnet build --configuration Release --no-restore
@@ -84,9 +83,9 @@ jobs:
 
       - name: Upload CodeQL results as artifact
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
-          name: codeql-results
+          name: codeql-results-${{ matrix.language }}
           path: /home/runner/work/_temp/codeql_databases/
           retention-days: 30
 

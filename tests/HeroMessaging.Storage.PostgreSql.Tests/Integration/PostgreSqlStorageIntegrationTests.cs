@@ -50,8 +50,8 @@ public class PostgreSqlStorageIntegrationTests : PostgreSqlIntegrationTestBase
         await transaction.CommitAsync(TestContext.Current.CancellationToken);
 
         // Assert - Messages should be visible after commit
-        var retrievedMessage1 = await storage.RetrieveAsync(messages[0].MessageId, TestContext.Current.CancellationToken);
-        var retrievedMessage2 = await storage.RetrieveAsync(messages[1].MessageId, TestContext.Current.CancellationToken);
+        var retrievedMessage1 = await storage.RetrieveAsync(messages[0].MessageId, null, TestContext.Current.CancellationToken);
+        var retrievedMessage2 = await storage.RetrieveAsync(messages[1].MessageId, null, TestContext.Current.CancellationToken);
 
         Assert.NotNull(retrievedMessage1);
         Assert.NotNull(retrievedMessage2);
@@ -147,7 +147,7 @@ public class PostgreSqlStorageIntegrationTests : PostgreSqlIntegrationTestBase
         await storage.DeleteAsync(message.MessageId, TestContext.Current.CancellationToken);
 
         // Verify it's gone
-        var retrievedAfterDelete = await storage.RetrieveAsync(message.MessageId, TestContext.Current.CancellationToken);
+        var retrievedAfterDelete = await storage.RetrieveAsync(message.MessageId, null, TestContext.Current.CancellationToken);
         Assert.Null(retrievedAfterDelete);
     }
 

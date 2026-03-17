@@ -337,7 +337,7 @@ internal class PackageValidation
 
             using var stream = nuspecEntry.Open();
             using var reader = new StreamReader(stream);
-            var nuspecContent = await reader.ReadToEndAsync(TestContext.Current.CancellationToken);
+            var nuspecContent = await reader.ReadToEndAsync();
 
             var nuspecDoc = XDocument.Parse(nuspecContent);
             var metadata = nuspecDoc.Descendants("metadata").FirstOrDefault();
@@ -453,7 +453,7 @@ internal class PackageValidation
                 {
                     using var stream = assemblyEntry.Open();
                     using var memoryStream = new MemoryStream();
-                    await stream.CopyToAsync(memoryStream, TestContext.Current.CancellationToken);
+                    await stream.CopyToAsync(memoryStream);
                     var assemblyBytes = memoryStream.ToArray();
 
                     // Load assembly for inspection (metadata only)

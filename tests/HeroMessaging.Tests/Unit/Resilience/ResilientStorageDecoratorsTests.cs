@@ -119,7 +119,7 @@ public class ResilientStorageDecoratorsTests
         var decorator = new ResilientMessageStorageDecorator(mockStorage.Object, mockPolicy.Object);
 
         // Act
-        var result = await decorator.DeleteAsync(messageId, TestContext.Current.CancellationToken);
+        var result = await decorator.DeleteAsync(messageId);
 
         // Assert
         Assert.True(result);
@@ -144,7 +144,7 @@ public class ResilientStorageDecoratorsTests
         var decorator = new ResilientMessageStorageDecorator(mockStorage.Object, mockPolicy.Object);
 
         // Act
-        var result = await decorator.BeginTransactionAsync(TestContext.Current.CancellationToken);
+        var result = await decorator.BeginTransactionAsync();
 
         // Assert
         Assert.Same(mockTransaction.Object, result);

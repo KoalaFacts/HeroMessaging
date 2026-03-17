@@ -66,7 +66,7 @@ public sealed class PostgreSqlIdempotencyStoreFixture : IAsyncLifetime
         if (_container != null)
         {
             await _container.StopAsync(TestContext.Current.CancellationToken);
-            await _container.DisposeAsync(TestContext.Current.CancellationToken);
+            await _container.DisposeAsync();
         }
     }
 }

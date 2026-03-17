@@ -45,7 +45,7 @@ public sealed class RetryDecoratorTests
             .ReturnsAsync(ProcessingResult.Successful());
 
         // Act
-        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
+        var result = await decorator.ProcessAsync(message, context);
 
         // Assert
         Assert.True(result.Success);
@@ -79,7 +79,7 @@ public sealed class RetryDecoratorTests
             });
 
         // Act
-        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
+        var result = await decorator.ProcessAsync(message, context);
 
         // Assert
         Assert.True(result.Success);
@@ -116,7 +116,7 @@ public sealed class RetryDecoratorTests
             .ReturnsAsync(ProcessingResult.Failed(testException));
 
         // Act
-        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
+        var result = await decorator.ProcessAsync(message, context);
 
         // Assert
         Assert.False(result.Success);
@@ -145,7 +145,7 @@ public sealed class RetryDecoratorTests
 
         // Act & Assert - Exception should be rethrown after retries exhausted
         await Assert.ThrowsAsync<TimeoutException>(
-            async () => await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken));
+            async () => await decorator.ProcessAsync(message, context));
 
         _innerMock.Verify(
             p => p.ProcessAsync(message, It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()),
@@ -170,7 +170,7 @@ public sealed class RetryDecoratorTests
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken));
+            async () => await decorator.ProcessAsync(message, context));
 
         _innerMock.Verify(
             p => p.ProcessAsync(message, context, It.IsAny<CancellationToken>()),
@@ -198,7 +198,7 @@ public sealed class RetryDecoratorTests
             .ReturnsAsync(ProcessingResult.Failed(new TimeoutException("Timeout")));
 
         // Act
-        var processTask = decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
+        var processTask = decorator.ProcessAsync(message, context);
 
         // Advance time and complete the delay
         _fakeTimeProvider.Advance(TimeSpan.FromMilliseconds(100));
@@ -226,7 +226,7 @@ public sealed class RetryDecoratorTests
             .ReturnsAsync(ProcessingResult.Failed(new TimeoutException("Timeout")));
 
         // Act
-        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
+        await decorator.ProcessAsync(message, context);
 
         // Assert
         _loggerMock.Verify(
@@ -265,7 +265,7 @@ public sealed class RetryDecoratorTests
             });
 
         // Act
-        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
+        await decorator.ProcessAsync(message, context);
 
         // Assert
         Assert.Equal(3, capturedContexts.Count); // Initial + 2 retries
@@ -296,7 +296,7 @@ public sealed class RetryDecoratorTests
             });
 
         // Act
-        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
+        await decorator.ProcessAsync(message, context);
 
         // Assert - FirstFailureTime should be the same for all retries
         Assert.True(capturedContexts.All(c => c.FirstFailureTime == capturedContexts[0].FirstFailureTime));
@@ -324,7 +324,7 @@ public sealed class RetryDecoratorTests
             .ReturnsAsync(ProcessingResult.Failed(testException));
 
         // Act
-        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
+        var result = await decorator.ProcessAsync(message, context);
 
         // Assert
         Assert.False(result.Success);
@@ -348,7 +348,7 @@ public sealed class RetryDecoratorTests
             .ReturnsAsync(ProcessingResult.Failed(new TimeoutException("Timeout")));
 
         // Act
-        await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
+        await decorator.ProcessAsync(message, context);
 
         // Assert
         _loggerMock.Verify(
@@ -387,7 +387,7 @@ public sealed class RetryDecoratorTests
             });
 
         // Act
-        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
+        var result = await decorator.ProcessAsync(message, context);
 
         // Assert
         Assert.True(result.Success);
