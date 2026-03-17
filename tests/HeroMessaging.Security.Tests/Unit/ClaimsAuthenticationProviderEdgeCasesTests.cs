@@ -434,10 +434,9 @@ public sealed class ClaimsAuthenticationProviderEdgeCasesTests
         // Arrange
         var provider = new ClaimsAuthenticationProvider();
         provider.RegisterApiKey("token", "User");
-        var cts = new CancellationTokenSource();
 
         // Act
-        var principal = await provider.ValidateTokenAsync("token", cts.Token, TestContext.Current.CancellationToken);
+        var principal = await provider.ValidateTokenAsync("token", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(principal);
