@@ -145,7 +145,7 @@ public class GZipCompressionProviderTests
         // Act & Assert
         await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
         {
-            await _provider.CompressAsync(data, CompressionLevel.Optimal, cts.Token, TestContext.Current.CancellationToken);
+            await _provider.CompressAsync(data, CompressionLevel.Optimal, cts.Token);
         });
     }
 
