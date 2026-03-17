@@ -208,7 +208,7 @@ public class MessagePackMessageSerializerTests
         using var cts = new CancellationTokenSource();
 
         // Act
-        var result = await serializer.SerializeAsync(message, cts.Token, TestContext.Current.CancellationToken);
+        var result = await serializer.SerializeAsync(message, cts.Token);
 
         // Assert
         Assert.NotNull(result);
@@ -227,7 +227,7 @@ public class MessagePackMessageSerializerTests
 
         // Act & Assert
         await Assert.ThrowsAsync<OperationCanceledException>(async () =>
-            await serializer.SerializeAsync(message, cts.Token, TestContext.Current.CancellationToken));
+            await serializer.SerializeAsync(message, cts.Token));
     }
 
     #endregion

@@ -25,7 +25,8 @@ public class RingBufferQueueIntegrationTests
 
         public InMemoryConsumer CreateConsumer(string consumerId = "test-consumer")
         {
-            var transport = new InMemoryTransport("test-transport", TimeProvider.System);
+            var transportOptions = new InMemoryTransportOptions();
+            var transport = new InMemoryTransport(transportOptions, TimeProvider.System);
             var source = new TransportAddress("test-queue", TransportAddressType.Queue);
             var options = new ConsumerOptions { AutoAcknowledge = true };
 
@@ -83,7 +84,7 @@ public class RingBufferQueueIntegrationTests
 
         // Cleanup
         await consumer.StopAsync(TestContext.Current.CancellationToken);
-        await queue.DisposeAsync(TestContext.Current.CancellationToken);
+        await queue.DisposeAsync();
     }
 
     [Fact]
@@ -134,7 +135,7 @@ public class RingBufferQueueIntegrationTests
 
         // Cleanup
         await consumer.StopAsync(TestContext.Current.CancellationToken);
-        await queue.DisposeAsync(TestContext.Current.CancellationToken);
+        await queue.DisposeAsync();
     }
 
     [Fact]
@@ -197,7 +198,7 @@ public class RingBufferQueueIntegrationTests
         await inmemConsumer1.StopAsync(TestContext.Current.CancellationToken);
         await inmemConsumer2.StopAsync(TestContext.Current.CancellationToken);
         await inmemConsumer3.StopAsync(TestContext.Current.CancellationToken);
-        await queue.DisposeAsync(TestContext.Current.CancellationToken);
+        await queue.DisposeAsync();
     }
 
     [Fact]
@@ -246,7 +247,7 @@ public class RingBufferQueueIntegrationTests
 
         // Cleanup
         await consumer.StopAsync(TestContext.Current.CancellationToken);
-        await queue.DisposeAsync(TestContext.Current.CancellationToken);
+        await queue.DisposeAsync();
     }
 
     [Fact]
@@ -297,7 +298,7 @@ public class RingBufferQueueIntegrationTests
         Assert.Equal(5, queue.MessageCount);
 
         // Cleanup
-        await queue.DisposeAsync(TestContext.Current.CancellationToken);
+        await queue.DisposeAsync();
     }
 
     [Theory]
@@ -340,7 +341,7 @@ public class RingBufferQueueIntegrationTests
 
         // Cleanup
         await consumer.StopAsync(TestContext.Current.CancellationToken);
-        await queue.DisposeAsync(TestContext.Current.CancellationToken);
+        await queue.DisposeAsync();
     }
 
     [Fact]
@@ -390,7 +391,7 @@ public class RingBufferQueueIntegrationTests
 
         // Cleanup
         await consumer.StopAsync(TestContext.Current.CancellationToken);
-        await queue.DisposeAsync(TestContext.Current.CancellationToken);
+        await queue.DisposeAsync();
     }
 
     [Fact]
@@ -446,6 +447,6 @@ public class RingBufferQueueIntegrationTests
 
         // Cleanup
         await consumer.StopAsync(TestContext.Current.CancellationToken);
-        await queue.DisposeAsync(TestContext.Current.CancellationToken);
+        await queue.DisposeAsync();
     }
 }

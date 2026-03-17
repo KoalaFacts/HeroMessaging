@@ -153,7 +153,7 @@ public sealed class SqlServerMessageStorageTests : IDisposable
     {
         var storage = CreateStorage();
 
-        var result = await storage.CountAsync(TestContext.Current.CancellationToken);
+        var result = await storage.CountAsync();
         Assert.IsType<long>(result);
         Assert.True(result >= 0);
     }

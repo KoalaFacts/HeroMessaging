@@ -195,7 +195,7 @@ public sealed class PostgreSqlQueueStorageTests : IDisposable
         var storage = CreateStorage();
 
         // Act
-        var result = await storage.PeekAsync("test-queue", TestContext.Current.CancellationToken);
+        var result = await storage.PeekAsync("test-queue");
 
         // Assert
         Assert.NotNull(result);
@@ -306,7 +306,7 @@ public sealed class PostgreSqlQueueStorageTests : IDisposable
         var storage = CreateStorage();
 
         // Act
-        var result = await storage.CreateQueueAsync("new-queue", TestContext.Current.CancellationToken);
+        var result = await storage.CreateQueueAsync("new-queue");
 
         // Assert
         Assert.True(result);
@@ -389,7 +389,7 @@ public sealed class PostgreSqlQueueStorageTests : IDisposable
 
         // Act & Assert
         await Assert.ThrowsAsync<OperationCanceledException>(async () =>
-            await storage.EnqueueAsync("test-queue", message, null, cts.Token, TestContext.Current.CancellationToken));
+            await storage.EnqueueAsync("test-queue", message, null, cts.Token));
     }
 
     [Fact]
@@ -402,7 +402,7 @@ public sealed class PostgreSqlQueueStorageTests : IDisposable
 
         // Act & Assert
         await Assert.ThrowsAsync<OperationCanceledException>(async () =>
-            await storage.DequeueAsync("test-queue", cts.Token, TestContext.Current.CancellationToken));
+            await storage.DequeueAsync("test-queue", cts.Token));
     }
 
     private PostgreSqlQueueStorage CreateStorage()

@@ -34,7 +34,7 @@ public abstract class PostgreSqlIntegrationTestBase : IAsyncLifetime
         if (Container != null)
         {
             await Container.StopAsync(TestContext.Current.CancellationToken);
-            await Container.DisposeAsync(TestContext.Current.CancellationToken);
+            await Container.DisposeAsync();
         }
     }
 
