@@ -110,10 +110,6 @@ public class OpenTelemetryTransportInstrumentationTests : IDisposable
                 Assert.Equal("HeroMessaging.Transport.Send", activity.OperationName);
                 Assert.Equal(ActivityKind.Producer, activity.Kind);
             }
-        }
-    }
-
-    #endregion
 
     #region StartPublishActivity Tests
 
