@@ -105,14 +105,10 @@ public class OpenTelemetryTransportInstrumentationTests : IDisposable
         // The key assertion is that default struct input doesn't crash
         if (activity is not null)
         {
-            try
+            using (activity)
             {
                 Assert.Equal("HeroMessaging.Transport.Send", activity.OperationName);
                 Assert.Equal(ActivityKind.Producer, activity.Kind);
-            }
-            finally
-            {
-                activity.Dispose();
             }
         }
     }
