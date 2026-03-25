@@ -53,7 +53,7 @@ public class HeroMessagingInstrumentationTests : IDisposable
             {
                 _longMeasurements[instrument.Name] = new List<Measurement<long>>();
             }
-            _longMeasurements[instrument.Name].Add(measurement);
+            _longMeasurements[instrument.Name].Add(new Measurement<long>(measurement));
         });
 
         _meterListener.SetMeasurementEventCallback<double>((instrument, measurement, tags, state) =>
@@ -62,7 +62,7 @@ public class HeroMessagingInstrumentationTests : IDisposable
             {
                 _doubleMeasurements[instrument.Name] = new List<Measurement<double>>();
             }
-            _doubleMeasurements[instrument.Name].Add(measurement);
+            _doubleMeasurements[instrument.Name].Add(new Measurement<double>(measurement));
         });
 
         _meterListener.SetMeasurementEventCallback<int>((instrument, measurement, tags, state) =>
@@ -71,7 +71,7 @@ public class HeroMessagingInstrumentationTests : IDisposable
             {
                 _intMeasurements[instrument.Name] = new List<Measurement<int>>();
             }
-            _intMeasurements[instrument.Name].Add(measurement);
+            _intMeasurements[instrument.Name].Add(new Measurement<int>(measurement));
         });
 
         _meterListener.Start();

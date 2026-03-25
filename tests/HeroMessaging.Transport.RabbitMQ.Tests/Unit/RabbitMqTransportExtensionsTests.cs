@@ -1,6 +1,6 @@
 using HeroMessaging.Abstractions.Configuration;
 using HeroMessaging.Abstractions.Transport;
-using HeroMessaging.Transport.RabbitMQ.Configuration;
+using HeroMessaging.Transport.RabbitMQ;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using Xunit;

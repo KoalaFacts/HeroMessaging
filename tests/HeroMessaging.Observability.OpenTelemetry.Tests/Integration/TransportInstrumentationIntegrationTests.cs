@@ -52,7 +52,7 @@ public class TransportInstrumentationIntegrationTests : IDisposable
             {
                 _longMeasurements[instrument.Name] = new List<Measurement<long>>();
             }
-            _longMeasurements[instrument.Name].Add(measurement);
+            _longMeasurements[instrument.Name].Add(new Measurement<long>(measurement));
         });
 
         _meterListener.SetMeasurementEventCallback<double>((instrument, measurement, tags, state) =>
@@ -61,7 +61,7 @@ public class TransportInstrumentationIntegrationTests : IDisposable
             {
                 _doubleMeasurements[instrument.Name] = new List<Measurement<double>>();
             }
-            _doubleMeasurements[instrument.Name].Add(measurement);
+            _doubleMeasurements[instrument.Name].Add(new Measurement<double>(measurement));
         });
 
         _meterListener.Start();

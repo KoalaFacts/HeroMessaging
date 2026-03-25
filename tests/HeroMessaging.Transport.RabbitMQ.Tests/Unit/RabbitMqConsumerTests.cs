@@ -87,7 +87,8 @@ public class RabbitMqConsumerTests : IAsyncLifetime
             _handler,
             _options,
             _mockTransport.Object,
-            _mockLogger.Object);
+            _mockLogger.Object,
+            TimeProvider.System);
 
         return ValueTask.CompletedTask;
     }
@@ -96,7 +97,7 @@ public class RabbitMqConsumerTests : IAsyncLifetime
     {
         if (_consumer != null)
         {
-            await _consumer.DisposeAsync(TestContext.Current.CancellationToken);
+            await _consumer.DisposeAsync();
         }
     }
 
@@ -124,7 +125,8 @@ public class RabbitMqConsumerTests : IAsyncLifetime
                 _handler!,
                 _options!,
                 _mockTransport!.Object,
-                _mockLogger!.Object));
+                _mockLogger!.Object,
+                TimeProvider.System));
     }
 
     [Fact]
@@ -142,7 +144,8 @@ public class RabbitMqConsumerTests : IAsyncLifetime
                 _handler!,
                 _options!,
                 _mockTransport!.Object,
-                _mockLogger!.Object));
+                _mockLogger!.Object,
+                TimeProvider.System));
     }
 
     [Fact]
@@ -157,7 +160,8 @@ public class RabbitMqConsumerTests : IAsyncLifetime
                 _handler!,
                 _options!,
                 _mockTransport!.Object,
-                _mockLogger!.Object));
+                _mockLogger!.Object,
+                TimeProvider.System));
     }
 
     [Fact]
@@ -172,7 +176,8 @@ public class RabbitMqConsumerTests : IAsyncLifetime
                 null!,
                 _options!,
                 _mockTransport!.Object,
-                _mockLogger!.Object));
+                _mockLogger!.Object,
+                TimeProvider.System));
     }
 
     #endregion
@@ -328,7 +333,7 @@ public class RabbitMqConsumerTests : IAsyncLifetime
         await _consumer!.StartAsync();
 
         // Act
-        await _consumer.DisposeAsync(TestContext.Current.CancellationToken);
+        await _consumer.DisposeAsync();
 
         // Assert
         Assert.False(_consumer.IsActive);
@@ -436,7 +441,8 @@ public class RabbitMqConsumerTests : IAsyncLifetime
                 _handler!,
                 null!,
                 _mockTransport!.Object,
-                _mockLogger!.Object));
+                _mockLogger!.Object,
+                TimeProvider.System));
     }
 
     [Fact]
@@ -451,7 +457,8 @@ public class RabbitMqConsumerTests : IAsyncLifetime
                 _handler!,
                 _options!,
                 null!,
-                _mockLogger!.Object));
+                _mockLogger!.Object,
+                TimeProvider.System));
     }
 
     [Fact]
@@ -466,7 +473,8 @@ public class RabbitMqConsumerTests : IAsyncLifetime
                 _handler!,
                 _options!,
                 _mockTransport!.Object,
-                null!));
+                null!,
+                TimeProvider.System));
     }
 
     [Fact]
@@ -481,7 +489,8 @@ public class RabbitMqConsumerTests : IAsyncLifetime
                 _handler!,
                 _options!,
                 _mockTransport!.Object,
-                _mockLogger!.Object));
+                _mockLogger!.Object,
+                TimeProvider.System));
     }
 
     [Fact]
@@ -499,7 +508,8 @@ public class RabbitMqConsumerTests : IAsyncLifetime
                 _handler!,
                 _options!,
                 _mockTransport!.Object,
-                _mockLogger!.Object));
+                _mockLogger!.Object,
+                TimeProvider.System));
     }
 
     [Fact]
@@ -513,7 +523,8 @@ public class RabbitMqConsumerTests : IAsyncLifetime
             _handler!,
             _options!,
             _mockTransport!.Object,
-            _mockLogger!.Object);
+            _mockLogger!.Object,
+            TimeProvider.System);
 
         // Assert
         Assert.Equal("custom-id-12345", customConsumer.ConsumerId);
@@ -535,7 +546,8 @@ public class RabbitMqConsumerTests : IAsyncLifetime
             _handler!,
             options,
             _mockTransport!.Object,
-            _mockLogger!.Object);
+            _mockLogger!.Object,
+            TimeProvider.System);
 
         // Act
         await consumer.StartAsync(TestContext.Current.CancellationToken);
@@ -556,7 +568,8 @@ public class RabbitMqConsumerTests : IAsyncLifetime
             _handler!,
             _options!,
             _mockTransport!.Object,
-            _mockLogger!.Object);
+            _mockLogger!.Object,
+            TimeProvider.System);
 
         // Act
         await consumer.StartAsync(TestContext.Current.CancellationToken);
@@ -577,7 +590,7 @@ public class RabbitMqConsumerTests : IAsyncLifetime
     public async Task StartAsync_WithManualAck_SetAutoAckToFalse()
     {
         // Arrange
-        var options = new ConsumerOptions { ManualAcknowledgment = true };
+        var options = new ConsumerOptions { AutoAcknowledge = false };
         var consumer = new RabbitMqConsumer(
             "manual-ack-consumer",
             _source!,
@@ -585,7 +598,8 @@ public class RabbitMqConsumerTests : IAsyncLifetime
             _handler!,
             options,
             _mockTransport!.Object,
-            _mockLogger!.Object);
+            _mockLogger!.Object,
+            TimeProvider.System);
 
         // Act
         await consumer.StartAsync(TestContext.Current.CancellationToken);
@@ -613,7 +627,8 @@ public class RabbitMqConsumerTests : IAsyncLifetime
             _handler!,
             _options!,
             _mockTransport!.Object,
-            _mockLogger!.Object);
+            _mockLogger!.Object,
+            TimeProvider.System);
 
         // Act
         await consumer.StartAsync(TestContext.Current.CancellationToken);
@@ -653,7 +668,7 @@ public class RabbitMqConsumerTests : IAsyncLifetime
         var cts = new CancellationTokenSource();
 
         // Act
-        await _consumer.StopAsync(cts.Token, TestContext.Current.CancellationToken);
+        await _consumer.StopAsync(cts.Token);
 
         // Assert
         _mockChannel!.Verify(ch => ch.BasicCancelAsync(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
@@ -709,8 +724,8 @@ public class RabbitMqConsumerTests : IAsyncLifetime
     {
         // Act & Assert - Should not throw
         await _consumer!.DisposeAsync();
-        await _consumer.DisposeAsync(TestContext.Current.CancellationToken);
-        await _consumer.DisposeAsync(TestContext.Current.CancellationToken);
+        await _consumer.DisposeAsync();
+        await _consumer.DisposeAsync();
     }
 
     [Fact]
@@ -807,7 +822,7 @@ public class RabbitMqConsumerTests : IAsyncLifetime
             ConsumerId = "custom-id",
             StartImmediately = false,
             PrefetchCount = 25,
-            ManualAcknowledgment = true
+            AutoAcknowledge = false
         };
 
         var consumer = new RabbitMqConsumer(
@@ -817,7 +832,8 @@ public class RabbitMqConsumerTests : IAsyncLifetime
             _handler!,
             customOptions,
             _mockTransport!.Object,
-            _mockLogger!.Object);
+            _mockLogger!.Object,
+            TimeProvider.System);
 
         // Act
         await consumer.StartAsync(TestContext.Current.CancellationToken);
@@ -879,7 +895,8 @@ public class RabbitMqConsumerTests : IAsyncLifetime
             _handler!,
             _options!,
             _mockTransport!.Object,
-            _mockLogger!.Object);
+            _mockLogger!.Object,
+            TimeProvider.System);
 
         // Act
         await consumer.StartAsync(TestContext.Current.CancellationToken);
@@ -918,7 +935,8 @@ public class RabbitMqConsumerTests : IAsyncLifetime
             CustomHandler,
             _options!,
             _mockTransport!.Object,
-            _mockLogger!.Object);
+            _mockLogger!.Object,
+            TimeProvider.System);
 
         // Assert
         Assert.NotNull(consumer);

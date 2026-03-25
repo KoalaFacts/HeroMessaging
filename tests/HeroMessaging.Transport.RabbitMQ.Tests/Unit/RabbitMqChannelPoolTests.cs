@@ -52,7 +52,7 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
     {
         if (_channelPool != null)
         {
-            await _channelPool.DisposeAsync(TestContext.Current.CancellationToken);
+            await _channelPool.DisposeAsync();
         }
     }
 
@@ -228,7 +228,7 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
     {
         // Arrange
         var channel = await _channelPool!.AcquireChannelAsync();
-        await _channelPool.DisposeAsync(TestContext.Current.CancellationToken);
+        await _channelPool.DisposeAsync();
 
         // Act
         _channelPool.ReleaseChannel(channel);
@@ -355,7 +355,7 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
         _channelPool.ReleaseChannel(channel2);
 
         // Act
-        await _channelPool.DisposeAsync(TestContext.Current.CancellationToken);
+        await _channelPool.DisposeAsync();
 
         // Assert
         foreach (var mockChannel in _mockChannels)
@@ -369,8 +369,8 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
     {
         // Act
         await _channelPool!.DisposeAsync();
-        await _channelPool.DisposeAsync(TestContext.Current.CancellationToken);
-        await _channelPool.DisposeAsync(TestContext.Current.CancellationToken);
+        await _channelPool.DisposeAsync();
+        await _channelPool.DisposeAsync();
 
         // Assert - should not throw
     }
