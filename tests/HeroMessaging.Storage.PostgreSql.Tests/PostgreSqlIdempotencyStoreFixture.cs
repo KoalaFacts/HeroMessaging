@@ -1,3 +1,4 @@
+using HeroMessaging.Tests.Shared.Infrastructure;
 using Testcontainers.PostgreSql;
 using Xunit;
 
@@ -11,13 +12,15 @@ public sealed class PostgreSqlIdempotencyStoreFixture : IAsyncLifetime
 {
     private PostgreSqlContainer? _container;
 
-    public string ConnectionString { get; private set; } = string.Empty;
+    public string ConnectionString { get; private set; } = null!;
 
     public async ValueTask InitializeAsync()
     {
         // Use environment variable connection string if available (CI environment)
-        var envConnectionString = Environment.GetEnvironmentVariable("PostgreSql__ConnectionString");
-        if (!string.IsNullOrEmpty(envConnectionString))
+        var envConnectionString = TestDatabaseEnvironment.GetConnectionStringFromEnvironment(
+            TestDatabaseEnvironment.PostgreSqlConnectionStringEnvVar);
+
+        if (envConnectionString is not null)
         {
             ConnectionString = envConnectionString;
         }
@@ -25,8 +28,8 @@ public sealed class PostgreSqlIdempotencyStoreFixture : IAsyncLifetime
         {
             // Fall back to Testcontainers for local development
             _container = new PostgreSqlBuilder()
-                .WithImage("postgres:17-alpine")
-                .WithPassword("postgres")
+                .WithImage(TestDatabaseEnvironment.PostgreSqlImage)
+                .WithPassword(TestDatabaseEnvironment.PostgreSqlPassword)
                 .Build();
 
             await _container.StartAsync(TestContext.Current.CancellationToken);

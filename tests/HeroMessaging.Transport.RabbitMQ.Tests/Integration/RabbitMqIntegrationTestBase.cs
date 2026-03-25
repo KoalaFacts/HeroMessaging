@@ -1,5 +1,6 @@
 using DotNet.Testcontainers.Builders;
 using HeroMessaging.Abstractions.Transport;
+using HeroMessaging.Tests.Shared.Infrastructure;
 using HeroMessaging.Transport.RabbitMQ;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -26,29 +27,52 @@ public abstract class RabbitMqIntegrationTestBase : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
-        // Create and start RabbitMQ container
-        _rabbitMqContainer = new RabbitMqBuilder()
-            .WithImage("rabbitmq:3.13-management-alpine")
-            .WithPortBinding(5672, true) // Random host port
-            .WithUsername("guest")
-            .WithPassword("guest")
-            .WithWaitStrategy(Wait.ForUnixContainer().UntilCommandIsCompleted("rabbitmq-diagnostics check_port_connectivity"))
-            .Build();
+        // Check for environment variable connection string (CI environment)
+        var envConnectionString = TestDatabaseEnvironment.GetConnectionStringFromEnvironment(
+            TestDatabaseEnvironment.RabbitMqConnectionStringEnvVar);
 
-        await _rabbitMqContainer.StartAsync(TestContext.Current.CancellationToken);
-
-        // Create transport options
-        Options = new RabbitMqTransportOptions
+        if (envConnectionString is not null)
         {
-            Host = _rabbitMqContainer.Hostname,
-            Port = _rabbitMqContainer.GetMappedPublicPort(5672),
-            VirtualHost = "/",
-            UserName = "guest",
-            Password = "guest",
-            PrefetchCount = 10,
-            UsePublisherConfirms = true,
-            ConnectionTimeout = TimeSpan.FromSeconds(30)
-        };
+            // Parse the connection string URI to extract host and port
+            var uri = new Uri(envConnectionString);
+
+            Options = new RabbitMqTransportOptions
+            {
+                Host = uri.Host,
+                Port = uri.Port > 0 ? uri.Port : 5672,
+                VirtualHost = uri.AbsolutePath == "/" || string.IsNullOrEmpty(uri.AbsolutePath) ? "/" : uri.AbsolutePath.TrimStart('/'),
+                UserName = string.IsNullOrEmpty(uri.UserInfo) ? "guest" : Uri.UnescapeDataString(uri.UserInfo.Split(':')[0]),
+                Password = uri.UserInfo?.Contains(':') == true ? Uri.UnescapeDataString(uri.UserInfo.Split(':')[1]) : "guest",
+                PrefetchCount = 10,
+                UsePublisherConfirms = true,
+                ConnectionTimeout = TimeSpan.FromSeconds(30)
+            };
+        }
+        else
+        {
+            // Fall back to Testcontainers for local development
+            _rabbitMqContainer = new RabbitMqBuilder()
+                .WithImage(TestDatabaseEnvironment.RabbitMqImage)
+                .WithPortBinding(5672, true) // Random host port
+                .WithUsername("guest")
+                .WithPassword("guest")
+                .WithWaitStrategy(Wait.ForUnixContainer().UntilCommandIsCompleted("rabbitmq-diagnostics check_port_connectivity"))
+                .Build();
+
+            await _rabbitMqContainer.StartAsync(TestContext.Current.CancellationToken);
+
+            Options = new RabbitMqTransportOptions
+            {
+                Host = _rabbitMqContainer.Hostname,
+                Port = _rabbitMqContainer.GetMappedPublicPort(5672),
+                VirtualHost = "/",
+                UserName = "guest",
+                Password = "guest",
+                PrefetchCount = 10,
+                UsePublisherConfirms = true,
+                ConnectionTimeout = TimeSpan.FromSeconds(30)
+            };
+        }
 
         // Create transport
         Transport = new RabbitMqTransport(Options, LoggerFactory, TimeProvider.System);

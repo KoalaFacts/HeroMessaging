@@ -1,3 +1,4 @@
+using HeroMessaging.Tests.Shared.Infrastructure;
 using Microsoft.Data.SqlClient;
 using Testcontainers.MsSql;
 using Xunit;
@@ -12,13 +13,15 @@ public sealed class SqlServerIdempotencyStoreFixture : IAsyncLifetime
 {
     private MsSqlContainer? _container;
 
-    public string ConnectionString { get; private set; } = string.Empty;
+    public string ConnectionString { get; private set; } = null!;
 
     public async ValueTask InitializeAsync()
     {
         // Use environment variable connection string if available (CI environment)
-        var envConnectionString = Environment.GetEnvironmentVariable("SqlServer__ConnectionString");
-        if (!string.IsNullOrEmpty(envConnectionString))
+        var envConnectionString = TestDatabaseEnvironment.GetConnectionStringFromEnvironment(
+            TestDatabaseEnvironment.SqlServerConnectionStringEnvVar);
+
+        if (envConnectionString is not null)
         {
             ConnectionString = envConnectionString;
         }
@@ -26,8 +29,8 @@ public sealed class SqlServerIdempotencyStoreFixture : IAsyncLifetime
         {
             // Fall back to Testcontainers for local development
             _container = new MsSqlBuilder()
-                .WithImage("mcr.microsoft.com/mssql/server:2022-latest")
-                .WithPassword("YourStrong@Passw0rd")
+                .WithImage(TestDatabaseEnvironment.SqlServerImage)
+                .WithPassword(TestDatabaseEnvironment.SqlServerPassword)
                 .Build();
 
             await _container.StartAsync(TestContext.Current.CancellationToken);

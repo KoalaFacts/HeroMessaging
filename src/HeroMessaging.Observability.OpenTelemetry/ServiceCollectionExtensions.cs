@@ -20,8 +20,8 @@ public static class ExtensionsToIHeroMessagingBuilderForOpenTelemetry
     /// Add OpenTelemetry instrumentation to HeroMessaging
     /// </summary>
     /// <param name="builder">The HeroMessaging builder</param>
-    /// <param name="configure">Optional configuration action for OpenTelemetry</param>
-    public static IHeroMessagingBuilder AddOpenTelemetry(
+    /// <param name="configure">Optional configuration action for OpenTelemetry instrumentation</param>
+    public static IHeroMessagingBuilder AddOpenTelemetryInstrumentation(
         this IHeroMessagingBuilder builder,
         Action<OpenTelemetryInstrumentationOptions>? configure = null)
     {

@@ -7,7 +7,7 @@ namespace HeroMessaging.RingBuffer.Tests.Unit.Sequences;
 public class SequenceTests
 {
     [Fact]
-    public void Constructor_DefaultValue_SetsToNegativeOne()
+    public void Constructor_WithNegativeOneInitialValue_SetsToNegativeOne()
     {
         // Arrange & Act
         var sequence = new Sequence(-1);

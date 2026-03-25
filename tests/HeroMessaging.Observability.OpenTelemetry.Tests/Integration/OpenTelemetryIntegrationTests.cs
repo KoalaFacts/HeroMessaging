@@ -226,7 +226,7 @@ public class OpenTelemetryIntegrationTests : IDisposable
         var builder = new TestHeroMessagingBuilder(services);
 
         // Act
-        builder.AddOpenTelemetry(options =>
+        builder.AddOpenTelemetryInstrumentation(options =>
         {
             options.ServiceName = "TestService";
             options.ServiceNamespace = "TestNamespace";
