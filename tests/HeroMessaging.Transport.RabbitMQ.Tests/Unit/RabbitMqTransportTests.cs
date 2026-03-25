@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using HeroMessaging.Abstractions.Transport;
 using HeroMessaging.Transport.RabbitMQ;
 using Microsoft.Extensions.Logging;
@@ -45,7 +46,7 @@ public class RabbitMqTransportTests : IAsyncLifetime
     {
         if (_transport != null)
         {
-            await _transport.DisposeAsync(TestContext.Current.CancellationToken);
+            await _transport.DisposeAsync();
         }
     }
 
@@ -280,8 +281,8 @@ public class RabbitMqTransportTests : IAsyncLifetime
     {
         // Act
         await _transport!.DisposeAsync();
-        await _transport.DisposeAsync(TestContext.Current.CancellationToken);
-        await _transport.DisposeAsync(TestContext.Current.CancellationToken);
+        await _transport.DisposeAsync();
+        await _transport.DisposeAsync();
 
         // Assert - should not throw
     }
@@ -387,8 +388,8 @@ public class RabbitMqTransportTests : IAsyncLifetime
 
         // Assert
         Assert.NotNull(capturedArgs);
-        Assert.Equal(TransportState.Disconnected, capturedArgs.OldState);
-        Assert.Equal(TransportState.Connecting, capturedArgs.NewState);
+        Assert.Equal(TransportState.Disconnected, capturedArgs.PreviousState);
+        Assert.Equal(TransportState.Connecting, capturedArgs.CurrentState);
     }
 
     #endregion
@@ -517,12 +518,7 @@ public class RabbitMqTransportTests : IAsyncLifetime
     public async Task ConfigureTopologyAsync_WithEmptyTopology_ThrowsWhenDisconnected()
     {
         // Arrange
-        var topology = new TransportTopology
-        {
-            Exchanges = new List<ExchangeDefinition>(),
-            Queues = new List<QueueDefinition>(),
-            Bindings = new List<BindingDefinition>()
-        };
+        var topology = new TransportTopology();
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
@@ -533,15 +529,10 @@ public class RabbitMqTransportTests : IAsyncLifetime
     public async Task ConfigureTopologyAsync_WithMultipleExchanges_ThrowsWhenDisconnected()
     {
         // Arrange
-        var topology = new TransportTopology
-        {
-            Exchanges = new List<ExchangeDefinition>
-            {
-                new ExchangeDefinition { Name = "exchange1", Type = ExchangeType.Direct },
-                new ExchangeDefinition { Name = "exchange2", Type = ExchangeType.Topic },
-                new ExchangeDefinition { Name = "exchange3", Type = ExchangeType.Fanout }
-            }
-        };
+        var topology = new TransportTopology()
+            .AddExchange(new ExchangeDefinition { Name = "exchange1", Type = ExchangeType.Direct })
+            .AddExchange(new ExchangeDefinition { Name = "exchange2", Type = ExchangeType.Topic })
+            .AddExchange(new ExchangeDefinition { Name = "exchange3", Type = ExchangeType.Fanout });
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
@@ -552,20 +543,15 @@ public class RabbitMqTransportTests : IAsyncLifetime
     public async Task ConfigureTopologyAsync_WithQueueArguments_ThrowsWhenDisconnected()
     {
         // Arrange
-        var topology = new TransportTopology
-        {
-            Queues = new List<QueueDefinition>
+        var topology = new TransportTopology()
+            .AddQueue(new QueueDefinition
             {
-                new QueueDefinition
-                {
-                    Name = "test-queue",
-                    Durable = true,
-                    MaxLength = 1000,
-                    MessageTtl = TimeSpan.FromHours(1),
-                    MaxPriority = 10
-                }
-            }
-        };
+                Name = "test-queue",
+                Durable = true,
+                MaxLength = 1000,
+                MessageTtl = TimeSpan.FromHours(1),
+                MaxPriority = 10
+            });
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
@@ -576,18 +562,13 @@ public class RabbitMqTransportTests : IAsyncLifetime
     public async Task ConfigureTopologyAsync_WithDeadLetterExchange_ThrowsWhenDisconnected()
     {
         // Arrange
-        var topology = new TransportTopology
-        {
-            Queues = new List<QueueDefinition>
+        var topology = new TransportTopology()
+            .AddQueue(new QueueDefinition
             {
-                new QueueDefinition
-                {
-                    Name = "main-queue",
-                    DeadLetterExchange = "dlx",
-                    DeadLetterRoutingKey = "dead-letter"
-                }
-            }
-        };
+                Name = "main-queue",
+                DeadLetterExchange = "dlx",
+                DeadLetterRoutingKey = "dead-letter"
+            });
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
@@ -598,21 +579,10 @@ public class RabbitMqTransportTests : IAsyncLifetime
     public async Task ConfigureTopologyAsync_WithComplexBindings_ThrowsWhenDisconnected()
     {
         // Arrange
-        var topology = new TransportTopology
-        {
-            Exchanges = new List<ExchangeDefinition>
-            {
-                new ExchangeDefinition { Name = "orders", Type = ExchangeType.Topic }
-            },
-            Queues = new List<QueueDefinition>
-            {
-                new QueueDefinition { Name = "order-queue" }
-            },
-            Bindings = new List<BindingDefinition>
-            {
-                new BindingDefinition { SourceExchange = "orders", Destination = "order-queue", RoutingKey = "order.#" }
-            }
-        };
+        var topology = new TransportTopology()
+            .AddExchange(new ExchangeDefinition { Name = "orders", Type = ExchangeType.Topic })
+            .AddQueue(new QueueDefinition { Name = "order-queue" })
+            .AddBinding(new BindingDefinition { SourceExchange = "orders", Destination = "order-queue", RoutingKey = "order.#" });
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
@@ -689,23 +659,25 @@ public class RabbitMqTransportTests : IAsyncLifetime
     }
 
     [Fact]
-    public void StateChanged_EventIsNullableByDefault()
+    public void StateChanged_CanSubscribeAndUnsubscribe()
     {
-        // Arrange & Act
-        _transport!.StateChanged = null;
+        // Arrange
+        EventHandler<TransportStateChangedEventArgs> handler = (_, _) => { };
 
-        // Assert - Should not throw when event is null
-        Assert.Null(_transport.StateChanged);
+        // Act & Assert - Should not throw
+        _transport!.StateChanged += handler;
+        _transport.StateChanged -= handler;
     }
 
     [Fact]
-    public void Error_EventIsNullableByDefault()
+    public void Error_CanSubscribeAndUnsubscribe()
     {
-        // Arrange & Act
-        _transport!.Error = null;
+        // Arrange
+        EventHandler<TransportErrorEventArgs> handler = (_, _) => { };
 
-        // Assert - Should not throw when event is null
-        Assert.Null(_transport.Error);
+        // Act & Assert - Should not throw
+        _transport!.Error += handler;
+        _transport.Error -= handler;
     }
 
     #endregion

@@ -91,19 +91,18 @@ public class OpenTelemetryTransportInstrumentationTests : IDisposable
 
     [Fact]
     [Trait("Category", "Unit")]
-    public void StartSendActivity_WithNullEnvelope_ReturnsNullOrThrows()
+    public void StartSendActivity_WithDefaultEnvelope_ReturnsActivityOrNull()
     {
         // Arrange
         var instrumentation = OpenTelemetryTransportInstrumentation.Instance;
 
         // Act & Assert
-        // This might throw ArgumentNullException or return null depending on implementation
-        // We test that it behaves consistently
+        // TransportEnvelope is a struct - test with default value
         var exception = Record.Exception(() =>
-            instrumentation.StartSendActivity(null!, "queue", "transport"));
+            instrumentation.StartSendActivity(default, "queue", "transport"));
 
-        // Either it throws or returns null - both are acceptable
-        Assert.True(exception is ArgumentNullException || exception == null);
+        // Should not throw for default struct value
+        Assert.Null(exception);
     }
 
     #endregion

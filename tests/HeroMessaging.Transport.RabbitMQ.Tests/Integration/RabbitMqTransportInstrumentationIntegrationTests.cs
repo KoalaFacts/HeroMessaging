@@ -144,7 +144,7 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
             await transport.SendAsync(destination, envelope, TestContext.Current.CancellationToken);
 
             // Wait for message to be received
-            var received = await messageReceived.Task.WaitAsync(TimeSpan.FromSeconds(10, TestContext.Current.CancellationToken));
+            var received = await messageReceived.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
 
             // Assert
             Assert.True(received, "Message should be received");
@@ -189,7 +189,7 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
         finally
         {
             await transport.DisconnectAsync(TestContext.Current.CancellationToken);
-            await transport.DisposeAsync(TestContext.Current.CancellationToken);
+            await transport.DisposeAsync();
         }
     }
 
@@ -240,7 +240,7 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
         finally
         {
             await transport.DisconnectAsync(TestContext.Current.CancellationToken);
-            await transport.DisposeAsync(TestContext.Current.CancellationToken);
+            await transport.DisposeAsync();
         }
     }
 
@@ -300,7 +300,7 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
         finally
         {
             await transport.DisconnectAsync(TestContext.Current.CancellationToken);
-            await transport.DisposeAsync(TestContext.Current.CancellationToken);
+            await transport.DisposeAsync();
         }
     }
 
@@ -398,7 +398,7 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
             }
 
             // Wait for all messages
-            await messageReceived.Task.WaitAsync(TimeSpan.FromSeconds(10, TestContext.Current.CancellationToken));
+            await messageReceived.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
 
             // Assert
             var sendActivities = _activities.Where(a => a.OperationName == "HeroMessaging.Transport.Send").ToList();
@@ -423,7 +423,7 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
         finally
         {
             await transport.DisconnectAsync(TestContext.Current.CancellationToken);
-            await transport.DisposeAsync(TestContext.Current.CancellationToken);
+            await transport.DisposeAsync();
         }
     }
 
@@ -483,7 +483,7 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
         finally
         {
             await transport.DisconnectAsync(TestContext.Current.CancellationToken);
-            await transport.DisposeAsync(TestContext.Current.CancellationToken);
+            await transport.DisposeAsync();
         }
     }
 }

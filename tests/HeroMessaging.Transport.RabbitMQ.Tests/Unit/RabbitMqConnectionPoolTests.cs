@@ -44,7 +44,7 @@ public class RabbitMqConnectionPoolTests : IAsyncLifetime
     {
         if (_connectionPool != null)
         {
-            await _connectionPool.DisposeAsync(TestContext.Current.CancellationToken);
+            await _connectionPool.DisposeAsync();
         }
     }
 
@@ -99,7 +99,7 @@ public class RabbitMqConnectionPoolTests : IAsyncLifetime
         _connectionPool = new RabbitMqConnectionPool(_options!, _mockLogger!.Object, TimeProvider.System);
 
         // Act
-        await _connectionPool.DisposeAsync(TestContext.Current.CancellationToken);
+        await _connectionPool.DisposeAsync();
 
         // Assert
         // Should not throw
@@ -114,9 +114,9 @@ public class RabbitMqConnectionPoolTests : IAsyncLifetime
         _connectionPool = new RabbitMqConnectionPool(_options!, _mockLogger!.Object, TimeProvider.System);
 
         // Act
-        await _connectionPool.DisposeAsync(TestContext.Current.CancellationToken);
-        await _connectionPool.DisposeAsync(TestContext.Current.CancellationToken);
-        await _connectionPool.DisposeAsync(TestContext.Current.CancellationToken);
+        await _connectionPool.DisposeAsync();
+        await _connectionPool.DisposeAsync();
+        await _connectionPool.DisposeAsync();
 
         // Assert - should not throw
     }
@@ -151,7 +151,7 @@ public class RabbitMqConnectionPoolTests : IAsyncLifetime
     {
         // Arrange
         _connectionPool = new RabbitMqConnectionPool(_options!, _mockLogger!.Object, TimeProvider.System);
-        await _connectionPool.DisposeAsync(TestContext.Current.CancellationToken);
+        await _connectionPool.DisposeAsync();
 
         // Act & Assert
         await Assert.ThrowsAsync<ObjectDisposedException>(async () =>

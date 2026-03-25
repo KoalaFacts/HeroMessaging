@@ -31,5 +31,9 @@
     <Project Path="tests/HeroMessaging.Storage.PostgreSql.Tests/HeroMessaging.Storage.PostgreSql.Tests.csproj" />
     <Project Path="tests/HeroMessaging.Storage.SqlServer.Tests/HeroMessaging.Storage.SqlServer.Tests.csproj" />
     <Project Path="tests/HeroMessaging.Tests/HeroMessaging.Tests.csproj" />
+    <Project Path="tests/HeroMessaging.Tests.Shared/HeroMessaging.Tests.Shared.csproj" />
+    <Project Path="tests/HeroMessaging.Observability.OpenTelemetry.Tests/HeroMessaging.Observability.OpenTelemetry.Tests.csproj" />
+    <Project Path="tests/HeroMessaging.RingBuffer.Tests/HeroMessaging.RingBuffer.Tests.csproj" />
+    <Project Path="tests/HeroMessaging.Transport.RabbitMQ.Tests/HeroMessaging.Transport.RabbitMQ.Tests.csproj" />
   </Folder>
 </Solution>

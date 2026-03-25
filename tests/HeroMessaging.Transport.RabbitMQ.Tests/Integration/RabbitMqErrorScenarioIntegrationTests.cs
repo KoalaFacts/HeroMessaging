@@ -88,7 +88,7 @@ public class RabbitMqErrorScenarioIntegrationTests : RabbitMqIntegrationTestBase
         Assert.Equal(largeContent, receivedBody);
 
         // Cleanup
-        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
+        await consumer.DisposeAsync();
     }
 
     [Fact]
@@ -140,7 +140,7 @@ public class RabbitMqErrorScenarioIntegrationTests : RabbitMqIntegrationTestBase
         Assert.Equal(2, attemptCount); // Message redelivered after failure
 
         // Cleanup
-        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
+        await consumer.DisposeAsync();
     }
 
     [Fact]
@@ -221,7 +221,7 @@ public class RabbitMqErrorScenarioIntegrationTests : RabbitMqIntegrationTestBase
         Assert.Empty(receivedBody);
 
         // Cleanup
-        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
+        await consumer.DisposeAsync();
     }
 
     [Fact]
@@ -266,7 +266,7 @@ public class RabbitMqErrorScenarioIntegrationTests : RabbitMqIntegrationTestBase
         Assert.Equal(100, receivedCount);
 
         // Cleanup
-        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
+        await consumer.DisposeAsync();
     }
 
     [Fact]
@@ -283,9 +283,9 @@ public class RabbitMqErrorScenarioIntegrationTests : RabbitMqIntegrationTestBase
             async (envelope, context, ct) => await Task.CompletedTask);
 
         // Act & Assert - should not throw
-        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
-        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
-        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
+        await consumer.DisposeAsync();
+        await consumer.DisposeAsync();
+        await consumer.DisposeAsync();
     }
 
     [Fact]
@@ -308,7 +308,7 @@ public class RabbitMqErrorScenarioIntegrationTests : RabbitMqIntegrationTestBase
         Assert.Equal(1, health.ActiveConsumers);
 
         // Cleanup
-        await consumer.DisposeAsync(TestContext.Current.CancellationToken);
+        await consumer.DisposeAsync();
 
         // Check health after cleanup
         var healthAfter = await Transport.GetHealthAsync(TestContext.Current.CancellationToken);
