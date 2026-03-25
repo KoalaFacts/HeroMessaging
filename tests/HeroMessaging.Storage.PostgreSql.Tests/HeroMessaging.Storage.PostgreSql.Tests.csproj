@@ -29,6 +29,7 @@
 	<ItemGroup>
 		<ProjectReference Include="..\..\src\HeroMessaging.Storage.PostgreSql\HeroMessaging.Storage.PostgreSql.csproj" />
 		<ProjectReference Include="..\..\src\HeroMessaging.Abstractions\HeroMessaging.Abstractions.csproj" />
+		<ProjectReference Include="..\HeroMessaging.Tests\HeroMessaging.Tests.csproj" />
 		<ProjectReference Include="..\HeroMessaging.Tests.Shared\HeroMessaging.Tests.Shared.csproj" />
 	</ItemGroup>
 
