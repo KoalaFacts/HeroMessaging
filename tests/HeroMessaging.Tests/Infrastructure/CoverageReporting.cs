@@ -447,7 +447,9 @@ internal class CoverageReporting
         return Path.Combine(htmlOutputPath, "index.html");
     }
 
+#pragma warning disable IDE0060 // Remove unused parameter - Reserved for future badge customization
     private async Task<string> GenerateBadgesAsync(CoverageData coverageData, string outputDirectory)
+#pragma warning restore IDE0060
     {
         var badgesOutputPath = Path.Combine(outputDirectory, "badges");
         Directory.CreateDirectory(badgesOutputPath);

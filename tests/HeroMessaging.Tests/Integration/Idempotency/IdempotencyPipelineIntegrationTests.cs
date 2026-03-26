@@ -403,9 +403,9 @@ public sealed class IdempotencyPipelineIntegrationTests
         public IHeroMessagingBuilder UseInMemoryStorage() => this;
         public IHeroMessagingBuilder UseStorage<TStorage>() where TStorage : class, Abstractions.Storage.IMessageStorage => this;
         public IHeroMessagingBuilder UseStorage(Abstractions.Storage.IMessageStorage storage) => this;
-        public IHeroMessagingBuilder ScanAssembly(System.Reflection.Assembly assembly) => this;
-        public IHeroMessagingBuilder ScanAssemblies(params System.Reflection.Assembly[] assemblies) => this;
-        public IHeroMessagingBuilder ScanAssemblies(params IEnumerable<System.Reflection.Assembly> assemblies) => this;
+        public IHeroMessagingBuilder ScanAssembly(System.Reflection.Assembly _) => this;
+        public IHeroMessagingBuilder ScanAssemblies(params System.Reflection.Assembly[] _) => this;
+        public IHeroMessagingBuilder ScanAssemblies(params IEnumerable<System.Reflection.Assembly> _) => this;
         public IHeroMessagingBuilder ConfigureProcessing(Action<ProcessingOptions> configure) => this;
         public IHeroMessagingBuilder AddPlugin<TPlugin>() where TPlugin : class, Abstractions.Plugins.IMessagingPlugin => this;
         public IHeroMessagingBuilder AddPlugin(Abstractions.Plugins.IMessagingPlugin plugin) => this;

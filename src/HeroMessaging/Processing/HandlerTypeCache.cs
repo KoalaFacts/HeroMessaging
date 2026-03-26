@@ -26,13 +26,13 @@ internal static class HandlerTypeCache
     private static readonly string HandleAsyncMethodName = nameof(IEventHandler<>.HandleAsync);
 
     // Cache for MakeGenericType results
-    private static readonly ConcurrentDictionary<Type, Type> _eventHandlerTypes = new();
-    private static readonly ConcurrentDictionary<Type, Type> _commandHandlerTypes = new();
-    private static readonly ConcurrentDictionary<(Type, Type), Type> _commandWithResponseHandlerTypes = new();
-    private static readonly ConcurrentDictionary<(Type, Type), Type> _queryHandlerTypes = new();
+    private static readonly ConcurrentDictionary<Type, Type> EventHandlerTypes = new();
+    private static readonly ConcurrentDictionary<Type, Type> CommandHandlerTypes = new();
+    private static readonly ConcurrentDictionary<(Type, Type), Type> CommandWithResponseHandlerTypes = new();
+    private static readonly ConcurrentDictionary<(Type, Type), Type> QueryHandlerTypes = new();
 
     // Cache for GetMethod results
-    private static readonly ConcurrentDictionary<Type, MethodInfo> _handleMethods = new();
+    private static readonly ConcurrentDictionary<Type, MethodInfo> HandleMethods = new();
 
     /// <summary>
     /// Gets the IEventHandler&lt;T&gt; type for the given event type.
@@ -40,7 +40,7 @@ internal static class HandlerTypeCache
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Type GetEventHandlerType(Type eventType)
     {
-        return _eventHandlerTypes.GetOrAdd(eventType, static t =>
+        return EventHandlerTypes.GetOrAdd(eventType, static t =>
             typeof(IEventHandler<>).MakeGenericType(t));
     }
 
@@ -50,7 +50,7 @@ internal static class HandlerTypeCache
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Type GetCommandHandlerType(Type commandType)
     {
-        return _commandHandlerTypes.GetOrAdd(commandType, static t =>
+        return CommandHandlerTypes.GetOrAdd(commandType, static t =>
             typeof(ICommandHandler<>).MakeGenericType(t));
     }
 
@@ -60,7 +60,7 @@ internal static class HandlerTypeCache
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Type GetCommandWithResponseHandlerType(Type commandType, Type responseType)
     {
-        return _commandWithResponseHandlerTypes.GetOrAdd((commandType, responseType), static key =>
+        return CommandWithResponseHandlerTypes.GetOrAdd((commandType, responseType), static key =>
             typeof(ICommandHandler<,>).MakeGenericType(key.Item1, key.Item2));
     }
 
@@ -70,7 +70,7 @@ internal static class HandlerTypeCache
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Type GetQueryHandlerType(Type queryType, Type responseType)
     {
-        return _queryHandlerTypes.GetOrAdd((queryType, responseType), static key =>
+        return QueryHandlerTypes.GetOrAdd((queryType, responseType), static key =>
             typeof(IQueryHandler<,>).MakeGenericType(key.Item1, key.Item2));
     }
 
@@ -80,7 +80,7 @@ internal static class HandlerTypeCache
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static MethodInfo GetHandleMethod(Type handlerType)
     {
-        return _handleMethods.GetOrAdd(handlerType, t =>
+        return HandleMethods.GetOrAdd(handlerType, t =>
             t.GetMethod(HandleAsyncMethodName) ?? throw new InvalidOperationException($"{HandleAsyncMethodName} method not found on {t.Name}"));
     }
 }

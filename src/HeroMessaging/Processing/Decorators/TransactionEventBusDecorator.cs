@@ -20,11 +20,10 @@ public class TransactionEventBusDecorator(
     private readonly ILogger<TransactionEventBusDecorator> _logger = logger;
 
     // These are kept for future use and to maintain the public API
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1823:Avoid unused private fields", Justification = "Reserved for future transaction support implementation")]
+#pragma warning disable IDE0052 // Remove unread private members - Reserved for future transaction support
     private readonly IUnitOfWorkFactory _unitOfWorkFactory = unitOfWorkFactory ?? throw new ArgumentNullException(nameof(unitOfWorkFactory));
-
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1823:Avoid unused private fields", Justification = "Reserved for future transaction support implementation")]
     private readonly IsolationLevel _defaultIsolationLevel = defaultIsolationLevel;
+#pragma warning restore IDE0052
 
     public bool IsRunning => _inner.IsRunning;
 

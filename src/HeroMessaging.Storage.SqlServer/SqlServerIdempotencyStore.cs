@@ -49,6 +49,9 @@ public sealed class SqlServerIdempotencyStore : IIdempotencyStore
     /// <summary>
     /// Initializes a new instance with storage options for full configuration including auto table creation.
     /// </summary>
+    /// <param name="options">The SQL Server storage options.</param>
+    /// <param name="timeProvider">The time provider for timestamp management and expiration checks.</param>
+    /// <param name="jsonSerializer">The JSON serializer for result serialization.</param>
     public SqlServerIdempotencyStore(SqlServerStorageOptions options, TimeProvider timeProvider, IJsonSerializer jsonSerializer)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
@@ -69,6 +72,7 @@ public sealed class SqlServerIdempotencyStore : IIdempotencyStore
     /// </summary>
     /// <param name="connectionString">The SQL Server connection string.</param>
     /// <param name="timeProvider">The time provider for timestamp management and expiration checks.</param>
+    /// <param name="jsonSerializer">The JSON serializer for result serialization.</param>
     /// <exception cref="ArgumentNullException">
     /// Thrown when <paramref name="connectionString"/> or <paramref name="timeProvider"/> is null.
     /// </exception>

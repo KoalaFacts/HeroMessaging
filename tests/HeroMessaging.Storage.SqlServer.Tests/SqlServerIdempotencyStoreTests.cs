@@ -8,13 +8,11 @@ namespace HeroMessaging.Storage.SqlServer.Tests;
 public sealed class SqlServerIdempotencyStoreTests
 {
     private readonly FakeTimeProvider _timeProvider;
-    private readonly DateTime _now;
     private readonly IJsonSerializer _jsonSerializer;
 
     public SqlServerIdempotencyStoreTests()
     {
         _timeProvider = new FakeTimeProvider();
-        _now = _timeProvider.GetUtcNow().UtcDateTime;
         _jsonSerializer = new DefaultJsonSerializer(new DefaultBufferPoolManager());
     }
 

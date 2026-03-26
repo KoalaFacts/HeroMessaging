@@ -62,7 +62,9 @@ public sealed class IdempotencyDecorator : MessageProcessorDecorator
     private readonly IIdempotencyStore _store;
     private readonly IIdempotencyPolicy _policy;
     private readonly ILogger<IdempotencyDecorator> _logger;
+#pragma warning disable IDE0052 // Remove unread private members - Reserved for future timestamp-based operations
     private readonly TimeProvider _timeProvider;
+#pragma warning restore IDE0052
 
     /// <summary>
     /// Initializes a new instance of the <see cref="IdempotencyDecorator"/> class.

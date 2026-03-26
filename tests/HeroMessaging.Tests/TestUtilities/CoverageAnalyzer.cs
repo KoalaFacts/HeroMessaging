@@ -67,7 +67,9 @@ public class CoverageAnalyzer
         };
     }
 
+#pragma warning disable IDE0060 // Remove unused parameter - Mock implementation, real usage would parse the data
     private CoverageReport ParseCoverageData(string coverageData)
+#pragma warning restore IDE0060
     {
         // Mock implementation - in real scenario this would parse actual coverage files
         // This provides reasonable test coverage data

@@ -10,7 +10,9 @@ namespace HeroMessaging.Tests.Unit.Orchestration
     [Trait("Category", "Unit")]
     public sealed class StateMachineBuilderTests
     {
+#pragma warning disable IDE0052 // Remove unread private members - Test fixture for future tests
         private readonly IServiceProvider _serviceProvider;
+#pragma warning restore IDE0052
 
         public StateMachineBuilderTests()
         {

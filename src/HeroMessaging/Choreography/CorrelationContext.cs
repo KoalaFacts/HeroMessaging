@@ -6,15 +6,15 @@ namespace HeroMessaging.Choreography;
 /// </summary>
 public static class CorrelationContext
 {
-    private static readonly AsyncLocal<CorrelationState?> _current = new();
+    private static readonly AsyncLocal<CorrelationState?> CurrentState = new();
 
     /// <summary>
     /// Gets the current correlation state
     /// </summary>
     public static CorrelationState? Current
     {
-        get => _current.Value;
-        private set => _current.Value = value;
+        get => CurrentState.Value;
+        private set => CurrentState.Value = value;
     }
 
     /// <summary>

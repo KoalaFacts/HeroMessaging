@@ -10,12 +10,10 @@ namespace HeroMessaging.Storage.PostgreSql.Tests.Unit;
 public sealed class PostgreSqlUnitOfWorkTests : IAsyncDisposable
 {
     private const string ValidConnectionString = "Host=localhost;Database=test;Username=user;Password=pass";
-    private readonly FakeTimeProvider _timeProvider;
     private readonly List<IAsyncDisposable> _disposables = [];
 
     public PostgreSqlUnitOfWorkTests()
     {
-        _timeProvider = new FakeTimeProvider();
     }
 
     public async ValueTask DisposeAsync()

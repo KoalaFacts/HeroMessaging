@@ -680,7 +680,9 @@ internal class PackageValidation
         recursionStack.Remove(package);
     }
 
+#pragma warning disable IDE0060 // Remove unused parameter - Reserved for future version conflict detection
     private List<string> DetectVersionConflicts(Dictionary<string, List<string>> dependencyGraph)
+#pragma warning restore IDE0060
     {
         // Simplified version conflict detection
         return [];

@@ -16,7 +16,9 @@ public sealed class RingBuffer<T> where T : class
     private readonly T[] _entries;
     private readonly int _bufferMask;
     private readonly Sequencer _sequencer;
+#pragma warning disable IDE0052 // Remove unread private members - Reserved for future factory reset/clone operations
     private readonly IEventFactory<T> _eventFactory;
+#pragma warning restore IDE0052
 
     /// <summary>
     /// Creates a new ring buffer

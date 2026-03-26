@@ -11,7 +11,9 @@ namespace HeroMessaging.Tests.Unit.Utilities;
 public class DefaultJsonSerializerTests
 {
     private readonly DefaultBufferPoolManager _bufferPool;
+#pragma warning disable IDE0052 // Remove unread private members - Test fixture for future tests
     private readonly DefaultJsonSerializer _serializer;
+#pragma warning restore IDE0052
 
     public DefaultJsonSerializerTests()
     {

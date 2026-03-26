@@ -514,7 +514,7 @@ public class TransportEnvelopeTests
         // Act & Assert
         Assert.Equal("value", envelope.GetHeader<string>("string"));
         Assert.Equal(42, envelope.GetHeader<int>("int"));
-        Assert.Equal(true, envelope.GetHeader<bool>("bool"));
+        Assert.True(envelope.GetHeader<bool>("bool"));
         Assert.IsType<Guid>(envelope.GetHeader<Guid>("guid"));
         Assert.IsType<DateTimeOffset>(envelope.GetHeader<DateTimeOffset>("datetime"));
     }

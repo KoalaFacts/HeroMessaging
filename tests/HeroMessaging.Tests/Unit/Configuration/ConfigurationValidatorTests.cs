@@ -344,7 +344,7 @@ public sealed class ConfigurationValidatorTests
     public void ValidationReport_WithNullResults_CreatesEmptyReport()
     {
         // Arrange & Act
-        var report = new ValidationReport(null);
+        var report = new ValidationReport(null!);
 
         // Assert
         Assert.True(report.IsValid);

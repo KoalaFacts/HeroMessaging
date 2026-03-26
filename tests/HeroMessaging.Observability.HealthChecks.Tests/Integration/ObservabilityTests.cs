@@ -589,7 +589,7 @@ public class ObservabilityTests : IAsyncDisposable
             _metricsCollector = metricsCollector;
         }
 
-        public async Task ProcessAsync(IMessage message)
+        public async Task ProcessAsync(IMessage _)
         {
             await Task.Delay(10, TestContext.Current.CancellationToken);
 
@@ -684,7 +684,7 @@ public class ObservabilityTests : IAsyncDisposable
 
         public void RecordProcessingTime(double milliseconds) => _values.Add(milliseconds);
 
-        public async Task<AggregatedMetrics> GetAggregatedMetricsAsync(TimeSpan timeWindow)
+        public async Task<AggregatedMetrics> GetAggregatedMetricsAsync(TimeSpan _)
         {
             await Task.Delay(10, TestContext.Current.CancellationToken);
             return new AggregatedMetrics

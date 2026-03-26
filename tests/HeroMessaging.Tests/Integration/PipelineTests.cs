@@ -433,10 +433,12 @@ public class PipelineTests : IAsyncDisposable
         private readonly object _storageLock = new();
 #endif
 
+#pragma warning disable IDE0060 // Remove unused parameter - Reserved for future feature expansion
         public async Task InitializeAsync(string serialization, string storage,
             bool includeObservability = false, bool includeResilience = false,
             bool includeRetry = false, bool optimizeForPerformance = false,
             bool includeCustomProcessors = false)
+#pragma warning restore IDE0060
         {
             _serializationType = serialization;
             _storageType = storage;

@@ -271,7 +271,6 @@ public class TransportHealthCheckIntegrationTests : IAsyncDisposable
         // Assert
         Assert.NotNull(report);
         var entry = report.Entries["hero_messaging_transport"];
-        Assert.NotNull(entry);
         Assert.Equal(Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Healthy, entry.Status);
     }
 

@@ -13,10 +13,10 @@ public class InMemoryTransport(
     TimeProvider timeProvider,
     ITransportInstrumentation? instrumentation = null) : IMessageTransport
 {
-    private static readonly Random _random = Random.Shared;
+    private static readonly Random SharedRandom = Random.Shared;
 
     // Helper to get Random instance
-    private static Random GetRandom() => _random;
+    private static Random GetRandom() => SharedRandom;
 
     private readonly InMemoryTransportOptions _options = options ?? throw new ArgumentNullException(nameof(options));
     private readonly ITransportInstrumentation _instrumentation = instrumentation ?? NoOpTransportInstrumentation.Instance;

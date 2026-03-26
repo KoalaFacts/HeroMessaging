@@ -16,7 +16,9 @@ public class SagaOrchestrator<TSaga> where TSaga : class, ISaga, new()
     private readonly StateMachineDefinition<TSaga> _stateMachine;
     private readonly IServiceProvider _services;
     private readonly ILogger<SagaOrchestrator<TSaga>> _logger;
+#pragma warning disable IDE0052 // Remove unread private members - Reserved for future timeout/scheduling operations
     private readonly TimeProvider _timeProvider;
+#pragma warning restore IDE0052
 
     public SagaOrchestrator(
         ISagaRepository<TSaga> repository,

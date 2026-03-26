@@ -381,7 +381,7 @@ public class OrchestrationWorkflowTests
         var correlationId = Guid.NewGuid();
 
         // Act - Send an event that performs multiple operations, then fails and compensates
-        await orchestrator.ProcessAsync(new ComplexOperationEvent("ComplexOp", shouldFail: true)
+        await orchestrator.ProcessAsync(new ComplexOperationEvent("ComplexOp", ShouldFail: true)
         { CorrelationId = correlationId.ToString() });
 
         // Assert
@@ -528,7 +528,7 @@ public class OrchestrationWorkflowTests
         public string? FailureReason { get; set; }
     }
 
-    private record ComplexOperationEvent(string Data, bool shouldFail) : IEvent, IMessage
+    private record ComplexOperationEvent(string Data, bool ShouldFail) : IEvent, IMessage
     {
         public Guid MessageId { get; init; } = Guid.NewGuid();
         public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
@@ -569,7 +569,7 @@ public class OrchestrationWorkflowTests
                         async ct => compensationLog.Add((DateTimeOffset.UtcNow, "CompensateStep3")));
 
                     // Simulate failure after registering compensations
-                    if (ctx.Data.shouldFail)
+                    if (ctx.Data.ShouldFail)
                     {
                         ctx.Instance.FailureReason = "Simulated failure after registering compensations";
                         // Execute all compensations in LIFO order (Step3, Step2, Step1)

@@ -11,7 +11,9 @@ public class PluginDiscoveryService
 {
     private readonly IPluginDiscovery _discovery;
     private readonly IPluginRegistry _registry;
+#pragma warning disable IDE0052 // Remove unread private members - Reserved for future plugin loading operations
     private readonly IPluginLoader _loader;
+#pragma warning restore IDE0052
     private readonly IServiceCollection _services;
     private readonly ILogger<PluginDiscoveryService>? _logger;
 

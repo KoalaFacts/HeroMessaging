@@ -16,8 +16,10 @@ public class SqlServerMessageStorage : IMessageStorage
     private readonly string _connectionString;
     private readonly JsonSerializerOptions _jsonOptions;
     private readonly string _tableName;
+#pragma warning disable IDE0052 // Remove unread private members - Reserved for future transaction support
     private readonly SqlConnection? _sharedConnection;
     private readonly SqlTransaction? _sharedTransaction;
+#pragma warning restore IDE0052
     private readonly TimeProvider _timeProvider;
     private readonly IJsonSerializer _jsonSerializer;
     private readonly SemaphoreSlim _initLock = new(1, 1);

@@ -49,6 +49,7 @@ public class CompensationContext
     /// Execute all registered compensating actions in reverse order
     /// </summary>
     /// <param name="stopOnFirstError">If true, stops compensation on first error. If false, attempts all compensations.</param>
+    /// <param name="cancellationToken">Cancellation token for the operation.</param>
     public async Task CompensateAsync(bool stopOnFirstError = false, CancellationToken cancellationToken = default)
     {
         var exceptions = new List<Exception>();

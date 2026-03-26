@@ -556,8 +556,8 @@ public sealed class ErrorHandlingDecoratorTests
         Assert.Equal(0, capturedContext.RetryCount);
         Assert.Equal(3, capturedContext.MaxRetries);
         Assert.Equal(componentName, capturedContext.Component);
-        Assert.NotNull(capturedContext.FirstFailureTime);
-        Assert.NotNull(capturedContext.LastFailureTime);
+        Assert.NotEqual(default, capturedContext.FirstFailureTime);
+        Assert.NotEqual(default, capturedContext.LastFailureTime);
     }
 
     [Fact]

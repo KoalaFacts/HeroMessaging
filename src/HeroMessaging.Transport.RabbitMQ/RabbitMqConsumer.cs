@@ -16,7 +16,9 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
 {
     private readonly IChannel _channel;
     private readonly Func<TransportEnvelope, MessageContext, CancellationToken, Task> _handler;
+#pragma warning disable IDE0052 // Remove unread private members - Reserved for future consumer configuration
     private readonly ConsumerOptions _options;
+#pragma warning restore IDE0052
     private readonly RabbitMqTransport _transport;
     private readonly ILogger<RabbitMqConsumer> _logger;
     private readonly ITransportInstrumentation _instrumentation;
@@ -67,7 +69,9 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
     /// <summary>
     /// Start consuming messages
     /// </summary>
+#pragma warning disable IDE0060 // Remove unused parameter - Part of interface contract
     public async Task StartAsync(CancellationToken cancellationToken = default)
+#pragma warning restore IDE0060
     {
         lock (_stateLock)
         {

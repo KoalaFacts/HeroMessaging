@@ -36,6 +36,7 @@ public class SqlServerSagaRepository<TSaga> : ISagaRepository<TSaga>, IDisposabl
     /// </summary>
     /// <param name="options">Configuration options for SQL Server storage</param>
     /// <param name="timeProvider">Time provider for testable time-based operations</param>
+    /// <param name="jsonSerializer">JSON serializer for saga state serialization</param>
     /// <exception cref="ArgumentNullException">Thrown when options or timeProvider is null</exception>
     /// <exception cref="ArgumentException">Thrown when connection string is invalid or identifiers contain invalid characters</exception>
     public SqlServerSagaRepository(SqlServerStorageOptions options, TimeProvider timeProvider, IJsonSerializer jsonSerializer)

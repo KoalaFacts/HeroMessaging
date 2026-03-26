@@ -8,13 +8,11 @@ namespace HeroMessaging.Storage.PostgreSql.Tests;
 public sealed class PostgreSqlIdempotencyStoreTests
 {
     private readonly FakeTimeProvider _timeProvider;
-    private readonly DateTime _now;
     private readonly IJsonSerializer _jsonSerializer;
 
     public PostgreSqlIdempotencyStoreTests()
     {
         _timeProvider = new FakeTimeProvider();
-        _now = _timeProvider.GetUtcNow().UtcDateTime;
         _jsonSerializer = new DefaultJsonSerializer(new DefaultBufferPoolManager());
     }
 

@@ -229,7 +229,7 @@ public sealed class PolicyAuthorizationProviderTests
         var provider = new PolicyAuthorizationProvider(requireAuthenticatedUser: true);
 
         // Act
-        var result = await provider.AuthorizeAsync(null, "TestMessage", "Send");
+        var result = await provider.AuthorizeAsync(null!, "TestMessage", "Send");
 
         // Assert
         Assert.False(result.Succeeded);
@@ -491,7 +491,7 @@ public sealed class PolicyAuthorizationProviderTests
         var provider = new PolicyAuthorizationProvider();
 
         // Act
-        var result = await provider.HasPermissionAsync(null, "write");
+        var result = await provider.HasPermissionAsync(null!, "write");
 
         // Assert
         Assert.False(result);
@@ -921,7 +921,7 @@ public sealed class PolicyAuthorizationProviderTests
         var policy = new AuthorizationPolicy("TestPolicy");
 
         // Act - Pass empty strings which should be filtered
-        policy.RequireRole("Admin", "", null);
+        policy.RequireRole("Admin", "", null!);
 
         // Assert
         Assert.NotNull(policy);
