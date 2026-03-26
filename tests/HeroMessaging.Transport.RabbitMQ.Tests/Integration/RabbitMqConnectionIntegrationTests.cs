@@ -52,7 +52,7 @@ public class RabbitMqConnectionIntegrationTests : RabbitMqIntegrationTestBase
         Assert.Equal(TransportState.Disconnected, Transport.State);
 
         // Act
-        await Transport.ConnectAsync();
+        await Transport.ConnectAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(TransportState.Connected, Transport.State);
@@ -235,7 +235,7 @@ public class RabbitMqConnectionIntegrationTests : RabbitMqIntegrationTestBase
 
         // Act - configure same topology twice
         await Transport!.ConfigureTopologyAsync(topology);
-        await Transport.ConfigureTopologyAsync(topology); // Should not throw
+        await Transport.ConfigureTopologyAsync(topology, TestContext.Current.CancellationToken); // Should not throw
 
         // Assert - idempotent operation succeeded
     }

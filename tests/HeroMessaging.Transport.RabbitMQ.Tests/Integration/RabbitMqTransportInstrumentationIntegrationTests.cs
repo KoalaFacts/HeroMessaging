@@ -121,7 +121,7 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
         try
         {
             // Connect and configure
-            await transport.ConnectAsync();
+            await transport.ConnectAsync(TestContext.Current.CancellationToken);
             await transport.ConfigureTopologyAsync(new TransportTopology()
                 .AddQueue(new QueueDefinition { Name = queueName, Durable = false, AutoDelete = true }));
 
@@ -141,10 +141,10 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
             await Task.Delay(500);
 
             // Act - Send message
-            await transport.SendAsync(destination, envelope);
+            await transport.SendAsync(destination, envelope, TestContext.Current.CancellationToken);
 
             // Wait for message to be received
-            var received = await messageReceived.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            var received = await messageReceived.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
 
             // Assert
             Assert.True(received, "Message should be received");
@@ -188,7 +188,7 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
         }
         finally
         {
-            await transport.DisconnectAsync();
+            await transport.DisconnectAsync(TestContext.Current.CancellationToken);
             await transport.DisposeAsync();
         }
     }
@@ -223,12 +223,12 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
         try
         {
             // Connect and configure
-            await transport.ConnectAsync();
+            await transport.ConnectAsync(TestContext.Current.CancellationToken);
             await transport.ConfigureTopologyAsync(new TransportTopology()
                 .AddQueue(new QueueDefinition { Name = queueName, Durable = false, AutoDelete = true }));
 
             // Act
-            await transport.SendAsync(destination, envelope);
+            await transport.SendAsync(destination, envelope, TestContext.Current.CancellationToken);
 
             // Assert
             var sendActivity = _activities.FirstOrDefault(a => a.OperationName == "HeroMessaging.Transport.Send");
@@ -239,7 +239,7 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
         }
         finally
         {
-            await transport.DisconnectAsync();
+            await transport.DisconnectAsync(TestContext.Current.CancellationToken);
             await transport.DisposeAsync();
         }
     }
@@ -273,7 +273,7 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
         try
         {
             // Connect and configure
-            await transport.ConnectAsync();
+            await transport.ConnectAsync(TestContext.Current.CancellationToken);
             await transport.ConfigureTopologyAsync(new TransportTopology()
                 .AddExchange(new ExchangeDefinition
                 {
@@ -284,7 +284,7 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
                 }));
 
             // Act
-            await transport.PublishAsync(topic, envelope);
+            await transport.PublishAsync(topic, envelope, TestContext.Current.CancellationToken);
 
             // Assert
             var publishActivity = _activities.FirstOrDefault(a => a.OperationName == "HeroMessaging.Transport.Publish");
@@ -299,7 +299,7 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
         }
         finally
         {
-            await transport.DisconnectAsync();
+            await transport.DisconnectAsync(TestContext.Current.CancellationToken);
             await transport.DisposeAsync();
         }
     }
@@ -366,7 +366,7 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
         try
         {
             // Connect and configure
-            await transport.ConnectAsync();
+            await transport.ConnectAsync(TestContext.Current.CancellationToken);
             await transport.ConfigureTopologyAsync(new TransportTopology()
                 .AddQueue(new QueueDefinition { Name = queueName, Durable = false, AutoDelete = true }));
 
@@ -394,11 +394,11 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
                     body: new byte[] { (byte)i },
                     messageId: $"msg-{i}");
 
-                await transport.SendAsync(destination, envelope);
+                await transport.SendAsync(destination, envelope, TestContext.Current.CancellationToken);
             }
 
             // Wait for all messages
-            await messageReceived.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            await messageReceived.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
 
             // Assert
             var sendActivities = _activities.Where(a => a.OperationName == "HeroMessaging.Transport.Send").ToList();
@@ -422,7 +422,7 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
         }
         finally
         {
-            await transport.DisconnectAsync();
+            await transport.DisconnectAsync(TestContext.Current.CancellationToken);
             await transport.DisposeAsync();
         }
     }
@@ -456,12 +456,12 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
         try
         {
             // Connect and configure
-            await transport.ConnectAsync();
+            await transport.ConnectAsync(TestContext.Current.CancellationToken);
             await transport.ConfigureTopologyAsync(new TransportTopology()
                 .AddQueue(new QueueDefinition { Name = queueName, Durable = false, AutoDelete = true }));
 
             // Act
-            await transport.SendAsync(destination, envelope);
+            await transport.SendAsync(destination, envelope, TestContext.Current.CancellationToken);
 
             // Assert
             var sendActivity = _activities.FirstOrDefault(a => a.OperationName == "HeroMessaging.Transport.Send");
@@ -482,7 +482,7 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
         }
         finally
         {
-            await transport.DisconnectAsync();
+            await transport.DisconnectAsync(TestContext.Current.CancellationToken);
             await transport.DisposeAsync();
         }
     }

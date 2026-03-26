@@ -71,7 +71,7 @@ public class OpenTelemetryIntegrationTests : IDisposable
         var context = new ProcessingContext("IntegrationTest");
 
         // Act
-        var result = await pipeline.ProcessAsync(message, context);
+        var result = await pipeline.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -103,7 +103,7 @@ public class OpenTelemetryIntegrationTests : IDisposable
         // Act
         foreach (var message in messages)
         {
-            await pipeline.ProcessAsync(message, context);
+            await pipeline.ProcessAsync(message, context, TestContext.Current.CancellationToken);
         }
 
         // Assert
@@ -130,7 +130,7 @@ public class OpenTelemetryIntegrationTests : IDisposable
         var context = new ProcessingContext("ErrorTest");
 
         // Act
-        var result = await pipeline.ProcessAsync(message, context);
+        var result = await pipeline.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.Success);
@@ -158,7 +158,7 @@ public class OpenTelemetryIntegrationTests : IDisposable
         var context = new ProcessingContext("MultiDecoratorTest");
 
         // Act
-        var result = await pipeline.ProcessAsync(message, context);
+        var result = await pipeline.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -183,7 +183,7 @@ public class OpenTelemetryIntegrationTests : IDisposable
         var context = new ProcessingContext("ParentTest");
 
         // Act
-        var result = await pipeline.ProcessAsync(message, context);
+        var result = await pipeline.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -206,7 +206,7 @@ public class OpenTelemetryIntegrationTests : IDisposable
         var context = new ProcessingContext("RetryTest").WithRetry(3);
 
         // Act
-        var result = await pipeline.ProcessAsync(message, context);
+        var result = await pipeline.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -273,7 +273,7 @@ public class OpenTelemetryIntegrationTests : IDisposable
         var context = new ProcessingContext("MetricsTest");
 
         // Act
-        await pipeline.ProcessAsync(message, context);
+        await pipeline.ProcessAsync(message, context, TestContext.Current.CancellationToken);
 
         // Assert - Verify processing duration metric was recorded
         Assert.Contains(metricRecordings,
@@ -312,7 +312,9 @@ public class OpenTelemetryIntegrationTests : IDisposable
     {
         public Guid MessageId { get; set; }
         public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
-        public IDictionary<string, object>? Metadata { get; set; }
+        public string? CorrelationId { get; set; }
+        public string? CausationId { get; set; }
+        public Dictionary<string, object>? Metadata { get; set; }
     }
 
     private class InMemoryMetricsCollector : HeroMessaging.Abstractions.Metrics.IMetricsCollector
@@ -331,6 +333,8 @@ public class OpenTelemetryIntegrationTests : IDisposable
             _services = services;
         }
 
+        public IServiceCollection Services => _services;
+
         public IServiceCollection Build() => _services;
 
         public IHeroMessagingBuilder WithMediator() => this;
@@ -343,7 +347,7 @@ public class OpenTelemetryIntegrationTests : IDisposable
         public IHeroMessagingBuilder UseStorage<TStorage>() where TStorage : class, HeroMessaging.Abstractions.Storage.IMessageStorage => this;
         public IHeroMessagingBuilder UseStorage(HeroMessaging.Abstractions.Storage.IMessageStorage storage) => this;
         public IHeroMessagingBuilder ScanAssembly(System.Reflection.Assembly assembly) => this;
-        public IHeroMessagingBuilder ScanAssemblies(params System.Reflection.Assembly[] assemblies) => this;
+        public IHeroMessagingBuilder ScanAssemblies(params IEnumerable<System.Reflection.Assembly> assemblies) => this;
         public IHeroMessagingBuilder ConfigureProcessing(Action<ProcessingOptions> configure) => this;
         public IHeroMessagingBuilder AddPlugin<TPlugin>() where TPlugin : class, HeroMessaging.Abstractions.Plugins.IMessagingPlugin => this;
         public IHeroMessagingBuilder AddPlugin(HeroMessaging.Abstractions.Plugins.IMessagingPlugin plugin) => this;

@@ -22,7 +22,7 @@ public class MultipleTransportHealthCheckTests
         var healthCheck = new MultipleTransportHealthCheck(transports);
 
         // Act
-        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
+        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext(), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Healthy, result.Status);
@@ -38,7 +38,7 @@ public class MultipleTransportHealthCheckTests
         var healthCheck = new MultipleTransportHealthCheck([mockTransport.Object]);
 
         // Act
-        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
+        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext(), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Healthy, result.Status);
@@ -63,7 +63,7 @@ public class MultipleTransportHealthCheckTests
         var healthCheck = new MultipleTransportHealthCheck([transport1.Object, transport2.Object, transport3.Object]);
 
         // Act
-        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
+        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext(), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Healthy, result.Status);
@@ -84,7 +84,7 @@ public class MultipleTransportHealthCheckTests
         var healthCheck = new MultipleTransportHealthCheck([transport1.Object, transport2.Object]);
 
         // Act
-        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
+        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext(), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Degraded, result.Status);
@@ -106,7 +106,7 @@ public class MultipleTransportHealthCheckTests
         var healthCheck = new MultipleTransportHealthCheck([transport1.Object, transport2.Object]);
 
         // Act
-        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
+        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext(), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Unhealthy, result.Status);
@@ -129,7 +129,7 @@ public class MultipleTransportHealthCheckTests
         var healthCheck = new MultipleTransportHealthCheck([transport1.Object, transport2.Object, transport3.Object]);
 
         // Act
-        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
+        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext(), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Unhealthy, result.Status);
@@ -153,7 +153,7 @@ public class MultipleTransportHealthCheckTests
         var healthCheck = new MultipleTransportHealthCheck([transport1.Object, mockTransport2.Object]);
 
         // Act
-        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
+        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext(), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Unhealthy, result.Status);
@@ -184,7 +184,7 @@ public class MultipleTransportHealthCheckTests
         var healthCheck = new MultipleTransportHealthCheck([mockTransport.Object]);
 
         // Act
-        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
+        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext(), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Healthy, result.Status);
@@ -214,7 +214,7 @@ public class MultipleTransportHealthCheckTests
         var healthCheck = new MultipleTransportHealthCheck([mockTransport.Object]);
 
         // Act
-        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
+        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext(), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Degraded, result.Status);
@@ -234,7 +234,7 @@ public class MultipleTransportHealthCheckTests
         var healthCheck = new MultipleTransportHealthCheck([transport1.Object, transport2.Object]);
 
         // Act
-        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
+        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext(), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result.Data);
@@ -255,7 +255,7 @@ public class MultipleTransportHealthCheckTests
         var healthCheck = new MultipleTransportHealthCheck([transport1.Object, transport2.Object]);
 
         // Act
-        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
+        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext(), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result.Data);
@@ -309,7 +309,7 @@ public class MultipleTransportHealthCheckTests
         var healthCheck = new MultipleTransportHealthCheck([.. transports.Select(t => t.Object)]);
 
         // Act
-        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
+        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext(), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Healthy, result.Status);
@@ -337,7 +337,7 @@ public class MultipleTransportHealthCheckTests
         var healthCheck = new MultipleTransportHealthCheck([mockTransport1.Object, mockTransport2.Object]);
 
         // Act
-        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
+        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext(), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Unhealthy, result.Status);
@@ -374,7 +374,7 @@ public class MultipleTransportHealthCheckTests
         var healthCheck = new MultipleTransportHealthCheck([mockTransport.Object]);
 
         // Act
-        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
+        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext(), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Unhealthy, result.Status);

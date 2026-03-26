@@ -48,7 +48,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.event.inputs.commit_sha || 'main' }}
           fetch-depth: 0
@@ -136,7 +136,7 @@ jobs:
 
     steps:
       - name: Download packages from CI workflow
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           name: release-packages-${{ needs.validate-and-prepare.outputs.commit_sha }}
           path: ./release-packages
@@ -256,7 +256,7 @@ jobs:
           fi
 
       - name: Upload renamed packages
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: release-packages-${{ needs.validate-and-prepare.outputs.version }}
           path: ./release-packages/*
@@ -270,13 +270,13 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           ref: ${{ needs.validate-and-prepare.outputs.commit_sha }}
           fetch-depth: 0
 
       - name: Download packages
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           name: release-packages-${{ needs.validate-and-prepare.outputs.version }}
           path: ./release-packages

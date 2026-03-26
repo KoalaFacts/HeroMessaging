@@ -20,8 +20,8 @@ public class JsonSerializationIntegrationTests
         var originalMessage = TestMessageBuilder.CreateValidMessage("JSON serialization test");
 
         // Act
-        var serializedData = await serializer.SerializeAsync(originalMessage);
-        var deserializedMessage = await serializer.DeserializeAsync<TestMessage>(serializedData);
+        var serializedData = await serializer.SerializeAsync(originalMessage, TestContext.Current.CancellationToken);
+        var deserializedMessage = await serializer.DeserializeAsync<TestMessage>(serializedData, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(deserializedMessage);
@@ -43,8 +43,8 @@ public class JsonSerializationIntegrationTests
         var complexMessage = CreateComplexMessage();
 
         // Act
-        var serializedData = await serializer.SerializeAsync(complexMessage);
-        var deserializedMessage = await serializer.DeserializeAsync<TestMessage>(serializedData);
+        var serializedData = await serializer.SerializeAsync(complexMessage, TestContext.Current.CancellationToken);
+        var deserializedMessage = await serializer.DeserializeAsync<TestMessage>(serializedData, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(deserializedMessage);
@@ -66,15 +66,15 @@ public class JsonSerializationIntegrationTests
         var message = TestMessageBuilder.CreateLargeMessage(10000);
 
         // Act
-        var compressedData = await serializerWithCompression.SerializeAsync(message);
-        var uncompressedData = await serializerWithoutCompression.SerializeAsync(message);
+        var compressedData = await serializerWithCompression.SerializeAsync(message, TestContext.Current.CancellationToken);
+        var uncompressedData = await serializerWithoutCompression.SerializeAsync(message, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(compressedData.Length < uncompressedData.Length,
             "Compressed data should be smaller than uncompressed");
 
         // Verify decompression works
-        var decompressed = await serializerWithCompression.DeserializeAsync<TestMessage>(compressedData);
+        var decompressed = await serializerWithCompression.DeserializeAsync<TestMessage>(compressedData, TestContext.Current.CancellationToken);
         Assert.NotNull(decompressed);
         Assert.Equal(message.MessageId, decompressed.MessageId);
     }
@@ -89,7 +89,7 @@ public class JsonSerializationIntegrationTests
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await serializer.SerializeAsync(largeMessage));
+            async () => await serializer.SerializeAsync(largeMessage, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -105,7 +105,7 @@ public class JsonSerializationIntegrationTests
         var message = TestMessageBuilder.CreateValidMessage("Custom options test");
 
         // Act
-        var serializedData = await serializer.SerializeAsync(message);
+        var serializedData = await serializer.SerializeAsync(message, TestContext.Current.CancellationToken);
         var jsonString = Encoding.UTF8.GetString(serializedData);
 
         // Assert
@@ -123,10 +123,10 @@ public class JsonSerializationIntegrationTests
             .ToList();
 
         // Act
-        var serializeTasks = messages.Select(m => serializer.SerializeAsync(m).AsTask()).ToArray();
+        var serializeTasks = messages.Select(m => serializer.SerializeAsync(m, TestContext.Current.CancellationToken).AsTask()).ToArray();
         var serializedData = await Task.WhenAll(serializeTasks);
 
-        var deserializeTasks = serializedData.Select(d => serializer.DeserializeAsync<TestMessage>(d).AsTask()).ToArray();
+        var deserializeTasks = serializedData.Select(d => serializer.DeserializeAsync<TestMessage>(d, TestContext.Current.CancellationToken).AsTask()).ToArray();
         var deserializedMessages = await Task.WhenAll(deserializeTasks);
 
         // Assert

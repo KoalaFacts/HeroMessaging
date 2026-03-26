@@ -25,7 +25,7 @@ public class ServiceCollectionExtensionsTests
         mockBuilder.Setup(b => b.Build()).Returns(services);
 
         // Act
-        mockBuilder.Object.AddOpenTelemetry();
+        mockBuilder.Object.AddOpenTelemetry((Action<OpenTelemetryInstrumentationOptions>?)null);
 
         // Assert
         var serviceProvider = services.BuildServiceProvider();
@@ -44,7 +44,7 @@ public class ServiceCollectionExtensionsTests
         mockBuilder.Setup(b => b.Build()).Returns(services);
 
         // Act
-        var result = mockBuilder.Object.AddOpenTelemetry(configure: null);
+        var result = mockBuilder.Object.AddOpenTelemetry(configure: (Action<OpenTelemetryInstrumentationOptions>?)null);
 
         // Assert
         Assert.NotNull(result);
@@ -64,10 +64,10 @@ public class ServiceCollectionExtensionsTests
         var customServiceName = "CustomService";
 
         // Act
-        mockBuilder.Object.AddOpenTelemetry(options =>
+        mockBuilder.Object.AddOpenTelemetry((Action<OpenTelemetryInstrumentationOptions>?)(options =>
         {
             options.ServiceName = customServiceName;
-        });
+        }));
 
         // Assert - Options are applied during configuration
         // We verify the registration completed successfully
@@ -86,10 +86,10 @@ public class ServiceCollectionExtensionsTests
 
         // Act
         var exception = Record.Exception(() =>
-            mockBuilder.Object.AddOpenTelemetry(options =>
+            mockBuilder.Object.AddOpenTelemetry((Action<OpenTelemetryInstrumentationOptions>?)(options =>
             {
                 options.EnableTracing = false;
-            }));
+            })));
 
         // Assert
         Assert.Null(exception);
@@ -106,10 +106,10 @@ public class ServiceCollectionExtensionsTests
 
         // Act
         var exception = Record.Exception(() =>
-            mockBuilder.Object.AddOpenTelemetry(options =>
+            mockBuilder.Object.AddOpenTelemetry((Action<OpenTelemetryInstrumentationOptions>?)(options =>
             {
                 options.EnableMetrics = false;
-            }));
+            })));
 
         // Assert
         Assert.Null(exception);
@@ -125,11 +125,11 @@ public class ServiceCollectionExtensionsTests
         mockBuilder.Setup(b => b.Build()).Returns(services);
 
         // Act
-        mockBuilder.Object.AddOpenTelemetry(options =>
+        mockBuilder.Object.AddOpenTelemetry((Action<OpenTelemetryInstrumentationOptions>?)(options =>
         {
             options.EnableTracing = false;
             options.EnableMetrics = false;
-        });
+        }));
 
         // Assert - Transport instrumentation should still be registered
         var serviceProvider = services.BuildServiceProvider();
@@ -147,7 +147,7 @@ public class ServiceCollectionExtensionsTests
         mockBuilder.Setup(b => b.Build()).Returns(services);
 
         // Act
-        var result = mockBuilder.Object.AddOpenTelemetry();
+        var result = mockBuilder.Object.AddOpenTelemetry((Action<OpenTelemetryInstrumentationOptions>?)null);
 
         // Assert
         Assert.Same(mockBuilder.Object, result);
@@ -158,7 +158,7 @@ public class ServiceCollectionExtensionsTests
     public void OpenTelemetryOptions_DefaultValues_AreCorrect()
     {
         // Arrange & Act
-        var options = new OpenTelemetryOptions();
+        var options = new OpenTelemetryInstrumentationOptions();
 
         // Assert
         Assert.Equal("HeroMessaging", options.ServiceName);
@@ -175,7 +175,7 @@ public class ServiceCollectionExtensionsTests
     public void OpenTelemetryOptions_CanModifyProperties()
     {
         // Arrange
-        var options = new OpenTelemetryOptions();
+        var options = new OpenTelemetryInstrumentationOptions();
 
         // Act
         options.ServiceName = "CustomService";
@@ -197,7 +197,7 @@ public class ServiceCollectionExtensionsTests
     public void OpenTelemetryOptions_ConfigureTracing_AddsConfiguration()
     {
         // Arrange
-        var options = new OpenTelemetryOptions();
+        var options = new OpenTelemetryInstrumentationOptions();
         var configCalled = false;
         Action<TracerProviderBuilder> tracingConfig = builder => { configCalled = true; };
 
@@ -215,7 +215,7 @@ public class ServiceCollectionExtensionsTests
     public void OpenTelemetryOptions_ConfigureMetrics_AddsConfiguration()
     {
         // Arrange
-        var options = new OpenTelemetryOptions();
+        var options = new OpenTelemetryInstrumentationOptions();
         var configCalled = false;
         Action<MeterProviderBuilder> metricsConfig = builder => { configCalled = true; };
 
@@ -233,7 +233,7 @@ public class ServiceCollectionExtensionsTests
     public void OpenTelemetryOptions_ConfigureTracing_SupportsChaining()
     {
         // Arrange
-        var options = new OpenTelemetryOptions();
+        var options = new OpenTelemetryInstrumentationOptions();
         Action<TracerProviderBuilder> config1 = builder => { };
         Action<TracerProviderBuilder> config2 = builder => { };
 
@@ -252,7 +252,7 @@ public class ServiceCollectionExtensionsTests
     public void OpenTelemetryOptions_ConfigureMetrics_SupportsChaining()
     {
         // Arrange
-        var options = new OpenTelemetryOptions();
+        var options = new OpenTelemetryInstrumentationOptions();
         Action<MeterProviderBuilder> config1 = builder => { };
         Action<MeterProviderBuilder> config2 = builder => { };
 
@@ -271,7 +271,7 @@ public class ServiceCollectionExtensionsTests
     public void OpenTelemetryOptions_CombinedConfiguration_WorksTogether()
     {
         // Arrange
-        var options = new OpenTelemetryOptions();
+        var options = new OpenTelemetryInstrumentationOptions();
         Action<TracerProviderBuilder> tracingConfig = builder => { };
         Action<MeterProviderBuilder> metricsConfig = builder => { };
 
@@ -294,12 +294,12 @@ public class ServiceCollectionExtensionsTests
         mockBuilder.Setup(b => b.Build()).Returns(services);
 
         // Act
-        mockBuilder.Object.AddOpenTelemetry(options =>
+        mockBuilder.Object.AddOpenTelemetry((Action<OpenTelemetryInstrumentationOptions>?)(options =>
         {
             options.ServiceName = "TestService";
             options.ServiceNamespace = "TestNamespace";
             options.ServiceVersion = "1.2.3";
-        });
+        }));
 
         // Assert
         var serviceProvider = services.BuildServiceProvider();
@@ -316,7 +316,7 @@ public class ServiceCollectionExtensionsTests
         mockBuilder.Setup(b => b.Build()).Returns(services);
 
         // Act
-        mockBuilder.Object.AddOpenTelemetry();
+        mockBuilder.Object.AddOpenTelemetry((Action<OpenTelemetryInstrumentationOptions>?)null);
 
         // Assert
         var serviceProvider = services.BuildServiceProvider();
@@ -338,8 +338,8 @@ public class ServiceCollectionExtensionsTests
         mockBuilder.Setup(b => b.Build()).Returns(services);
 
         // Act
-        mockBuilder.Object.AddOpenTelemetry();
-        mockBuilder.Object.AddOpenTelemetry(); // Second call
+        mockBuilder.Object.AddOpenTelemetry((Action<OpenTelemetryInstrumentationOptions>?)null);
+        mockBuilder.Object.AddOpenTelemetry((Action<OpenTelemetryInstrumentationOptions>?)null); // Second call
 
         // Assert
         var serviceProvider = services.BuildServiceProvider();
@@ -354,7 +354,7 @@ public class ServiceCollectionExtensionsTests
     public void OpenTelemetryOptions_TracingConfigurationsProperty_IsNotNull()
     {
         // Arrange & Act
-        var options = new OpenTelemetryOptions();
+        var options = new OpenTelemetryInstrumentationOptions();
 
         // Assert
         Assert.NotNull(options.TracingConfigurations);
@@ -365,7 +365,7 @@ public class ServiceCollectionExtensionsTests
     public void OpenTelemetryOptions_MetricsConfigurationsProperty_IsNotNull()
     {
         // Arrange & Act
-        var options = new OpenTelemetryOptions();
+        var options = new OpenTelemetryInstrumentationOptions();
 
         // Assert
         Assert.NotNull(options.MetricsConfigurations);
@@ -376,7 +376,7 @@ public class ServiceCollectionExtensionsTests
     public void OpenTelemetryOptions_WithNullServiceName_AllowsNull()
     {
         // Arrange
-        var options = new OpenTelemetryOptions();
+        var options = new OpenTelemetryInstrumentationOptions();
 
         // Act
         options.ServiceName = null!;
@@ -390,7 +390,7 @@ public class ServiceCollectionExtensionsTests
     public void OpenTelemetryOptions_WithEmptyServiceName_AllowsEmpty()
     {
         // Arrange
-        var options = new OpenTelemetryOptions();
+        var options = new OpenTelemetryInstrumentationOptions();
 
         // Act
         options.ServiceName = string.Empty;

@@ -16,15 +16,24 @@ public sealed class SqlServerIdempotencyStoreFixture : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
-        // Create and start SQL Server container once for all tests
-        _container = new MsSqlBuilder()
-            .WithImage("mcr.microsoft.com/mssql/server:2022-latest")
-            .WithPassword("YourStrong@Passw0rd")
-            .Build();
+        // Use environment variable connection string if available (CI environment)
+        var envConnectionString = Environment.GetEnvironmentVariable("SqlServer__ConnectionString");
+        if (!string.IsNullOrEmpty(envConnectionString))
+        {
+            ConnectionString = envConnectionString;
+        }
+        else
+        {
+            // Fall back to Testcontainers for local development
+            _container = new MsSqlBuilder()
+                .WithImage("mcr.microsoft.com/mssql/server:2022-latest")
+                .WithPassword("YourStrong@Passw0rd")
+                .Build();
 
-        await _container.StartAsync();
+            await _container.StartAsync(TestContext.Current.CancellationToken);
 
-        ConnectionString = _container.GetConnectionString();
+            ConnectionString = _container.GetConnectionString();
+        }
 
         // Initialize database schema
         await InitializeDatabaseSchemaAsync(ConnectionString);
@@ -33,7 +42,7 @@ public sealed class SqlServerIdempotencyStoreFixture : IAsyncLifetime
     private static async Task InitializeDatabaseSchemaAsync(string connectionString)
     {
         await using var connection = new SqlConnection(connectionString);
-        await connection.OpenAsync();
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
 
         const string createTableSql = """
             IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[IdempotencyResponses]') AND type in (N'U'))
@@ -61,7 +70,7 @@ public sealed class SqlServerIdempotencyStoreFixture : IAsyncLifetime
 
         await using var command = connection.CreateCommand();
         command.CommandText = createTableSql;
-        await command.ExecuteNonQueryAsync();
+        await command.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
     }
 
     public async ValueTask DisposeAsync()
@@ -69,7 +78,7 @@ public sealed class SqlServerIdempotencyStoreFixture : IAsyncLifetime
         // Stop and dispose container when all tests are done
         if (_container != null)
         {
-            await _container.StopAsync();
+            await _container.StopAsync(TestContext.Current.CancellationToken);
             await _container.DisposeAsync();
         }
     }

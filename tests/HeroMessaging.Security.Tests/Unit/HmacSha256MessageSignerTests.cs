@@ -92,7 +92,7 @@ public sealed class HmacSha256MessageSignerTests
         var context = new SecurityContext(TimeProvider.System);
 
         // Act
-        var signature = await signer.SignAsync(data, context);
+        var signature = await signer.SignAsync(data, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(signature);
@@ -112,8 +112,8 @@ public sealed class HmacSha256MessageSignerTests
         var context = new SecurityContext(TimeProvider.System);
 
         // Act
-        var signature1 = await signer.SignAsync(data, context);
-        var signature2 = await signer.SignAsync(data, context);
+        var signature1 = await signer.SignAsync(data, context, TestContext.Current.CancellationToken);
+        var signature2 = await signer.SignAsync(data, context, TestContext.Current.CancellationToken);
 
         // Assert - HMAC should be deterministic for same input
         Assert.Equal(signature1.SignatureBytes, signature2.SignatureBytes);
@@ -126,10 +126,10 @@ public sealed class HmacSha256MessageSignerTests
         var signer = HmacSha256MessageSigner.CreateWithRandomKey(TimeProvider.System);
         var data = System.Text.Encoding.UTF8.GetBytes("Verified message");
         var context = new SecurityContext(TimeProvider.System);
-        var signature = await signer.SignAsync(data, context);
+        var signature = await signer.SignAsync(data, context, TestContext.Current.CancellationToken);
 
         // Act
-        var isValid = await signer.VerifyAsync(data, signature, context);
+        var isValid = await signer.VerifyAsync(data, signature, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(isValid);
@@ -143,10 +143,10 @@ public sealed class HmacSha256MessageSignerTests
         var originalData = System.Text.Encoding.UTF8.GetBytes("Original message");
         var tamperedData = System.Text.Encoding.UTF8.GetBytes("Tampered message");
         var context = new SecurityContext(TimeProvider.System);
-        var signature = await signer.SignAsync(originalData, context);
+        var signature = await signer.SignAsync(originalData, context, TestContext.Current.CancellationToken);
 
         // Act
-        var isValid = await signer.VerifyAsync(tamperedData, signature, context);
+        var isValid = await signer.VerifyAsync(tamperedData, signature, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(isValid);
@@ -159,7 +159,7 @@ public sealed class HmacSha256MessageSignerTests
         var signer = HmacSha256MessageSigner.CreateWithRandomKey(TimeProvider.System);
         var data = System.Text.Encoding.UTF8.GetBytes("Message");
         var context = new SecurityContext(TimeProvider.System);
-        var originalSignature = await signer.SignAsync(data, context);
+        var originalSignature = await signer.SignAsync(data, context, TestContext.Current.CancellationToken);
 
         // Tamper with signature
         var tamperedBytes = new byte[originalSignature.SignatureBytes.Length];
@@ -173,7 +173,7 @@ public sealed class HmacSha256MessageSignerTests
             originalSignature.Timestamp);
 
         // Act
-        var isValid = await signer.VerifyAsync(data, tamperedSignature, context);
+        var isValid = await signer.VerifyAsync(data, tamperedSignature, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(isValid);
@@ -187,10 +187,10 @@ public sealed class HmacSha256MessageSignerTests
         var signer2 = HmacSha256MessageSigner.CreateWithRandomKey(TimeProvider.System); // Different key
         var data = System.Text.Encoding.UTF8.GetBytes("Secret data");
         var context = new SecurityContext(TimeProvider.System);
-        var signature = await signer1.SignAsync(data, context);
+        var signature = await signer1.SignAsync(data, context, TestContext.Current.CancellationToken);
 
         // Act
-        var isValid = await signer2.VerifyAsync(data, signature, context);
+        var isValid = await signer2.VerifyAsync(data, signature, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(isValid);
@@ -205,7 +205,7 @@ public sealed class HmacSha256MessageSignerTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentNullException>(
-            () => signer.SignAsync(null!, context));
+            () => signer.SignAsync(null!, context, TestContext.Current.CancellationToken));
         Assert.Equal("data", exception.ParamName);
     }
 
@@ -216,11 +216,11 @@ public sealed class HmacSha256MessageSignerTests
         var signer = HmacSha256MessageSigner.CreateWithRandomKey(TimeProvider.System);
         var context = new SecurityContext(TimeProvider.System);
         var data = System.Text.Encoding.UTF8.GetBytes("Test");
-        var signature = await signer.SignAsync(data, context);
+        var signature = await signer.SignAsync(data, context, TestContext.Current.CancellationToken);
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentNullException>(
-            () => signer.VerifyAsync(null!, signature, context));
+            () => signer.VerifyAsync(null!, signature, context, TestContext.Current.CancellationToken));
         Assert.Equal("data", exception.ParamName);
     }
 
@@ -234,7 +234,7 @@ public sealed class HmacSha256MessageSignerTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentNullException>(
-            () => signer.VerifyAsync(data, null!, context));
+            () => signer.VerifyAsync(data, null!, context, TestContext.Current.CancellationToken));
         Assert.Equal("signature", exception.ParamName);
     }
 
@@ -258,8 +258,8 @@ public sealed class HmacSha256MessageSignerTests
         var context = new SecurityContext(TimeProvider.System);
 
         // Act
-        var signature = await signer.SignAsync(data, context);
-        var isValid = await signer.VerifyAsync(data, signature, context);
+        var signature = await signer.SignAsync(data, context, TestContext.Current.CancellationToken);
+        var isValid = await signer.VerifyAsync(data, signature, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(isValid);
@@ -275,7 +275,7 @@ public sealed class HmacSha256MessageSignerTests
         var signer = HmacSha256MessageSigner.CreateWithRandomKey(TimeProvider.System);
         var data = System.Text.Encoding.UTF8.GetBytes("Timing test data");
         var context = new SecurityContext(TimeProvider.System);
-        var validSignature = await signer.SignAsync(data, context);
+        var validSignature = await signer.SignAsync(data, context, TestContext.Current.CancellationToken);
 
         // Create signatures that differ at different positions
         var differentAtStart = new byte[validSignature.SignatureBytes.Length];
@@ -290,8 +290,8 @@ public sealed class HmacSha256MessageSignerTests
         var sigEnd = new MessageSignature(differentAtEnd, validSignature.Algorithm, validSignature.KeyId, validSignature.Timestamp);
 
         // Act
-        var resultStart = await signer.VerifyAsync(data, sigStart, context);
-        var resultEnd = await signer.VerifyAsync(data, sigEnd, context);
+        var resultStart = await signer.VerifyAsync(data, sigStart, context, TestContext.Current.CancellationToken);
+        var resultEnd = await signer.VerifyAsync(data, sigEnd, context, TestContext.Current.CancellationToken);
 
         // Assert - Both should be false (constant-time comparison)
         Assert.False(resultStart);

@@ -15,15 +15,24 @@ public sealed class PostgreSqlIdempotencyStoreFixture : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
-        // Create and start PostgreSQL container once for all tests
-        _container = new PostgreSqlBuilder()
-            .WithImage("postgres:17-alpine")
-            .WithPassword("postgres")
-            .Build();
+        // Use environment variable connection string if available (CI environment)
+        var envConnectionString = Environment.GetEnvironmentVariable("PostgreSql__ConnectionString");
+        if (!string.IsNullOrEmpty(envConnectionString))
+        {
+            ConnectionString = envConnectionString;
+        }
+        else
+        {
+            // Fall back to Testcontainers for local development
+            _container = new PostgreSqlBuilder()
+                .WithImage("postgres:17-alpine")
+                .WithPassword("postgres")
+                .Build();
 
-        await _container.StartAsync();
+            await _container.StartAsync(TestContext.Current.CancellationToken);
 
-        ConnectionString = _container.GetConnectionString();
+            ConnectionString = _container.GetConnectionString();
+        }
 
         // Initialize database schema
         await InitializeDatabaseSchemaAsync(ConnectionString);
@@ -32,7 +41,7 @@ public sealed class PostgreSqlIdempotencyStoreFixture : IAsyncLifetime
     private static async Task InitializeDatabaseSchemaAsync(string connectionString)
     {
         await using var connection = new Npgsql.NpgsqlConnection(connectionString);
-        await connection.OpenAsync();
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
 
         const string createTableSql = """
             CREATE TABLE IF NOT EXISTS idempotency_responses (
@@ -57,7 +66,7 @@ public sealed class PostgreSqlIdempotencyStoreFixture : IAsyncLifetime
 
         await using var command = connection.CreateCommand();
         command.CommandText = createTableSql;
-        await command.ExecuteNonQueryAsync();
+        await command.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
     }
 
     public async ValueTask DisposeAsync()
@@ -65,7 +74,7 @@ public sealed class PostgreSqlIdempotencyStoreFixture : IAsyncLifetime
         // Stop and dispose container when all tests are done
         if (_container != null)
         {
-            await _container.StopAsync();
+            await _container.StopAsync(TestContext.Current.CancellationToken);
             await _container.DisposeAsync();
         }
     }

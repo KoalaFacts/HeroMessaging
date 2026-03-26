@@ -107,7 +107,7 @@ public sealed class PostgreSqlUnitOfWorkTests : IAsyncDisposable
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await uow.CommitAsync());
+            async () => await uow.CommitAsync(TestContext.Current.CancellationToken));
         Assert.Equal("No active transaction to commit", exception.Message);
     }
 
@@ -124,7 +124,7 @@ public sealed class PostgreSqlUnitOfWorkTests : IAsyncDisposable
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await uow.RollbackAsync());
+            async () => await uow.RollbackAsync(TestContext.Current.CancellationToken));
         Assert.Equal("No active transaction to rollback", exception.Message);
     }
 
@@ -141,7 +141,7 @@ public sealed class PostgreSqlUnitOfWorkTests : IAsyncDisposable
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await uow.SavepointAsync("sp1"));
+            async () => await uow.SavepointAsync("sp1", TestContext.Current.CancellationToken));
         Assert.Equal("No active transaction for savepoint", exception.Message);
     }
 
@@ -157,7 +157,7 @@ public sealed class PostgreSqlUnitOfWorkTests : IAsyncDisposable
         // we document the expected behavior
 
         // Act & Assert
-        // Would throw: await Assert.ThrowsAsync<ArgumentException>(async () => await uow.SavepointAsync(null!));
+        // Would throw: await Assert.ThrowsAsync<ArgumentException>(async () => await uow.SavepointAsync(null!, TestContext.Current.CancellationToken));
         Assert.True(true, "Documented: SavepointAsync with null name throws ArgumentException");
     }
 
@@ -169,7 +169,7 @@ public sealed class PostgreSqlUnitOfWorkTests : IAsyncDisposable
         _disposables.Add(uow);
 
         // Act & Assert
-        // Would throw with active transaction: await Assert.ThrowsAsync<ArgumentException>(async () => await uow.SavepointAsync(string.Empty));
+        // Would throw with active transaction: await Assert.ThrowsAsync<ArgumentException>(async () => await uow.SavepointAsync(string.Empty, TestContext.Current.CancellationToken));
         Assert.True(true, "Documented: SavepointAsync with empty name throws ArgumentException");
     }
 
@@ -181,7 +181,7 @@ public sealed class PostgreSqlUnitOfWorkTests : IAsyncDisposable
         _disposables.Add(uow);
 
         // Act & Assert
-        // Would throw with active transaction: await Assert.ThrowsAsync<ArgumentException>(async () => await uow.SavepointAsync("   "));
+        // Would throw with active transaction: await Assert.ThrowsAsync<ArgumentException>(async () => await uow.SavepointAsync("   ", TestContext.Current.CancellationToken));
         Assert.True(true, "Documented: SavepointAsync with whitespace name throws ArgumentException");
     }
 
@@ -201,7 +201,7 @@ public sealed class PostgreSqlUnitOfWorkTests : IAsyncDisposable
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await uow.RollbackToSavepointAsync("sp1"));
+            async () => await uow.RollbackToSavepointAsync("sp1", TestContext.Current.CancellationToken));
         Assert.Equal("No active transaction for savepoint rollback", exception.Message);
     }
 

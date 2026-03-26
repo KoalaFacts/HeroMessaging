@@ -172,7 +172,7 @@ public class RabbitMqErrorScenarioIntegrationTests : RabbitMqIntegrationTestBase
         // Act & Assert
         await Assert.ThrowsAsync<Exception>(async () =>
         {
-            await Transport.ConfigureTopologyAsync(topology2);
+            await Transport.ConfigureTopologyAsync(topology2, TestContext.Current.CancellationToken);
         });
     }
 
@@ -302,7 +302,7 @@ public class RabbitMqErrorScenarioIntegrationTests : RabbitMqIntegrationTestBase
             new TransportAddress(queueName, TransportAddressType.Queue),
             async (envelope, context, ct) => await Task.CompletedTask);
 
-        var health = await Transport.GetHealthAsync();
+        var health = await Transport.GetHealthAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(1, health.ActiveConsumers);
@@ -311,7 +311,7 @@ public class RabbitMqErrorScenarioIntegrationTests : RabbitMqIntegrationTestBase
         await consumer.DisposeAsync();
 
         // Check health after cleanup
-        var healthAfter = await Transport.GetHealthAsync();
+        var healthAfter = await Transport.GetHealthAsync(TestContext.Current.CancellationToken);
         Assert.Equal(0, healthAfter.ActiveConsumers);
     }
 

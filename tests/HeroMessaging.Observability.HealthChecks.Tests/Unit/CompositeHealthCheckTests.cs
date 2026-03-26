@@ -18,7 +18,7 @@ public class CompositeHealthCheckTests
         var healthCheck = new CompositeHealthCheck(checkNames);
 
         // Act
-        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
+        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext(), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HealthStatus.Healthy, result.Status);
@@ -42,7 +42,7 @@ public class CompositeHealthCheckTests
         var healthCheck = new CompositeHealthCheck(checkNames);
 
         // Act
-        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
+        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext(), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HealthStatus.Healthy, result.Status);
@@ -60,7 +60,7 @@ public class CompositeHealthCheckTests
         var healthCheck = new CompositeHealthCheck(checkNames);
 
         // Act
-        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
+        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext(), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HealthStatus.Healthy, result.Status);
@@ -103,7 +103,7 @@ public class CompositeHealthCheckTests
         var healthCheck = new CompositeHealthCheck(checkNames);
 
         // Act
-        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext());
+        var result = await healthCheck.CheckHealthAsync(new HealthCheckContext(), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HealthStatus.Healthy, result.Status);

@@ -394,7 +394,7 @@ public class RabbitMqMessageFlowIntegrationTests : RabbitMqIntegrationTestBase
         await Task.Delay(500); // Wait for delivery
 
         // Act - stop consumer
-        await consumer.StopAsync();
+        await consumer.StopAsync(TestContext.Current.CancellationToken);
 
         var countAfterStop = receivedCount;
 

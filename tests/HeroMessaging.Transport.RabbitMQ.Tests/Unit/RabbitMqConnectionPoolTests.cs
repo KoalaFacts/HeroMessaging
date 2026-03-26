@@ -104,7 +104,7 @@ public class RabbitMqConnectionPoolTests : IAsyncLifetime
         // Assert
         // Should not throw
         await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
-            await _connectionPool.GetConnectionAsync());
+            await _connectionPool.GetConnectionAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -155,7 +155,7 @@ public class RabbitMqConnectionPoolTests : IAsyncLifetime
 
         // Act & Assert
         await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
-            await _connectionPool.GetConnectionAsync());
+            await _connectionPool.GetConnectionAsync(TestContext.Current.CancellationToken));
     }
 
     // Note: More comprehensive tests would require refactoring to inject IConnectionFactory

@@ -92,7 +92,7 @@ public sealed class AesGcmMessageEncryptorTests
         var context = new SecurityContext(TimeProvider.System);
 
         // Act
-        var result = await encryptor.EncryptAsync(plaintext, context);
+        var result = await encryptor.EncryptAsync(plaintext, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -113,8 +113,8 @@ public sealed class AesGcmMessageEncryptorTests
         var context = new SecurityContext(TimeProvider.System);
 
         // Act
-        var result1 = await encryptor.EncryptAsync(plaintext, context);
-        var result2 = await encryptor.EncryptAsync(plaintext, context);
+        var result1 = await encryptor.EncryptAsync(plaintext, context, TestContext.Current.CancellationToken);
+        var result2 = await encryptor.EncryptAsync(plaintext, context, TestContext.Current.CancellationToken);
 
         // Assert - Different IVs mean different ciphertexts
         Assert.NotEqual(result1.InitializationVector, result2.InitializationVector);
@@ -128,10 +128,10 @@ public sealed class AesGcmMessageEncryptorTests
         var encryptor = AesGcmMessageEncryptor.CreateWithRandomKey();
         var originalPlaintext = System.Text.Encoding.UTF8.GetBytes("Secret message");
         var context = new SecurityContext(TimeProvider.System);
-        var encrypted = await encryptor.EncryptAsync(originalPlaintext, context);
+        var encrypted = await encryptor.EncryptAsync(originalPlaintext, context, TestContext.Current.CancellationToken);
 
         // Act
-        var decrypted = await encryptor.DecryptAsync(encrypted, context);
+        var decrypted = await encryptor.DecryptAsync(encrypted, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(originalPlaintext, decrypted);
@@ -144,7 +144,7 @@ public sealed class AesGcmMessageEncryptorTests
         var encryptor = AesGcmMessageEncryptor.CreateWithRandomKey();
         var plaintext = System.Text.Encoding.UTF8.GetBytes("Original message");
         var context = new SecurityContext(TimeProvider.System);
-        var encrypted = await encryptor.EncryptAsync(plaintext, context);
+        var encrypted = await encryptor.EncryptAsync(plaintext, context, TestContext.Current.CancellationToken);
 
         // Tamper with the ciphertext
         var tamperedCiphertext = new byte[encrypted.Ciphertext.Length];
@@ -160,7 +160,7 @@ public sealed class AesGcmMessageEncryptorTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<EncryptionException>(
-            () => encryptor.DecryptAsync(tamperedData, context));
+            () => encryptor.DecryptAsync(tamperedData, context, TestContext.Current.CancellationToken));
         Assert.Contains("tampered", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -172,11 +172,11 @@ public sealed class AesGcmMessageEncryptorTests
         var encryptor2 = AesGcmMessageEncryptor.CreateWithRandomKey(); // Different key
         var plaintext = System.Text.Encoding.UTF8.GetBytes("Secret");
         var context = new SecurityContext(TimeProvider.System);
-        var encrypted = await encryptor1.EncryptAsync(plaintext, context);
+        var encrypted = await encryptor1.EncryptAsync(plaintext, context, TestContext.Current.CancellationToken);
 
         // Act & Assert
         await Assert.ThrowsAsync<EncryptionException>(
-            () => encryptor2.DecryptAsync(encrypted, context));
+            () => encryptor2.DecryptAsync(encrypted, context, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -188,7 +188,7 @@ public sealed class AesGcmMessageEncryptorTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentNullException>(
-            () => encryptor.EncryptAsync(null!, context));
+            () => encryptor.EncryptAsync(null!, context, TestContext.Current.CancellationToken));
         Assert.Equal("plaintext", exception.ParamName);
     }
 
@@ -201,7 +201,7 @@ public sealed class AesGcmMessageEncryptorTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentNullException>(
-            () => encryptor.DecryptAsync(null!, context));
+            () => encryptor.DecryptAsync(null!, context, TestContext.Current.CancellationToken));
         Assert.Equal("encryptedData", exception.ParamName);
     }
 
@@ -220,7 +220,7 @@ public sealed class AesGcmMessageEncryptorTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<EncryptionException>(
-            () => encryptor.DecryptAsync(wrongAlgorithmData, context));
+            () => encryptor.DecryptAsync(wrongAlgorithmData, context, TestContext.Current.CancellationToken));
         Assert.Contains("Unsupported algorithm", exception.Message);
     }
 
@@ -239,7 +239,7 @@ public sealed class AesGcmMessageEncryptorTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<EncryptionException>(
-            () => encryptor.DecryptAsync(dataWithoutTag, context));
+            () => encryptor.DecryptAsync(dataWithoutTag, context, TestContext.Current.CancellationToken));
         Assert.Contains("Authentication tag is required", exception.Message);
     }
 
@@ -261,8 +261,8 @@ public sealed class AesGcmMessageEncryptorTests
         var context = new SecurityContext(TimeProvider.System);
 
         // Act
-        var encrypted = await encryptor.EncryptAsync(plaintext, context);
-        var decrypted = await encryptor.DecryptAsync(encrypted, context);
+        var encrypted = await encryptor.EncryptAsync(plaintext, context, TestContext.Current.CancellationToken);
+        var decrypted = await encryptor.DecryptAsync(encrypted, context, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(plaintext, decrypted);

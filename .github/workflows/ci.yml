@@ -45,7 +45,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -59,7 +59,7 @@ jobs:
           dotnet-quality: 'ga'
 
       - name: Cache NuGet packages
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.nuget/packages
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/*.props', 'global.json', 'Directory.Build.*') }}
@@ -87,7 +87,7 @@ jobs:
             -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
 
       - name: Upload test results
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: test-results-${{ matrix.os }}-${{ matrix.framework }}
@@ -114,7 +114,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -130,7 +130,7 @@ jobs:
         run: dotnet build tests/HeroMessaging.Benchmarks --configuration Release --no-restore
 
       - name: Download baseline benchmarks
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         continue-on-error: true  # Baseline may not exist on first run
         with:
           name: performance-baseline
@@ -157,7 +157,7 @@ jobs:
             --threshold 10
 
       - name: Upload current benchmarks as baseline
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         with:
           name: performance-baseline
@@ -191,10 +191,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Download all test results
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           path: ./all-test-results
         continue-on-error: true
@@ -248,7 +248,7 @@ jobs:
           fi
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-report
           path: ./coverage-report/**/*
@@ -311,7 +311,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -321,6 +321,7 @@ jobs:
           dotnet-version: |
             8.0.x
             9.0.x
+            10.0.x
 
       - name: Restore dependencies
         run: dotnet restore
@@ -426,21 +427,21 @@ jobs:
           echo "Full Version: ${{ steps.build-number.outputs.full-version }}"
 
       - name: Upload release packages
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: release-packages-${{ github.sha }}
           path: ./release-packages/*
           retention-days: 90  # Keep for 90 days for releases
 
       - name: Upload release packages (latest)
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: release-packages-latest
           path: ./release-packages/*
           retention-days: 90
 
       - name: Upload SBOM artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: sbom-${{ github.sha }}
           path: ./release-packages/sbom*/**/*

@@ -10,20 +10,33 @@ public abstract class PostgreSqlIntegrationTestBase : IAsyncLifetime
 {
     protected PostgreSqlContainer? Container;
     protected PostgreSqlStorageOptions? Options;
-    protected string ConnectionString => Container?.GetConnectionString() ?? throw new InvalidOperationException("Container not initialized");
+    private string? _connectionString;
+    protected string ConnectionString => _connectionString ?? throw new InvalidOperationException("Test not initialized");
 
     public async ValueTask InitializeAsync()
     {
-        Container = new PostgreSqlBuilder()
-            .WithImage("postgres:17-alpine")
-            .WithPassword("postgres")
-            .Build();
+        // Use environment variable connection string if available (CI environment)
+        var envConnectionString = Environment.GetEnvironmentVariable("PostgreSql__ConnectionString");
+        if (!string.IsNullOrEmpty(envConnectionString))
+        {
+            _connectionString = envConnectionString;
+        }
+        else
+        {
+            // Fall back to Testcontainers for local development
+            Container = new PostgreSqlBuilder()
+                .WithImage("postgres:17-alpine")
+                .WithPassword("postgres")
+                .Build();
 
-        await Container.StartAsync();
+            await Container.StartAsync(TestContext.Current.CancellationToken);
+
+            _connectionString = Container.GetConnectionString();
+        }
 
         Options = new PostgreSqlStorageOptions
         {
-            ConnectionString = Container.GetConnectionString(),
+            ConnectionString = _connectionString,
             Schema = "test",
             AutoCreateTables = true
         };
@@ -33,7 +46,7 @@ public abstract class PostgreSqlIntegrationTestBase : IAsyncLifetime
     {
         if (Container != null)
         {
-            await Container.StopAsync();
+            await Container.StopAsync(TestContext.Current.CancellationToken);
             await Container.DisposeAsync();
         }
     }
