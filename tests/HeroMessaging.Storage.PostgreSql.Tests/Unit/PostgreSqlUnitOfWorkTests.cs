@@ -6,7 +6,7 @@ using Xunit;
 
 namespace HeroMessaging.Storage.PostgreSql.Tests.Unit;
 
-[Trait("Category", "Unit")]
+[Trait("Category", "Integration")]
 public sealed class PostgreSqlUnitOfWorkTests : IAsyncDisposable
 {
     private const string ValidConnectionString = "Host=localhost;Database=test;Username=user;Password=pass";
