@@ -31,18 +31,18 @@ public sealed class RingBuffer<T> where T : class
         ProducerType producerType,
         IWaitStrategy waitStrategy)
     {
+        if (bufferSize < 1)
+        {
+            throw new ArgumentException(
+                "Buffer size must be positive",
+                nameof(bufferSize));
+        }
+
         // Validate power of 2
         if (!IsPowerOf2(bufferSize))
         {
             throw new ArgumentException(
                 "Buffer size must be power of 2 for optimal performance",
-                nameof(bufferSize));
-        }
-
-        if (bufferSize < 1)
-        {
-            throw new ArgumentException(
-                "Buffer size must be positive",
                 nameof(bufferSize));
         }
 

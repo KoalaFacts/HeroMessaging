@@ -275,8 +275,8 @@ public class JsonMessageSerializerTests
         var message = new TestMessage { Id = 1, Name = "Test message", Value = 99.99m };
         var buffer = new byte[5];
 
-        // Act & Assert
-        Assert.Throws<Exception>(() => serializer.Serialize(message, buffer));
+        // Act & Assert - ArrayBufferWriter/CopyTo throws ArgumentException when buffer is too small
+        Assert.ThrowsAny<Exception>(() => serializer.Serialize(message, buffer));
     }
 
     [Fact]
