@@ -16,15 +16,24 @@ public sealed class SqlServerIdempotencyStoreFixture : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
-        // Create and start SQL Server container once for all tests
-        _container = new MsSqlBuilder()
-            .WithImage("mcr.microsoft.com/mssql/server:2022-latest")
-            .WithPassword("YourStrong@Passw0rd")
-            .Build();
+        // Use environment variable connection string if available (CI environment)
+        var envConnectionString = Environment.GetEnvironmentVariable("SqlServer__ConnectionString");
+        if (!string.IsNullOrEmpty(envConnectionString))
+        {
+            ConnectionString = envConnectionString;
+        }
+        else
+        {
+            // Fall back to Testcontainers for local development
+            _container = new MsSqlBuilder()
+                .WithImage("mcr.microsoft.com/mssql/server:2022-latest")
+                .WithPassword("YourStrong@Passw0rd")
+                .Build();
 
-        await _container.StartAsync(TestContext.Current.CancellationToken);
+            await _container.StartAsync(TestContext.Current.CancellationToken);
 
-        ConnectionString = _container.GetConnectionString();
+            ConnectionString = _container.GetConnectionString();
+        }
 
         // Initialize database schema
         await InitializeDatabaseSchemaAsync(ConnectionString);

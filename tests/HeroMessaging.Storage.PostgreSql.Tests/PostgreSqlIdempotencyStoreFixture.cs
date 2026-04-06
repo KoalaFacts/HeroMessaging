@@ -15,15 +15,24 @@ public sealed class PostgreSqlIdempotencyStoreFixture : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
-        // Create and start PostgreSQL container once for all tests
-        _container = new PostgreSqlBuilder()
-            .WithImage("postgres:17-alpine")
-            .WithPassword("postgres")
-            .Build();
+        // Use environment variable connection string if available (CI environment)
+        var envConnectionString = Environment.GetEnvironmentVariable("PostgreSql__ConnectionString");
+        if (!string.IsNullOrEmpty(envConnectionString))
+        {
+            ConnectionString = envConnectionString;
+        }
+        else
+        {
+            // Fall back to Testcontainers for local development
+            _container = new PostgreSqlBuilder()
+                .WithImage("postgres:17-alpine")
+                .WithPassword("postgres")
+                .Build();
 
-        await _container.StartAsync(TestContext.Current.CancellationToken);
+            await _container.StartAsync(TestContext.Current.CancellationToken);
 
-        ConnectionString = _container.GetConnectionString();
+            ConnectionString = _container.GetConnectionString();
+        }
 
         // Initialize database schema
         await InitializeDatabaseSchemaAsync(ConnectionString);

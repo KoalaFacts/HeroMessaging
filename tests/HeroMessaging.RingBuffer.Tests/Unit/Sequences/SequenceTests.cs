@@ -10,7 +10,7 @@ public class SequenceTests
     public void Constructor_DefaultValue_SetsToNegativeOne()
     {
         // Arrange & Act
-        var sequence = new Sequence();
+        var sequence = new Sequence(-1);
 
         // Assert
         Assert.Equal(-1, sequence.Value);
@@ -33,7 +33,7 @@ public class SequenceTests
     public void Value_SetAndGet_ReturnsCorrectValue()
     {
         // Arrange
-        var sequence = new Sequence();
+        var sequence = new Sequence(-1);
         const long expectedValue = 100;
 
         // Act
@@ -62,7 +62,7 @@ public class SequenceTests
     public void Value_NegativeValues_HandledCorrectly()
     {
         // Arrange
-        var sequence = new Sequence();
+        var sequence = new Sequence(-1);
 
         // Act
         sequence.Value = -100;
@@ -75,7 +75,7 @@ public class SequenceTests
     public void Value_MaxValue_HandledCorrectly()
     {
         // Arrange
-        var sequence = new Sequence();
+        var sequence = new Sequence(-1);
 
         // Act
         sequence.Value = long.MaxValue;
@@ -88,7 +88,7 @@ public class SequenceTests
     public void Value_MinValue_HandledCorrectly()
     {
         // Arrange
-        var sequence = new Sequence();
+        var sequence = new Sequence(-1);
 
         // Act
         sequence.Value = long.MinValue;

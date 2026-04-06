@@ -32,7 +32,7 @@ public abstract class RabbitMqIntegrationTestBase : IAsyncLifetime
             .WithPortBinding(5672, true) // Random host port
             .WithUsername("guest")
             .WithPassword("guest")
-            .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(5672))
+            .WithWaitStrategy(Wait.ForUnixContainer().UntilCommandIsCompleted("rabbitmq-diagnostics check_port_connectivity"))
             .Build();
 
         await _rabbitMqContainer.StartAsync(TestContext.Current.CancellationToken);
@@ -61,13 +61,13 @@ public abstract class RabbitMqIntegrationTestBase : IAsyncLifetime
     {
         if (Transport != null)
         {
-            await Transport.DisposeAsync(TestContext.Current.CancellationToken);
+            await Transport.DisposeAsync();
         }
 
         if (_rabbitMqContainer != null)
         {
             await _rabbitMqContainer.StopAsync(TestContext.Current.CancellationToken);
-            await _rabbitMqContainer.DisposeAsync(TestContext.Current.CancellationToken);
+            await _rabbitMqContainer.DisposeAsync();
         }
     }
 
