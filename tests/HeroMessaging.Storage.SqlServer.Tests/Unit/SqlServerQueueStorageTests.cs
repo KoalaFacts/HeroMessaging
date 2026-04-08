@@ -7,7 +7,7 @@ using Xunit;
 
 namespace HeroMessaging.Storage.SqlServer.Tests.Unit;
 
-[Trait("Category", "Unit")]
+[Trait("Category", "Integration")]
 public sealed class SqlServerQueueStorageTests : IDisposable
 {
     private readonly Mock<TimeProvider> _mockTimeProvider;

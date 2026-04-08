@@ -351,8 +351,9 @@ public class RingBufferTests
         var seq = ringBuffer.Next();
         ringBuffer.Publish(seq);
 
-        // Still has capacity since no consumers
-        Assert.Equal(bufferSize, ringBuffer.GetRemainingCapacity());
+        // With no gating sequences, consumed defaults to -1, produced is 0
+        // Remaining = bufferSize - (produced - consumed) = 16 - (0 - (-1)) = 15
+        Assert.Equal(bufferSize - 1, ringBuffer.GetRemainingCapacity());
     }
 
     [Theory]

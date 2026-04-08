@@ -1,3 +1,4 @@
+using HeroMessaging.Tests.Shared.Infrastructure;
 using Testcontainers.MsSql;
 using Xunit;
 
@@ -8,7 +9,7 @@ namespace HeroMessaging.Storage.SqlServer.Tests.Integration;
 /// </summary>
 public abstract class SqlServerIntegrationTestBase : IAsyncLifetime
 {
-    protected MsSqlContainer? Container;
+    private MsSqlContainer? _container;
     protected SqlServerStorageOptions? Options;
     private string? _connectionString;
     protected string ConnectionString => _connectionString ?? throw new InvalidOperationException("Test not initialized");
@@ -16,38 +17,40 @@ public abstract class SqlServerIntegrationTestBase : IAsyncLifetime
     public async ValueTask InitializeAsync()
     {
         // Use environment variable connection string if available (CI environment)
-        var envConnectionString = Environment.GetEnvironmentVariable("SqlServer__ConnectionString");
-        if (!string.IsNullOrEmpty(envConnectionString))
+        var envConnectionString = TestDatabaseEnvironment.GetConnectionStringFromEnvironment(
+            TestDatabaseEnvironment.SqlServerConnectionStringEnvVar);
+
+        if (envConnectionString is not null)
         {
             _connectionString = envConnectionString;
         }
         else
         {
             // Fall back to Testcontainers for local development
-            Container = new MsSqlBuilder()
-                .WithImage("mcr.microsoft.com/mssql/server:2022-latest")
-                .WithPassword("YourStrong@Passw0rd")
+            _container = new MsSqlBuilder()
+                .WithImage(TestDatabaseEnvironment.SqlServerImage)
+                .WithPassword(TestDatabaseEnvironment.SqlServerPassword)
                 .Build();
 
-            await Container.StartAsync(TestContext.Current.CancellationToken);
+            await _container.StartAsync(TestContext.Current.CancellationToken);
 
-            _connectionString = Container.GetConnectionString();
+            _connectionString = _container.GetConnectionString();
         }
 
         Options = new SqlServerStorageOptions
         {
             ConnectionString = _connectionString,
-            Schema = "test",
+            Schema = TestDatabaseEnvironment.DefaultTestSchema,
             AutoCreateTables = true
         };
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (Container != null)
+        if (_container != null)
         {
-            await Container.StopAsync(TestContext.Current.CancellationToken);
-            await Container.DisposeAsync();
+            await _container.StopAsync(TestContext.Current.CancellationToken);
+            await _container.DisposeAsync();
         }
     }
 

@@ -25,7 +25,7 @@ public class ServiceCollectionExtensionsTests
         mockBuilder.Setup(b => b.Build()).Returns(services);
 
         // Act
-        mockBuilder.Object.AddOpenTelemetry((Action<OpenTelemetryInstrumentationOptions>?)null);
+        mockBuilder.Object.AddOpenTelemetryInstrumentation();
 
         // Assert
         var serviceProvider = services.BuildServiceProvider();
@@ -44,7 +44,7 @@ public class ServiceCollectionExtensionsTests
         mockBuilder.Setup(b => b.Build()).Returns(services);
 
         // Act
-        var result = mockBuilder.Object.AddOpenTelemetry(configure: (Action<OpenTelemetryInstrumentationOptions>?)null);
+        var result = mockBuilder.Object.AddOpenTelemetryInstrumentation(configure: null);
 
         // Assert
         Assert.NotNull(result);
@@ -64,10 +64,10 @@ public class ServiceCollectionExtensionsTests
         var customServiceName = "CustomService";
 
         // Act
-        mockBuilder.Object.AddOpenTelemetry((Action<OpenTelemetryInstrumentationOptions>?)(options =>
+        mockBuilder.Object.AddOpenTelemetryInstrumentation(options =>
         {
             options.ServiceName = customServiceName;
-        }));
+        });
 
         // Assert - Options are applied during configuration
         // We verify the registration completed successfully
@@ -86,10 +86,10 @@ public class ServiceCollectionExtensionsTests
 
         // Act
         var exception = Record.Exception(() =>
-            mockBuilder.Object.AddOpenTelemetry((Action<OpenTelemetryInstrumentationOptions>?)(options =>
+            mockBuilder.Object.AddOpenTelemetryInstrumentation(options =>
             {
                 options.EnableTracing = false;
-            })));
+            }));
 
         // Assert
         Assert.Null(exception);
@@ -106,10 +106,10 @@ public class ServiceCollectionExtensionsTests
 
         // Act
         var exception = Record.Exception(() =>
-            mockBuilder.Object.AddOpenTelemetry((Action<OpenTelemetryInstrumentationOptions>?)(options =>
+            mockBuilder.Object.AddOpenTelemetryInstrumentation(options =>
             {
                 options.EnableMetrics = false;
-            })));
+            }));
 
         // Assert
         Assert.Null(exception);
@@ -125,11 +125,11 @@ public class ServiceCollectionExtensionsTests
         mockBuilder.Setup(b => b.Build()).Returns(services);
 
         // Act
-        mockBuilder.Object.AddOpenTelemetry((Action<OpenTelemetryInstrumentationOptions>?)(options =>
+        mockBuilder.Object.AddOpenTelemetryInstrumentation(options =>
         {
             options.EnableTracing = false;
             options.EnableMetrics = false;
-        }));
+        });
 
         // Assert - Transport instrumentation should still be registered
         var serviceProvider = services.BuildServiceProvider();
@@ -147,7 +147,7 @@ public class ServiceCollectionExtensionsTests
         mockBuilder.Setup(b => b.Build()).Returns(services);
 
         // Act
-        var result = mockBuilder.Object.AddOpenTelemetry((Action<OpenTelemetryInstrumentationOptions>?)null);
+        var result = mockBuilder.Object.AddOpenTelemetryInstrumentation();
 
         // Assert
         Assert.Same(mockBuilder.Object, result);
@@ -294,12 +294,12 @@ public class ServiceCollectionExtensionsTests
         mockBuilder.Setup(b => b.Build()).Returns(services);
 
         // Act
-        mockBuilder.Object.AddOpenTelemetry((Action<OpenTelemetryInstrumentationOptions>?)(options =>
+        mockBuilder.Object.AddOpenTelemetryInstrumentation(options =>
         {
             options.ServiceName = "TestService";
             options.ServiceNamespace = "TestNamespace";
             options.ServiceVersion = "1.2.3";
-        }));
+        });
 
         // Assert
         var serviceProvider = services.BuildServiceProvider();
@@ -316,7 +316,7 @@ public class ServiceCollectionExtensionsTests
         mockBuilder.Setup(b => b.Build()).Returns(services);
 
         // Act
-        mockBuilder.Object.AddOpenTelemetry((Action<OpenTelemetryInstrumentationOptions>?)null);
+        mockBuilder.Object.AddOpenTelemetryInstrumentation();
 
         // Assert
         var serviceProvider = services.BuildServiceProvider();
@@ -338,8 +338,8 @@ public class ServiceCollectionExtensionsTests
         mockBuilder.Setup(b => b.Build()).Returns(services);
 
         // Act
-        mockBuilder.Object.AddOpenTelemetry((Action<OpenTelemetryInstrumentationOptions>?)null);
-        mockBuilder.Object.AddOpenTelemetry((Action<OpenTelemetryInstrumentationOptions>?)null); // Second call
+        mockBuilder.Object.AddOpenTelemetryInstrumentation();
+        mockBuilder.Object.AddOpenTelemetryInstrumentation(); // Second call
 
         // Assert
         var serviceProvider = services.BuildServiceProvider();

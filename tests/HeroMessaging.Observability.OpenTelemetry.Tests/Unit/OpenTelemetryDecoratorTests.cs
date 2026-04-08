@@ -24,9 +24,13 @@ public class OpenTelemetryDecoratorTests
         // Set up activity listener to capture activities
         _activityListener = new ActivityListener
         {
-            ShouldListenTo = source => source.Name == HeroMessagingInstrumentation.ActivitySourceName,
+            ShouldListenTo = source => source.Name == HeroMessagingInstrumentation.ActivitySourceName || source.Name == "TestSource",
             Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
-            ActivityStarted = activity => _activities.Add(activity)
+            ActivityStarted = activity =>
+            {
+                if (activity.Source.Name == HeroMessagingInstrumentation.ActivitySourceName)
+                    _activities.Add(activity);
+            }
         };
         ActivitySource.AddActivityListener(_activityListener);
     }

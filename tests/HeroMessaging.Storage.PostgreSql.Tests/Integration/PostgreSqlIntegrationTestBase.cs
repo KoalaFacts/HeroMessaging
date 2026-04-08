@@ -1,3 +1,4 @@
+using HeroMessaging.Tests.Shared.Infrastructure;
 using Testcontainers.PostgreSql;
 using Xunit;
 
@@ -8,7 +9,7 @@ namespace HeroMessaging.Storage.PostgreSql.Tests.Integration;
 /// </summary>
 public abstract class PostgreSqlIntegrationTestBase : IAsyncLifetime
 {
-    protected PostgreSqlContainer? Container;
+    private PostgreSqlContainer? _container;
     protected PostgreSqlStorageOptions? Options;
     private string? _connectionString;
     protected string ConnectionString => _connectionString ?? throw new InvalidOperationException("Test not initialized");
@@ -16,38 +17,40 @@ public abstract class PostgreSqlIntegrationTestBase : IAsyncLifetime
     public async ValueTask InitializeAsync()
     {
         // Use environment variable connection string if available (CI environment)
-        var envConnectionString = Environment.GetEnvironmentVariable("PostgreSql__ConnectionString");
-        if (!string.IsNullOrEmpty(envConnectionString))
+        var envConnectionString = TestDatabaseEnvironment.GetConnectionStringFromEnvironment(
+            TestDatabaseEnvironment.PostgreSqlConnectionStringEnvVar);
+
+        if (envConnectionString is not null)
         {
             _connectionString = envConnectionString;
         }
         else
         {
             // Fall back to Testcontainers for local development
-            Container = new PostgreSqlBuilder()
-                .WithImage("postgres:17-alpine")
-                .WithPassword("postgres")
+            _container = new PostgreSqlBuilder()
+                .WithImage(TestDatabaseEnvironment.PostgreSqlImage)
+                .WithPassword(TestDatabaseEnvironment.PostgreSqlPassword)
                 .Build();
 
-            await Container.StartAsync(TestContext.Current.CancellationToken);
+            await _container.StartAsync(TestContext.Current.CancellationToken);
 
-            _connectionString = Container.GetConnectionString();
+            _connectionString = _container.GetConnectionString();
         }
 
         Options = new PostgreSqlStorageOptions
         {
             ConnectionString = _connectionString,
-            Schema = "test",
+            Schema = TestDatabaseEnvironment.DefaultTestSchema,
             AutoCreateTables = true
         };
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (Container != null)
+        if (_container != null)
         {
-            await Container.StopAsync(TestContext.Current.CancellationToken);
-            await Container.DisposeAsync();
+            await _container.StopAsync(TestContext.Current.CancellationToken);
+            await _container.DisposeAsync();
         }
     }
 

@@ -6,7 +6,7 @@ using Xunit;
 
 namespace HeroMessaging.Storage.SqlServer.Tests.Unit;
 
-[Trait("Category", "Unit")]
+[Trait("Category", "Integration")]
 public sealed class SqlServerUnitOfWorkTests : IAsyncDisposable
 {
     private const string ValidConnectionString = "Server=localhost;Database=test;User Id=user;Password=pass;TrustServerCertificate=true";

@@ -30,6 +30,7 @@
 		<ProjectReference Include="..\..\src\HeroMessaging.Storage.SqlServer\HeroMessaging.Storage.SqlServer.csproj" />
 		<ProjectReference Include="..\..\src\HeroMessaging.Abstractions\HeroMessaging.Abstractions.csproj" />
 		<ProjectReference Include="..\HeroMessaging.Tests\HeroMessaging.Tests.csproj" />
+		<ProjectReference Include="..\HeroMessaging.Tests.Shared\HeroMessaging.Tests.Shared.csproj" />
 	</ItemGroup>
 
 </Project>

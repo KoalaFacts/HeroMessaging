@@ -96,13 +96,15 @@ public class OpenTelemetryTransportInstrumentationTests : IDisposable
         // Arrange
         var instrumentation = OpenTelemetryTransportInstrumentation.Instance;
 
-        // Act & Assert
-        // TransportEnvelope is a struct - test with default value
-        var exception = Record.Exception(() =>
-            instrumentation.StartSendActivity(default, "queue", "transport"));
+        // Act - TransportEnvelope is a struct; verify default value is handled gracefully
+        using var activity = instrumentation.StartSendActivity(default, "queue", "transport");
 
-        // Should not throw for default struct value
-        Assert.Null(exception);
+        // Assert - Activity may be null if no listener is sampling, that's acceptable
+        if (activity is not null)
+        {
+            Assert.Equal("HeroMessaging.Transport.Send", activity.OperationName);
+            Assert.Equal(ActivityKind.Producer, activity.Kind);
+        }
     }
 
     #endregion

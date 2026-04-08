@@ -43,6 +43,11 @@ public sealed class Sequence : ISequence
     }
 
     /// <summary>
+    /// Returns the string representation of the current sequence value
+    /// </summary>
+    public override string ToString() => Value.ToString();
+
+    /// <summary>
     /// Atomically compares and exchanges the sequence value.
     /// Used for lock-free multi-producer coordination.
     /// </summary>
