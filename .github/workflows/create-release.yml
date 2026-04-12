@@ -94,7 +94,7 @@ jobs:
 
       - name: Find successful workflow run
         id: find-workflow
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           CI_WORKFLOW: ${{ env.CI_WORKFLOW_NAME }}
         with:
@@ -329,7 +329,7 @@ jobs:
           fi
 
       - name: Create GitHub Release
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const fs = require('fs');
