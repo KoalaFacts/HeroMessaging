@@ -27,7 +27,7 @@
 		<PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.5" />
 		<PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.4.0" />
 		<PackageReference Include="OpenTelemetry" Version="1.15.0" />
-		<PackageReference Include="OpenTelemetry.Api" Version="1.15.0" />
+		<PackageReference Include="OpenTelemetry.Api" Version="1.15.3" />
 		<PackageReference Include="System.Diagnostics.DiagnosticSource" Version="10.0.5" />
 		<AssemblyAttribute Include="Xunit.CaptureConsoleAttribute" />
 	</ItemGroup>
