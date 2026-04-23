@@ -14,6 +14,9 @@ public class CorrelationContextDecorator(
     ILogger<CorrelationContextDecorator> logger) : MessageProcessorDecorator(inner)
 {
     private readonly ILogger<CorrelationContextDecorator> _logger = logger;
+    /// <summary>
+    /// Executes process async.
+    /// </summary>
 
     public override async ValueTask<ProcessingResult> ProcessAsync(
         IMessage message,

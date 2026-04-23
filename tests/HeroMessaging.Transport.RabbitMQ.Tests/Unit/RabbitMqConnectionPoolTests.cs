@@ -18,12 +18,9 @@ public class RabbitMqConnectionPoolTests : IAsyncLifetime
     private Mock<ILogger<RabbitMqConnectionPool>>? _mockLogger;
     private RabbitMqTransportOptions? _options;
     private RabbitMqConnectionPool? _connectionPool;
-    private List<Mock<IConnection>>? _mockConnections;
-
     public ValueTask InitializeAsync()
     {
         _mockLogger = new Mock<ILogger<RabbitMqConnectionPool>>();
-        _mockConnections = new List<Mock<IConnection>>();
 
         _options = new RabbitMqTransportOptions
         {
@@ -70,10 +67,10 @@ public class RabbitMqConnectionPoolTests : IAsyncLifetime
 
         // Assert
         Assert.NotNull(_connectionPool);
-        var stats = _connectionPool.GetStatistics();
-        Assert.Equal(0, stats.Total);
-        Assert.Equal(0, stats.Active);
-        Assert.Equal(0, stats.Idle);
+        var (total, active, idle) = _connectionPool.GetStatistics();
+        Assert.Equal(0, total);
+        Assert.Equal(0, active);
+        Assert.Equal(0, idle);
     }
 
     [Fact]
@@ -128,12 +125,12 @@ public class RabbitMqConnectionPoolTests : IAsyncLifetime
         _connectionPool = new RabbitMqConnectionPool(_options!, _mockLogger!.Object, TimeProvider.System);
 
         // Act
-        var stats = _connectionPool.GetStatistics();
+        var (total, active, idle) = _connectionPool.GetStatistics();
 
         // Assert
-        Assert.Equal(0, stats.Total);
-        Assert.Equal(0, stats.Active);
-        Assert.Equal(0, stats.Idle);
+        Assert.Equal(0, total);
+        Assert.Equal(0, active);
+        Assert.Equal(0, idle);
     }
 
     [Fact]

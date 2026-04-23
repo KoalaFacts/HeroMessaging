@@ -154,7 +154,7 @@ public class DefaultJsonOptionsProviderTests
     }
 
     [Fact]
-    public void OptionsAreThreadSafe()
+    public async Task OptionsAreThreadSafe()
     {
         // Arrange
         var provider = new DefaultJsonOptionsProvider();
@@ -165,11 +165,11 @@ public class DefaultJsonOptionsProviderTests
         {
             tasks.Add(Task.Run(provider.GetOptions));
         }
-        Task.WaitAll(tasks.ToArray());
+        var options = await Task.WhenAll(tasks);
 
         // Assert
-        var firstOptions = tasks[0].Result;
-        Assert.All(tasks, t => Assert.Same(firstOptions, t.Result));
+        var firstOptions = options[0];
+        Assert.All(options, option => Assert.Same(firstOptions, option));
     }
 
     private class TestClass

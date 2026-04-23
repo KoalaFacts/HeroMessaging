@@ -204,7 +204,7 @@ public class WhenConfigurator<TSaga, TEvent>
 
             // Mark saga as completed
             context.Instance.IsCompleted = true;
-            var timeProvider = (TimeProvider)context.Services.GetService(typeof(TimeProvider))
+            var timeProvider = context.Services.GetService(typeof(TimeProvider)) as TimeProvider
                 ?? throw new InvalidOperationException("TimeProvider is not registered in the service collection. Ensure TimeProvider is registered before using saga orchestration.");
             context.Instance.UpdatedAt = timeProvider.GetUtcNow();
         };
@@ -228,7 +228,13 @@ public class WhenConfigurator<TSaga, TEvent>
 /// </summary>
 public class StateMachineDefinition<TSaga> where TSaga : class, ISaga
 {
+    /// <summary>
+    /// Gets initial state.
+    /// </summary>
     public State InitialState { get; }
+    /// <summary>
+    /// Gets final states.
+    /// </summary>
     public IReadOnlyCollection<State> FinalStates { get; }
 
     /// <summary>

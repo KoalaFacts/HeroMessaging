@@ -6,12 +6,21 @@ using HeroMessaging.Utilities;
 using Microsoft.Extensions.Logging;
 
 namespace HeroMessaging.Processing;
+/// <summary>
+/// Represents the outbox processor type.
+/// </summary>
 
 public class OutboxProcessor : PollingBackgroundServiceBase<OutboxEntry>, IOutboxProcessor
 {
     private readonly IOutboxStorage _outboxStorage;
+    /// <summary>
+    /// Represents service provider.
+    /// </summary>
     private readonly IServiceProvider _serviceProvider;
     private readonly TimeProvider _timeProvider;
+    /// <summary>
+    /// Initializes a new instance of the <see cref="OutboxProcessor"/> class.
+    /// </summary>
 
     public OutboxProcessor(
         IOutboxStorage outboxStorage,
@@ -24,6 +33,9 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxEntry>, IOutbo
         _serviceProvider = serviceProvider;
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
+    /// <summary>
+    /// Executes publish to outbox async.
+    /// </summary>
 
     public async Task PublishToOutboxAsync(IMessage message, OutboxOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -37,8 +49,14 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxEntry>, IOutbo
             await SubmitWorkItemAsync(entry, cancellationToken);
         }
     }
+    /// <summary>
+    /// Gets is running.
+    /// </summary>
 
     public new bool IsRunning => base.IsRunning;
+    /// <summary>
+    /// Executes get metrics.
+    /// </summary>
 
     public IOutboxProcessorMetrics GetMetrics()
     {
@@ -50,21 +68,36 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxEntry>, IOutbo
             LastProcessedTime = _timeProvider.GetUtcNow()
         };
     }
+    /// <summary>
+    /// Represents the outbox processor metrics type.
+    /// </summary>
 
     private class OutboxProcessorMetrics : IOutboxProcessorMetrics
     {
         public long PendingMessages { get; init; }
         public long ProcessedMessages { get; init; }
         public long FailedMessages { get; init; }
+        /// <summary>
+        /// Gets last processed time.
+        /// </summary>
         public DateTimeOffset? LastProcessedTime { get; init; }
     }
+    /// <summary>
+    /// Executes get service name.
+    /// </summary>
 
     protected override string GetServiceName() => "Outbox processor";
+    /// <summary>
+    /// Executes poll for work items async.
+    /// </summary>
 
     protected override async Task<IEnumerable<OutboxEntry>> PollForWorkItemsAsync(CancellationToken cancellationToken)
     {
         return await _outboxStorage.GetPendingAsync(100, cancellationToken);
     }
+    /// <summary>
+    /// Executes process work item async.
+    /// </summary>
 
     protected override async Task ProcessWorkItemAsync(OutboxEntry entry)
     {

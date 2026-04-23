@@ -64,10 +64,10 @@ public sealed class EventBusTests : IDisposable
             .Returns(Task.CompletedTask);
 
         // Act
-        await eventBus.PublishAsync(testEvent);
+        await eventBus.PublishAsync(testEvent, cancellationToken: TestContext.Current.CancellationToken);
 
         // Wait for async processing
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         // Assert
         handlerMock.Verify(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>()), Times.Once);
@@ -81,7 +81,7 @@ public sealed class EventBusTests : IDisposable
         var testEvent = new TestEvent();
 
         // Act & Assert - Should not throw
-        await eventBus.PublishAsync(testEvent);
+        await eventBus.PublishAsync(testEvent, cancellationToken: TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -104,10 +104,10 @@ public sealed class EventBusTests : IDisposable
         handler3Mock.Setup(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
         // Act
-        await eventBus.PublishAsync(testEvent);
+        await eventBus.PublishAsync(testEvent, cancellationToken: TestContext.Current.CancellationToken);
 
         // Wait for async processing
-        await Task.Delay(200);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
 
         // Assert
         handler1Mock.Verify(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>()), Times.Once);
@@ -128,12 +128,12 @@ public sealed class EventBusTests : IDisposable
             .Returns(Task.CompletedTask);
 
         // Act
-        await eventBus.PublishAsync(new TestEvent());
-        await eventBus.PublishAsync(new TestEvent());
-        await eventBus.PublishAsync(new TestEvent());
+        await eventBus.PublishAsync(new TestEvent(), cancellationToken: TestContext.Current.CancellationToken);
+        await eventBus.PublishAsync(new TestEvent(), cancellationToken: TestContext.Current.CancellationToken);
+        await eventBus.PublishAsync(new TestEvent(), cancellationToken: TestContext.Current.CancellationToken);
 
         // Wait for async processing
-        await Task.Delay(200);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
 
         // Assert
         handlerMock.Verify(h => h.HandleAsync(It.IsAny<TestEvent>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
@@ -165,10 +165,10 @@ public sealed class EventBusTests : IDisposable
             .Returns(Task.CompletedTask);
 
         // Act
-        await eventBus.PublishAsync(testEvent);
+        await eventBus.PublishAsync(testEvent, cancellationToken: TestContext.Current.CancellationToken);
 
         // Wait for async processing
-        await Task.Delay(200);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
 
         // Assert - Handler 2 should still be called despite Handler 1 failing
         handler2Mock.Verify(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>()), Times.Once);
@@ -188,10 +188,10 @@ public sealed class EventBusTests : IDisposable
             .ThrowsAsync(new InvalidOperationException("Handler failed"));
 
         // Act
-        await eventBus.PublishAsync(testEvent);
+        await eventBus.PublishAsync(testEvent, cancellationToken: TestContext.Current.CancellationToken);
 
         // Wait for async processing
-        await Task.Delay(200);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
 
         // Assert
         var metrics = eventBus.GetMetrics();
@@ -212,10 +212,10 @@ public sealed class EventBusTests : IDisposable
             .ThrowsAsync(new InvalidOperationException("Handler failed"));
 
         // Act
-        await eventBus.PublishAsync(testEvent);
+        await eventBus.PublishAsync(testEvent, cancellationToken: TestContext.Current.CancellationToken);
 
         // Wait for async processing
-        await Task.Delay(200);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
 
         // Assert
         _loggerMock.Verify(
@@ -250,7 +250,7 @@ public sealed class EventBusTests : IDisposable
         await eventBus.PublishAsync(testEvent, cts.Token);
 
         // Wait for async processing
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         // Assert
         handlerMock.Verify(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>()), Times.Once);
@@ -304,7 +304,7 @@ public sealed class EventBusTests : IDisposable
             .Returns(Task.CompletedTask);
 
         // Act
-        await eventBus.PublishAsync(testEvent);
+        await eventBus.PublishAsync(testEvent, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         var metrics = eventBus.GetMetrics();
@@ -328,7 +328,7 @@ public sealed class EventBusTests : IDisposable
         handler2Mock.Setup(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
         // Act
-        await eventBus.PublishAsync(testEvent);
+        await eventBus.PublishAsync(testEvent, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         var metrics = eventBus.GetMetrics();
@@ -348,9 +348,9 @@ public sealed class EventBusTests : IDisposable
             .Returns(Task.CompletedTask);
 
         // Act
-        await eventBus.PublishAsync(new TestEvent());
-        await eventBus.PublishAsync(new TestEvent());
-        await eventBus.PublishAsync(new TestEvent());
+        await eventBus.PublishAsync(new TestEvent(), cancellationToken: TestContext.Current.CancellationToken);
+        await eventBus.PublishAsync(new TestEvent(), cancellationToken: TestContext.Current.CancellationToken);
+        await eventBus.PublishAsync(new TestEvent(), cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         var metrics = eventBus.GetMetrics();
@@ -389,10 +389,10 @@ public sealed class EventBusTests : IDisposable
             .Returns(Task.CompletedTask);
 
         // Act
-        await eventBus.PublishAsync(testEvent);
+        await eventBus.PublishAsync(testEvent, cancellationToken: TestContext.Current.CancellationToken);
 
         // Wait for async processing through pipeline
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         // Assert - Handler was invoked through the pipeline
         handlerMock.Verify(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>()), Times.Once);
@@ -435,10 +435,10 @@ public sealed class EventBusTests : IDisposable
             });
 
         // Act
-        await eventBus.PublishAsync(testEvent);
+        await eventBus.PublishAsync(testEvent, cancellationToken: TestContext.Current.CancellationToken);
 
         // Wait a bit for parallel execution to start
-        await Task.Delay(30);
+        await Task.Delay(30, TestContext.Current.CancellationToken);
 
         // Assert - Handler 2 should start before Handler 1 completes (parallel execution)
         Assert.True(handler2Started.Task.IsCompleted);
@@ -467,11 +467,11 @@ public sealed class EventBusTests : IDisposable
         handler2Mock.Setup(h => h.HandleAsync(anotherEvent, It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
         // Act
-        await eventBus.PublishAsync(testEvent);
-        await eventBus.PublishAsync(anotherEvent);
+        await eventBus.PublishAsync(testEvent, cancellationToken: TestContext.Current.CancellationToken);
+        await eventBus.PublishAsync(anotherEvent, cancellationToken: TestContext.Current.CancellationToken);
 
         // Wait for async processing
-        await Task.Delay(200);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
 
         // Assert
         handler1Mock.Verify(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>()), Times.Once);

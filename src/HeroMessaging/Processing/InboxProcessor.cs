@@ -6,14 +6,23 @@ using HeroMessaging.Utilities;
 using Microsoft.Extensions.Logging;
 
 namespace HeroMessaging.Processing;
+/// <summary>
+/// Represents the inbox processor type.
+/// </summary>
 
 public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxProcessor
 {
     private readonly IInboxStorage _inboxStorage;
     private readonly IServiceProvider _serviceProvider;
     private readonly TimeProvider _timeProvider;
+    /// <summary>
+    /// Represents cleanup task.
+    /// </summary>
     private Task? _cleanupTask;
     private CancellationTokenSource? _cleanupCancellationTokenSource;
+    /// <summary>
+    /// Initializes a new instance of the <see cref="InboxProcessor"/> class.
+    /// </summary>
 
     public InboxProcessor(
         IInboxStorage inboxStorage,
@@ -26,6 +35,9 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
         _serviceProvider = serviceProvider;
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
+    /// <summary>
+    /// Executes process incoming async.
+    /// </summary>
 
     public async Task<bool> ProcessIncomingAsync(IMessage message, InboxOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -60,6 +72,9 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
 
         return true;
     }
+    /// <summary>
+    /// Executes start async.
+    /// </summary>
 
     public new Task StartAsync(CancellationToken cancellationToken = default)
     {
@@ -69,6 +84,9 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
 
         return base.StartAsync(cancellationToken);
     }
+    /// <summary>
+    /// Executes stop async.
+    /// </summary>
 
     public new async Task StopAsync(CancellationToken cancellationToken = default)
     {
@@ -79,8 +97,14 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
 
         await base.StopAsync(cancellationToken).ConfigureAwait(false);
     }
+    /// <summary>
+    /// Gets is running.
+    /// </summary>
 
     public new bool IsRunning => base.IsRunning;
+    /// <summary>
+    /// Executes get metrics.
+    /// </summary>
 
     public IInboxProcessorMetrics GetMetrics()
     {
@@ -92,26 +116,44 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
             DeduplicationRate = 0.0
         };
     }
+    /// <summary>
+    /// Represents the inbox processor metrics type.
+    /// </summary>
 
     private class InboxProcessorMetrics : IInboxProcessorMetrics
     {
         public long ProcessedMessages { get; init; }
         public long DuplicateMessages { get; init; }
         public long FailedMessages { get; init; }
+        /// <summary>
+        /// Gets deduplication rate.
+        /// </summary>
         public double DeduplicationRate { get; init; }
     }
+    /// <summary>
+    /// Executes get service name.
+    /// </summary>
 
     protected override string GetServiceName() => "Inbox processor";
+    /// <summary>
+    /// Executes poll for work items async.
+    /// </summary>
 
     protected override async Task<IEnumerable<InboxEntry>> PollForWorkItemsAsync(CancellationToken cancellationToken)
     {
         return await _inboxStorage.GetUnprocessedAsync(100, cancellationToken);
     }
+    /// <summary>
+    /// Executes get polling delay.
+    /// </summary>
 
     protected override TimeSpan GetPollingDelay(bool hasWork)
     {
         return hasWork ? TimeSpan.FromMilliseconds(100) : TimeSpan.FromSeconds(5);
     }
+    /// <summary>
+    /// Executes run cleanup.
+    /// </summary>
 
     private async Task RunCleanup(CancellationToken cancellationToken)
     {
@@ -135,6 +177,9 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
             }
         }
     }
+    /// <summary>
+    /// Executes process work item async.
+    /// </summary>
 
     protected override async Task ProcessWorkItemAsync(InboxEntry entry)
     {
@@ -159,6 +204,9 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
             await _inboxStorage.MarkFailedAsync(entry.Id, ex.Message);
         }
     }
+    /// <summary>
+    /// Executes get unprocessed count async.
+    /// </summary>
 
     public async Task<long> GetUnprocessedCountAsync(CancellationToken cancellationToken = default)
     {

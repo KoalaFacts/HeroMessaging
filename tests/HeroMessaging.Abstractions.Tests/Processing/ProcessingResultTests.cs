@@ -202,8 +202,8 @@ public class ProcessingResultTests
         var result = ProcessingResult.Failed(specificException);
 
         // Assert
-        Assert.IsType<ArgumentNullException>(result.Exception);
-        Assert.Equal("param", ((ArgumentNullException)result.Exception!).ParamName);
+        var exception = Assert.IsType<ArgumentNullException>(result.Exception);
+        Assert.Equal("param", exception.ParamName);
     }
 
     [Fact]

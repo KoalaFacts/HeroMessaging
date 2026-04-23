@@ -264,13 +264,10 @@ namespace HeroMessaging.Tests.Unit.Orchestration
         {
             // Arrange
             var builder = new StateMachineBuilder<TestSaga>();
-            var actionExecuted = false;
-
             builder.Initially()
                 .When(new Event<TestEvent>("TestEvent"))
                 .Then(ctx =>
                 {
-                    actionExecuted = true;
                     return Task.CompletedTask;
                 })
                 .TransitionTo(new State("NextState"));
@@ -412,7 +409,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             context.Compensation.AddCompensation("TestAction", () => { compensated = true; });
 
             // Act
-            await context.Compensation.CompensateAsync();
+            await context.Compensation.CompensateAsync(cancellationToken: TestContext.Current.CancellationToken);
 
             // Assert
             Assert.True(compensated);

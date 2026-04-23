@@ -149,8 +149,17 @@ internal sealed class ProcessorMetricsCollector
 /// </summary>
 public class ProcessorMetrics : IProcessorMetrics
 {
+    /// <summary>
+    /// Gets processed count.
+    /// </summary>
     public long ProcessedCount { get; init; }
+    /// <summary>
+    /// Gets failed count.
+    /// </summary>
     public long FailedCount { get; init; }
+    /// <summary>
+    /// Gets average duration.
+    /// </summary>
     public TimeSpan AverageDuration { get; init; }
 }
 
@@ -159,8 +168,20 @@ public class ProcessorMetrics : IProcessorMetrics
 /// </summary>
 public class QueryProcessorMetrics : IQueryProcessorMetrics
 {
+    /// <summary>
+    /// Gets processed count.
+    /// </summary>
     public long ProcessedCount { get; init; }
+    /// <summary>
+    /// Gets failed count.
+    /// </summary>
     public long FailedCount { get; init; }
+    /// <summary>
+    /// Gets average duration.
+    /// </summary>
     public TimeSpan AverageDuration { get; init; }
+    /// <summary>
+    /// Gets cache hit rate.
+    /// </summary>
     public double CacheHitRate { get; init; }
 }

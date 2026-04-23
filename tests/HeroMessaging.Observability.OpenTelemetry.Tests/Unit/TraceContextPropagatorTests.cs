@@ -86,7 +86,7 @@ public class TraceContextPropagatorTests
         // Assert
         Assert.True(result.HasHeader(TraceContextPropagator.TraceParentHeaderName));
         var traceParent = result.GetHeader<string>(TraceContextPropagator.TraceParentHeaderName);
-        Assert.Contains(activity.TraceId.ToString(), traceParent!);
+        Assert.Contains(activity.TraceId.ToString(), traceParent);
     }
 
     [Fact]

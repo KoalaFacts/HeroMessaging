@@ -22,6 +22,9 @@ public class PostgreSqlInboxStorage : IInboxStorage
     private readonly IJsonSerializer _jsonSerializer;
     private readonly SemaphoreSlim _initLock = new(1, 1);
     private bool _initialized;
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PostgreSqlInboxStorage"/> class.
+    /// </summary>
 
     public PostgreSqlInboxStorage(
         PostgreSqlStorageOptions options,
@@ -41,6 +44,9 @@ public class PostgreSqlInboxStorage : IInboxStorage
         _jsonOptionsProvider = jsonOptionsProvider ?? new DefaultJsonOptionsProvider();
         _schemaInitializer = schemaInitializer ?? new PostgreSqlSchemaInitializer(_connectionProvider);
     }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PostgreSqlInboxStorage"/> class.
+    /// </summary>
 
     public PostgreSqlInboxStorage(
         NpgsqlConnection connection,
@@ -76,6 +82,9 @@ public class PostgreSqlInboxStorage : IInboxStorage
             _initLock.Release();
         }
     }
+    /// <summary>
+    /// Executes initialize database.
+    /// </summary>
 
     private async Task InitializeDatabase()
     {
@@ -107,6 +116,9 @@ public class PostgreSqlInboxStorage : IInboxStorage
 
         await _schemaInitializer.ExecuteSchemaScriptAsync(createTableSql).ConfigureAwait(false);
     }
+    /// <summary>
+    /// Executes add async.
+    /// </summary>
 
     public async Task<InboxEntry?> AddAsync(IMessage message, InboxOptions options, CancellationToken cancellationToken = default)
     {
@@ -163,6 +175,9 @@ public class PostgreSqlInboxStorage : IInboxStorage
             }
         }
     }
+    /// <summary>
+    /// Executes is duplicate async.
+    /// </summary>
 
     public async Task<bool> IsDuplicateAsync(string messageId, TimeSpan? window = null, CancellationToken cancellationToken = default)
     {
@@ -196,6 +211,9 @@ public class PostgreSqlInboxStorage : IInboxStorage
             }
         }
     }
+    /// <summary>
+    /// Executes get async.
+    /// </summary>
 
     public async Task<InboxEntry?> GetAsync(string messageId, CancellationToken cancellationToken = default)
     {
@@ -255,6 +273,9 @@ public class PostgreSqlInboxStorage : IInboxStorage
         {
         }
     }
+    /// <summary>
+    /// Executes mark processed async.
+    /// </summary>
 
     public async Task<bool> MarkProcessedAsync(string messageId, CancellationToken cancellationToken = default)
     {
@@ -283,6 +304,9 @@ public class PostgreSqlInboxStorage : IInboxStorage
         {
         }
     }
+    /// <summary>
+    /// Executes mark failed async.
+    /// </summary>
 
     public async Task<bool> MarkFailedAsync(string messageId, string error, CancellationToken cancellationToken = default)
     {
@@ -312,6 +336,9 @@ public class PostgreSqlInboxStorage : IInboxStorage
         {
         }
     }
+    /// <summary>
+    /// Executes get pending async.
+    /// </summary>
 
     public async Task<IEnumerable<InboxEntry>> GetPendingAsync(InboxQuery query, CancellationToken cancellationToken = default)
     {
@@ -402,6 +429,9 @@ public class PostgreSqlInboxStorage : IInboxStorage
         {
         }
     }
+    /// <summary>
+    /// Executes get unprocessed async.
+    /// </summary>
 
     public async Task<IEnumerable<InboxEntry>> GetUnprocessedAsync(int limit = 100, CancellationToken cancellationToken = default)
     {
@@ -413,6 +443,9 @@ public class PostgreSqlInboxStorage : IInboxStorage
 
         return await GetPendingAsync(query, cancellationToken).ConfigureAwait(false);
     }
+    /// <summary>
+    /// Executes get unprocessed count async.
+    /// </summary>
 
     public async Task<long> GetUnprocessedCountAsync(CancellationToken cancellationToken = default)
     {
@@ -433,6 +466,9 @@ public class PostgreSqlInboxStorage : IInboxStorage
         {
         }
     }
+    /// <summary>
+    /// Executes cleanup old entries async.
+    /// </summary>
 
     public async Task CleanupOldEntriesAsync(TimeSpan olderThan, CancellationToken cancellationToken = default)
     {

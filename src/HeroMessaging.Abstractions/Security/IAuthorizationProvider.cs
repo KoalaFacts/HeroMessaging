@@ -60,15 +60,27 @@ public sealed class AuthorizationResult
         ErrorMessage = errorMessage;
         FailureReason = failureReason;
     }
+    /// <summary>
+    /// Executes success.
+    /// </summary>
 
     public static AuthorizationResult Success()
         => new(true, null, null);
+    /// <summary>
+    /// Executes failure.
+    /// </summary>
 
     public static AuthorizationResult Failure(string errorMessage, string? failureReason = null)
         => new(false, errorMessage, failureReason);
+    /// <summary>
+    /// Executes insufficient permissions.
+    /// </summary>
 
     public static AuthorizationResult InsufficientPermissions(string requiredPermission)
         => new(false, $"Insufficient permissions. Required: {requiredPermission}", "InsufficientPermissions");
+    /// <summary>
+    /// Executes forbidden.
+    /// </summary>
 
     public static AuthorizationResult Forbidden(string message)
         => new(false, message, "Forbidden");

@@ -9,6 +9,9 @@ namespace HeroMessaging.Processing.Decorators;
 public abstract class MessageProcessorDecorator(IMessageProcessor inner) : IMessageProcessor
 {
     private protected readonly IMessageProcessor _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+    /// <summary>
+    /// Executes process async.
+    /// </summary>
 
     public virtual async ValueTask<ProcessingResult> ProcessAsync(IMessage message, ProcessingContext context, CancellationToken cancellationToken = default)
     {

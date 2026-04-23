@@ -277,7 +277,8 @@ public class MessageBaseTests
         var message = new TestMessage { Metadata = metadata };
 
         // Assert
-        Assert.Equal(6, message.Metadata!.Count);
+        Assert.NotNull(message.Metadata);
+        Assert.Equal(6, message.Metadata.Count);
         Assert.Equal("value", message.Metadata["string"]);
         Assert.Equal(42, message.Metadata["int"]);
         Assert.Equal(true, message.Metadata["bool"]);

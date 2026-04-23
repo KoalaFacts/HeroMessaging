@@ -175,14 +175,14 @@ public class ServiceCollectionExtensionsTests
     public void OpenTelemetryOptions_CanModifyProperties()
     {
         // Arrange
-        var options = new OpenTelemetryInstrumentationOptions();
-
-        // Act
-        options.ServiceName = "CustomService";
-        options.ServiceNamespace = "MyNamespace";
-        options.ServiceVersion = "2.0.0";
-        options.EnableTracing = false;
-        options.EnableMetrics = false;
+        var options = new OpenTelemetryInstrumentationOptions
+        {
+            ServiceName = "CustomService",
+            ServiceNamespace = "MyNamespace",
+            ServiceVersion = "2.0.0",
+            EnableTracing = false,
+            EnableMetrics = false
+        };
 
         // Assert
         Assert.Equal("CustomService", options.ServiceName);
@@ -198,16 +198,16 @@ public class ServiceCollectionExtensionsTests
     {
         // Arrange
         var options = new OpenTelemetryInstrumentationOptions();
-        var configCalled = false;
-        Action<TracerProviderBuilder> tracingConfig = builder => { configCalled = true; };
+
+        static void TracingConfig(TracerProviderBuilder builder) { }
 
         // Act
-        var result = options.ConfigureTracing(tracingConfig);
+        var result = options.ConfigureTracing(TracingConfig);
 
         // Assert
         Assert.Same(options, result);
         Assert.Single(options.TracingConfigurations);
-        Assert.Contains(tracingConfig, options.TracingConfigurations);
+        Assert.Contains(TracingConfig, options.TracingConfigurations);
     }
 
     [Fact]
@@ -216,16 +216,16 @@ public class ServiceCollectionExtensionsTests
     {
         // Arrange
         var options = new OpenTelemetryInstrumentationOptions();
-        var configCalled = false;
-        Action<MeterProviderBuilder> metricsConfig = builder => { configCalled = true; };
+
+        static void MetricsConfig(MeterProviderBuilder builder) { }
 
         // Act
-        var result = options.ConfigureMetrics(metricsConfig);
+        var result = options.ConfigureMetrics(MetricsConfig);
 
         // Assert
         Assert.Same(options, result);
         Assert.Single(options.MetricsConfigurations);
-        Assert.Contains(metricsConfig, options.MetricsConfigurations);
+        Assert.Contains(MetricsConfig, options.MetricsConfigurations);
     }
 
     [Fact]
@@ -234,17 +234,18 @@ public class ServiceCollectionExtensionsTests
     {
         // Arrange
         var options = new OpenTelemetryInstrumentationOptions();
-        Action<TracerProviderBuilder> config1 = builder => { };
-        Action<TracerProviderBuilder> config2 = builder => { };
+
+        static void Config1(TracerProviderBuilder builder) { }
+        static void Config2(TracerProviderBuilder builder) { }
 
         // Act
-        options.ConfigureTracing(config1)
-               .ConfigureTracing(config2);
+        options.ConfigureTracing(Config1)
+               .ConfigureTracing(Config2);
 
         // Assert
         Assert.Equal(2, options.TracingConfigurations.Count);
-        Assert.Contains(config1, options.TracingConfigurations);
-        Assert.Contains(config2, options.TracingConfigurations);
+        Assert.Contains(Config1, options.TracingConfigurations);
+        Assert.Contains(Config2, options.TracingConfigurations);
     }
 
     [Fact]
@@ -253,17 +254,18 @@ public class ServiceCollectionExtensionsTests
     {
         // Arrange
         var options = new OpenTelemetryInstrumentationOptions();
-        Action<MeterProviderBuilder> config1 = builder => { };
-        Action<MeterProviderBuilder> config2 = builder => { };
+
+        static void Config1(MeterProviderBuilder builder) { }
+        static void Config2(MeterProviderBuilder builder) { }
 
         // Act
-        options.ConfigureMetrics(config1)
-               .ConfigureMetrics(config2);
+        options.ConfigureMetrics(Config1)
+               .ConfigureMetrics(Config2);
 
         // Assert
         Assert.Equal(2, options.MetricsConfigurations.Count);
-        Assert.Contains(config1, options.MetricsConfigurations);
-        Assert.Contains(config2, options.MetricsConfigurations);
+        Assert.Contains(Config1, options.MetricsConfigurations);
+        Assert.Contains(Config2, options.MetricsConfigurations);
     }
 
     [Fact]
@@ -272,12 +274,13 @@ public class ServiceCollectionExtensionsTests
     {
         // Arrange
         var options = new OpenTelemetryInstrumentationOptions();
-        Action<TracerProviderBuilder> tracingConfig = builder => { };
-        Action<MeterProviderBuilder> metricsConfig = builder => { };
+
+        static void TracingConfig(TracerProviderBuilder builder) { }
+        static void MetricsConfig(MeterProviderBuilder builder) { }
 
         // Act
-        options.ConfigureTracing(tracingConfig)
-               .ConfigureMetrics(metricsConfig);
+        options.ConfigureTracing(TracingConfig)
+               .ConfigureMetrics(MetricsConfig);
 
         // Assert
         Assert.Single(options.TracingConfigurations);
@@ -294,12 +297,12 @@ public class ServiceCollectionExtensionsTests
         mockBuilder.Setup(b => b.Build()).Returns(services);
 
         // Act
-        mockBuilder.Object.AddOpenTelemetry((Action<OpenTelemetryInstrumentationOptions>?)(options =>
+        mockBuilder.Object.AddOpenTelemetry(options =>
         {
             options.ServiceName = "TestService";
             options.ServiceNamespace = "TestNamespace";
             options.ServiceVersion = "1.2.3";
-        }));
+        });
 
         // Assert
         var serviceProvider = services.BuildServiceProvider();
@@ -376,10 +379,10 @@ public class ServiceCollectionExtensionsTests
     public void OpenTelemetryOptions_WithNullServiceName_AllowsNull()
     {
         // Arrange
-        var options = new OpenTelemetryInstrumentationOptions();
-
-        // Act
-        options.ServiceName = null!;
+        var options = new OpenTelemetryInstrumentationOptions
+        {
+            ServiceName = null!
+        };
 
         // Assert - Should allow null (validation would happen at runtime during OpenTelemetry setup)
         Assert.Null(options.ServiceName);
@@ -390,10 +393,10 @@ public class ServiceCollectionExtensionsTests
     public void OpenTelemetryOptions_WithEmptyServiceName_AllowsEmpty()
     {
         // Arrange
-        var options = new OpenTelemetryInstrumentationOptions();
-
-        // Act
-        options.ServiceName = string.Empty;
+        var options = new OpenTelemetryInstrumentationOptions
+        {
+            ServiceName = string.Empty
+        };
 
         // Assert
         Assert.Equal(string.Empty, options.ServiceName);

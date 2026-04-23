@@ -18,18 +18,18 @@ public class TransportInstrumentationIntegrationTests : IDisposable
 
     public TransportInstrumentationIntegrationTests()
     {
-        _activities = new List<Activity>();
-        _longMeasurements = new Dictionary<string, List<Measurement<long>>>();
-        _doubleMeasurements = new Dictionary<string, List<Measurement<double>>>();
+        _activities = [];
+        _longMeasurements = [];
+        _doubleMeasurements = [];
         _instrumentation = OpenTelemetryTransportInstrumentation.Instance;
 
         // Set up activity listener
         _activityListener = new ActivityListener
         {
-            ShouldListenTo = source =>
+            ShouldListenTo = static source =>
                 source.Name == TransportInstrumentation.ActivitySourceName ||
                 source.Name == HeroMessagingInstrumentation.ActivitySourceName,
-            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
+            Sample = SampleAllData,
             ActivityStarted = activity => _activities.Add(activity)
         };
         ActivitySource.AddActivityListener(_activityListener);
@@ -50,7 +50,7 @@ public class TransportInstrumentationIntegrationTests : IDisposable
         {
             if (!_longMeasurements.ContainsKey(instrument.Name))
             {
-                _longMeasurements[instrument.Name] = new List<Measurement<long>>();
+                _longMeasurements[instrument.Name] = [];
             }
             _longMeasurements[instrument.Name].Add(new Measurement<long>(measurement));
         });
@@ -59,7 +59,7 @@ public class TransportInstrumentationIntegrationTests : IDisposable
         {
             if (!_doubleMeasurements.ContainsKey(instrument.Name))
             {
-                _doubleMeasurements[instrument.Name] = new List<Measurement<double>>();
+                _doubleMeasurements[instrument.Name] = [];
             }
             _doubleMeasurements[instrument.Name].Add(new Measurement<double>(measurement));
         });
@@ -78,6 +78,9 @@ public class TransportInstrumentationIntegrationTests : IDisposable
             activity?.Dispose();
         }
     }
+
+    private static ActivitySamplingResult SampleAllData(ref ActivityCreationOptions<ActivityContext> options) =>
+        ActivitySamplingResult.AllDataAndRecorded;
 
     [Fact]
     [Trait("Category", "Integration")]
@@ -267,10 +270,8 @@ public class TransportInstrumentationIntegrationTests : IDisposable
         Assert.NotNull(sendActivity);
 
         _instrumentation.AddEvent(sendActivity, "serialization.start");
-        _instrumentation.AddEvent(sendActivity, "serialization.complete", new[]
-        {
-            new KeyValuePair<string, object?>("size_bytes", 3)
-        });
+        _instrumentation.AddEvent(sendActivity, "serialization.complete",
+            [new KeyValuePair<string, object?>("size_bytes", 3)]);
         _instrumentation.AddEvent(sendActivity, "publish.start");
         _instrumentation.AddEvent(sendActivity, "publish.confirmed");
 

@@ -20,6 +20,9 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
     private readonly IJsonSerializer _jsonSerializer;
     private readonly SemaphoreSlim _initLock = new(1, 1);
     private bool _initialized;
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SqlServerDeadLetterQueue"/> class.
+    /// </summary>
 
     public SqlServerDeadLetterQueue(SqlServerStorageOptions options, TimeProvider timeProvider, IJsonSerializer jsonSerializer)
     {
@@ -51,6 +54,9 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
             _initLock.Release();
         }
     }
+    /// <summary>
+    /// Executes initialize database.
+    /// </summary>
 
     private async Task InitializeDatabase()
     {
@@ -86,6 +92,9 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
         using var command = new SqlCommand(createTableSql, connection);
         await command.ExecuteNonQueryAsync().ConfigureAwait(false);
     }
+    /// <summary>
+    /// Executes send to dead letter async.
+    /// </summary>
 
     public async Task<string> SendToDeadLetterAsync<T>(T message, DeadLetterContext context, CancellationToken cancellationToken = default)
         where T : IMessage
@@ -126,6 +135,9 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
         await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         return deadLetterId;
     }
+    /// <summary>
+    /// Executes get dead letters async.
+    /// </summary>
 
     public async Task<IEnumerable<DeadLetterEntry<T>>> GetDeadLettersAsync<T>(int limit = 100, CancellationToken cancellationToken = default)
         where T : IMessage
@@ -186,6 +198,9 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
 
         return entries;
     }
+    /// <summary>
+    /// Executes retry async.
+    /// </summary>
 
     public async Task<bool> RetryAsync<T>(string deadLetterId, CancellationToken cancellationToken = default)
         where T : IMessage
@@ -209,6 +224,9 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
         var result = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         return result > 0;
     }
+    /// <summary>
+    /// Executes discard async.
+    /// </summary>
 
     public async Task<bool> DiscardAsync<T>(string deadLetterId, CancellationToken cancellationToken = default) where T : IMessage
     {
@@ -231,6 +249,9 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
         var result = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         return result > 0;
     }
+    /// <summary>
+    /// Executes get dead letter count async.
+    /// </summary>
 
     public async Task<long> GetDeadLetterCountAsync(CancellationToken cancellationToken = default)
     {
@@ -246,6 +267,9 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
         var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
         return Convert.ToInt64(result ?? 0);
     }
+    /// <summary>
+    /// Executes get statistics async.
+    /// </summary>
 
     public async Task<DeadLetterStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default)
     {

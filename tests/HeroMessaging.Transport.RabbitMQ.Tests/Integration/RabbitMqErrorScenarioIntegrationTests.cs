@@ -24,7 +24,7 @@ public class RabbitMqErrorScenarioIntegrationTests : RabbitMqIntegrationTestBase
         // This behavior is by design in AMQP
         await Transport!.SendAsync(
             new TransportAddress(nonExistentQueue, TransportAddressType.Queue),
-            CreateTestEnvelope());
+            CreateTestEnvelope(), cancellationToken: TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -38,7 +38,7 @@ public class RabbitMqErrorScenarioIntegrationTests : RabbitMqIntegrationTestBase
         {
             await Transport!.SubscribeAsync(
                 new TransportAddress(nonExistentQueue, TransportAddressType.Queue),
-                async (envelope, context, ct) => await Task.CompletedTask);
+                async (envelope, context, ct) => await Task.CompletedTask, cancellationToken: TestContext.Current.CancellationToken);
         });
     }
 
@@ -49,7 +49,7 @@ public class RabbitMqErrorScenarioIntegrationTests : RabbitMqIntegrationTestBase
         var queueName = CreateQueueName();
         var topology = new TransportTopology();
         topology.AddQueue(new QueueDefinition { Name = queueName, Durable = true });
-        await Transport!.ConfigureTopologyAsync(topology);
+        await Transport!.ConfigureTopologyAsync(topology, cancellationToken: TestContext.Current.CancellationToken);
 
         // Create a large message (1MB)
         var largeContent = new byte[1024 * 1024];
@@ -72,14 +72,14 @@ public class RabbitMqErrorScenarioIntegrationTests : RabbitMqIntegrationTestBase
                 receivedBody = envelope.Body.ToArray();
                 messageReceived.TrySetResult(true);
                 await Task.CompletedTask;
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
         await Transport.SendAsync(
             new TransportAddress(queueName, TransportAddressType.Queue),
-            largeEnvelope);
+            largeEnvelope, cancellationToken: TestContext.Current.CancellationToken);
 
-        await Task.WhenAny(messageReceived.Task, Task.Delay(10000));
+        await Task.WhenAny(messageReceived.Task, Task.Delay(10000, TestContext.Current.CancellationToken));
 
         // Assert
         Assert.True(messageReceived.Task.IsCompletedSuccessfully);
@@ -98,7 +98,7 @@ public class RabbitMqErrorScenarioIntegrationTests : RabbitMqIntegrationTestBase
         var queueName = CreateQueueName();
         var topology = new TransportTopology();
         topology.AddQueue(new QueueDefinition { Name = queueName, Durable = true });
-        await Transport!.ConfigureTopologyAsync(topology);
+        await Transport!.ConfigureTopologyAsync(topology, cancellationToken: TestContext.Current.CancellationToken);
 
         var attemptCount = 0;
         var firstAttempt = new TaskCompletionSource<bool>();
@@ -122,17 +122,17 @@ public class RabbitMqErrorScenarioIntegrationTests : RabbitMqIntegrationTestBase
                 }
 
                 await Task.CompletedTask;
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
         await Transport.SendAsync(
             new TransportAddress(queueName, TransportAddressType.Queue),
-            CreateTestEnvelope());
+            CreateTestEnvelope(), cancellationToken: TestContext.Current.CancellationToken);
 
         // Wait for both attempts
         await Task.WhenAny(
             Task.WhenAll(firstAttempt.Task, secondAttempt.Task),
-            Task.Delay(5000));
+            Task.Delay(5000, TestContext.Current.CancellationToken));
 
         // Assert
         Assert.True(firstAttempt.Task.IsCompletedSuccessfully);
@@ -158,7 +158,7 @@ public class RabbitMqErrorScenarioIntegrationTests : RabbitMqIntegrationTestBase
             AutoDelete = false
         });
 
-        await Transport!.ConfigureTopologyAsync(topology1);
+        await Transport!.ConfigureTopologyAsync(topology1, cancellationToken: TestContext.Current.CancellationToken);
 
         // Try to reconfigure with incompatible properties
         var topology2 = new TransportTopology();
@@ -187,7 +187,7 @@ public class RabbitMqErrorScenarioIntegrationTests : RabbitMqIntegrationTestBase
         var queueName = CreateQueueName();
         var topology = new TransportTopology();
         topology.AddQueue(new QueueDefinition { Name = queueName, Durable = true });
-        await Transport!.ConfigureTopologyAsync(topology);
+        await Transport!.ConfigureTopologyAsync(topology, cancellationToken: TestContext.Current.CancellationToken);
 
         var messageReceived = new TaskCompletionSource<bool>();
         byte[]? receivedBody = null;
@@ -199,7 +199,7 @@ public class RabbitMqErrorScenarioIntegrationTests : RabbitMqIntegrationTestBase
                 receivedBody = envelope.Body.ToArray();
                 messageReceived.TrySetResult(true);
                 await Task.CompletedTask;
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         var emptyEnvelope = new TransportEnvelope
         {
@@ -211,9 +211,9 @@ public class RabbitMqErrorScenarioIntegrationTests : RabbitMqIntegrationTestBase
         // Act
         await Transport.SendAsync(
             new TransportAddress(queueName, TransportAddressType.Queue),
-            emptyEnvelope);
+            emptyEnvelope, cancellationToken: TestContext.Current.CancellationToken);
 
-        await Task.WhenAny(messageReceived.Task, Task.Delay(5000));
+        await Task.WhenAny(messageReceived.Task, Task.Delay(5000, TestContext.Current.CancellationToken));
 
         // Assert
         Assert.True(messageReceived.Task.IsCompletedSuccessfully);
@@ -231,7 +231,7 @@ public class RabbitMqErrorScenarioIntegrationTests : RabbitMqIntegrationTestBase
         var queueName = CreateQueueName();
         var topology = new TransportTopology();
         topology.AddQueue(new QueueDefinition { Name = queueName, Durable = true });
-        await Transport!.ConfigureTopologyAsync(topology);
+        await Transport!.ConfigureTopologyAsync(topology, cancellationToken: TestContext.Current.CancellationToken);
 
         var receivedCount = 0;
         var allReceived = new TaskCompletionSource<bool>();
@@ -245,7 +245,7 @@ public class RabbitMqErrorScenarioIntegrationTests : RabbitMqIntegrationTestBase
                     allReceived.TrySetResult(true);
                 }
                 await Task.CompletedTask;
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act - send 100 messages concurrently
         var sendTasks = new List<Task>();
@@ -253,13 +253,13 @@ public class RabbitMqErrorScenarioIntegrationTests : RabbitMqIntegrationTestBase
         {
             sendTasks.Add(Transport.SendAsync(
                 new TransportAddress(queueName, TransportAddressType.Queue),
-                CreateTestEnvelope($"Concurrent message {i}")));
+                CreateTestEnvelope($"Concurrent message {i}"), cancellationToken: TestContext.Current.CancellationToken));
         }
 
         await Task.WhenAll(sendTasks);
 
         // Wait for all messages to be received
-        await Task.WhenAny(allReceived.Task, Task.Delay(15000));
+        await Task.WhenAny(allReceived.Task, Task.Delay(15000, TestContext.Current.CancellationToken));
 
         // Assert
         Assert.True(allReceived.Task.IsCompletedSuccessfully);
@@ -276,11 +276,11 @@ public class RabbitMqErrorScenarioIntegrationTests : RabbitMqIntegrationTestBase
         var queueName = CreateQueueName();
         var topology = new TransportTopology();
         topology.AddQueue(new QueueDefinition { Name = queueName, Durable = true });
-        await Transport!.ConfigureTopologyAsync(topology);
+        await Transport!.ConfigureTopologyAsync(topology, cancellationToken: TestContext.Current.CancellationToken);
 
         var consumer = await Transport.SubscribeAsync(
             new TransportAddress(queueName, TransportAddressType.Queue),
-            async (envelope, context, ct) => await Task.CompletedTask);
+            async (envelope, context, ct) => await Task.CompletedTask, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act & Assert - should not throw
         await consumer.DisposeAsync();
@@ -295,12 +295,12 @@ public class RabbitMqErrorScenarioIntegrationTests : RabbitMqIntegrationTestBase
         var queueName = CreateQueueName();
         var topology = new TransportTopology();
         topology.AddQueue(new QueueDefinition { Name = queueName, Durable = true });
-        await Transport!.ConfigureTopologyAsync(topology);
+        await Transport!.ConfigureTopologyAsync(topology, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act - create consumer
         var consumer = await Transport.SubscribeAsync(
             new TransportAddress(queueName, TransportAddressType.Queue),
-            async (envelope, context, ct) => await Task.CompletedTask);
+            async (envelope, context, ct) => await Task.CompletedTask, cancellationToken: TestContext.Current.CancellationToken);
 
         var health = await Transport.GetHealthAsync(TestContext.Current.CancellationToken);
 

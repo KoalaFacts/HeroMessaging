@@ -27,33 +27,7 @@ public class MultipleTransportHealthCheck(IEnumerable<IMessageTransport> transpo
         var healthData = new Dictionary<string, object>();
 
         // Check all transports in parallel
-        var tasks = _transports.Select(async transport =>
-        {
-            try
-            {
-                var transportHealth = await transport.GetHealthAsync(cancellationToken).ConfigureAwait(false);
-                var status = MapHealthStatus(transportHealth.Status);
-                var statusMessage = string.IsNullOrWhiteSpace(transportHealth.StatusMessage)
-                    ? GetDefaultStatusMessage(status)
-                    : transportHealth.StatusMessage;
-
-                return (
-                    TransportName: transport.Name,
-                    Status: status,
-                    Description: $"{transport.Name}: {statusMessage}",
-                    Exception: null
-                );
-            }
-            catch (Exception ex)
-            {
-                return (
-                    TransportName: transport.Name,
-                    Status: Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Unhealthy,
-                    Description: $"{transport.Name}: Health check failed",
-                    Exception: ex
-                );
-            }
-        });
+        var tasks = _transports.Select(CheckTransportHealthAsync);
 
         results = [.. (await Task.WhenAll(tasks).ConfigureAwait(false))];
 
@@ -88,6 +62,34 @@ public class MultipleTransportHealthCheck(IEnumerable<IMessageTransport> transpo
         var firstException = results.FirstOrDefault(r => r.Exception != null).Exception;
 
         return new HealthCheckResult(overallStatus, description, firstException, healthData);
+
+        async Task<(string TransportName, Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus Status, string Description, Exception? Exception)> CheckTransportHealthAsync(IMessageTransport transport)
+        {
+            try
+            {
+                var transportHealth = await transport.GetHealthAsync(cancellationToken).ConfigureAwait(false);
+                var status = MapHealthStatus(transportHealth.Status);
+                var statusMessage = string.IsNullOrWhiteSpace(transportHealth.StatusMessage)
+                    ? GetDefaultStatusMessage(status)
+                    : transportHealth.StatusMessage;
+
+                return (
+                    TransportName: transport.Name,
+                    Status: status,
+                    Description: $"{transport.Name}: {statusMessage}",
+                    Exception: null
+                );
+            }
+            catch (Exception ex)
+            {
+                return (
+                    TransportName: transport.Name,
+                    Status: Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Unhealthy,
+                    Description: $"{transport.Name}: Health check failed",
+                    Exception: ex
+                );
+            }
+        }
     }
 
     /// <summary>

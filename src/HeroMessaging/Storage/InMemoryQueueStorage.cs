@@ -4,21 +4,33 @@ using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Storage;
 
 namespace HeroMessaging.Storage;
+/// <summary>
+/// Represents the in memory queue storage type.
+/// </summary>
 
 public class InMemoryQueueStorage : IQueueStorage
 {
     private readonly ConcurrentDictionary<string, Queue> _queues = new();
     private readonly TimeProvider _timeProvider;
+    /// <summary>
+    /// Represents dequeue lock.
+    /// </summary>
 #if NET9_0_OR_GREATER
     private readonly Lock _dequeueLock = new();
 #else
     private readonly object _dequeueLock = new();
 #endif
 
+    /// <summary>
+    /// Initializes a new instance of the queue storage.
+    /// </summary>
     public InMemoryQueueStorage(TimeProvider timeProvider)
     {
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
+    /// <summary>
+    /// Executes enqueue async.
+    /// </summary>
 
     public Task<QueueEntry> EnqueueAsync(string queueName, IMessage message, EnqueueOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -39,6 +51,9 @@ public class InMemoryQueueStorage : IQueueStorage
         queue.Entries[entry.Id] = entry;
         return Task.FromResult(entry);
     }
+    /// <summary>
+    /// Executes dequeue async.
+    /// </summary>
 
     public Task<QueueEntry?> DequeueAsync(string queueName, CancellationToken cancellationToken = default)
     {
@@ -65,6 +80,9 @@ public class InMemoryQueueStorage : IQueueStorage
             return Task.FromResult(entry);
         }
     }
+    /// <summary>
+    /// Executes peek async.
+    /// </summary>
 
     public Task<IEnumerable<QueueEntry>> PeekAsync(string queueName, int count = 1, CancellationToken cancellationToken = default)
     {
@@ -82,6 +100,9 @@ public class InMemoryQueueStorage : IQueueStorage
 
         return Task.FromResult(entries);
     }
+    /// <summary>
+    /// Executes acknowledge async.
+    /// </summary>
 
     public Task<bool> AcknowledgeAsync(string queueName, string entryId, CancellationToken cancellationToken = default)
     {
@@ -92,6 +113,9 @@ public class InMemoryQueueStorage : IQueueStorage
 
         return Task.FromResult(false);
     }
+    /// <summary>
+    /// Executes reject async.
+    /// </summary>
 
     public Task<bool> RejectAsync(string queueName, string entryId, bool requeue = false, CancellationToken cancellationToken = default)
     {
@@ -114,6 +138,9 @@ public class InMemoryQueueStorage : IQueueStorage
 
         return Task.FromResult(false);
     }
+    /// <summary>
+    /// Executes get queue depth async.
+    /// </summary>
 
     public Task<long> GetQueueDepthAsync(string queueName, CancellationToken cancellationToken = default)
     {
@@ -125,22 +152,34 @@ public class InMemoryQueueStorage : IQueueStorage
 
         return Task.FromResult(0L);
     }
+    /// <summary>
+    /// Executes create queue async.
+    /// </summary>
 
     public Task<bool> CreateQueueAsync(string queueName, QueueOptions? options = null, CancellationToken cancellationToken = default)
     {
         var queue = new Queue { Options = options };
         return Task.FromResult(_queues.TryAdd(queueName, queue));
     }
+    /// <summary>
+    /// Executes delete queue async.
+    /// </summary>
 
     public Task<bool> DeleteQueueAsync(string queueName, CancellationToken cancellationToken = default)
     {
         return Task.FromResult(_queues.TryRemove(queueName, out _));
     }
+    /// <summary>
+    /// Executes get queues async.
+    /// </summary>
 
     public Task<IEnumerable<string>> GetQueuesAsync(CancellationToken cancellationToken = default)
     {
         return Task.FromResult(_queues.Keys.AsEnumerable());
     }
+    /// <summary>
+    /// Executes queue exists async.
+    /// </summary>
 
     public Task<bool> QueueExistsAsync(string queueName, CancellationToken cancellationToken = default)
     {

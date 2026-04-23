@@ -48,7 +48,7 @@ public class OrchestrationWorkflowTests
         {
             CorrelationId = correlationId.ToString()
         };
-        await orchestrator.ProcessAsync(orderCreated);
+        await orchestrator.ProcessAsync(orderCreated, cancellationToken: TestContext.Current.CancellationToken);
 
         var paymentProcessed = new PaymentProcessedEvent(
             orderId,
@@ -57,7 +57,7 @@ public class OrchestrationWorkflowTests
         {
             CorrelationId = correlationId.ToString()
         };
-        await orchestrator.ProcessAsync(paymentProcessed);
+        await orchestrator.ProcessAsync(paymentProcessed, cancellationToken: TestContext.Current.CancellationToken);
 
         var inventoryReserved = new InventoryReservedEvent(
             orderId,
@@ -66,7 +66,7 @@ public class OrchestrationWorkflowTests
         {
             CorrelationId = correlationId.ToString()
         };
-        await orchestrator.ProcessAsync(inventoryReserved);
+        await orchestrator.ProcessAsync(inventoryReserved, cancellationToken: TestContext.Current.CancellationToken);
 
         var orderShipped = new OrderShippedEvent(
             orderId,
@@ -74,12 +74,12 @@ public class OrchestrationWorkflowTests
         {
             CorrelationId = correlationId.ToString()
         };
-        await orchestrator.ProcessAsync(orderShipped);
+        await orchestrator.ProcessAsync(orderShipped, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
-        var saga = await repository.FindAsync(correlationId);
+        var saga = await repository.FindAsync(correlationId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotNull(saga);
-        Assert.Equal("Completed", saga!.CurrentState);
+        Assert.Equal("Completed", saga.CurrentState);
         Assert.True(saga.IsCompleted);
         Assert.Equal(orderId, saga.OrderId);
         Assert.Equal(customerId, saga.CustomerId);
@@ -111,7 +111,7 @@ public class OrchestrationWorkflowTests
         {
             CorrelationId = correlationId.ToString()
         };
-        await orchestrator.ProcessAsync(orderCreated);
+        await orchestrator.ProcessAsync(orderCreated, cancellationToken: TestContext.Current.CancellationToken);
 
         var paymentFailed = new PaymentFailedEvent(
             orderId,
@@ -119,12 +119,12 @@ public class OrchestrationWorkflowTests
         {
             CorrelationId = correlationId.ToString()
         };
-        await orchestrator.ProcessAsync(paymentFailed);
+        await orchestrator.ProcessAsync(paymentFailed, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
-        var saga = await repository.FindAsync(correlationId);
+        var saga = await repository.FindAsync(correlationId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotNull(saga);
-        Assert.Equal("Failed", saga!.CurrentState);
+        Assert.Equal("Failed", saga.CurrentState);
         Assert.Equal("Insufficient funds", saga.FailureReason);
         Assert.False(saga.IsCompleted); // Failed, not completed
     }
@@ -145,20 +145,20 @@ public class OrchestrationWorkflowTests
         // Act - Order created, payment processed, inventory fails
         await orchestrator.ProcessAsync(new OrderCreatedEvent(
             orderId, "CUST-123", 99.99m, [])
-        { CorrelationId = correlationId.ToString() });
+        { CorrelationId = correlationId.ToString() }, cancellationToken: TestContext.Current.CancellationToken);
 
         await orchestrator.ProcessAsync(new PaymentProcessedEvent(
             orderId, "TXN-123", 99.99m)
-        { CorrelationId = correlationId.ToString() });
+        { CorrelationId = correlationId.ToString() }, cancellationToken: TestContext.Current.CancellationToken);
 
         await orchestrator.ProcessAsync(new InventoryReservationFailedEvent(
             orderId, "Out of stock")
-        { CorrelationId = correlationId.ToString() });
+        { CorrelationId = correlationId.ToString() }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
-        var saga = await repository.FindAsync(correlationId);
+        var saga = await repository.FindAsync(correlationId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotNull(saga);
-        Assert.Equal("Failed", saga!.CurrentState);
+        Assert.Equal("Failed", saga.CurrentState);
         Assert.Equal("Out of stock", saga.FailureReason);
         Assert.Equal("TXN-123", saga.PaymentTransactionId); // Payment was processed
         Assert.Null(saga.InventoryReservationId); // Inventory never reserved
@@ -180,24 +180,24 @@ public class OrchestrationWorkflowTests
         // Act - Complete workflow until shipment fails
         await orchestrator.ProcessAsync(new OrderCreatedEvent(
             orderId, "CUST-123", 99.99m, [])
-        { CorrelationId = correlationId.ToString() });
+        { CorrelationId = correlationId.ToString() }, cancellationToken: TestContext.Current.CancellationToken);
 
         await orchestrator.ProcessAsync(new PaymentProcessedEvent(
             orderId, "TXN-123", 99.99m)
-        { CorrelationId = correlationId.ToString() });
+        { CorrelationId = correlationId.ToString() }, cancellationToken: TestContext.Current.CancellationToken);
 
         await orchestrator.ProcessAsync(new InventoryReservedEvent(
             orderId, "RES-456", [])
-        { CorrelationId = correlationId.ToString() });
+        { CorrelationId = correlationId.ToString() }, cancellationToken: TestContext.Current.CancellationToken);
 
         await orchestrator.ProcessAsync(new ShipmentFailedEvent(
             orderId, "Carrier unavailable")
-        { CorrelationId = correlationId.ToString() });
+        { CorrelationId = correlationId.ToString() }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
-        var saga = await repository.FindAsync(correlationId);
+        var saga = await repository.FindAsync(correlationId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotNull(saga);
-        Assert.Equal("Failed", saga!.CurrentState);
+        Assert.Equal("Failed", saga.CurrentState);
         Assert.Equal("Carrier unavailable", saga.FailureReason);
         Assert.Equal("TXN-123", saga.PaymentTransactionId);
         Assert.Equal("RES-456", saga.InventoryReservationId);
@@ -220,16 +220,16 @@ public class OrchestrationWorkflowTests
         // Act
         await orchestrator.ProcessAsync(new OrderCreatedEvent(
             orderId, "CUST-123", 99.99m, [])
-        { CorrelationId = correlationId.ToString() });
+        { CorrelationId = correlationId.ToString() }, cancellationToken: TestContext.Current.CancellationToken);
 
         await orchestrator.ProcessAsync(new OrderCancelledEvent(
             orderId, "Customer requested cancellation")
-        { CorrelationId = correlationId.ToString() });
+        { CorrelationId = correlationId.ToString() }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
-        var saga = await repository.FindAsync(correlationId);
+        var saga = await repository.FindAsync(correlationId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotNull(saga);
-        Assert.Equal("Cancelled", saga!.CurrentState);
+        Assert.Equal("Cancelled", saga.CurrentState);
         Assert.True(saga.IsCompleted); // Cancelled is a final state
         Assert.Equal("Customer requested cancellation", saga.FailureReason);
     }
@@ -250,20 +250,20 @@ public class OrchestrationWorkflowTests
         // Act
         await orchestrator.ProcessAsync(new OrderCreatedEvent(
             orderId, "CUST-123", 99.99m, [])
-        { CorrelationId = correlationId.ToString() });
+        { CorrelationId = correlationId.ToString() }, cancellationToken: TestContext.Current.CancellationToken);
 
         await orchestrator.ProcessAsync(new PaymentProcessedEvent(
             orderId, "TXN-123", 99.99m)
-        { CorrelationId = correlationId.ToString() });
+        { CorrelationId = correlationId.ToString() }, cancellationToken: TestContext.Current.CancellationToken);
 
         await orchestrator.ProcessAsync(new OrderCancelledEvent(
             orderId, "Customer changed mind")
-        { CorrelationId = correlationId.ToString() });
+        { CorrelationId = correlationId.ToString() }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
-        var saga = await repository.FindAsync(correlationId);
+        var saga = await repository.FindAsync(correlationId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotNull(saga);
-        Assert.Equal("Cancelled", saga!.CurrentState);
+        Assert.Equal("Cancelled", saga.CurrentState);
         Assert.True(saga.IsCompleted);
         Assert.Equal("TXN-123", saga.PaymentTransactionId);
     }
@@ -293,17 +293,17 @@ public class OrchestrationWorkflowTests
         await Task.WhenAll(tasks);
 
         // Assert - All three orders completed independently
-        var saga1 = await repository.FindAsync(correlation1);
-        var saga2 = await repository.FindAsync(correlation2);
-        var saga3 = await repository.FindAsync(correlation3);
+        var saga1 = await repository.FindAsync(correlation1, cancellationToken: TestContext.Current.CancellationToken);
+        var saga2 = await repository.FindAsync(correlation2, cancellationToken: TestContext.Current.CancellationToken);
+        var saga3 = await repository.FindAsync(correlation3, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.NotNull(saga1);
         Assert.NotNull(saga2);
         Assert.NotNull(saga3);
 
-        Assert.Equal("Completed", saga1!.CurrentState);
-        Assert.Equal("Completed", saga2!.CurrentState);
-        Assert.Equal("Completed", saga3!.CurrentState);
+        Assert.Equal("Completed", saga1.CurrentState);
+        Assert.Equal("Completed", saga2.CurrentState);
+        Assert.Equal("Completed", saga3.CurrentState);
 
         Assert.Equal("ORDER-1", saga1.OrderId);
         Assert.Equal("ORDER-2", saga2.OrderId);
@@ -326,18 +326,18 @@ public class OrchestrationWorkflowTests
         // Act
         await orchestrator.ProcessAsync(new OrderCreatedEvent(
             orderId, "CUST-123", 99.99m, [])
-        { CorrelationId = correlationId.ToString() });
+        { CorrelationId = correlationId.ToString() }, cancellationToken: TestContext.Current.CancellationToken);
 
-        var sagaAfterCreation = await repository.FindAsync(correlationId);
+        var sagaAfterCreation = await repository.FindAsync(correlationId, cancellationToken: TestContext.Current.CancellationToken);
         var createdTime = sagaAfterCreation!.UpdatedAt;
 
-        await Task.Delay(10); // Small delay to ensure timestamp difference
+        await Task.Delay(10, TestContext.Current.CancellationToken); // Small delay to ensure timestamp difference
 
         await orchestrator.ProcessAsync(new PaymentProcessedEvent(
             orderId, "TXN-123", 99.99m)
-        { CorrelationId = correlationId.ToString() });
+        { CorrelationId = correlationId.ToString() }, cancellationToken: TestContext.Current.CancellationToken);
 
-        var sagaAfterPayment = await repository.FindAsync(correlationId);
+        var sagaAfterPayment = await repository.FindAsync(correlationId, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(sagaAfterPayment!.UpdatedAt > createdTime);
@@ -382,12 +382,12 @@ public class OrchestrationWorkflowTests
 
         // Act - Send an event that performs multiple operations, then fails and compensates
         await orchestrator.ProcessAsync(new ComplexOperationEvent("ComplexOp", ShouldFail: true)
-        { CorrelationId = correlationId.ToString() });
+        { CorrelationId = correlationId.ToString() }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
-        var saga = await repository.FindAsync(correlationId);
+        var saga = await repository.FindAsync(correlationId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotNull(saga);
-        Assert.Equal("Failed", saga!.CurrentState);
+        Assert.Equal("Failed", saga.CurrentState);
 
         // Verify all three compensations executed in LIFO order
         Assert.Equal(3, compensationLog.Count);
@@ -413,15 +413,15 @@ public class OrchestrationWorkflowTests
 
         // Act - Payment succeeds, then inventory fails (should check state and compensate payment)
         await orchestrator.ProcessAsync(new StateBasedPaymentEvent("TXN-123")
-        { CorrelationId = correlationId.ToString() });
+        { CorrelationId = correlationId.ToString() }, cancellationToken: TestContext.Current.CancellationToken);
 
         await orchestrator.ProcessAsync(new StateBasedInventoryFailedEvent("Out of stock")
-        { CorrelationId = correlationId.ToString() });
+        { CorrelationId = correlationId.ToString() }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
-        var saga = await repository.FindAsync(correlationId);
+        var saga = await repository.FindAsync(correlationId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotNull(saga);
-        Assert.Equal("Failed", saga!.CurrentState);
+        Assert.Equal("Failed", saga.CurrentState);
 
         // Verify payment was compensated based on saga state
         Assert.Contains("RefundPayment-TXN-123", compensationLog);
@@ -472,7 +472,7 @@ public class OrchestrationWorkflowTests
             "CUST-123",
             99.99m,
             [])
-        { CorrelationId = correlationId.ToString() });
+        { CorrelationId = correlationId.ToString() }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Advance time by 2 hours to make saga stale
         fakeTime.Advance(TimeSpan.FromHours(2));
@@ -487,12 +487,12 @@ public class OrchestrationWorkflowTests
         OrderSaga? timedOutSaga = null;
         while (fakeTime.GetUtcNow() < pollTimeout)
         {
-            timedOutSaga = await repository.FindAsync(correlationId);
+            timedOutSaga = await repository.FindAsync(correlationId, cancellationToken: TestContext.Current.CancellationToken);
             if (timedOutSaga?.CurrentState == "TimedOut")
             {
                 break;
             }
-            await Task.Delay(50);
+            await Task.Delay(50, TestContext.Current.CancellationToken);
             fakeTime.Advance(TimeSpan.FromMilliseconds(50)); // Advance fake time too
         }
 
@@ -514,7 +514,7 @@ public class OrchestrationWorkflowTests
 
         // Assert
         Assert.NotNull(timedOutSaga);
-        Assert.Equal("TimedOut", timedOutSaga!.CurrentState);
+        Assert.Equal("TimedOut", timedOutSaga.CurrentState);
         Assert.True(timedOutSaga.IsCompleted);
         Assert.Equal(orderId, timedOutSaga.OrderId);
     }

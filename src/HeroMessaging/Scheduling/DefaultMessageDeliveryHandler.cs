@@ -12,6 +12,9 @@ public sealed class DefaultMessageDeliveryHandler : IMessageDeliveryHandler
 {
     private readonly IHeroMessaging _messaging;
     private readonly ILogger<DefaultMessageDeliveryHandler> _logger;
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DefaultMessageDeliveryHandler"/> class.
+    /// </summary>
 
     public DefaultMessageDeliveryHandler(
         IHeroMessaging messaging,
@@ -20,6 +23,9 @@ public sealed class DefaultMessageDeliveryHandler : IMessageDeliveryHandler
         _messaging = messaging ?? throw new ArgumentNullException(nameof(messaging));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
+    /// <summary>
+    /// Executes deliver async.
+    /// </summary>
 
     public async Task DeliverAsync(ScheduledMessage scheduledMessage, CancellationToken cancellationToken = default)
     {
@@ -68,6 +74,9 @@ public sealed class DefaultMessageDeliveryHandler : IMessageDeliveryHandler
             throw;
         }
     }
+    /// <summary>
+    /// Executes handle delivery failure async.
+    /// </summary>
 
     public Task HandleDeliveryFailureAsync(Guid scheduleId, Exception exception, CancellationToken cancellationToken = default)
     {

@@ -21,6 +21,9 @@ public class SqlServerUnitOfWork : IUnitOfWork
     private readonly Lazy<IInboxStorage> _inboxStorage;
     private readonly Lazy<IQueueStorage> _queueStorage;
     private readonly Lazy<IMessageStorage> _messageStorage;
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SqlServerUnitOfWork"/> class.
+    /// </summary>
 
     public SqlServerUnitOfWork(string connectionString, TimeProvider timeProvider, IJsonSerializer? jsonSerializer = null)
     {
@@ -34,14 +37,35 @@ public class SqlServerUnitOfWork : IUnitOfWork
         _queueStorage = new Lazy<IQueueStorage>(() => new SqlServerQueueStorage(_connection, _transaction, _timeProvider, _jsonSerializer));
         _messageStorage = new Lazy<IMessageStorage>(() => new SqlServerMessageStorage(_connection, _transaction, _timeProvider, _jsonSerializer));
     }
+    /// <summary>
+    /// Gets isolation level.
+    /// </summary>
 
     public IsolationLevel IsolationLevel => _transaction?.IsolationLevel ?? IsolationLevel.Unspecified;
+    /// <summary>
+    /// Gets is transaction active.
+    /// </summary>
     public bool IsTransactionActive => _transaction != null && _connection.State == ConnectionState.Open;
+    /// <summary>
+    /// Gets outbox storage.
+    /// </summary>
 
     public IOutboxStorage OutboxStorage => _outboxStorage.Value;
+    /// <summary>
+    /// Gets inbox storage.
+    /// </summary>
     public IInboxStorage InboxStorage => _inboxStorage.Value;
+    /// <summary>
+    /// Gets queue storage.
+    /// </summary>
     public IQueueStorage QueueStorage => _queueStorage.Value;
+    /// <summary>
+    /// Gets message storage.
+    /// </summary>
     public IMessageStorage MessageStorage => _messageStorage.Value;
+    /// <summary>
+    /// Executes begin transaction async.
+    /// </summary>
 
     public async Task BeginTransactionAsync(IsolationLevel isolationLevel = IsolationLevel.ReadCommitted, CancellationToken cancellationToken = default)
     {
@@ -57,6 +81,9 @@ public class SqlServerUnitOfWork : IUnitOfWork
 
         _transaction = (SqlTransaction)await _connection.BeginTransactionAsync(isolationLevel, cancellationToken);
     }
+    /// <summary>
+    /// Executes commit async.
+    /// </summary>
 
     public async Task CommitAsync(CancellationToken cancellationToken = default)
     {
@@ -76,6 +103,9 @@ public class SqlServerUnitOfWork : IUnitOfWork
             _savepoints.Clear();
         }
     }
+    /// <summary>
+    /// Executes rollback async.
+    /// </summary>
 
     public async Task RollbackAsync(CancellationToken cancellationToken = default)
     {
@@ -95,6 +125,9 @@ public class SqlServerUnitOfWork : IUnitOfWork
             _savepoints.Clear();
         }
     }
+    /// <summary>
+    /// Executes savepoint async.
+    /// </summary>
 
     public async Task SavepointAsync(string savepointName, CancellationToken cancellationToken = default)
     {
@@ -116,6 +149,9 @@ public class SqlServerUnitOfWork : IUnitOfWork
         await _transaction.SaveAsync(savepointName, cancellationToken);
         _savepoints.Add(savepointName);
     }
+    /// <summary>
+    /// Executes rollback to savepoint async.
+    /// </summary>
 
     public async Task RollbackToSavepointAsync(string savepointName, CancellationToken cancellationToken = default)
     {
@@ -135,6 +171,9 @@ public class SqlServerUnitOfWork : IUnitOfWork
         var index = _savepoints.IndexOf(savepointName);
         _savepoints.RemoveRange(index, _savepoints.Count - index);
     }
+    /// <summary>
+    /// Executes dispose async.
+    /// </summary>
 
     public async ValueTask DisposeAsync()
     {
@@ -172,6 +211,9 @@ public class SqlServerUnitOfWorkFactory(string connectionString, TimeProvider ti
 {
     private readonly string _connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
     private readonly TimeProvider _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+    /// <summary>
+    /// Executes create async.
+    /// </summary>
 
     public async Task<IUnitOfWork> CreateAsync(CancellationToken cancellationToken = default)
     {
@@ -179,6 +221,9 @@ public class SqlServerUnitOfWorkFactory(string connectionString, TimeProvider ti
         await unitOfWork.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);
         return unitOfWork;
     }
+    /// <summary>
+    /// Executes create async.
+    /// </summary>
 
     public async Task<IUnitOfWork> CreateAsync(IsolationLevel isolationLevel, CancellationToken cancellationToken = default)
     {

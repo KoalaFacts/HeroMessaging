@@ -16,6 +16,9 @@ namespace HeroMessaging.SourceGenerators;
 [Generator]
 public class SagaDslGenerator : IIncrementalGenerator
 {
+    /// <summary>
+    /// Executes initialize.
+    /// </summary>
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         // Register attribute sources
@@ -73,8 +76,10 @@ public class SagaDslGenerator : IIncrementalGenerator
 
             if (stateAttr is null) continue;
 
-            var stateName = stateAttr.ConstructorArguments.FirstOrDefault().Value?.ToString();
-            if (string.IsNullOrEmpty(stateName)) continue;
+            if (stateAttr.ConstructorArguments.FirstOrDefault().Value?.ToString() is not { Length: > 0 } stateName)
+            {
+                continue;
+            }
 
             var isInitial = member.GetAttributes()
                 .Any(attr => attr.AttributeClass?.Name == "InitialStateAttribute");

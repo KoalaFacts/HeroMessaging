@@ -20,8 +20,7 @@ public class PostgreSqlSagaRepositoryTests : IAsyncLifetime
     public async ValueTask InitializeAsync()
     {
         // Create and start PostgreSQL container
-        _postgreSqlContainer = new PostgreSqlBuilder()
-            .WithImage("postgres:17-alpine")
+        _postgreSqlContainer = new PostgreSqlBuilder("postgres:17-alpine")
             .WithPassword("postgres")
             .Build();
 
@@ -89,7 +88,7 @@ public class PostgreSqlSagaRepositoryTests : IAsyncLifetime
         // Assert
         var retrieved = await repository.FindAsync(saga.CorrelationId, TestContext.Current.CancellationToken);
         Assert.NotNull(retrieved);
-        Assert.Equal(saga.CorrelationId, retrieved!.CorrelationId);
+        Assert.Equal(saga.CorrelationId, retrieved.CorrelationId);
         Assert.Equal(saga.Data, retrieved.Data);
         Assert.Equal(saga.Counter, retrieved.Counter);
         Assert.Equal(saga.CurrentState, retrieved.CurrentState);
@@ -134,7 +133,7 @@ public class PostgreSqlSagaRepositoryTests : IAsyncLifetime
         // Assert
         var retrieved = await repository.FindAsync(saga.CorrelationId, TestContext.Current.CancellationToken);
         Assert.NotNull(retrieved);
-        Assert.Equal(new DateTime(2025, 10, 27, 10, 0, 0, DateTimeKind.Utc), retrieved!.CreatedAt);
+        Assert.Equal(new DateTime(2025, 10, 27, 10, 0, 0, DateTimeKind.Utc), retrieved.CreatedAt);
         Assert.Equal(new DateTime(2025, 10, 27, 10, 0, 0, DateTimeKind.Utc), retrieved.UpdatedAt);
     }
 
@@ -386,6 +385,6 @@ public class PostgreSqlSagaRepositoryTests : IAsyncLifetime
 
         // Assert
         Assert.NotNull(retrieved);
-        Assert.Equal(saga1.CorrelationId, retrieved!.CorrelationId);
+        Assert.Equal(saga1.CorrelationId, retrieved.CorrelationId);
     }
 }

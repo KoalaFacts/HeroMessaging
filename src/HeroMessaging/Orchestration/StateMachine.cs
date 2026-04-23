@@ -8,15 +8,30 @@ namespace HeroMessaging.Orchestration;
 /// </summary>
 public class State
 {
+    /// <summary>
+    /// Gets name.
+    /// </summary>
     public string Name { get; }
+    /// <summary>
+    /// Initializes a new instance.
+    /// </summary>
 
     public State(string name)
     {
         Name = name ?? throw new ArgumentNullException(nameof(name));
     }
+    /// <summary>
+    /// Executes to string.
+    /// </summary>
 
     public override string ToString() => Name;
+    /// <summary>
+    /// Executes equals.
+    /// </summary>
     public override bool Equals(object? obj) => obj is State state && state.Name == Name;
+    /// <summary>
+    /// Executes get hash code.
+    /// </summary>
     public override int GetHashCode() => Name.GetHashCode();
 }
 
@@ -26,12 +41,21 @@ public class State
 /// <typeparam name="TData">Type of event data</typeparam>
 public class Event<TData> where TData : IEvent
 {
+    /// <summary>
+    /// Gets name.
+    /// </summary>
     public string Name { get; }
+    /// <summary>
+    /// Initializes a new instance.
+    /// </summary>
 
     public Event(string name)
     {
         Name = name ?? throw new ArgumentNullException(nameof(name));
     }
+    /// <summary>
+    /// Executes to string.
+    /// </summary>
 
     public override string ToString() => Name;
 }
@@ -65,6 +89,9 @@ public class StateContext<TSaga, TEvent>
     /// Use this to register actions that will be executed if the saga fails
     /// </summary>
     public CompensationContext Compensation { get; }
+    /// <summary>
+    /// Initializes a new instance.
+    /// </summary>
 
     public StateContext(TSaga instance, TEvent data, IServiceProvider services, CompensationContext? compensation = null)
     {

@@ -230,9 +230,21 @@ public class ExchangeDefinition
 /// </summary>
 public enum ExchangeType
 {
+    /// <summary>
+    /// Specifies direct.
+    /// </summary>
     Direct,
+    /// <summary>
+    /// Specifies fanout.
+    /// </summary>
     Fanout,
+    /// <summary>
+    /// Specifies topic.
+    /// </summary>
     Topic,
+    /// <summary>
+    /// Specifies headers.
+    /// </summary>
     Headers
 }
 

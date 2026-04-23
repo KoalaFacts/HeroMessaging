@@ -58,30 +58,45 @@ public class HeroMessagingService(
     private long _messagesQueued;
     private long _outboxMessages;
     private long _inboxMessages;
+    /// <summary>
+    /// Executes send async.
+    /// </summary>
 
     public async Task SendAsync(ICommand command, CancellationToken cancellationToken = default)
     {
         Interlocked.Increment(ref _commandsSent);
         await _commandProcessor.SendAsync(command, cancellationToken).ConfigureAwait(false);
     }
+    /// <summary>
+    /// Executes send async.
+    /// </summary>
 
     public async Task<TResponse> SendAsync<TResponse>(ICommand<TResponse> command, CancellationToken cancellationToken = default)
     {
         Interlocked.Increment(ref _commandsSent);
         return await _commandProcessor.SendAsync(command, cancellationToken).ConfigureAwait(false);
     }
+    /// <summary>
+    /// Executes send async.
+    /// </summary>
 
     public async Task<TResponse> SendAsync<TResponse>(IQuery<TResponse> query, CancellationToken cancellationToken = default)
     {
         Interlocked.Increment(ref _queriesSent);
         return await _queryProcessor.SendAsync(query, cancellationToken).ConfigureAwait(false);
     }
+    /// <summary>
+    /// Executes publish async.
+    /// </summary>
 
     public async Task PublishAsync(IEvent @event, CancellationToken cancellationToken = default)
     {
         Interlocked.Increment(ref _eventsPublished);
         await _eventBus.PublishAsync(@event, cancellationToken).ConfigureAwait(false);
     }
+    /// <summary>
+    /// Executes send batch async.
+    /// </summary>
 
     public async Task<IReadOnlyList<bool>> SendBatchAsync(IReadOnlyList<ICommand> commands, CancellationToken cancellationToken = default)
     {
@@ -113,6 +128,9 @@ public class HeroMessagingService(
 
         return results;
     }
+    /// <summary>
+    /// Executes send batch async.
+    /// </summary>
 
     public async Task<IReadOnlyList<TResponse>> SendBatchAsync<TResponse>(IReadOnlyList<ICommand<TResponse>> commands, CancellationToken cancellationToken = default)
     {
@@ -130,6 +148,9 @@ public class HeroMessagingService(
 
         return results;
     }
+    /// <summary>
+    /// Executes publish batch async.
+    /// </summary>
 
     public async Task<IReadOnlyList<bool>> PublishBatchAsync(IReadOnlyList<IEvent> events, CancellationToken cancellationToken = default)
     {
@@ -161,6 +182,9 @@ public class HeroMessagingService(
 
         return results;
     }
+    /// <summary>
+    /// Executes enqueue async.
+    /// </summary>
 
     public async Task EnqueueAsync(IMessage message, string queueName, EnqueueOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -170,6 +194,9 @@ public class HeroMessagingService(
         Interlocked.Increment(ref _messagesQueued);
         await _queueProcessor.EnqueueAsync(message, queueName, options, cancellationToken).ConfigureAwait(false);
     }
+    /// <summary>
+    /// Executes start queue async.
+    /// </summary>
 
     public async Task StartQueueAsync(string queueName, CancellationToken cancellationToken = default)
     {
@@ -178,6 +205,9 @@ public class HeroMessagingService(
 
         await _queueProcessor.StartQueueAsync(queueName, cancellationToken).ConfigureAwait(false);
     }
+    /// <summary>
+    /// Executes stop queue async.
+    /// </summary>
 
     public async Task StopQueueAsync(string queueName, CancellationToken cancellationToken = default)
     {
@@ -186,6 +216,9 @@ public class HeroMessagingService(
 
         await _queueProcessor.StopQueueAsync(queueName, cancellationToken).ConfigureAwait(false);
     }
+    /// <summary>
+    /// Executes publish to outbox async.
+    /// </summary>
 
     public async Task PublishToOutboxAsync(IMessage message, OutboxOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -195,6 +228,9 @@ public class HeroMessagingService(
         Interlocked.Increment(ref _outboxMessages);
         await _outboxProcessor.PublishToOutboxAsync(message, options, cancellationToken).ConfigureAwait(false);
     }
+    /// <summary>
+    /// Executes process incoming async.
+    /// </summary>
 
     public async Task ProcessIncomingAsync(IMessage message, InboxOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -204,6 +240,9 @@ public class HeroMessagingService(
         Interlocked.Increment(ref _inboxMessages);
         await _inboxProcessor.ProcessIncomingAsync(message, options, cancellationToken).ConfigureAwait(false);
     }
+    /// <summary>
+    /// Executes get metrics.
+    /// </summary>
 
     public MessagingMetrics GetMetrics()
     {
@@ -217,6 +256,9 @@ public class HeroMessagingService(
             InboxMessages = Interlocked.Read(ref _inboxMessages)
         };
     }
+    /// <summary>
+    /// Executes get health.
+    /// </summary>
 
     public MessagingHealth GetHealth()
     {

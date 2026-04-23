@@ -15,7 +15,7 @@ public class RingBufferTests
 
     private class TestEventFactory : IEventFactory<TestEvent>
     {
-        public TestEvent Create() => new TestEvent();
+        public TestEvent Create() => new();
     }
 
     [Fact]

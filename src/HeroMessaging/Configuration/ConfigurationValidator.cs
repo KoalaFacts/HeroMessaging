@@ -9,17 +9,13 @@ namespace HeroMessaging.Configuration;
 /// <summary>
 /// Validates HeroMessaging configuration and plugin dependencies
 /// </summary>
-public class ConfigurationValidator : IConfigurationValidator
+/// <remarks>
+/// Initializes a new instance of the <see cref="ConfigurationValidator"/> class.
+/// </remarks>
+public class ConfigurationValidator(IServiceCollection services, ILogger<ConfigurationValidator>? logger = null) : IConfigurationValidator
 {
-    private readonly IServiceCollection _services;
-    private readonly ILogger<ConfigurationValidator>? _logger;
+    private readonly IServiceCollection _services = services ?? throw new ArgumentNullException(nameof(services));
     private readonly List<ValidationResult> _results = [];
-
-    public ConfigurationValidator(IServiceCollection services, ILogger<ConfigurationValidator>? logger = null)
-    {
-        _services = services ?? throw new ArgumentNullException(nameof(services));
-        _logger = logger;
-    }
 
     /// <summary>
     /// Validates the entire configuration
@@ -99,14 +95,14 @@ public class ConfigurationValidator : IConfigurationValidator
     {
         // Plugin dependency validation would be done at runtime
         // when the service provider is available
-        _logger?.LogDebug("Plugin dependency validation will be performed at runtime");
+        logger?.LogDebug("Plugin dependency validation will be performed at runtime");
     }
 
     private void ValidateCircularDependencies()
     {
         // Circular dependency validation would be done at runtime
         // when the service provider is available
-        _logger?.LogDebug("Circular dependency validation will be performed at runtime");
+        logger?.LogDebug("Circular dependency validation will be performed at runtime");
     }
 
     private void ValidateConfigurationConsistency()
@@ -139,13 +135,13 @@ public class ConfigurationValidator : IConfigurationValidator
     private void AddError(string message)
     {
         _results.Add(new ValidationResult(ValidationSeverity.Error, message));
-        _logger?.LogError(message);
+        logger?.LogError(message);
     }
 
     private void AddWarning(string message)
     {
         _results.Add(new ValidationResult(ValidationSeverity.Warning, message));
-        _logger?.LogWarning(message);
+        logger?.LogWarning(message);
     }
 }
 
@@ -154,8 +150,17 @@ public class ConfigurationValidator : IConfigurationValidator
 /// </summary>
 public class ValidationResult
 {
+    /// <summary>
+    /// Gets severity.
+    /// </summary>
     public ValidationSeverity Severity { get; }
+    /// <summary>
+    /// Gets message.
+    /// </summary>
     public string Message { get; }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ValidationResult"/> class.
+    /// </summary>
 
     public ValidationResult(ValidationSeverity severity, string message)
     {
@@ -169,8 +174,17 @@ public class ValidationResult
 /// </summary>
 public enum ValidationSeverity
 {
+    /// <summary>
+    /// Specifies info.
+    /// </summary>
     Info,
+    /// <summary>
+    /// Specifies warning.
+    /// </summary>
     Warning,
+    /// <summary>
+    /// Specifies error.
+    /// </summary>
     Error
 }
 
@@ -179,20 +193,47 @@ public enum ValidationSeverity
 /// </summary>
 public class ValidationReport : IValidationReport
 {
+    /// <summary>
+    /// Represents results.
+    /// </summary>
     private readonly List<ValidationResult> _results;
+    /// <summary>
+    /// Gets results.
+    /// </summary>
 
     public IReadOnlyList<ValidationResult> Results => _results;
+    /// <summary>
+    /// Gets is valid.
+    /// </summary>
     public bool IsValid => !_results.Any(r => r.Severity == ValidationSeverity.Error);
+    /// <summary>
+    /// Gets has warnings.
+    /// </summary>
     public bool HasWarnings => _results.Any(r => r.Severity == ValidationSeverity.Warning);
+    /// <summary>
+    /// Gets errors.
+    /// </summary>
 
     public IEnumerable<ValidationResult> Errors => _results.Where(r => r.Severity == ValidationSeverity.Error);
+    /// <summary>
+    /// Gets warnings.
+    /// </summary>
     public IEnumerable<ValidationResult> Warnings => _results.Where(r => r.Severity == ValidationSeverity.Warning);
+    /// <summary>
+    /// Gets information.
+    /// </summary>
     public IEnumerable<ValidationResult> Information => _results.Where(r => r.Severity == ValidationSeverity.Info);
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ValidationReport"/> class.
+    /// </summary>
 
     public ValidationReport(IEnumerable<ValidationResult> results)
     {
         _results = results?.ToList() ?? [];
     }
+    /// <summary>
+    /// Executes to string.
+    /// </summary>
 
     public override string ToString()
     {

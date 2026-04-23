@@ -17,14 +17,14 @@ public class RabbitMqConnectionIntegrationTests : RabbitMqIntegrationTestBase
     {
         // Assert - connection was established in base class InitializeAsync
         Assert.NotNull(Transport);
-        Assert.Equal(TransportState.Connected, Transport!.State);
+        Assert.Equal(TransportState.Connected, Transport.State);
     }
 
     [Fact]
     public async Task GetHealthAsync_WhenConnected_ReturnsHealthy()
     {
         // Act
-        var health = await Transport!.GetHealthAsync();
+        var health = await Transport!.GetHealthAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(health);
@@ -38,7 +38,7 @@ public class RabbitMqConnectionIntegrationTests : RabbitMqIntegrationTestBase
     public async Task DisconnectAsync_WhenConnected_DisconnectsSuccessfully()
     {
         // Act
-        await Transport!.DisconnectAsync();
+        await Transport!.DisconnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(TransportState.Disconnected, Transport.State);
@@ -48,7 +48,7 @@ public class RabbitMqConnectionIntegrationTests : RabbitMqIntegrationTestBase
     public async Task ConnectAsync_AfterDisconnect_CanReconnect()
     {
         // Arrange
-        await Transport!.DisconnectAsync();
+        await Transport!.DisconnectAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(TransportState.Disconnected, Transport.State);
 
         // Act
@@ -76,7 +76,7 @@ public class RabbitMqConnectionIntegrationTests : RabbitMqIntegrationTestBase
         });
 
         // Act
-        await Transport!.ConfigureTopologyAsync(topology);
+        await Transport!.ConfigureTopologyAsync(topology, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert - if topology creation fails, an exception would be thrown
         // Queue exists and can be used for messaging
@@ -96,7 +96,7 @@ public class RabbitMqConnectionIntegrationTests : RabbitMqIntegrationTestBase
         });
 
         // Act
-        await Transport!.ConfigureTopologyAsync(topology);
+        await Transport!.ConfigureTopologyAsync(topology, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert - no exception means success
     }
@@ -130,7 +130,7 @@ public class RabbitMqConnectionIntegrationTests : RabbitMqIntegrationTestBase
         });
 
         // Act
-        await Transport!.ConfigureTopologyAsync(topology);
+        await Transport!.ConfigureTopologyAsync(topology, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert - successful topology creation
     }
@@ -192,7 +192,7 @@ public class RabbitMqConnectionIntegrationTests : RabbitMqIntegrationTestBase
         });
 
         // Act
-        await Transport!.ConfigureTopologyAsync(topology);
+        await Transport!.ConfigureTopologyAsync(topology, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert - complex topology created successfully
     }
@@ -216,7 +216,7 @@ public class RabbitMqConnectionIntegrationTests : RabbitMqIntegrationTestBase
         });
 
         // Act
-        await Transport!.ConfigureTopologyAsync(topology);
+        await Transport!.ConfigureTopologyAsync(topology, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert - queue created with all options
     }
@@ -234,7 +234,7 @@ public class RabbitMqConnectionIntegrationTests : RabbitMqIntegrationTestBase
         });
 
         // Act - configure same topology twice
-        await Transport!.ConfigureTopologyAsync(topology);
+        await Transport!.ConfigureTopologyAsync(topology, cancellationToken: TestContext.Current.CancellationToken);
         await Transport.ConfigureTopologyAsync(topology, TestContext.Current.CancellationToken); // Should not throw
 
         // Assert - idempotent operation succeeded

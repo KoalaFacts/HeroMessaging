@@ -19,8 +19,6 @@ public class SagaOrchestrationBenchmarks
 {
     private IServiceProvider _serviceProvider = null!;
     private SagaOrchestrator<TestSaga> _orchestrator = null!;
-    private TestSagaStartEvent _startEvent = null!;
-    private TestSagaCompleteEvent _completeEvent = null!;
     private InMemorySagaRepository<TestSaga> _repository = null!;
 
     [GlobalSetup]
@@ -65,9 +63,6 @@ public class SagaOrchestrationBenchmarks
             NullLogger<SagaOrchestrator<TestSaga>>.Instance,
             timeProvider);
 
-        var correlationId = Guid.NewGuid();
-        _startEvent = new TestSagaStartEvent { CorrelationId = correlationId.ToString() };
-        _completeEvent = new TestSagaCompleteEvent { CorrelationId = correlationId.ToString() };
     }
 
     [GlobalCleanup]

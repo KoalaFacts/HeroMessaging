@@ -20,8 +20,7 @@ public class SqlServerSagaRepositoryTests : IAsyncLifetime
     public async ValueTask InitializeAsync()
     {
         // Create and start SQL Server container
-        _sqlContainer = new MsSqlBuilder()
-            .WithImage("mcr.microsoft.com/mssql/server:2022-latest")
+        _sqlContainer = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest")
             .WithPassword("YourStrong@Passw0rd")
             .Build();
 
@@ -89,7 +88,7 @@ public class SqlServerSagaRepositoryTests : IAsyncLifetime
         // Assert
         var retrieved = await repository.FindAsync(saga.CorrelationId, TestContext.Current.CancellationToken);
         Assert.NotNull(retrieved);
-        Assert.Equal(saga.CorrelationId, retrieved!.CorrelationId);
+        Assert.Equal(saga.CorrelationId, retrieved.CorrelationId);
         Assert.Equal(saga.Data, retrieved.Data);
         Assert.Equal(saga.Counter, retrieved.Counter);
         Assert.Equal(saga.CurrentState, retrieved.CurrentState);
@@ -134,7 +133,7 @@ public class SqlServerSagaRepositoryTests : IAsyncLifetime
         // Assert
         var retrieved = await repository.FindAsync(saga.CorrelationId, TestContext.Current.CancellationToken);
         Assert.NotNull(retrieved);
-        Assert.Equal(new DateTime(2025, 10, 27, 10, 0, 0, DateTimeKind.Utc), retrieved!.CreatedAt);
+        Assert.Equal(new DateTime(2025, 10, 27, 10, 0, 0, DateTimeKind.Utc), retrieved.CreatedAt);
         Assert.Equal(new DateTime(2025, 10, 27, 10, 0, 0, DateTimeKind.Utc), retrieved.UpdatedAt);
     }
 
@@ -337,7 +336,7 @@ public class SqlServerSagaRepositoryTests : IAsyncLifetime
         await repository.SaveAsync(recentSaga, TestContext.Current.CancellationToken);
 
         // Act
-        var staleSagas = await repository.FindStaleAsync(TimeSpan.FromHours(1));
+        var staleSagas = await repository.FindStaleAsync(TimeSpan.FromHours(1), cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         var sagaList = staleSagas.ToList();
@@ -364,7 +363,7 @@ public class SqlServerSagaRepositoryTests : IAsyncLifetime
         await repository.UpdateAsync(retrieved, TestContext.Current.CancellationToken);
 
         // Act
-        var staleSagas = await repository.FindStaleAsync(TimeSpan.FromMinutes(30));
+        var staleSagas = await repository.FindStaleAsync(TimeSpan.FromMinutes(30), cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(staleSagas);
@@ -386,6 +385,6 @@ public class SqlServerSagaRepositoryTests : IAsyncLifetime
 
         // Assert
         Assert.NotNull(retrieved);
-        Assert.Equal(saga1.CorrelationId, retrieved!.CorrelationId);
+        Assert.Equal(saga1.CorrelationId, retrieved.CorrelationId);
     }
 }

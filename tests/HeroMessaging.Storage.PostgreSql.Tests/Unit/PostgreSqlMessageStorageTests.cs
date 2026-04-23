@@ -354,7 +354,7 @@ public sealed class PostgreSqlMessageStorageTests : IDisposable
         var storage = CreateStorage();
 
         // Act
-        var result = await storage.CountAsync();
+        var result = await storage.CountAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.IsType<long>(result);

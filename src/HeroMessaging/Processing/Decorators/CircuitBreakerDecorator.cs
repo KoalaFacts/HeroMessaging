@@ -14,6 +14,9 @@ public class CircuitBreakerDecorator : MessageProcessorDecorator
     private readonly ILogger<CircuitBreakerDecorator> _logger;
     private readonly CircuitBreakerOptions _options;
     private readonly CircuitBreakerState _state;
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CircuitBreakerDecorator"/> class.
+    /// </summary>
 
     public CircuitBreakerDecorator(
         IMessageProcessor inner,
@@ -25,6 +28,9 @@ public class CircuitBreakerDecorator : MessageProcessorDecorator
         _options = options ?? new CircuitBreakerOptions();
         _state = new CircuitBreakerState(_options, timeProvider ?? throw new ArgumentNullException(nameof(timeProvider)));
     }
+    /// <summary>
+    /// Executes process async.
+    /// </summary>
 
     public override async ValueTask<ProcessingResult> ProcessAsync(
         IMessage message,
@@ -308,7 +314,16 @@ public enum CircuitState
 /// </summary>
 public class CircuitBreakerOpenException : Exception
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CircuitBreakerOpenException"/> class.
+    /// </summary>
     public CircuitBreakerOpenException() : base("Circuit breaker is open") { }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CircuitBreakerOpenException"/> class.
+    /// </summary>
     public CircuitBreakerOpenException(string message) : base(message) { }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CircuitBreakerOpenException"/> class.
+    /// </summary>
     public CircuitBreakerOpenException(string message, Exception innerException) : base(message, innerException) { }
 }

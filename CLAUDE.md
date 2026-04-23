@@ -64,6 +64,7 @@ dotnet test --framework net10.0
 - **Coverage Target**: 80% minimum (100% for public APIs)
 - **Performance**: <1ms p99 latency, >100K msg/s throughput
 - **Quality Gates**: Coverage thresholds, performance regression detection (10% tolerance)
+- **Warning Policy**: Fix linting/build warnings in code; do not silence them with `NoWarn`, pragma suppression, or rule disabling as the primary response. Exception: test and benchmark projects do not require XML documentation output because they are not shipped as public APIs.
 
 ### Naming Conventions
 - **Extension Classes**: `ExtensionsTo{TargetType}` in target namespace
@@ -322,6 +323,7 @@ Before marking any task as finished, verify:
 - [ ] **Deliverable Exists**: All specified files/components have been created or modified
 - [ ] **Requirements Met**: Implementation fulfills all specified task requirements
 - [ ] **Build Success**: Code compiles without errors or warnings
+- [ ] **Warnings Fixed Properly**: Any linting/build warnings were resolved at the source rather than hidden by suppression or config changes
 - [ ] **Test Coverage**: Related tests pass and coverage meets constitutional standards
 - [ ] **Documentation Updated**: Relevant documentation reflects changes made
 - [ ] **Integration Verified**: Changes work correctly with existing codebase

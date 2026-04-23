@@ -78,6 +78,9 @@ public sealed class LogMethodAttribute : Attribute
     /// Custom message template for exit log.
     /// </summary>
     public string? ExitMessage { get; set; }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="LogMethodAttribute"/> class.
+    /// </summary>
 
     public LogMethodAttribute(LogLevel level = LogLevel.Information)
     {
@@ -90,12 +93,33 @@ public sealed class LogMethodAttribute : Attribute
 /// </summary>
 public enum LogLevel
 {
+    /// <summary>
+    /// Specifies trace.
+    /// </summary>
     Trace = 0,
+    /// <summary>
+    /// Specifies debug.
+    /// </summary>
     Debug = 1,
+    /// <summary>
+    /// Specifies information.
+    /// </summary>
     Information = 2,
+    /// <summary>
+    /// Specifies warning.
+    /// </summary>
     Warning = 3,
+    /// <summary>
+    /// Specifies error.
+    /// </summary>
     Error = 4,
+    /// <summary>
+    /// Specifies critical.
+    /// </summary>
     Critical = 5,
+    /// <summary>
+    /// Specifies none.
+    /// </summary>
     None = 6
 }
 

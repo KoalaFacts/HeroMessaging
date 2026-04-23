@@ -110,6 +110,9 @@ public sealed class EncryptedData
     /// Algorithm used for encryption
     /// </summary>
     public string Algorithm { get; }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="EncryptedData"/> class.
+    /// </summary>
 
     public EncryptedData(
         byte[] ciphertext,

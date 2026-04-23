@@ -95,6 +95,9 @@ public class ConnectionHealthMonitor(
                 })
         };
     }
+    /// <summary>
+    /// Executes execute async.
+    /// </summary>
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -147,21 +150,51 @@ public class ConnectionHealthMetrics
     private readonly ConcurrentQueue<OperationResult> _recentResults = new();
     private readonly TimeProvider _timeProvider;
     private long _totalRequests;
+    /// <summary>
+    /// Represents successful requests.
+    /// </summary>
     private long _successfulRequests;
     private long _failedRequests;
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ConnectionHealthMetrics"/> class.
+    /// </summary>
 
     public ConnectionHealthMetrics(TimeProvider timeProvider)
     {
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
+    /// <summary>
+    /// Gets total requests.
+    /// </summary>
 
     public long TotalRequests => _totalRequests;
+    /// <summary>
+    /// Gets successful requests.
+    /// </summary>
     public long SuccessfulRequests => _successfulRequests;
+    /// <summary>
+    /// Gets failed requests.
+    /// </summary>
     public long FailedRequests => _failedRequests;
+    /// <summary>
+    /// Gets failure rate.
+    /// </summary>
     public double FailureRate => TotalRequests == 0 ? 0 : (double)FailedRequests / TotalRequests;
+    /// <summary>
+    /// Gets or sets last failure time.
+    /// </summary>
     public DateTimeOffset LastFailureTime { get; private set; }
+    /// <summary>
+    /// Gets or sets last failure reason.
+    /// </summary>
     public string LastFailureReason { get; private set; } = string.Empty;
+    /// <summary>
+    /// Gets or sets is circuit breaker open.
+    /// </summary>
     public bool IsCircuitBreakerOpen { get; private set; }
+    /// <summary>
+    /// Gets average response time.
+    /// </summary>
 
     public TimeSpan AverageResponseTime
     {
@@ -173,6 +206,9 @@ public class ConnectionHealthMetrics
             return TimeSpan.FromMilliseconds(results.Average(r => r.Duration.TotalMilliseconds));
         }
     }
+    /// <summary>
+    /// Executes record success.
+    /// </summary>
 
     public void RecordSuccess(TimeSpan duration)
     {
@@ -188,6 +224,9 @@ public class ConnectionHealthMetrics
 
         IsCircuitBreakerOpen = false;
     }
+    /// <summary>
+    /// Executes record failure.
+    /// </summary>
 
     public void RecordFailure(Exception exception, TimeSpan duration)
     {
@@ -206,16 +245,25 @@ public class ConnectionHealthMetrics
             Exception = exception
         });
     }
+    /// <summary>
+    /// Executes set circuit breaker state.
+    /// </summary>
 
     public void SetCircuitBreakerState(bool isOpen)
     {
         IsCircuitBreakerOpen = isOpen;
     }
+    /// <summary>
+    /// Executes is unhealthy.
+    /// </summary>
 
     public bool IsUnhealthy(double failureThreshold)
     {
         return FailureRate > failureThreshold || IsCircuitBreakerOpen;
     }
+    /// <summary>
+    /// Executes cleanup old data.
+    /// </summary>
 
     public void CleanupOldData(DateTimeOffset cutoff)
     {
@@ -224,12 +272,24 @@ public class ConnectionHealthMetrics
             _recentResults.TryDequeue(out _);
         }
     }
+    /// <summary>
+    /// Represents the operation result record.
+    /// </summary>
 
     private record OperationResult
     {
+        /// <summary>
+        /// Gets success.
+        /// </summary>
         public bool Success { get; init; }
+        /// <summary>
+        /// Gets duration.
+        /// </summary>
         public TimeSpan Duration { get; init; }
         public DateTimeOffset Timestamp { get; init; }
+        /// <summary>
+        /// Gets exception.
+        /// </summary>
         public Exception? Exception { get; init; }
     }
 }
@@ -239,8 +299,17 @@ public class ConnectionHealthMetrics
 /// </summary>
 public class ConnectionHealthOptions
 {
+    /// <summary>
+    /// Gets or sets health check interval.
+    /// </summary>
     public TimeSpan HealthCheckInterval { get; set; } = TimeSpan.FromMinutes(1);
+    /// <summary>
+    /// Gets or sets metrics retention.
+    /// </summary>
     public TimeSpan MetricsRetention { get; set; } = TimeSpan.FromHours(1);
+    /// <summary>
+    /// Gets or sets unhealthy failure rate.
+    /// </summary>
     public double UnhealthyFailureRate { get; set; } = 0.5;
 }
 
@@ -249,9 +318,21 @@ public class ConnectionHealthOptions
 /// </summary>
 public enum ConnectionHealthStatus
 {
+    /// <summary>
+    /// Specifies unknown.
+    /// </summary>
     Unknown,
+    /// <summary>
+    /// Specifies healthy.
+    /// </summary>
     Healthy,
+    /// <summary>
+    /// Specifies degraded.
+    /// </summary>
     Degraded,
+    /// <summary>
+    /// Specifies unhealthy.
+    /// </summary>
     Unhealthy
 }
 
@@ -260,8 +341,17 @@ public enum ConnectionHealthStatus
 /// </summary>
 public class ConnectionHealthReport
 {
+    /// <summary>
+    /// Gets or sets overall status.
+    /// </summary>
     public ConnectionHealthStatus OverallStatus { get; set; }
+    /// <summary>
+    /// Gets or sets timestamp.
+    /// </summary>
     public DateTimeOffset Timestamp { get; set; }
+    /// <summary>
+    /// Gets or sets operation metrics.
+    /// </summary>
     public Dictionary<string, OperationHealthData> OperationMetrics { get; set; } = [];
 }
 
@@ -270,12 +360,36 @@ public class ConnectionHealthReport
 /// </summary>
 public class OperationHealthData
 {
+    /// <summary>
+    /// Gets or sets total requests.
+    /// </summary>
     public long TotalRequests { get; set; }
+    /// <summary>
+    /// Gets or sets successful requests.
+    /// </summary>
     public long SuccessfulRequests { get; set; }
+    /// <summary>
+    /// Gets or sets failed requests.
+    /// </summary>
     public long FailedRequests { get; set; }
+    /// <summary>
+    /// Gets or sets failure rate.
+    /// </summary>
     public double FailureRate { get; set; }
+    /// <summary>
+    /// Gets or sets average response time.
+    /// </summary>
     public TimeSpan AverageResponseTime { get; set; }
+    /// <summary>
+    /// Gets or sets last failure time.
+    /// </summary>
     public DateTimeOffset LastFailureTime { get; set; }
+    /// <summary>
+    /// Gets or sets last failure reason.
+    /// </summary>
     public string LastFailureReason { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or sets circuit breaker state.
+    /// </summary>
     public string CircuitBreakerState { get; set; } = "Closed";
 }

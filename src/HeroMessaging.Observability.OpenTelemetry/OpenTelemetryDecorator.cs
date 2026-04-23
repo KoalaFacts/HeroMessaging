@@ -12,6 +12,9 @@ public class OpenTelemetryDecorator(IMessageProcessor inner, TimeProvider timePr
 {
     private readonly IMessageProcessor _innerProcessor = inner ?? throw new ArgumentNullException(nameof(inner));
     private readonly TimeProvider _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+    /// <summary>
+    /// Executes process async.
+    /// </summary>
 
     public override async ValueTask<ProcessingResult> ProcessAsync(IMessage message, ProcessingContext context, CancellationToken cancellationToken = default)
     {

@@ -16,6 +16,9 @@ namespace HeroMessaging.SourceGenerators.Generators;
 [Generator]
 public class MethodLoggingGenerator : IIncrementalGenerator
 {
+    /// <summary>
+    /// Executes initialize.
+    /// </summary>
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         // Register the attribute

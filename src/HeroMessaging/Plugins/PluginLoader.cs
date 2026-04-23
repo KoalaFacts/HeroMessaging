@@ -9,11 +9,17 @@ namespace HeroMessaging.Plugins;
 public class PluginLoader : IPluginLoader
 {
     private readonly ILogger<PluginLoader>? _logger;
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PluginLoader"/> class.
+    /// </summary>
 
     public PluginLoader(ILogger<PluginLoader>? logger = null)
     {
         _logger = logger;
     }
+    /// <summary>
+    /// Executes load async.
+    /// </summary>
 
     public async Task<IMessagingPlugin> LoadAsync(
         IPluginDescriptor descriptor,
@@ -22,6 +28,9 @@ public class PluginLoader : IPluginLoader
     {
         return await LoadAsync(descriptor, serviceProvider, null, cancellationToken);
     }
+    /// <summary>
+    /// Executes load async.
+    /// </summary>
 
     public async Task<IMessagingPlugin> LoadAsync(
         IPluginDescriptor descriptor,
@@ -64,6 +73,9 @@ public class PluginLoader : IPluginLoader
             throw;
         }
     }
+    /// <summary>
+    /// Executes can load async.
+    /// </summary>
 
     public Task<bool> CanLoadAsync(
         IPluginDescriptor descriptor,
@@ -92,6 +104,9 @@ public class PluginLoader : IPluginLoader
             return Task.FromResult(false);
         }
     }
+    /// <summary>
+    /// Executes validate async.
+    /// </summary>
 
     public Task<PluginValidationResult> ValidateAsync(
         IPluginDescriptor descriptor,

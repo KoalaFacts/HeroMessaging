@@ -23,14 +23,14 @@ public class InMemoryTransportTests : IAsyncLifetime
     public async ValueTask InitializeAsync()
     {
         _transport = new InMemoryTransport(_options, TimeProvider.System);
-        await _transport!.ConnectAsync(TestContext.Current.CancellationToken);
+        await _transport.ConnectAsync(TestContext.Current.CancellationToken);
     }
 
     public async ValueTask DisposeAsync()
     {
         if (_transport != null)
         {
-            await _transport!.DisposeAsync();
+            await _transport.DisposeAsync();
         }
     }
 

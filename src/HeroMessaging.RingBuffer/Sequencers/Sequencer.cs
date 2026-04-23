@@ -10,11 +10,17 @@ namespace HeroMessaging.RingBuffer.Sequencers;
 /// </summary>
 public abstract class Sequencer
 {
+    /// <summary>
+    /// Represents buffer size.
+    /// </summary>
     protected readonly int _bufferSize;
+    /// <summary>
+    /// Represents wait strategy.
+    /// </summary>
     protected readonly IWaitStrategy _waitStrategy;
 
     // Use volatile array reference for lock-free reads in hot path
-    private volatile ISequence[] _gatingSequencesArray = [];
+    private ISequence[] _gatingSequencesArray = [];
 #if NET9_0_OR_GREATER
     private readonly Lock _gatingLock = new();
 #else

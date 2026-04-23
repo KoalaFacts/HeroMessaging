@@ -4,12 +4,21 @@ using HeroMessaging.Utilities;
 using Microsoft.Extensions.Logging;
 
 namespace HeroMessaging.ErrorHandling;
+/// <summary>
+/// Represents the default error handler type.
+/// </summary>
 
 public class DefaultErrorHandler(ILogger<DefaultErrorHandler> logger, IDeadLetterQueue deadLetterQueue, TimeProvider timeProvider) : IErrorHandler
 {
     private readonly ILogger<DefaultErrorHandler> _logger = logger;
+    /// <summary>
+    /// Represents dead letter queue.
+    /// </summary>
     private readonly IDeadLetterQueue _deadLetterQueue = deadLetterQueue;
     private readonly TimeProvider _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+    /// <summary>
+    /// Executes handle error async.
+    /// </summary>
 
     public async Task<ErrorHandlingResult> HandleErrorAsync<T>(T message, Exception error, ErrorContext context, CancellationToken cancellationToken = default) where T : IMessage
     {

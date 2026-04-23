@@ -67,7 +67,7 @@ public sealed class MessageSizeValidatorTests
             .Returns(500);
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsValid);
@@ -86,7 +86,7 @@ public sealed class MessageSizeValidatorTests
             .Returns(1024);
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsValid);
@@ -105,7 +105,7 @@ public sealed class MessageSizeValidatorTests
             .Returns(1);
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsValid);
@@ -128,7 +128,7 @@ public sealed class MessageSizeValidatorTests
             .Returns(2048);
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.IsValid);
@@ -148,7 +148,7 @@ public sealed class MessageSizeValidatorTests
             .Returns(1025);
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.IsValid);
@@ -168,7 +168,7 @@ public sealed class MessageSizeValidatorTests
             .Returns(1000);
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.IsValid);
@@ -192,7 +192,7 @@ public sealed class MessageSizeValidatorTests
             .Returns(1);
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.IsValid);
@@ -211,7 +211,7 @@ public sealed class MessageSizeValidatorTests
             .Returns(5 * 1024 * 1024); // 5MB
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsValid);
@@ -229,7 +229,7 @@ public sealed class MessageSizeValidatorTests
             .Returns(10);
 
         // Act
-        var result = await validator.ValidateAsync(message!);
+        var result = await validator.ValidateAsync(message!, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         _jsonSerializerMock.Verify(s => s.GetJsonByteCount(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()), Times.Once);
@@ -251,7 +251,7 @@ public sealed class MessageSizeValidatorTests
             .Throws(new InvalidOperationException("Serialization error"));
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.IsValid);
@@ -272,7 +272,7 @@ public sealed class MessageSizeValidatorTests
             .Throws(new ArgumentException("Invalid argument"));
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.IsValid);
@@ -339,7 +339,7 @@ public sealed class MessageSizeValidatorTests
             .Returns(1500);
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsValid);
@@ -358,7 +358,7 @@ public sealed class MessageSizeValidatorTests
             .Returns(1048576);
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.IsValid);
@@ -376,7 +376,7 @@ public sealed class MessageSizeValidatorTests
             .Returns(1048577); // 1 byte over 1MB
 
         // Act
-        var result = await validator.ValidateAsync(message);
+        var result = await validator.ValidateAsync(message, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.IsValid);
@@ -400,8 +400,8 @@ public sealed class MessageSizeValidatorTests
             .Returns(500);
 
         // Act
-        await validator.ValidateAsync(message1);
-        await validator.ValidateAsync(message2);
+        await validator.ValidateAsync(message1, cancellationToken: TestContext.Current.CancellationToken);
+        await validator.ValidateAsync(message2, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         _jsonSerializerMock.Verify(s => s.GetJsonByteCount(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()), Times.Exactly(2));
@@ -422,8 +422,8 @@ public sealed class MessageSizeValidatorTests
             .Returns(() => callCount++ == 0 ? 100 : 2000);
 
         // Act
-        var result1 = await validator.ValidateAsync(smallMessage);
-        var result2 = await validator.ValidateAsync(largeMessage);
+        var result1 = await validator.ValidateAsync(smallMessage, cancellationToken: TestContext.Current.CancellationToken);
+        var result2 = await validator.ValidateAsync(largeMessage, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result1.IsValid);

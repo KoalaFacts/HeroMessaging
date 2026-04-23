@@ -9,6 +9,9 @@ namespace HeroMessaging.Storage.SqlServer;
 public class SqlServerSchemaInitializer : IDbSchemaInitializer
 {
     private readonly IDbConnectionProvider<SqlConnection, SqlTransaction> _connectionProvider;
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SqlServerSchemaInitializer"/> class.
+    /// </summary>
 
     public SqlServerSchemaInitializer(IDbConnectionProvider<SqlConnection, SqlTransaction> connectionProvider)
     {

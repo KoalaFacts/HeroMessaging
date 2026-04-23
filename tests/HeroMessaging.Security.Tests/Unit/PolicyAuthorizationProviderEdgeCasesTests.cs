@@ -102,7 +102,7 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
     }
 
     [Fact]
-    public void RequireRole_WithWhitespaceRoles_IgnoresWhitespace()
+    public async Task RequireRole_WithWhitespaceRoles_IgnoresWhitespace()
     {
         // Arrange
         var provider = new PolicyAuthorizationProvider();
@@ -112,14 +112,14 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
 
         var identity = new ClaimsIdentity([new Claim(ClaimTypes.Role, "manager")], "TestAuth");
         var principal = new ClaimsPrincipal(identity);
-        var result = provider.AuthorizeAsync(principal, "Message", "Op", TestContext.Current.CancellationToken).Result;
+        var result = await provider.AuthorizeAsync(principal, "Message", "Op", TestContext.Current.CancellationToken);
 
         // Assert - Should work, whitespace roles ignored
         Assert.True(result.Succeeded);
     }
 
     [Fact]
-    public void RequireClaim_WithWhitespaceValues_IgnoresWhitespace()
+    public async Task RequireClaim_WithWhitespaceValues_IgnoresWhitespace()
     {
         // Arrange
         var provider = new PolicyAuthorizationProvider();
@@ -129,7 +129,7 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
 
         var identity = new ClaimsIdentity([new Claim("permission", "write")], "TestAuth");
         var principal = new ClaimsPrincipal(identity);
-        var result = provider.AuthorizeAsync(principal, "Message", "Op", TestContext.Current.CancellationToken).Result;
+        var result = await provider.AuthorizeAsync(principal, "Message", "Op", TestContext.Current.CancellationToken);
 
         // Assert - Should work, whitespace values ignored
         Assert.True(result.Succeeded);
@@ -478,7 +478,7 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
     }
 
     [Fact]
-    public void AddPolicy_WithSameName_OverwritesExisting()
+    public async Task AddPolicy_WithSameName_OverwritesExisting()
     {
         // Arrange
         var provider = new PolicyAuthorizationProvider();
@@ -490,7 +490,7 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
         provider.AddPolicy("Test:Op", policy2); // Overwrite
 
         var unauthPrincipal = new ClaimsPrincipal();
-        var result = provider.AuthorizeAsync(unauthPrincipal, "Test", "Op", TestContext.Current.CancellationToken).Result;
+        var result = await provider.AuthorizeAsync(unauthPrincipal, "Test", "Op", TestContext.Current.CancellationToken);
 
         // Assert - Should use second policy (anonymous)
         Assert.True(result.Succeeded);

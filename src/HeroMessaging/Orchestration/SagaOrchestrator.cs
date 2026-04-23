@@ -18,6 +18,9 @@ public class SagaOrchestrator<TSaga> where TSaga : class, ISaga, new()
     private readonly ILogger<SagaOrchestrator<TSaga>> _logger;
 #pragma warning disable IDE0052 // Remove unread private members - Reserved for future timeout/scheduling operations
     private readonly TimeProvider _timeProvider;
+    /// <summary>
+    /// Initializes a new instance.
+    /// </summary>
 #pragma warning restore IDE0052
 
     public SagaOrchestrator(
@@ -67,8 +70,10 @@ public class SagaOrchestrator<TSaga> where TSaga : class, ISaga, new()
             await _repository.SaveAsync(saga, cancellationToken);
         }
 
+        var sagaInstance = saga ?? throw new InvalidOperationException("Saga instance could not be resolved for processing.");
+
         // Find matching transition
-        var currentState = saga.CurrentState;
+        var currentState = sagaInstance.CurrentState;
         if (!_stateMachine.Transitions.TryGetValue(currentState, out var transitions))
         {
             _logger.LogWarning("No transitions defined for state {State} in saga {SagaType}",
@@ -94,35 +99,26 @@ public class SagaOrchestrator<TSaga> where TSaga : class, ISaga, new()
         // Execute transition action
         if (transition.Action != null)
         {
-            var context = new StateContext<TSaga, TEvent>(saga, @event, _services);
+            var context = new StateContext<TSaga, TEvent>(sagaInstance, @event, _services);
             await transition.Action(context);
         }
 
         // Transition to new state if specified
         if (transition.ToState != null)
         {
-            var oldState = saga.CurrentState;
-            saga.CurrentState = transition.ToState.Name;
+            var oldState = sagaInstance.CurrentState;
+            sagaInstance.CurrentState = transition.ToState.Name;
             // Note: UpdatedAt will be set by repository.UpdateAsync()
 
             _logger.LogInformation("Saga {CorrelationId} transitioned from {OldState} to {NewState}",
-                correlationId, oldState, saga.CurrentState);
+                correlationId, oldState, sagaInstance.CurrentState);
         }
 
-        // Update saga after processing the event
-        // (We already saved new sagas in their initial state above)
-        if (!isNew)
-        {
-            await _repository.UpdateAsync(saga, cancellationToken);
-        }
-        else if (transition != null)
-        {
-            // If this was a new saga and we processed a transition, update it
-            await _repository.UpdateAsync(saga, cancellationToken);
-        }
+        // Persist the saga after processing the event.
+        await _repository.UpdateAsync(sagaInstance, cancellationToken);
 
         _logger.LogDebug("Saga {CorrelationId} persisted with version {Version}",
-            correlationId, saga.Version);
+            correlationId, sagaInstance.Version);
     }
 
     private Guid ExtractCorrelationId(IEvent @event)

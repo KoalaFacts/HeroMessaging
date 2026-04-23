@@ -118,7 +118,7 @@ public sealed class SqlServerIdempotencyStoreTests : IDisposable
         var ttl = TimeSpan.FromHours(24);
 
         await Assert.ThrowsAsync<ArgumentNullException>(async () =>
-            await store.StoreSuccessAsync(null!, new object(), ttl));
+            await store.StoreSuccessAsync(null!, new object(), ttl, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]

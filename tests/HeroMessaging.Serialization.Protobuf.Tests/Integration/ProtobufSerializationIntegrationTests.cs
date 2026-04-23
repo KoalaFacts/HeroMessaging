@@ -18,8 +18,8 @@ public class ProtobufSerializationIntegrationTests
         var originalMessage = ProtobufTestMessageBuilder.CreateValidMessage("Protocol Buffers serialization test");
 
         // Act
-        var serializedData = await serializer.SerializeAsync(originalMessage);
-        var deserializedMessage = await serializer.DeserializeAsync<ProtobufTestMessage>(serializedData);
+        var serializedData = await serializer.SerializeAsync(originalMessage, cancellationToken: TestContext.Current.CancellationToken);
+        var deserializedMessage = await serializer.DeserializeAsync<ProtobufTestMessage>(serializedData, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(deserializedMessage);
@@ -36,7 +36,7 @@ public class ProtobufSerializationIntegrationTests
         var message = ProtobufTestMessageBuilder.CreateValidMessage("Compact test");
 
         // Act
-        var serializedData = await serializer.SerializeAsync(message);
+        var serializedData = await serializer.SerializeAsync(message, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(serializedData.Length > 0);
@@ -51,8 +51,8 @@ public class ProtobufSerializationIntegrationTests
         var largeMessage = ProtobufTestMessageBuilder.CreateLargeMessage(50000);
 
         // Act
-        var serializedData = await serializer.SerializeAsync(largeMessage);
-        var deserializedMessage = await serializer.DeserializeAsync<ProtobufTestMessage>(serializedData);
+        var serializedData = await serializer.SerializeAsync(largeMessage, cancellationToken: TestContext.Current.CancellationToken);
+        var deserializedMessage = await serializer.DeserializeAsync<ProtobufTestMessage>(serializedData, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(deserializedMessage);

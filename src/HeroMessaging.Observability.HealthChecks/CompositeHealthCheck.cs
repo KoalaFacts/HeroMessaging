@@ -3,10 +3,16 @@ using System;
 using System.Linq;
 
 namespace HeroMessaging.Observability.HealthChecks;
+/// <summary>
+/// Represents the composite health check type.
+/// </summary>
 
 public class CompositeHealthCheck(params IEnumerable<string> checkNames) : IHealthCheck
 {
     private readonly string[] _checkNames = checkNames?.ToArray() ?? throw new ArgumentNullException(nameof(checkNames));
+    /// <summary>
+    /// Executes check health async.
+    /// </summary>
 
     public Task<HealthCheckResult> CheckHealthAsync(
         HealthCheckContext context,

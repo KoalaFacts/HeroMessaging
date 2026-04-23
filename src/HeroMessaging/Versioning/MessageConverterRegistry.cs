@@ -291,8 +291,20 @@ public class MessageConverterRegistryStatistics(
     int cachedPaths,
     IReadOnlyDictionary<string, int> convertersByType)
 {
+    /// <summary>
+    /// Gets total converters.
+    /// </summary>
     public int TotalConverters { get; } = totalConverters;
+    /// <summary>
+    /// Gets message types.
+    /// </summary>
     public int MessageTypes { get; } = messageTypes;
+    /// <summary>
+    /// Gets cached paths.
+    /// </summary>
     public int CachedPaths { get; } = cachedPaths;
+    /// <summary>
+    /// Gets converters by type.
+    /// </summary>
     public IReadOnlyDictionary<string, int> ConvertersByType { get; } = convertersByType;
 }

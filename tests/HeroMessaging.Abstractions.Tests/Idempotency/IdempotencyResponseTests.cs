@@ -252,7 +252,8 @@ public class IdempotencyResponseTests
         };
 
         // Assert
-        Assert.Equal(10000, response.FailureStackTrace!.Length);
+        Assert.NotNull(response.FailureStackTrace);
+        Assert.Equal(10000, response.FailureStackTrace.Length);
         Assert.Equal(longStackTrace, response.FailureStackTrace);
     }
 

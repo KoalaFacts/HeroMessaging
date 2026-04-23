@@ -16,6 +16,9 @@ namespace HeroMessaging.SourceGenerators.Generators;
 [Generator]
 public class ContractTestGenerator : IIncrementalGenerator
 {
+    /// <summary>
+    /// Executes initialize.
+    /// </summary>
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         // Find classes/records with [GenerateContractTests]

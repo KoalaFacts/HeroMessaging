@@ -17,6 +17,9 @@ namespace HeroMessaging.SourceGenerators.Generators;
 [Generator]
 public class TestDataBuilderGenerator : IIncrementalGenerator
 {
+    /// <summary>
+    /// Executes initialize.
+    /// </summary>
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         // Find classes/records with [GenerateTestDataBuilder]

@@ -20,7 +20,7 @@ public class RabbitMqMessageFlowIntegrationTests : RabbitMqIntegrationTestBase
         var queueName = CreateQueueName();
         var topology = new TransportTopology();
         topology.AddQueue(new QueueDefinition { Name = queueName, Durable = true });
-        await Transport!.ConfigureTopologyAsync(topology);
+        await Transport!.ConfigureTopologyAsync(topology, cancellationToken: TestContext.Current.CancellationToken);
 
         var receivedMessages = new ConcurrentBag<TransportEnvelope>();
         var messageReceived = new TaskCompletionSource<bool>();
@@ -32,19 +32,19 @@ public class RabbitMqMessageFlowIntegrationTests : RabbitMqIntegrationTestBase
                 receivedMessages.Add(envelope);
                 messageReceived.TrySetResult(true);
                 await Task.CompletedTask;
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         var testEnvelope = CreateTestEnvelope("Hello RabbitMQ!");
 
         // Act
         await Transport.SendAsync(
             new TransportAddress(queueName, TransportAddressType.Queue),
-            testEnvelope);
+            testEnvelope, cancellationToken: TestContext.Current.CancellationToken);
 
         // Wait for message (with timeout)
         var received = await Task.WhenAny(
             messageReceived.Task,
-            Task.Delay(TimeSpan.FromSeconds(5)));
+            Task.Delay(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
 
         // Assert
         Assert.Same(messageReceived.Task, received);
@@ -66,7 +66,7 @@ public class RabbitMqMessageFlowIntegrationTests : RabbitMqIntegrationTestBase
         var queueName = CreateQueueName();
         var topology = new TransportTopology();
         topology.AddQueue(new QueueDefinition { Name = queueName, Durable = true });
-        await Transport!.ConfigureTopologyAsync(topology);
+        await Transport!.ConfigureTopologyAsync(topology, cancellationToken: TestContext.Current.CancellationToken);
 
         var receivedMessages = new ConcurrentBag<string>();
         var messageCount = 0;
@@ -84,20 +84,20 @@ public class RabbitMqMessageFlowIntegrationTests : RabbitMqIntegrationTestBase
                     allReceived.TrySetResult(true);
                 }
                 await Task.CompletedTask;
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act - send 5 messages
         for (int i = 1; i <= 5; i++)
         {
             await Transport.SendAsync(
                 new TransportAddress(queueName, TransportAddressType.Queue),
-                CreateTestEnvelope($"Message {i}"));
+                CreateTestEnvelope($"Message {i}"), cancellationToken: TestContext.Current.CancellationToken);
         }
 
         // Wait for all messages
         var received = await Task.WhenAny(
             allReceived.Task,
-            Task.Delay(TimeSpan.FromSeconds(10)));
+            Task.Delay(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken));
 
         // Assert
         Assert.Same(allReceived.Task, received);
@@ -114,7 +114,7 @@ public class RabbitMqMessageFlowIntegrationTests : RabbitMqIntegrationTestBase
         var queueName = CreateQueueName();
         var topology = new TransportTopology();
         topology.AddQueue(new QueueDefinition { Name = queueName, Durable = true });
-        await Transport!.ConfigureTopologyAsync(topology);
+        await Transport!.ConfigureTopologyAsync(topology, cancellationToken: TestContext.Current.CancellationToken);
 
         TransportEnvelope receivedEnvelope = default;
         var messageReceived = new TaskCompletionSource<bool>();
@@ -126,7 +126,7 @@ public class RabbitMqMessageFlowIntegrationTests : RabbitMqIntegrationTestBase
                 receivedEnvelope = envelope;
                 messageReceived.TrySetResult(true);
                 await Task.CompletedTask;
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         var testEnvelope = CreateTestEnvelope()
             .WithHeader("CustomHeader", "CustomValue")
@@ -135,12 +135,12 @@ public class RabbitMqMessageFlowIntegrationTests : RabbitMqIntegrationTestBase
         // Act
         await Transport.SendAsync(
             new TransportAddress(queueName, TransportAddressType.Queue),
-            testEnvelope);
+            testEnvelope, cancellationToken: TestContext.Current.CancellationToken);
 
-        await Task.WhenAny(messageReceived.Task, Task.Delay(5000));
+        await Task.WhenAny(messageReceived.Task, Task.Delay(5000, TestContext.Current.CancellationToken));
 
         // Assert
-        Assert.NotEqual(default(TransportEnvelope), receivedEnvelope);
+        Assert.NotEqual(default, receivedEnvelope);
         Assert.True(receivedEnvelope.Headers.ContainsKey("CustomHeader"));
         Assert.Equal("CustomValue", receivedEnvelope.Headers["CustomHeader"].ToString());
 
@@ -180,7 +180,7 @@ public class RabbitMqMessageFlowIntegrationTests : RabbitMqIntegrationTestBase
             Destination = queue2
         });
 
-        await Transport!.ConfigureTopologyAsync(topology);
+        await Transport!.ConfigureTopologyAsync(topology, cancellationToken: TestContext.Current.CancellationToken);
 
         var queue1Received = new TaskCompletionSource<bool>();
         var queue2Received = new TaskCompletionSource<bool>();
@@ -191,7 +191,7 @@ public class RabbitMqMessageFlowIntegrationTests : RabbitMqIntegrationTestBase
             {
                 queue1Received.TrySetResult(true);
                 await Task.CompletedTask;
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         var consumer2 = await Transport.SubscribeAsync(
             new TransportAddress(queue2, TransportAddressType.Queue),
@@ -199,15 +199,15 @@ public class RabbitMqMessageFlowIntegrationTests : RabbitMqIntegrationTestBase
             {
                 queue2Received.TrySetResult(true);
                 await Task.CompletedTask;
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
         await Transport.PublishAsync(
             new TransportAddress(exchangeName, TransportAddressType.Topic),
-            CreateTestEnvelope("Broadcast message"));
+            CreateTestEnvelope("Broadcast message"), cancellationToken: TestContext.Current.CancellationToken);
 
         // Wait for both queues to receive
-        var timeout = Task.Delay(TimeSpan.FromSeconds(5));
+        var timeout = Task.Delay(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
         await Task.WhenAny(Task.WhenAll(queue1Received.Task, queue2Received.Task), timeout);
 
         // Assert
@@ -249,7 +249,7 @@ public class RabbitMqMessageFlowIntegrationTests : RabbitMqIntegrationTestBase
             RoutingKey = "event.#"
         });
 
-        await Transport!.ConfigureTopologyAsync(topology);
+        await Transport!.ConfigureTopologyAsync(topology, cancellationToken: TestContext.Current.CancellationToken);
 
         var ordersReceived = new ConcurrentBag<string>();
         var eventsReceived = new ConcurrentBag<string>();
@@ -263,7 +263,7 @@ public class RabbitMqMessageFlowIntegrationTests : RabbitMqIntegrationTestBase
                 ordersReceived.Add(System.Text.Encoding.UTF8.GetString(envelope.Body.ToArray()));
                 orderReceived.TrySetResult(true);
                 await Task.CompletedTask;
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         var consumer2 = await Transport.SubscribeAsync(
             new TransportAddress(eventsQueue, TransportAddressType.Queue),
@@ -272,7 +272,7 @@ public class RabbitMqMessageFlowIntegrationTests : RabbitMqIntegrationTestBase
                 eventsReceived.Add(System.Text.Encoding.UTF8.GetString(envelope.Body.ToArray()));
                 eventReceived.TrySetResult(true);
                 await Task.CompletedTask;
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act - publish with different routing keys
         var orderEnvelope = CreateTestEnvelope("Order created")
@@ -283,16 +283,16 @@ public class RabbitMqMessageFlowIntegrationTests : RabbitMqIntegrationTestBase
 
         await Transport.PublishAsync(
             new TransportAddress(exchangeName, TransportAddressType.Topic),
-            orderEnvelope);
+            orderEnvelope, cancellationToken: TestContext.Current.CancellationToken);
 
         await Transport.PublishAsync(
             new TransportAddress(exchangeName, TransportAddressType.Topic),
-            eventEnvelope);
+            eventEnvelope, cancellationToken: TestContext.Current.CancellationToken);
 
         // Wait for messages
         await Task.WhenAny(
             Task.WhenAll(orderReceived.Task, eventReceived.Task),
-            Task.Delay(5000));
+            Task.Delay(5000, TestContext.Current.CancellationToken));
 
         // Assert
         Assert.Single(ordersReceived);
@@ -316,7 +316,7 @@ public class RabbitMqMessageFlowIntegrationTests : RabbitMqIntegrationTestBase
         var queueName = CreateQueueName();
         var topology = new TransportTopology();
         topology.AddQueue(new QueueDefinition { Name = queueName, Durable = true });
-        await Transport!.ConfigureTopologyAsync(topology);
+        await Transport!.ConfigureTopologyAsync(topology, cancellationToken: TestContext.Current.CancellationToken);
 
         var consumer1Messages = new ConcurrentBag<string>();
         var consumer2Messages = new ConcurrentBag<string>();
@@ -325,7 +325,7 @@ public class RabbitMqMessageFlowIntegrationTests : RabbitMqIntegrationTestBase
 
         Func<TransportEnvelope, MessageContext, CancellationToken, Task> HandleMessage(ConcurrentBag<string> bag)
         {
-            return async (TransportEnvelope envelope, MessageContext context, CancellationToken ct) =>
+            return (envelope, context, ct) =>
             {
                 var content = System.Text.Encoding.UTF8.GetString(envelope.Body.ToArray());
                 bag.Add(content);
@@ -334,27 +334,28 @@ public class RabbitMqMessageFlowIntegrationTests : RabbitMqIntegrationTestBase
                 {
                     allReceived.TrySetResult(true);
                 }
-                await Task.CompletedTask;
+
+                return Task.CompletedTask;
             };
         }
 
         var consumer1 = await Transport.SubscribeAsync(
             new TransportAddress(queueName, TransportAddressType.Queue),
-            HandleMessage(consumer1Messages));
+            HandleMessage(consumer1Messages), cancellationToken: TestContext.Current.CancellationToken);
 
         var consumer2 = await Transport.SubscribeAsync(
             new TransportAddress(queueName, TransportAddressType.Queue),
-            HandleMessage(consumer2Messages));
+            HandleMessage(consumer2Messages), cancellationToken: TestContext.Current.CancellationToken);
 
         // Act - send 10 messages
         for (int i = 1; i <= 10; i++)
         {
             await Transport.SendAsync(
                 new TransportAddress(queueName, TransportAddressType.Queue),
-                CreateTestEnvelope($"Message {i}"));
+                CreateTestEnvelope($"Message {i}"), cancellationToken: TestContext.Current.CancellationToken);
         }
 
-        await Task.WhenAny(allReceived.Task, Task.Delay(10000));
+        await Task.WhenAny(allReceived.Task, Task.Delay(10000, TestContext.Current.CancellationToken));
 
         // Assert - messages distributed between consumers
         Assert.Equal(10, totalReceived);
@@ -374,7 +375,7 @@ public class RabbitMqMessageFlowIntegrationTests : RabbitMqIntegrationTestBase
         var queueName = CreateQueueName();
         var topology = new TransportTopology();
         topology.AddQueue(new QueueDefinition { Name = queueName, Durable = true });
-        await Transport!.ConfigureTopologyAsync(topology);
+        await Transport!.ConfigureTopologyAsync(topology, cancellationToken: TestContext.Current.CancellationToken);
 
         var receivedCount = 0;
         var consumer = await Transport.SubscribeAsync(
@@ -384,14 +385,14 @@ public class RabbitMqMessageFlowIntegrationTests : RabbitMqIntegrationTestBase
                 Interlocked.Increment(ref receivedCount);
                 await Task.CompletedTask;
             },
-            new ConsumerOptions { StartImmediately = true });
+            new ConsumerOptions { StartImmediately = true }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Send first message
         await Transport.SendAsync(
             new TransportAddress(queueName, TransportAddressType.Queue),
-            CreateTestEnvelope("Message 1"));
+            CreateTestEnvelope("Message 1"), cancellationToken: TestContext.Current.CancellationToken);
 
-        await Task.Delay(500); // Wait for delivery
+        await Task.Delay(500, TestContext.Current.CancellationToken); // Wait for delivery
 
         // Act - stop consumer
         await consumer.StopAsync(TestContext.Current.CancellationToken);
@@ -401,9 +402,9 @@ public class RabbitMqMessageFlowIntegrationTests : RabbitMqIntegrationTestBase
         // Send more messages
         await Transport.SendAsync(
             new TransportAddress(queueName, TransportAddressType.Queue),
-            CreateTestEnvelope("Message 2"));
+            CreateTestEnvelope("Message 2"), cancellationToken: TestContext.Current.CancellationToken);
 
-        await Task.Delay(500);
+        await Task.Delay(500, TestContext.Current.CancellationToken);
 
         // Assert - no new messages received after stop
         Assert.Equal(1, countAfterStop);
@@ -424,12 +425,12 @@ public class RabbitMqMessageFlowIntegrationTests : RabbitMqIntegrationTestBase
         var queueName = CreateQueueName();
         var topology = new TransportTopology();
         topology.AddQueue(new QueueDefinition { Name = queueName, Durable = true });
-        await Transport!.ConfigureTopologyAsync(topology);
+        await Transport!.ConfigureTopologyAsync(topology, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act & Assert - should not throw with publisher confirms enabled
         await Transport.SendAsync(
             new TransportAddress(queueName, TransportAddressType.Queue),
-            CreateTestEnvelope());
+            CreateTestEnvelope(), cancellationToken: TestContext.Current.CancellationToken);
     }
 
     #endregion

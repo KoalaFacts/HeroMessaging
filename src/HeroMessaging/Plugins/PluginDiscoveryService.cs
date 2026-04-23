@@ -16,6 +16,9 @@ public class PluginDiscoveryService
 #pragma warning restore IDE0052
     private readonly IServiceCollection _services;
     private readonly ILogger<PluginDiscoveryService>? _logger;
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PluginDiscoveryService"/> class.
+    /// </summary>
 
     public PluginDiscoveryService(
         IPluginDiscovery discovery,
@@ -30,6 +33,9 @@ public class PluginDiscoveryService
         _services = services ?? throw new ArgumentNullException(nameof(services));
         _logger = logger;
     }
+    /// <summary>
+    /// Executes discover and register plugins async.
+    /// </summary>
 
     public async Task DiscoverAndRegisterPluginsAsync()
     {

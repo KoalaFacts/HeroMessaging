@@ -17,7 +17,7 @@ public sealed class XUnitLogger<T> : ILogger<T>, IDisposable
         _categoryName = typeof(T).Name;
     }
 
-    public IDisposable BeginScope<TState>(TState state) => this;
+    public IDisposable BeginScope<TState>(TState state) where TState : notnull => this;
 
     public bool IsEnabled(LogLevel logLevel) => true;
 
@@ -93,7 +93,7 @@ internal sealed class XUnitLoggerGeneric : ILogger
         _categoryName = categoryName;
     }
 
-    public IDisposable BeginScope<TState>(TState state) => new NoOpDisposable();
+    public IDisposable BeginScope<TState>(TState state) where TState : notnull => new NoOpDisposable();
 
     public bool IsEnabled(LogLevel logLevel) => true;
 

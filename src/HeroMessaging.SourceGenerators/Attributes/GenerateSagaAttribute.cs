@@ -54,6 +54,9 @@ public sealed class SagaStateAttribute : Attribute
     /// The name of the state.
     /// </summary>
     public string StateName { get; }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SagaStateAttribute"/> class.
+    /// </summary>
 
     public SagaStateAttribute(string stateName)
     {
@@ -87,11 +90,17 @@ public sealed class OnTimeoutAttribute : Attribute
     /// The timeout duration.
     /// </summary>
     public TimeSpan Timeout { get; }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="OnTimeoutAttribute"/> class.
+    /// </summary>
 
     public OnTimeoutAttribute(int seconds)
     {
         Timeout = TimeSpan.FromSeconds(seconds);
     }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="OnTimeoutAttribute"/> class.
+    /// </summary>
 
     public OnTimeoutAttribute(int hours, int minutes, int seconds)
     {

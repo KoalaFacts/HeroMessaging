@@ -84,8 +84,14 @@ public class ProtobufMessageSerializer(
             .SetSurrogate(typeof(DateTimeOffsetSurrogate));
         return model;
     }
+    /// <summary>
+    /// Gets content type.
+    /// </summary>
 
     public string ContentType => "application/x-protobuf";
+    /// <summary>
+    /// Executes serialize async.
+    /// </summary>
 
     public async ValueTask<byte[]> SerializeAsync<T>(T message, CancellationToken cancellationToken = default)
     {
@@ -112,6 +118,9 @@ public class ProtobufMessageSerializer(
 
         return data;
     }
+    /// <summary>
+    /// Executes deserialize async.
+    /// </summary>
 
     public async ValueTask<T> DeserializeAsync<T>(byte[] data, CancellationToken cancellationToken = default) where T : class
     {
@@ -129,6 +138,9 @@ public class ProtobufMessageSerializer(
         var result = _typeModel.Deserialize<T>(stream);
         return result!;
     }
+    /// <summary>
+    /// Executes deserialize async.
+    /// </summary>
 
     public async ValueTask<object?> DeserializeAsync(byte[] data, Type messageType, CancellationToken cancellationToken = default)
     {
@@ -146,6 +158,9 @@ public class ProtobufMessageSerializer(
         var result = _typeModel.Deserialize(stream, null, messageType);
         return result;
     }
+    /// <summary>
+    /// Executes serialize.
+    /// </summary>
 
     public int Serialize<T>(T message, Span<byte> destination)
     {
@@ -164,6 +179,9 @@ public class ProtobufMessageSerializer(
         stream.Read(destination);
         return bytesWritten;
     }
+    /// <summary>
+    /// Executes try serialize.
+    /// </summary>
 
     public bool TrySerialize<T>(T message, Span<byte> destination, out int bytesWritten)
     {
@@ -178,12 +196,18 @@ public class ProtobufMessageSerializer(
             return false;
         }
     }
+    /// <summary>
+    /// Executes get required buffer size.
+    /// </summary>
 
     public int GetRequiredBufferSize<T>(T message)
     {
         // Protobuf is compact - estimate 2KB for most messages
         return 2048;
     }
+    /// <summary>
+    /// Executes deserialize.
+    /// </summary>
 
     public T Deserialize<T>(ReadOnlySpan<byte> data) where T : class
     {
@@ -192,6 +216,9 @@ public class ProtobufMessageSerializer(
         using var stream = new MemoryStream(data.ToArray());
         return _typeModel.Deserialize<T>(stream)!;
     }
+    /// <summary>
+    /// Executes deserialize.
+    /// </summary>
 
     public object? Deserialize(ReadOnlySpan<byte> data, Type messageType)
     {
@@ -217,6 +244,9 @@ public class TypedProtobufMessageSerializer(
     private readonly RuntimeTypeModel _typeModel = typeModel ?? CreateDefaultTypeModel();
     private readonly ICompressionProvider _compressionProvider = compressionProvider ?? new GZipCompressionProvider();
     private readonly ProtobufTypeRegistry _typeRegistry = typeRegistry ?? ProtobufTypeRegistry.CreateDefault();
+    /// <summary>
+    /// Executes create default type model.
+    /// </summary>
 
     private static RuntimeTypeModel CreateDefaultTypeModel()
     {
@@ -226,8 +256,14 @@ public class TypedProtobufMessageSerializer(
             .SetSurrogate(typeof(DateTimeOffsetSurrogate));
         return model;
     }
+    /// <summary>
+    /// Gets content type.
+    /// </summary>
 
     public string ContentType => "application/x-protobuf-typed";
+    /// <summary>
+    /// Executes serialize async.
+    /// </summary>
 
     public async ValueTask<byte[]> SerializeAsync<T>(T message, CancellationToken cancellationToken = default)
     {
@@ -264,6 +300,9 @@ public class TypedProtobufMessageSerializer(
 
         return data;
     }
+    /// <summary>
+    /// Executes deserialize async.
+    /// </summary>
 
     public async ValueTask<T> DeserializeAsync<T>(byte[] data, CancellationToken cancellationToken = default) where T : class
     {
@@ -288,6 +327,9 @@ public class TypedProtobufMessageSerializer(
         var result = (T?)_typeModel.DeserializeWithLengthPrefix(stream, null, typeof(T), PrefixStyle.Base128, 0);
         return result!;
     }
+    /// <summary>
+    /// Executes deserialize async.
+    /// </summary>
 
     public async ValueTask<object?> DeserializeAsync(byte[] data, Type messageType, CancellationToken cancellationToken = default)
     {
@@ -318,6 +360,9 @@ public class TypedProtobufMessageSerializer(
         var result = _typeModel.DeserializeWithLengthPrefix(stream, null, messageType, PrefixStyle.Base128, 0);
         return result;
     }
+    /// <summary>
+    /// Executes serialize.
+    /// </summary>
 
     public int Serialize<T>(T message, Span<byte> destination)
     {
@@ -343,6 +388,9 @@ public class TypedProtobufMessageSerializer(
         stream.Read(destination);
         return bytesWritten;
     }
+    /// <summary>
+    /// Executes try serialize.
+    /// </summary>
 
     public bool TrySerialize<T>(T message, Span<byte> destination, out int bytesWritten)
     {
@@ -357,12 +405,18 @@ public class TypedProtobufMessageSerializer(
             return false;
         }
     }
+    /// <summary>
+    /// Executes get required buffer size.
+    /// </summary>
 
     public int GetRequiredBufferSize<T>(T message)
     {
         // Protobuf with type info - estimate 2KB + overhead for type names
         return 2048 + 256;
     }
+    /// <summary>
+    /// Executes deserialize.
+    /// </summary>
 
     public T Deserialize<T>(ReadOnlySpan<byte> data) where T : class
     {
@@ -377,6 +431,9 @@ public class TypedProtobufMessageSerializer(
 
         return (T?)_typeModel.DeserializeWithLengthPrefix(stream, null, typeof(T), PrefixStyle.Base128, 0)!;
     }
+    /// <summary>
+    /// Executes deserialize.
+    /// </summary>
 
     public object? Deserialize(ReadOnlySpan<byte> data, Type messageType)
     {

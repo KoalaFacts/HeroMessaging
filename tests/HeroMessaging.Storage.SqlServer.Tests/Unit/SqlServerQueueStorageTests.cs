@@ -113,7 +113,7 @@ public sealed class SqlServerQueueStorageTests : IDisposable
     public async Task PeekAsync_WithEmptyQueue_ReturnsEmptyCollection()
     {
         var storage = CreateStorage();
-        var result = await storage.PeekAsync("test-queue");
+        var result = await storage.PeekAsync("test-queue", cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotNull(result);
         Assert.Empty(result);
     }
@@ -158,7 +158,7 @@ public sealed class SqlServerQueueStorageTests : IDisposable
     public async Task CreateQueueAsync_WithValidQueueName_ReturnsTrue()
     {
         var storage = CreateStorage();
-        var result = await storage.CreateQueueAsync("new-queue");
+        var result = await storage.CreateQueueAsync("new-queue", cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(result);
     }
 

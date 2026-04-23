@@ -8,6 +8,9 @@ namespace HeroMessaging.Abstractions.Transport;
 /// </summary>
 public readonly record struct MessageContext
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MessageContext"/> class.
+    /// </summary>
     public MessageContext()
     {
         TransportName = string.Empty;
@@ -15,6 +18,9 @@ public readonly record struct MessageContext
         ReceiveTimestamp = TimeProvider.System.GetUtcNow();
         Properties = ImmutableDictionary<string, object>.Empty;
     }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MessageContext"/> class.
+    /// </summary>
 
     public MessageContext(string transportName, TransportAddress sourceAddress, TimeProvider? timeProvider = null)
     {

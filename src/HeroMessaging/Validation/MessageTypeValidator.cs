@@ -12,6 +12,9 @@ namespace HeroMessaging.Validation;
 public class MessageTypeValidator : IMessageValidator
 {
     private readonly HashSet<Type> _allowedTypes;
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MessageTypeValidator"/> class.
+    /// </summary>
 
     public MessageTypeValidator(params IEnumerable<Type> allowedTypes)
     {
@@ -19,6 +22,9 @@ public class MessageTypeValidator : IMessageValidator
             ? [.. allowedTypes]
             : [typeof(ICommand), typeof(IEvent)];
     }
+    /// <summary>
+    /// Executes validate async.
+    /// </summary>
 
     public ValueTask<ValidationResult> ValidateAsync(IMessage message, CancellationToken cancellationToken = default)
     {

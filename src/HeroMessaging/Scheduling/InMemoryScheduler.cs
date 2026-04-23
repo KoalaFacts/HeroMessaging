@@ -31,6 +31,9 @@ public sealed class InMemoryScheduler : IMessageScheduler, IDisposable
     private readonly object _disposeLock = new();
 #endif
     private bool _disposed;
+    /// <summary>
+    /// Initializes a new instance of the <see cref="InMemoryScheduler"/> class.
+    /// </summary>
 
     public InMemoryScheduler(IMessageDeliveryHandler deliveryHandler, TimeProvider timeProvider)
     {
@@ -38,6 +41,9 @@ public sealed class InMemoryScheduler : IMessageScheduler, IDisposable
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         _scheduledMessages = new ConcurrentDictionary<Guid, ScheduledEntry>();
     }
+    /// <summary>
+    /// Executes schedule async.
+    /// </summary>
 
     public Task<ScheduleResult> ScheduleAsync<T>(
         T message,
@@ -52,6 +58,9 @@ public sealed class InMemoryScheduler : IMessageScheduler, IDisposable
         var deliverAt = now.Add(delay);
         return ScheduleAsyncInternal(message, deliverAt, now, options, cancellationToken);
     }
+    /// <summary>
+    /// Executes schedule async.
+    /// </summary>
 
     public Task<ScheduleResult> ScheduleAsync<T>(
         T message,
@@ -67,6 +76,9 @@ public sealed class InMemoryScheduler : IMessageScheduler, IDisposable
 
         return ScheduleAsyncInternal(message, deliverAt, now, options, cancellationToken);
     }
+    /// <summary>
+    /// Executes schedule async internal.
+    /// </summary>
 
 #pragma warning disable IDE0060 // Remove unused parameter - Part of interface contract, scheduling is synchronous
     private Task<ScheduleResult> ScheduleAsyncInternal<T>(
@@ -114,6 +126,9 @@ public sealed class InMemoryScheduler : IMessageScheduler, IDisposable
 
         return Task.FromResult(ScheduleResult.Successful(scheduleId, deliverAt));
     }
+    /// <summary>
+    /// Executes cancel scheduled async.
+    /// </summary>
 
     public Task<bool> CancelScheduledAsync(Guid scheduleId, CancellationToken cancellationToken = default)
     {
@@ -132,6 +147,9 @@ public sealed class InMemoryScheduler : IMessageScheduler, IDisposable
 
         return Task.FromResult(false);
     }
+    /// <summary>
+    /// Executes get scheduled async.
+    /// </summary>
 
     public Task<ScheduledMessageInfo?> GetScheduledAsync(Guid scheduleId, CancellationToken cancellationToken = default)
     {
@@ -145,6 +163,9 @@ public sealed class InMemoryScheduler : IMessageScheduler, IDisposable
 
         return Task.FromResult<ScheduledMessageInfo?>(null);
     }
+    /// <summary>
+    /// Executes get pending async.
+    /// </summary>
 
     public Task<IReadOnlyList<ScheduledMessageInfo>> GetPendingAsync(
         ScheduledMessageQuery? query = null,
@@ -198,6 +219,9 @@ public sealed class InMemoryScheduler : IMessageScheduler, IDisposable
         var result = entries.ToList();
         return Task.FromResult<IReadOnlyList<ScheduledMessageInfo>>(result);
     }
+    /// <summary>
+    /// Executes get pending count async.
+    /// </summary>
 
     public Task<long> GetPendingCountAsync(CancellationToken cancellationToken = default)
     {
@@ -266,6 +290,9 @@ public sealed class InMemoryScheduler : IMessageScheduler, IDisposable
             }
         }
     }
+    /// <summary>
+    /// Executes create message info.
+    /// </summary>
 
     private static ScheduledMessageInfo CreateMessageInfo(ScheduledEntry entry)
     {
@@ -282,6 +309,9 @@ public sealed class InMemoryScheduler : IMessageScheduler, IDisposable
             ErrorMessage = entry.ErrorMessage
         };
     }
+    /// <summary>
+    /// Executes throw if disposed.
+    /// </summary>
 
     private void ThrowIfDisposed()
     {
@@ -290,6 +320,9 @@ public sealed class InMemoryScheduler : IMessageScheduler, IDisposable
             throw new ObjectDisposedException(nameof(InMemoryScheduler));
         }
     }
+    /// <summary>
+    /// Executes dispose.
+    /// </summary>
 
     public void Dispose()
     {

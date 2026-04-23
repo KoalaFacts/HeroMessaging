@@ -187,7 +187,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             await handler.StartAsync(cts.Token);
 
             // Wait for processing to complete with timeout
-            var completedTask = await Task.WhenAny(processingComplete.Task, Task.Delay(1000));
+            var completedTask = await Task.WhenAny(processingComplete.Task, Task.Delay(1000, TestContext.Current.CancellationToken));
             Assert.Same(processingComplete.Task, completedTask);
 
             await cts.CancelAsync();
@@ -223,7 +223,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             await handler.StartAsync(cts.Token);
 
             // Wait for at least one check to complete
-            var completedTask = await Task.WhenAny(findCalled.Task, Task.Delay(1000));
+            var completedTask = await Task.WhenAny(findCalled.Task, Task.Delay(1000, TestContext.Current.CancellationToken));
             Assert.Same(findCalled.Task, completedTask);
 
             await cts.CancelAsync();
@@ -274,7 +274,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             await handler.StartAsync(cts.Token);
 
             // Wait for all updates to complete
-            var completedTask = await Task.WhenAny(allUpdated.Task, Task.Delay(1000));
+            var completedTask = await Task.WhenAny(allUpdated.Task, Task.Delay(1000, TestContext.Current.CancellationToken));
             Assert.Same(allUpdated.Task, completedTask);
 
             await cts.CancelAsync();
@@ -323,7 +323,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             await handler.StartAsync(cts.Token);
 
             // Wait for update attempt
-            var completedTask = await Task.WhenAny(updateAttempted.Task, Task.Delay(1000));
+            var completedTask = await Task.WhenAny(updateAttempted.Task, Task.Delay(1000, TestContext.Current.CancellationToken));
             Assert.Same(updateAttempted.Task, completedTask);
 
             await cts.CancelAsync();
@@ -375,7 +375,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             _fakeTimeProvider.Advance(TimeSpan.FromMilliseconds(100));
 
             // Wait for at least 2 calls
-            var completedTask = await Task.WhenAny(secondCallComplete.Task, Task.Delay(1000));
+            var completedTask = await Task.WhenAny(secondCallComplete.Task, Task.Delay(1000, TestContext.Current.CancellationToken));
             Assert.Same(secondCallComplete.Task, completedTask);
 
             await cts.CancelAsync();
@@ -413,7 +413,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             await handler.StartAsync(cts.Token);
 
             // Wait for first check to start
-            await Task.WhenAny(findCalled.Task, Task.Delay(500));
+            await Task.WhenAny(findCalled.Task, Task.Delay(500, TestContext.Current.CancellationToken));
 
             await cts.CancelAsync();
 
@@ -447,7 +447,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             await handler.StartAsync(CancellationToken.None);
 
             // Wait for first check
-            await Task.WhenAny(findCalled.Task, Task.Delay(500));
+            await Task.WhenAny(findCalled.Task, Task.Delay(500, TestContext.Current.CancellationToken));
 
             await handler.StopAsync(CancellationToken.None);
 
@@ -492,7 +492,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             await handler.StartAsync(cts.Token);
 
             // Wait for update to complete
-            var completedTask = await Task.WhenAny(updateCalled.Task, Task.Delay(1000));
+            var completedTask = await Task.WhenAny(updateCalled.Task, Task.Delay(1000, TestContext.Current.CancellationToken));
             Assert.Same(updateCalled.Task, completedTask);
 
             await cts.CancelAsync();
@@ -534,7 +534,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             await handler.StartAsync(cts.Token);
 
             // Wait for update to complete
-            var completedTask = await Task.WhenAny(updateCalled.Task, Task.Delay(1000));
+            var completedTask = await Task.WhenAny(updateCalled.Task, Task.Delay(1000, TestContext.Current.CancellationToken));
             Assert.Same(updateCalled.Task, completedTask);
 
             await cts.CancelAsync();

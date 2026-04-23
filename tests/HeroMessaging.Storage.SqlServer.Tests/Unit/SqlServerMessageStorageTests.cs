@@ -90,7 +90,7 @@ public sealed class SqlServerMessageStorageTests : IDisposable
         var storage = CreateStorage();
         var messageId = Guid.NewGuid().ToString();
 
-        var result = await storage.RetrieveAsync<IMessage>(messageId);
+        var result = await storage.RetrieveAsync<IMessage>(messageId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Null(result);
     }
 
@@ -120,7 +120,7 @@ public sealed class SqlServerMessageStorageTests : IDisposable
         var storage = CreateStorage();
         var query = new MessageQuery { Collection = "test", Limit = 100 };
 
-        var result = await storage.QueryAsync<IMessage>(query);
+        var result = await storage.QueryAsync<IMessage>(query, cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotNull(result);
         Assert.IsAssignableFrom<IEnumerable<IMessage>>(result);
     }
@@ -133,7 +133,7 @@ public sealed class SqlServerMessageStorageTests : IDisposable
         var to = DateTimeOffset.UtcNow;
         var query = new MessageQuery { FromTimestamp = from, ToTimestamp = to, Limit = 100 };
 
-        var result = await storage.QueryAsync<IMessage>(query);
+        var result = await storage.QueryAsync<IMessage>(query, cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotNull(result);
     }
 
@@ -153,7 +153,7 @@ public sealed class SqlServerMessageStorageTests : IDisposable
     {
         var storage = CreateStorage();
 
-        var result = await storage.CountAsync();
+        var result = await storage.CountAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.IsType<long>(result);
         Assert.True(result >= 0);
     }

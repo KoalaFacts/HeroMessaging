@@ -127,7 +127,7 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
             .ReturnsAsync(new ScheduledMessageEntry());
 
         // Act
-        var result = await _sut.ScheduleAsync(message, delay);
+        var result = await _sut.ScheduleAsync(message, delay, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -149,7 +149,7 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentNullException>(async () =>
-            await _sut.ScheduleAsync<IMessage>(null!, delay));
+            await _sut.ScheduleAsync<IMessage>(null!, delay, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -162,7 +162,7 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
-            await _sut.ScheduleAsync(message, delay));
+            await _sut.ScheduleAsync(message, delay, cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Equal("delay", exception.ParamName);
         Assert.Contains("cannot be negative", exception.Message);
@@ -183,7 +183,7 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
             .ReturnsAsync(new ScheduledMessageEntry());
 
         // Act
-        var result = await _sut.ScheduleAsync(message, delay, schedulingOptions);
+        var result = await _sut.ScheduleAsync(message, delay, schedulingOptions, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -210,7 +210,7 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
             .ReturnsAsync(new ScheduledMessageEntry());
 
         // Act
-        var result = await _sut.ScheduleAsync(message, deliverAt);
+        var result = await _sut.ScheduleAsync(message, deliverAt, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -232,7 +232,7 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentException>(async () =>
-            await _sut.ScheduleAsync(message, deliverAt));
+            await _sut.ScheduleAsync(message, deliverAt, cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Equal("deliverAt", exception.ParamName);
         Assert.Contains("cannot be in the past", exception.Message);
@@ -250,7 +250,7 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
             .ThrowsAsync(new InvalidOperationException("Storage error"));
 
         // Act
-        var result = await _sut.ScheduleAsync(message, deliverAt);
+        var result = await _sut.ScheduleAsync(message, deliverAt, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.Success);
@@ -272,7 +272,7 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
             .ReturnsAsync(true);
 
         // Act
-        var result = await _sut.CancelScheduledAsync(scheduleId);
+        var result = await _sut.CancelScheduledAsync(scheduleId, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
@@ -290,7 +290,7 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
             .ReturnsAsync(false);
 
         // Act
-        var result = await _sut.CancelScheduledAsync(scheduleId);
+        var result = await _sut.CancelScheduledAsync(scheduleId, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);
@@ -307,7 +307,7 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
             .ThrowsAsync(new InvalidOperationException("Storage error"));
 
         // Act
-        var result = await _sut.CancelScheduledAsync(scheduleId);
+        var result = await _sut.CancelScheduledAsync(scheduleId, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);
@@ -345,7 +345,7 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
             .ReturnsAsync(entry);
 
         // Act
-        var result = await _sut.GetScheduledAsync(scheduleId);
+        var result = await _sut.GetScheduledAsync(scheduleId, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);
@@ -366,7 +366,7 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
             .ReturnsAsync((ScheduledMessageEntry?)null);
 
         // Act
-        var result = await _sut.GetScheduledAsync(scheduleId);
+        var result = await _sut.GetScheduledAsync(scheduleId, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result);
@@ -383,7 +383,7 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
             .ThrowsAsync(new InvalidOperationException("Storage error"));
 
         // Act
-        var result = await _sut.GetScheduledAsync(scheduleId);
+        var result = await _sut.GetScheduledAsync(scheduleId, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(result);
@@ -408,7 +408,7 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
             .ReturnsAsync(entries);
 
         // Act
-        var result = await _sut.GetPendingAsync();
+        var result = await _sut.GetPendingAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(2, result.Count);
@@ -427,7 +427,7 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
             .ReturnsAsync(entries);
 
         // Act
-        var result = await _sut.GetPendingAsync(query);
+        var result = await _sut.GetPendingAsync(query, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(result);
@@ -444,7 +444,7 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
             .ThrowsAsync(new InvalidOperationException("Storage error"));
 
         // Act
-        var result = await _sut.GetPendingAsync();
+        var result = await _sut.GetPendingAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(result);
@@ -465,7 +465,7 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
             .ReturnsAsync(expectedCount);
 
         // Act
-        var result = await _sut.GetPendingCountAsync();
+        var result = await _sut.GetPendingCountAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(expectedCount, result);
@@ -482,7 +482,7 @@ public class StorageBackedSchedulerTests : IAsyncDisposable
             .ThrowsAsync(new InvalidOperationException("Storage error"));
 
         // Act
-        var result = await _sut.GetPendingCountAsync();
+        var result = await _sut.GetPendingCountAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(0, result);

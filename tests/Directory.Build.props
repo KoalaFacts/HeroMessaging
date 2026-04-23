@@ -3,6 +3,10 @@
   <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
 
   <PropertyGroup>
+    <!-- Test and benchmark assemblies are not shipped as public APIs, so XML docs are not generated for them. -->
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!-- xUnit v3 provides its own generated test entry point -->
+    <GenerateTestingPlatformEntryPoint>false</GenerateTestingPlatformEntryPoint>
     <!-- Disable code analysis warnings for test projects -->
     <!-- CA1002: List<T> is fine for test code -->
     <!-- CA1034: Nested public types are fine in test helpers -->
@@ -10,7 +14,6 @@
     <!-- CA1813: Unsealed attributes are fine for test attributes -->
     <!-- CA1819: Array properties are acceptable in test data -->
     <!-- CA1024: Methods that look like properties are fine in tests -->
-    <!-- CS1591: Missing XML documentation is acceptable for test code -->
-    <NoWarn>$(NoWarn);CA1002;CA1034;CA1051;CA1813;CA1819;CA1024;CS1591</NoWarn>
+    <NoWarn>$(NoWarn);CA1002;CA1034;CA1051;CA1813;CA1819;CA1024</NoWarn>
   </PropertyGroup>
 </Project>

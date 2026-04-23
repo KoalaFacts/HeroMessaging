@@ -75,6 +75,9 @@ public class MessagePackMessageSerializer(SerializationOptions? options = null, 
         var result = MessagePackSerializer.Deserialize(messageType, data, _messagePackOptions, cancellationToken);
         return result;
     }
+    /// <summary>
+    /// Executes serialize.
+    /// </summary>
 
     public int Serialize<T>(T message, Span<byte> destination)
     {
@@ -92,6 +95,9 @@ public class MessagePackMessageSerializer(SerializationOptions? options = null, 
         written.CopyTo(destination);
         return written.Length;
     }
+    /// <summary>
+    /// Executes try serialize.
+    /// </summary>
 
     public bool TrySerialize<T>(T message, Span<byte> destination, out int bytesWritten)
     {
@@ -106,12 +112,18 @@ public class MessagePackMessageSerializer(SerializationOptions? options = null, 
             return false;
         }
     }
+    /// <summary>
+    /// Executes get required buffer size.
+    /// </summary>
 
     public int GetRequiredBufferSize<T>(T message)
     {
         // MessagePack is typically compact - estimate 2KB for most messages
         return 2048;
     }
+    /// <summary>
+    /// Executes deserialize.
+    /// </summary>
 
     public T Deserialize<T>(ReadOnlySpan<byte> data) where T : class
     {
@@ -120,6 +132,9 @@ public class MessagePackMessageSerializer(SerializationOptions? options = null, 
         var memory = new ReadOnlyMemory<byte>(data.ToArray());
         return MessagePackSerializer.Deserialize<T>(memory, _messagePackOptions)!;
     }
+    /// <summary>
+    /// Executes deserialize.
+    /// </summary>
 
     public object? Deserialize(ReadOnlySpan<byte> data, Type messageType)
     {
@@ -175,10 +190,19 @@ public class MessagePackMessageSerializer(SerializationOptions? options = null, 
 public class ContractMessagePackSerializer(SerializationOptions? options = null, MessagePackSerializerOptions? messagePackOptions = null) : IMessageSerializer
 {
     private readonly SerializationOptions _options = options ?? new SerializationOptions();
+    /// <summary>
+    /// Represents message pack options.
+    /// </summary>
     private readonly MessagePackSerializerOptions _messagePackOptions = messagePackOptions ?? CreateDefaultOptions();
+    /// <summary>
+    /// Gets content type.
+    /// </summary>
 
 
     public string ContentType => "application/x-msgpack-contract";
+    /// <summary>
+    /// Executes serialize async.
+    /// </summary>
 
     public async ValueTask<byte[]> SerializeAsync<T>(T message, CancellationToken cancellationToken = default)
     {
@@ -203,6 +227,9 @@ public class ContractMessagePackSerializer(SerializationOptions? options = null,
 
         return data;
     }
+    /// <summary>
+    /// Executes deserialize async.
+    /// </summary>
 
     public async ValueTask<T> DeserializeAsync<T>(byte[] data, CancellationToken cancellationToken = default) where T : class
     {
@@ -219,6 +246,9 @@ public class ContractMessagePackSerializer(SerializationOptions? options = null,
         var result = MessagePackSerializer.Deserialize<T>(data, _messagePackOptions, cancellationToken);
         return result!;
     }
+    /// <summary>
+    /// Executes deserialize async.
+    /// </summary>
 
     public async ValueTask<object?> DeserializeAsync(byte[] data, Type messageType, CancellationToken cancellationToken = default)
     {
@@ -235,6 +265,9 @@ public class ContractMessagePackSerializer(SerializationOptions? options = null,
         var result = MessagePackSerializer.Deserialize(messageType, data, _messagePackOptions, cancellationToken);
         return result;
     }
+    /// <summary>
+    /// Executes serialize.
+    /// </summary>
 
     public int Serialize<T>(T message, Span<byte> destination)
     {
@@ -252,6 +285,9 @@ public class ContractMessagePackSerializer(SerializationOptions? options = null,
         written.CopyTo(destination);
         return written.Length;
     }
+    /// <summary>
+    /// Executes try serialize.
+    /// </summary>
 
     public bool TrySerialize<T>(T message, Span<byte> destination, out int bytesWritten)
     {
@@ -266,12 +302,18 @@ public class ContractMessagePackSerializer(SerializationOptions? options = null,
             return false;
         }
     }
+    /// <summary>
+    /// Executes get required buffer size.
+    /// </summary>
 
     public int GetRequiredBufferSize<T>(T message)
     {
         // MessagePack is typically compact - estimate 2KB for most messages
         return 2048;
     }
+    /// <summary>
+    /// Executes deserialize.
+    /// </summary>
 
     public T Deserialize<T>(ReadOnlySpan<byte> data) where T : class
     {
@@ -280,6 +322,9 @@ public class ContractMessagePackSerializer(SerializationOptions? options = null,
         var memory = new ReadOnlyMemory<byte>(data.ToArray());
         return MessagePackSerializer.Deserialize<T>(memory, _messagePackOptions)!;
     }
+    /// <summary>
+    /// Executes deserialize.
+    /// </summary>
 
     public object? Deserialize(ReadOnlySpan<byte> data, Type messageType)
     {

@@ -14,12 +14,18 @@ public sealed class InMemoryScheduledMessageStorage : IScheduledMessageStorage
 {
     private readonly ConcurrentDictionary<Guid, ScheduledMessageEntry> _storage;
     private readonly TimeProvider _timeProvider;
+    /// <summary>
+    /// Initializes a new instance of the <see cref="InMemoryScheduledMessageStorage"/> class.
+    /// </summary>
 
     public InMemoryScheduledMessageStorage(TimeProvider timeProvider)
     {
         _storage = new ConcurrentDictionary<Guid, ScheduledMessageEntry>();
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
+    /// <summary>
+    /// Executes add async.
+    /// </summary>
 
     public Task<ScheduledMessageEntry> AddAsync(ScheduledMessage message, CancellationToken cancellationToken = default)
     {
@@ -40,6 +46,9 @@ public sealed class InMemoryScheduledMessageStorage : IScheduledMessageStorage
 
         return Task.FromResult(entry);
     }
+    /// <summary>
+    /// Executes get due async.
+    /// </summary>
 
     public Task<IReadOnlyList<ScheduledMessageEntry>> GetDueAsync(
         DateTimeOffset asOf,
@@ -55,12 +64,18 @@ public sealed class InMemoryScheduledMessageStorage : IScheduledMessageStorage
 
         return Task.FromResult<IReadOnlyList<ScheduledMessageEntry>>(dueMessages);
     }
+    /// <summary>
+    /// Executes get async.
+    /// </summary>
 
     public Task<ScheduledMessageEntry?> GetAsync(Guid scheduleId, CancellationToken cancellationToken = default)
     {
         _storage.TryGetValue(scheduleId, out var entry);
         return Task.FromResult(entry);
     }
+    /// <summary>
+    /// Executes cancel async.
+    /// </summary>
 
     public Task<bool> CancelAsync(Guid scheduleId, CancellationToken cancellationToken = default)
     {
@@ -77,6 +92,9 @@ public sealed class InMemoryScheduledMessageStorage : IScheduledMessageStorage
 
         return Task.FromResult(false);
     }
+    /// <summary>
+    /// Executes mark delivered async.
+    /// </summary>
 
     public Task<bool> MarkDeliveredAsync(Guid scheduleId, CancellationToken cancellationToken = default)
     {
@@ -90,6 +108,9 @@ public sealed class InMemoryScheduledMessageStorage : IScheduledMessageStorage
 
         return Task.FromResult(false);
     }
+    /// <summary>
+    /// Executes mark failed async.
+    /// </summary>
 
     public Task<bool> MarkFailedAsync(Guid scheduleId, string error, CancellationToken cancellationToken = default)
     {
@@ -103,12 +124,18 @@ public sealed class InMemoryScheduledMessageStorage : IScheduledMessageStorage
 
         return Task.FromResult(false);
     }
+    /// <summary>
+    /// Executes get pending count async.
+    /// </summary>
 
     public Task<long> GetPendingCountAsync(CancellationToken cancellationToken = default)
     {
         var count = _storage.Values.Count(e => e.Status == ScheduledMessageStatus.Pending);
         return Task.FromResult((long)count);
     }
+    /// <summary>
+    /// Executes query async.
+    /// </summary>
 
     public Task<IReadOnlyList<ScheduledMessageEntry>> QueryAsync(
         ScheduledMessageQuery query,
@@ -158,6 +185,9 @@ public sealed class InMemoryScheduledMessageStorage : IScheduledMessageStorage
         var list = results.ToList();
         return Task.FromResult<IReadOnlyList<ScheduledMessageEntry>>(list);
     }
+    /// <summary>
+    /// Executes cleanup async.
+    /// </summary>
 
     public Task<long> CleanupAsync(DateTimeOffset olderThan, CancellationToken cancellationToken = default)
     {

@@ -4,12 +4,21 @@ using HeroMessaging.Abstractions.Messages;
 using Microsoft.Extensions.Logging;
 
 namespace HeroMessaging.ErrorHandling;
+/// <summary>
+/// Represents the in memory dead letter queue type.
+/// </summary>
 
 public class InMemoryDeadLetterQueue(ILogger<InMemoryDeadLetterQueue> logger, TimeProvider timeProvider) : IDeadLetterQueue
 {
     private readonly ConcurrentDictionary<string, object> _deadLetters = new();
+    /// <summary>
+    /// Represents logger.
+    /// </summary>
     private readonly ILogger<InMemoryDeadLetterQueue> _logger = logger;
     private readonly TimeProvider _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+    /// <summary>
+    /// Executes send to dead letter async.
+    /// </summary>
 
     public Task<string> SendToDeadLetterAsync<T>(T message, DeadLetterContext context, CancellationToken cancellationToken = default) where T : IMessage
     {
@@ -29,6 +38,9 @@ public class InMemoryDeadLetterQueue(ILogger<InMemoryDeadLetterQueue> logger, Ti
 
         return Task.FromResult(entry.Id);
     }
+    /// <summary>
+    /// Executes get dead letters async.
+    /// </summary>
 
     public Task<IEnumerable<DeadLetterEntry<T>>> GetDeadLettersAsync<T>(int limit = 100, CancellationToken cancellationToken = default) where T : IMessage
     {
@@ -40,6 +52,9 @@ public class InMemoryDeadLetterQueue(ILogger<InMemoryDeadLetterQueue> logger, Ti
 
         return Task.FromResult(entries);
     }
+    /// <summary>
+    /// Executes retry async.
+    /// </summary>
 
     public Task<bool> RetryAsync<T>(string deadLetterId, CancellationToken cancellationToken = default) where T : IMessage
     {
@@ -61,6 +76,9 @@ public class InMemoryDeadLetterQueue(ILogger<InMemoryDeadLetterQueue> logger, Ti
 
         return Task.FromResult(false);
     }
+    /// <summary>
+    /// Executes discard async.
+    /// </summary>
 
     public Task<bool> DiscardAsync<T>(string deadLetterId, CancellationToken cancellationToken = default) where T : IMessage
     {
@@ -82,6 +100,9 @@ public class InMemoryDeadLetterQueue(ILogger<InMemoryDeadLetterQueue> logger, Ti
 
         return Task.FromResult(false);
     }
+    /// <summary>
+    /// Executes get dead letter count async.
+    /// </summary>
 
     public Task<long> GetDeadLetterCountAsync(CancellationToken cancellationToken = default)
     {
@@ -91,6 +112,9 @@ public class InMemoryDeadLetterQueue(ILogger<InMemoryDeadLetterQueue> logger, Ti
 
         return Task.FromResult((long)count);
     }
+    /// <summary>
+    /// Executes get statistics async.
+    /// </summary>
 
     public Task<DeadLetterStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default)
     {

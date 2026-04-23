@@ -101,7 +101,7 @@ internal class RingBufferQueue : IDisposable, IAsyncDisposable
         lock (_consumerLock)
         {
             // Add consumer to list
-            _consumers.Add(new ConsumerProcessor(consumer, null!));
+            _consumers.Add(new ConsumerProcessor(consumer, null));
 
             // If this is the first consumer, start the shared event processor
             if (_consumers.Count == 1)

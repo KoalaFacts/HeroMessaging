@@ -16,17 +16,20 @@ public class OpenTelemetryTransportInstrumentationTests : IDisposable
 
     public OpenTelemetryTransportInstrumentationTests()
     {
-        _activities = new List<Activity>();
+        _activities = [];
 
         // Set up activity listener to capture activities
         _activityListener = new ActivityListener
         {
-            ShouldListenTo = source => source.Name == TransportInstrumentation.ActivitySourceName,
-            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
+            ShouldListenTo = static source => source.Name == TransportInstrumentation.ActivitySourceName,
+            Sample = SampleAllData,
             ActivityStarted = activity => _activities.Add(activity)
         };
         ActivitySource.AddActivityListener(_activityListener);
     }
+
+    private static ActivitySamplingResult SampleAllData(ref ActivityCreationOptions<ActivityContext> options) =>
+        ActivitySamplingResult.AllDataAndRecorded;
 
     public void Dispose()
     {
@@ -389,7 +392,7 @@ public class OpenTelemetryTransportInstrumentationTests : IDisposable
         // Assert
         Assert.True(result.HasHeader(TraceContextPropagator.TraceParentHeaderName));
         var traceParent = result.GetHeader<string>(TraceContextPropagator.TraceParentHeaderName);
-        Assert.Contains(activity.TraceId.ToString(), traceParent!);
+        Assert.Contains(activity.TraceId.ToString(), traceParent);
     }
 
     [Fact]

@@ -44,6 +44,9 @@ public class PostgreSqlMessageStorage : IMessageStorage
         }
         return column;
     }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PostgreSqlMessageStorage"/> class.
+    /// </summary>
 
     public PostgreSqlMessageStorage(PostgreSqlStorageOptions options, TimeProvider timeProvider, IJsonSerializer jsonSerializer)
     {
@@ -59,6 +62,9 @@ public class PostgreSqlMessageStorage : IMessageStorage
             WriteIndented = false
         };
     }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PostgreSqlMessageStorage"/> class.
+    /// </summary>
 
     public PostgreSqlMessageStorage(NpgsqlConnection connection, NpgsqlTransaction? transaction, TimeProvider timeProvider, IJsonSerializer jsonSerializer)
     {
@@ -115,6 +121,9 @@ public class PostgreSqlMessageStorage : IMessageStorage
             _initLock.Release();
         }
     }
+    /// <summary>
+    /// Executes initialize database.
+    /// </summary>
 
     private async Task InitializeDatabase()
     {
@@ -153,6 +162,9 @@ public class PostgreSqlMessageStorage : IMessageStorage
         using var command = new NpgsqlCommand(createTableSql, connection);
         await command.ExecuteNonQueryAsync();
     }
+    /// <summary>
+    /// Executes store async.
+    /// </summary>
 
     public async Task<string> StoreAsync(IMessage message, MessageStorageOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -193,6 +205,9 @@ public class PostgreSqlMessageStorage : IMessageStorage
         {
         }
     }
+    /// <summary>
+    /// Executes retrieve async.
+    /// </summary>
 
     public async Task<T?> RetrieveAsync<T>(string messageId, CancellationToken cancellationToken = default) where T : IMessage
     {
@@ -225,6 +240,9 @@ public class PostgreSqlMessageStorage : IMessageStorage
         {
         }
     }
+    /// <summary>
+    /// Executes delete async.
+    /// </summary>
 
     public async Task<bool> DeleteAsync(string messageId, CancellationToken cancellationToken = default)
     {
@@ -247,6 +265,9 @@ public class PostgreSqlMessageStorage : IMessageStorage
         {
         }
     }
+    /// <summary>
+    /// Executes exists async.
+    /// </summary>
 
     public async Task<bool> ExistsAsync(string messageId, CancellationToken cancellationToken = default)
     {
@@ -273,6 +294,9 @@ public class PostgreSqlMessageStorage : IMessageStorage
         {
         }
     }
+    /// <summary>
+    /// Executes query async.
+    /// </summary>
 
     public async Task<IEnumerable<T>> QueryAsync<T>(MessageQuery query, CancellationToken cancellationToken = default) where T : IMessage
     {
@@ -344,6 +368,9 @@ public class PostgreSqlMessageStorage : IMessageStorage
         {
         }
     }
+    /// <summary>
+    /// Executes update async.
+    /// </summary>
 
     public async Task<bool> UpdateAsync(string messageId, IMessage message, CancellationToken cancellationToken = default)
     {
@@ -377,6 +404,9 @@ public class PostgreSqlMessageStorage : IMessageStorage
         {
         }
     }
+    /// <summary>
+    /// Executes count async.
+    /// </summary>
 
     public async Task<long> CountAsync(MessageQuery? query = null, CancellationToken cancellationToken = default)
     {
@@ -429,6 +459,9 @@ public class PostgreSqlMessageStorage : IMessageStorage
         {
         }
     }
+    /// <summary>
+    /// Executes clear async.
+    /// </summary>
 
     public async Task ClearAsync(CancellationToken cancellationToken = default)
     {
@@ -448,6 +481,9 @@ public class PostgreSqlMessageStorage : IMessageStorage
         {
         }
     }
+    /// <summary>
+    /// Executes store async.
+    /// </summary>
 
     // New interface methods for compatibility with test infrastructure
     public async Task StoreAsync(IMessage message, IStorageTransaction? transaction = null, CancellationToken cancellationToken = default)
@@ -494,6 +530,9 @@ public class PostgreSqlMessageStorage : IMessageStorage
             }
         }
     }
+    /// <summary>
+    /// Executes retrieve async.
+    /// </summary>
 
     public async Task<IMessage?> RetrieveAsync(Guid messageId, IStorageTransaction? transaction = null, CancellationToken cancellationToken = default)
     {
@@ -545,6 +584,9 @@ public class PostgreSqlMessageStorage : IMessageStorage
             }
         }
     }
+    /// <summary>
+    /// Executes query async.
+    /// </summary>
 
     public async Task<List<IMessage>> QueryAsync(MessageQuery query, CancellationToken cancellationToken = default)
     {
@@ -618,6 +660,9 @@ public class PostgreSqlMessageStorage : IMessageStorage
 
         return messages;
     }
+    /// <summary>
+    /// Executes delete async.
+    /// </summary>
 
     public async Task DeleteAsync(Guid messageId, CancellationToken cancellationToken = default)
     {
@@ -631,6 +676,9 @@ public class PostgreSqlMessageStorage : IMessageStorage
 
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
+    /// <summary>
+    /// Executes begin transaction async.
+    /// </summary>
 
     public async Task<IStorageTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
     {
@@ -647,16 +695,31 @@ public class PostgreSqlMessageStorage : IMessageStorage
 /// </summary>
 public sealed class PostgreSqlStorageTransaction : IStorageTransaction
 {
+    /// <summary>
+    /// Represents disposed.
+    /// </summary>
     private bool _disposed;
+    /// <summary>
+    /// Gets connection.
+    /// </summary>
 
     public NpgsqlConnection Connection { get; }
+    /// <summary>
+    /// Gets transaction.
+    /// </summary>
     public NpgsqlTransaction Transaction { get; }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PostgreSqlStorageTransaction"/> class.
+    /// </summary>
 
     public PostgreSqlStorageTransaction(NpgsqlConnection connection, NpgsqlTransaction transaction)
     {
         Connection = connection ?? throw new ArgumentNullException(nameof(connection));
         Transaction = transaction ?? throw new ArgumentNullException(nameof(transaction));
     }
+    /// <summary>
+    /// Executes commit async.
+    /// </summary>
 
     public async Task CommitAsync(CancellationToken cancellationToken = default)
     {
@@ -665,6 +728,9 @@ public sealed class PostgreSqlStorageTransaction : IStorageTransaction
 
         await Transaction.CommitAsync(cancellationToken);
     }
+    /// <summary>
+    /// Executes rollback async.
+    /// </summary>
 
     public async Task RollbackAsync(CancellationToken cancellationToken = default)
     {
@@ -673,6 +739,9 @@ public sealed class PostgreSqlStorageTransaction : IStorageTransaction
 
         await Transaction.RollbackAsync(cancellationToken);
     }
+    /// <summary>
+    /// Executes dispose.
+    /// </summary>
 
     public void Dispose()
     {

@@ -40,7 +40,7 @@ public class InMemorySchedulerTests : IAsyncLifetime
         var beforeSchedule = DateTimeOffset.UtcNow;
 
         // Act
-        var result = await _scheduler!.ScheduleAsync(message, delay);
+        var result = await _scheduler!.ScheduleAsync(message, delay, cancellationToken: TestContext.Current.CancellationToken);
         var afterSchedule = DateTimeOffset.UtcNow;
 
         // Assert
@@ -62,7 +62,7 @@ public class InMemorySchedulerTests : IAsyncLifetime
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentNullException>(
-            () => _scheduler!.ScheduleAsync<IMessage>(null!, delay));
+            () => _scheduler!.ScheduleAsync<IMessage>(null!, delay, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -75,7 +75,7 @@ public class InMemorySchedulerTests : IAsyncLifetime
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
-            () => _scheduler!.ScheduleAsync(message, delay));
+            () => _scheduler!.ScheduleAsync(message, delay, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -87,14 +87,14 @@ public class InMemorySchedulerTests : IAsyncLifetime
         var delay = TimeSpan.Zero;
 
         // Act
-        var result = await _scheduler!.ScheduleAsync(message, delay);
+        var result = await _scheduler!.ScheduleAsync(message, delay, cancellationToken: TestContext.Current.CancellationToken);
 
         // Wait for async delivery with polling (more reliable on slow CI platforms)
         var timeout = TimeSpan.FromSeconds(3);
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         while (_deliveryHandler!.DeliveredMessages.Count == 0 && stopwatch.Elapsed < timeout)
         {
-            await Task.Delay(50); // Poll every 50ms
+            await Task.Delay(50, TestContext.Current.CancellationToken); // Poll every 50ms
         }
 
         // Assert
@@ -112,13 +112,13 @@ public class InMemorySchedulerTests : IAsyncLifetime
         var delay = TimeSpan.FromMilliseconds(100);
 
         // Act
-        _ = await _scheduler!.ScheduleAsync(message, delay);
+        _ = await _scheduler!.ScheduleAsync(message, delay, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert - message should not be delivered yet
         Assert.Empty(_deliveryHandler!.DeliveredMessages);
 
         // Wait for delivery (delay + async delivery overhead)
-        await Task.Delay(600);
+        await Task.Delay(600, TestContext.Current.CancellationToken);
 
         // Assert - message should be delivered now
         Assert.Single(_deliveryHandler.DeliveredMessages);
@@ -140,11 +140,11 @@ public class InMemorySchedulerTests : IAsyncLifetime
         };
 
         // Act
-        var result = await _scheduler!.ScheduleAsync(message, delay, options);
+        var result = await _scheduler!.ScheduleAsync(message, delay, options, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
-        var scheduled = await _scheduler.GetScheduledAsync(result.ScheduleId);
+        var scheduled = await _scheduler.GetScheduledAsync(result.ScheduleId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotNull(scheduled);
         Assert.Equal("test-queue", scheduled.Destination);
         Assert.Equal(5, scheduled.Priority);
@@ -163,7 +163,7 @@ public class InMemorySchedulerTests : IAsyncLifetime
         var deliverAt = DateTimeOffset.UtcNow.AddSeconds(1);
 
         // Act
-        var result = await _scheduler!.ScheduleAsync(message, deliverAt);
+        var result = await _scheduler!.ScheduleAsync(message, deliverAt, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -181,7 +181,7 @@ public class InMemorySchedulerTests : IAsyncLifetime
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentException>(
-            () => _scheduler!.ScheduleAsync(message, deliverAt));
+            () => _scheduler!.ScheduleAsync(message, deliverAt, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -193,7 +193,7 @@ public class InMemorySchedulerTests : IAsyncLifetime
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentNullException>(
-            () => _scheduler!.ScheduleAsync<IMessage>(null!, deliverAt));
+            () => _scheduler!.ScheduleAsync<IMessage>(null!, deliverAt, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     #endregion
@@ -207,11 +207,11 @@ public class InMemorySchedulerTests : IAsyncLifetime
         // Arrange
         var message = TestMessageBuilder.CreateValidMessage("Cancellable message");
         var delay = TimeSpan.FromSeconds(1);
-        var result = await _scheduler!.ScheduleAsync(message, delay);
+        var result = await _scheduler!.ScheduleAsync(message, delay, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
-        var cancelled = await _scheduler.CancelScheduledAsync(result.ScheduleId);
-        await Task.Delay(1500); // Wait past delivery time
+        var cancelled = await _scheduler.CancelScheduledAsync(result.ScheduleId, cancellationToken: TestContext.Current.CancellationToken);
+        await Task.Delay(1500, TestContext.Current.CancellationToken); // Wait past delivery time
 
         // Assert
         Assert.True(cancelled);
@@ -223,7 +223,7 @@ public class InMemorySchedulerTests : IAsyncLifetime
     public async Task CancelScheduledAsync_WithInvalidScheduleId_ReturnsFalse()
     {
         // Act
-        var cancelled = await _scheduler!.CancelScheduledAsync(Guid.NewGuid());
+        var cancelled = await _scheduler!.CancelScheduledAsync(Guid.NewGuid(), cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(cancelled);
@@ -236,13 +236,13 @@ public class InMemorySchedulerTests : IAsyncLifetime
         // Arrange
         var message = TestMessageBuilder.CreateValidMessage("Fast message");
         var delay = TimeSpan.FromMilliseconds(100);
-        var result = await _scheduler!.ScheduleAsync(message, delay);
+        var result = await _scheduler!.ScheduleAsync(message, delay, cancellationToken: TestContext.Current.CancellationToken);
 
         // Wait for delivery to complete
-        await Task.Delay(600);
+        await Task.Delay(600, TestContext.Current.CancellationToken);
 
         // Act
-        var cancelled = await _scheduler.CancelScheduledAsync(result.ScheduleId);
+        var cancelled = await _scheduler.CancelScheduledAsync(result.ScheduleId, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(cancelled);
@@ -259,10 +259,10 @@ public class InMemorySchedulerTests : IAsyncLifetime
         // Arrange
         var message = TestMessageBuilder.CreateValidMessage("Query message");
         var delay = TimeSpan.FromMilliseconds(500);
-        var result = await _scheduler!.ScheduleAsync(message, delay);
+        var result = await _scheduler!.ScheduleAsync(message, delay, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
-        var info = await _scheduler.GetScheduledAsync(result.ScheduleId);
+        var info = await _scheduler.GetScheduledAsync(result.ScheduleId, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(info);
@@ -276,7 +276,7 @@ public class InMemorySchedulerTests : IAsyncLifetime
     public async Task GetScheduledAsync_WithInvalidScheduleId_ReturnsNull()
     {
         // Act
-        var info = await _scheduler!.GetScheduledAsync(Guid.NewGuid());
+        var info = await _scheduler!.GetScheduledAsync(Guid.NewGuid(), cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(info);
@@ -289,13 +289,13 @@ public class InMemorySchedulerTests : IAsyncLifetime
         // Arrange
         var message = TestMessageBuilder.CreateValidMessage("Delivered message");
         var delay = TimeSpan.FromMilliseconds(100);
-        var result = await _scheduler!.ScheduleAsync(message, delay);
+        var result = await _scheduler!.ScheduleAsync(message, delay, cancellationToken: TestContext.Current.CancellationToken);
 
         // Wait for delivery to complete
-        await Task.Delay(600);
+        await Task.Delay(600, TestContext.Current.CancellationToken);
 
         // Act
-        var info = await _scheduler.GetScheduledAsync(result.ScheduleId);
+        var info = await _scheduler.GetScheduledAsync(result.ScheduleId, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(info);
@@ -311,7 +311,7 @@ public class InMemorySchedulerTests : IAsyncLifetime
     public async Task GetPendingAsync_WithNoPendingMessages_ReturnsEmptyList()
     {
         // Act
-        var pending = await _scheduler!.GetPendingAsync();
+        var pending = await _scheduler!.GetPendingAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(pending);
@@ -326,12 +326,12 @@ public class InMemorySchedulerTests : IAsyncLifetime
         var message2 = TestMessageBuilder.CreateValidMessage("Message 2");
         var message3 = TestMessageBuilder.CreateValidMessage("Message 3");
 
-        await _scheduler!.ScheduleAsync(message1, TimeSpan.FromSeconds(10));
-        await _scheduler.ScheduleAsync(message2, TimeSpan.FromSeconds(20));
-        await _scheduler.ScheduleAsync(message3, TimeSpan.FromSeconds(30));
+        await _scheduler!.ScheduleAsync(message1, TimeSpan.FromSeconds(10), cancellationToken: TestContext.Current.CancellationToken);
+        await _scheduler.ScheduleAsync(message2, TimeSpan.FromSeconds(20), cancellationToken: TestContext.Current.CancellationToken);
+        await _scheduler.ScheduleAsync(message3, TimeSpan.FromSeconds(30), cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
-        var pending = await _scheduler.GetPendingAsync();
+        var pending = await _scheduler.GetPendingAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(3, pending.Count);
@@ -347,14 +347,14 @@ public class InMemorySchedulerTests : IAsyncLifetime
         var message2 = TestMessageBuilder.CreateValidMessage("Message 2");
 
         await _scheduler!.ScheduleAsync(message1, TimeSpan.FromSeconds(1),
-            new SchedulingOptions { Destination = "queue-a" });
+            new SchedulingOptions { Destination = "queue-a" }, cancellationToken: TestContext.Current.CancellationToken);
         await _scheduler.ScheduleAsync(message2, TimeSpan.FromSeconds(2),
-            new SchedulingOptions { Destination = "queue-b" });
+            new SchedulingOptions { Destination = "queue-b" }, cancellationToken: TestContext.Current.CancellationToken);
 
         var query = new ScheduledMessageQuery { Destination = "queue-a", Limit = 10 };
 
         // Act
-        var pending = await _scheduler.GetPendingAsync(query);
+        var pending = await _scheduler.GetPendingAsync(query, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(pending);
@@ -370,7 +370,7 @@ public class InMemorySchedulerTests : IAsyncLifetime
     public async Task GetPendingCountAsync_WithNoPendingMessages_ReturnsZero()
     {
         // Act
-        var count = await _scheduler!.GetPendingCountAsync();
+        var count = await _scheduler!.GetPendingCountAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(0, count);
@@ -384,11 +384,11 @@ public class InMemorySchedulerTests : IAsyncLifetime
         var message1 = TestMessageBuilder.CreateValidMessage("Message 1");
         var message2 = TestMessageBuilder.CreateValidMessage("Message 2");
 
-        await _scheduler!.ScheduleAsync(message1, TimeSpan.FromSeconds(10));
-        await _scheduler.ScheduleAsync(message2, TimeSpan.FromSeconds(20));
+        await _scheduler!.ScheduleAsync(message1, TimeSpan.FromSeconds(10), cancellationToken: TestContext.Current.CancellationToken);
+        await _scheduler.ScheduleAsync(message2, TimeSpan.FromSeconds(20), cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
-        var count = await _scheduler.GetPendingCountAsync();
+        var count = await _scheduler.GetPendingCountAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(2, count);
@@ -400,15 +400,15 @@ public class InMemorySchedulerTests : IAsyncLifetime
     {
         // Arrange
         var message = TestMessageBuilder.CreateValidMessage("Fast message");
-        await _scheduler!.ScheduleAsync(message, TimeSpan.FromMilliseconds(100));
+        await _scheduler!.ScheduleAsync(message, TimeSpan.FromMilliseconds(100), cancellationToken: TestContext.Current.CancellationToken);
 
-        var initialCount = await _scheduler.GetPendingCountAsync();
+        var initialCount = await _scheduler.GetPendingCountAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Wait for delivery to complete
-        await Task.Delay(600);
+        await Task.Delay(600, TestContext.Current.CancellationToken);
 
         // Act
-        var finalCount = await _scheduler.GetPendingCountAsync();
+        var finalCount = await _scheduler.GetPendingCountAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(1, initialCount);
@@ -428,7 +428,7 @@ public class InMemorySchedulerTests : IAsyncLifetime
         for (int i = 0; i < 100; i++)
         {
             var message = TestMessageBuilder.CreateValidMessage($"Concurrent message {i}");
-            tasks.Add(_scheduler!.ScheduleAsync(message, TimeSpan.FromSeconds(10)));
+            tasks.Add(_scheduler!.ScheduleAsync(message, TimeSpan.FromSeconds(10), cancellationToken: TestContext.Current.CancellationToken));
         }
 
         // Act
@@ -438,7 +438,7 @@ public class InMemorySchedulerTests : IAsyncLifetime
         Assert.All(results, result => Assert.True(result.Success));
         Assert.Equal(100, results.Select(r => r.ScheduleId).Distinct().Count());
 
-        var count = await _scheduler!.GetPendingCountAsync();
+        var count = await _scheduler!.GetPendingCountAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(100, count);
     }
 

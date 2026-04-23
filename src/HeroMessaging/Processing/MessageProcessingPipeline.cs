@@ -216,6 +216,9 @@ public class MessageProcessingPipelineBuilder(IServiceProvider serviceProvider)
 public class CoreMessageProcessor(Func<IMessage, ProcessingContext, CancellationToken, ValueTask> processFunc) : IMessageProcessor
 {
     private readonly Func<IMessage, ProcessingContext, CancellationToken, ValueTask> _processFunc = processFunc;
+    /// <summary>
+    /// Executes process async.
+    /// </summary>
 
 
     public async ValueTask<ProcessingResult> ProcessAsync(IMessage message, ProcessingContext context, CancellationToken cancellationToken = default)

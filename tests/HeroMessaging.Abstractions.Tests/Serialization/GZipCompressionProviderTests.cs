@@ -369,7 +369,7 @@ public class GZipCompressionProviderTests
     }
 
     [Fact]
-    public void ThreadSafety_ParallelOperations_Work()
+    public async Task ThreadSafety_ParallelOperations_Work()
     {
         // Arrange
         var data = Encoding.UTF8.GetBytes("Thread safety test");
@@ -380,10 +380,10 @@ public class GZipCompressionProviderTests
         {
             tasks.Add(_provider.CompressAsync(data, CompressionLevel.Optimal, TestContext.Current.CancellationToken).AsTask());
         }
-        Task.WaitAll(tasks.ToArray());
+        var compressedResults = await Task.WhenAll(tasks);
 
         // Assert
-        var first = tasks[0].Result;
-        Assert.All(tasks, t => Assert.Equal(first, t.Result));
+        var first = compressedResults[0];
+        Assert.All(compressedResults, compressed => Assert.Equal(first, compressed));
     }
 }

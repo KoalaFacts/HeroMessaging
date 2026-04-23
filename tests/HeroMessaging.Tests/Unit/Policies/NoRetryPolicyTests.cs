@@ -309,7 +309,7 @@ public class NoRetryPolicyTests
 
     [Fact]
     [Trait("Category", "Unit")]
-    public void ShouldRetry_ConcurrentCalls_AlwaysReturnsFalse()
+    public async Task ShouldRetry_ConcurrentCalls_AlwaysReturnsFalse()
     {
         // Arrange
         var policy = new NoRetryPolicy();
@@ -322,9 +322,9 @@ public class NoRetryPolicyTests
             {
                 var result = policy.ShouldRetry(exception, attemptNumber: i);
                 results.Add(result);
-            }));
+            }, TestContext.Current.CancellationToken));
 
-        Task.WaitAll([.. tasks]);
+        await Task.WhenAll(tasks);
 
         // Assert - All results should be false
         Assert.All(results, Assert.False);
@@ -333,7 +333,7 @@ public class NoRetryPolicyTests
 
     [Fact]
     [Trait("Category", "Unit")]
-    public void GetRetryDelay_ConcurrentCalls_AlwaysReturnsZero()
+    public async Task GetRetryDelay_ConcurrentCalls_AlwaysReturnsZero()
     {
         // Arrange
         var policy = new NoRetryPolicy();
@@ -345,9 +345,9 @@ public class NoRetryPolicyTests
             {
                 var delay = policy.GetRetryDelay(attemptNumber: i);
                 results.Add(delay);
-            }));
+            }, TestContext.Current.CancellationToken));
 
-        Task.WaitAll([.. tasks]);
+        await Task.WhenAll(tasks);
 
         // Assert - All delays should be zero
         Assert.All(results, delay => Assert.Equal(TimeSpan.Zero, delay));

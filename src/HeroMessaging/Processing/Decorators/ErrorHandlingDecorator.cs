@@ -19,6 +19,9 @@ public class ErrorHandlingDecorator(
     private readonly ILogger<ErrorHandlingDecorator> _logger = logger;
     private readonly int _maxRetries = maxRetries;
     private readonly TimeProvider _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+    /// <summary>
+    /// Executes process async.
+    /// </summary>
 
     public override async ValueTask<ProcessingResult> ProcessAsync(IMessage message, ProcessingContext context, CancellationToken cancellationToken = default)
     {

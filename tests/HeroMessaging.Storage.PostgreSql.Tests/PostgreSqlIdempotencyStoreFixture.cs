@@ -24,8 +24,7 @@ public sealed class PostgreSqlIdempotencyStoreFixture : IAsyncLifetime
         else
         {
             // Fall back to Testcontainers for local development
-            _container = new PostgreSqlBuilder()
-                .WithImage("postgres:17-alpine")
+            _container = new PostgreSqlBuilder("postgres:17-alpine")
                 .WithPassword("postgres")
                 .Build();
 

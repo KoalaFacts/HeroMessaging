@@ -3,12 +3,21 @@ using HeroMessaging.Abstractions.Storage;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace HeroMessaging.Observability.HealthChecks;
+/// <summary>
+/// Represents the message storage health check type.
+/// </summary>
 
 public class MessageStorageHealthCheck(IMessageStorage storage, TimeProvider timeProvider, string name = "message_storage") : IHealthCheck
 {
     private readonly IMessageStorage _storage = storage ?? throw new ArgumentNullException(nameof(storage));
+    /// <summary>
+    /// Represents name.
+    /// </summary>
     private readonly string _name = name;
     private readonly TimeProvider _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+    /// <summary>
+    /// Executes check health async.
+    /// </summary>
 
     public async Task<HealthCheckResult> CheckHealthAsync(
         HealthCheckContext context,
@@ -42,6 +51,9 @@ public class MessageStorageHealthCheck(IMessageStorage storage, TimeProvider tim
                 });
         }
     }
+    /// <summary>
+    /// Represents the test message type.
+    /// </summary>
 
     private class TestMessage : IMessage
     {
@@ -50,6 +62,9 @@ public class MessageStorageHealthCheck(IMessageStorage storage, TimeProvider tim
         public string? CorrelationId { get; }
         public string? CausationId { get; }
         public Dictionary<string, object>? Metadata { get; }
+        /// <summary>
+        /// Initializes a new instance of the <see cref="TestMessage"/> class.
+        /// </summary>
 
         public TestMessage(TimeProvider timeProvider)
         {
@@ -57,11 +72,17 @@ public class MessageStorageHealthCheck(IMessageStorage storage, TimeProvider tim
         }
     }
 }
+/// <summary>
+/// Represents the outbox storage health check type.
+/// </summary>
 
 public class OutboxStorageHealthCheck(IOutboxStorage storage, string name = "outbox_storage") : IHealthCheck
 {
     private readonly IOutboxStorage _storage = storage ?? throw new ArgumentNullException(nameof(storage));
     private readonly string _name = name;
+    /// <summary>
+    /// Executes check health async.
+    /// </summary>
 
     public async Task<HealthCheckResult> CheckHealthAsync(
         HealthCheckContext context,
@@ -93,11 +114,17 @@ public class OutboxStorageHealthCheck(IOutboxStorage storage, string name = "out
         }
     }
 }
+/// <summary>
+/// Represents the inbox storage health check type.
+/// </summary>
 
 public class InboxStorageHealthCheck(IInboxStorage storage, string name = "inbox_storage") : IHealthCheck
 {
     private readonly IInboxStorage _storage = storage ?? throw new ArgumentNullException(nameof(storage));
     private readonly string _name = name;
+    /// <summary>
+    /// Executes check health async.
+    /// </summary>
 
     public async Task<HealthCheckResult> CheckHealthAsync(
         HealthCheckContext context,
@@ -129,13 +156,22 @@ public class InboxStorageHealthCheck(IInboxStorage storage, string name = "inbox
         }
     }
 }
+/// <summary>
+/// Represents the queue storage health check type.
+/// </summary>
 
 public class QueueStorageHealthCheck(IQueueStorage storage, string name = "queue_storage", string queueName = "health_check_queue") : IHealthCheck
 {
     private readonly IQueueStorage _storage = storage ?? throw new ArgumentNullException(nameof(storage));
+    /// <summary>
+    /// Represents name.
+    /// </summary>
     private readonly string _name = name;
     private readonly string _queueName = queueName;
 
+    /// <summary>
+    /// Checks the health of the configured queue storage.
+    /// </summary>
     public async Task<HealthCheckResult> CheckHealthAsync(
         HealthCheckContext context,
         CancellationToken cancellationToken = default)

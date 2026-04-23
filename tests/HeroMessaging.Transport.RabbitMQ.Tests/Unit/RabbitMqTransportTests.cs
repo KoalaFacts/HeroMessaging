@@ -19,6 +19,10 @@ public class RabbitMqTransportTests : IAsyncLifetime
     private RabbitMqTransportOptions? _options;
     private RabbitMqTransport? _transport;
 
+    private Mock<ILoggerFactory> MockLoggerFactory => _mockLoggerFactory ?? throw new InvalidOperationException("Test not initialized.");
+    private RabbitMqTransportOptions Options => _options ?? throw new InvalidOperationException("Test not initialized.");
+    private RabbitMqTransport Transport => _transport ?? throw new InvalidOperationException("Test not initialized.");
+
     public ValueTask InitializeAsync()
     {
         _mockLoggerFactory = new Mock<ILoggerFactory>();
@@ -56,11 +60,11 @@ public class RabbitMqTransportTests : IAsyncLifetime
     public void Constructor_WithValidOptions_InitializesSuccessfully()
     {
         // Act
-        var transport = new RabbitMqTransport(_options!, _mockLoggerFactory!.Object, TimeProvider.System);
+        var transport = new RabbitMqTransport(Options, MockLoggerFactory.Object, TimeProvider.System);
 
         // Assert
         Assert.NotNull(transport);
-        Assert.Equal(_options.Name, transport.Name);
+        Assert.Equal(Options.Name, transport.Name);
         Assert.Equal(TransportState.Disconnected, transport.State);
     }
 
@@ -88,14 +92,14 @@ public class RabbitMqTransportTests : IAsyncLifetime
     public void Name_ReturnsOptionsName()
     {
         // Assert
-        Assert.Equal(_options!.Name, _transport!.Name);
+        Assert.Equal(Options.Name, Transport.Name);
     }
 
     [Fact]
     public void State_InitialState_IsDisconnected()
     {
         // Assert
-        Assert.Equal(TransportState.Disconnected, _transport!.State);
+        Assert.Equal(TransportState.Disconnected, Transport.State);
     }
 
     #endregion
@@ -115,7 +119,7 @@ public class RabbitMqTransportTests : IAsyncLifetime
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await _transport!.SendAsync(destination, envelope));
+            await _transport!.SendAsync(destination, envelope, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     #endregion
@@ -135,7 +139,7 @@ public class RabbitMqTransportTests : IAsyncLifetime
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await _transport!.PublishAsync(topic, envelope));
+            await _transport!.PublishAsync(topic, envelope, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     #endregion
@@ -147,11 +151,11 @@ public class RabbitMqTransportTests : IAsyncLifetime
     {
         // Arrange
         var source = new TransportAddress("test-queue", TransportAddressType.Queue);
-        Task Handler(TransportEnvelope env, MessageContext ctx, CancellationToken ct) => Task.CompletedTask;
+        static Task Handler(TransportEnvelope env, MessageContext ctx, CancellationToken ct) => Task.CompletedTask;
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await _transport!.SubscribeAsync(source, Handler));
+            await _transport!.SubscribeAsync(source, Handler, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     #endregion
@@ -166,7 +170,7 @@ public class RabbitMqTransportTests : IAsyncLifetime
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await _transport!.ConfigureTopologyAsync(topology));
+            await _transport!.ConfigureTopologyAsync(topology, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     #endregion
@@ -177,42 +181,45 @@ public class RabbitMqTransportTests : IAsyncLifetime
     public async Task GetHealthAsync_WhenDisconnected_ReturnsUnhealthy()
     {
         // Act
-        var health = await _transport!.GetHealthAsync();
+        var health = await Transport.GetHealthAsync(cancellationToken: TestContext.Current.CancellationToken);
+        var data = Assert.IsType<Dictionary<string, object>>(health.Data);
 
         // Assert
         Assert.NotNull(health);
-        Assert.Equal(_options!.Name, health.TransportName);
+        Assert.Equal(Options.Name, health.TransportName);
         Assert.Equal(HealthStatus.Unhealthy, health.Status);
         Assert.Equal(TransportState.Disconnected, health.State);
-        Assert.Contains(_options.Host, health.Data["Host"].ToString());
-        Assert.Equal(_options.Port, health.Data["Port"]);
-        Assert.Equal(_options.VirtualHost, health.Data["VirtualHost"]);
+        Assert.Contains(Options.Host, Assert.IsType<string>(data["Host"]));
+        Assert.Equal(Options.Port, Assert.IsType<int>(data["Port"]));
+        Assert.Equal(Options.VirtualHost, Assert.IsType<string>(data["VirtualHost"]));
     }
 
     [Fact]
     public async Task GetHealthAsync_IncludesConsumerCount()
     {
         // Act
-        var health = await _transport!.GetHealthAsync();
+        var health = await Transport.GetHealthAsync(cancellationToken: TestContext.Current.CancellationToken);
+        var data = Assert.IsType<Dictionary<string, object>>(health.Data);
 
         // Assert
         Assert.Equal(0, health.ActiveConsumers);
-        Assert.Equal(0, health.Data["ConsumerCount"]);
+        Assert.Equal(0, Assert.IsType<int>(data["ConsumerCount"]));
     }
 
     [Fact]
     public async Task GetHealthAsync_IncludesConnectionDetails()
     {
         // Act
-        var health = await _transport!.GetHealthAsync();
+        var health = await Transport.GetHealthAsync(cancellationToken: TestContext.Current.CancellationToken);
+        var data = Assert.IsType<Dictionary<string, object>>(health.Data);
 
         // Assert
-        Assert.True(health.Data.ContainsKey("Host"));
-        Assert.True(health.Data.ContainsKey("Port"));
-        Assert.True(health.Data.ContainsKey("VirtualHost"));
-        Assert.Equal(_options!.Host, health.Data["Host"]);
-        Assert.Equal(_options.Port, health.Data["Port"]);
-        Assert.Equal(_options.VirtualHost, health.Data["VirtualHost"]);
+        Assert.True(data.ContainsKey("Host"));
+        Assert.True(data.ContainsKey("Port"));
+        Assert.True(data.ContainsKey("VirtualHost"));
+        Assert.Equal(Options.Host, Assert.IsType<string>(data["Host"]));
+        Assert.Equal(Options.Port, Assert.IsType<int>(data["Port"]));
+        Assert.Equal(Options.VirtualHost, Assert.IsType<string>(data["VirtualHost"]));
     }
 
     [Fact]
@@ -222,7 +229,7 @@ public class RabbitMqTransportTests : IAsyncLifetime
         var before = DateTimeOffset.UtcNow;
 
         // Act
-        var health = await _transport!.GetHealthAsync();
+        var health = await Transport.GetHealthAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         var after = DateTimeOffset.UtcNow;
@@ -240,7 +247,7 @@ public class RabbitMqTransportTests : IAsyncLifetime
         var eventRaised = false;
         TransportStateChangedEventArgs? eventArgs = null;
 
-        _transport!.StateChanged += (sender, args) =>
+        Transport.StateChanged += (sender, args) =>
         {
             eventRaised = true;
             eventArgs = args;
@@ -250,7 +257,7 @@ public class RabbitMqTransportTests : IAsyncLifetime
         try
         {
             // Will fail because no real RabbitMQ, but should raise Connecting event
-            await _transport.ConnectAsync(TestContext.Current.CancellationToken);
+            await Transport.ConnectAsync(TestContext.Current.CancellationToken);
         }
         catch
         {
@@ -270,19 +277,19 @@ public class RabbitMqTransportTests : IAsyncLifetime
     public async Task DisposeAsync_WhenCalled_DisposesCleanly()
     {
         // Act
-        await _transport!.DisposeAsync();
+        await Transport.DisposeAsync();
 
         // Assert
-        Assert.Equal(TransportState.Disconnected, _transport.State);
+        Assert.Equal(TransportState.Disconnected, Transport.State);
     }
 
     [Fact]
     public async Task DisposeAsync_CalledMultipleTimes_DoesNotThrow()
     {
         // Act
-        await _transport!.DisposeAsync();
-        await _transport.DisposeAsync();
-        await _transport.DisposeAsync();
+        await Transport.DisposeAsync();
+        await Transport.DisposeAsync();
+        await Transport.DisposeAsync();
 
         // Assert - should not throw
     }
@@ -295,10 +302,10 @@ public class RabbitMqTransportTests : IAsyncLifetime
     public async Task DisconnectAsync_WhenAlreadyDisconnected_DoesNotThrow()
     {
         // Act
-        await _transport!.DisconnectAsync();
+        await Transport.DisconnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
-        Assert.Equal(TransportState.Disconnected, _transport.State);
+        Assert.Equal(TransportState.Disconnected, Transport.State);
     }
 
     #endregion
@@ -320,7 +327,7 @@ public class RabbitMqTransportTests : IAsyncLifetime
         _options!.Name = "custom-transport-name";
 
         // Act
-        var transport = new RabbitMqTransport(_options, _mockLoggerFactory!.Object, TimeProvider.System);
+        var transport = new RabbitMqTransport(Options, MockLoggerFactory.Object, TimeProvider.System);
 
         // Assert
         Assert.Equal("custom-transport-name", transport.Name);
@@ -334,7 +341,7 @@ public class RabbitMqTransportTests : IAsyncLifetime
         _options.Port = 5671;
 
         // Act
-        var transport = new RabbitMqTransport(_options, _mockLoggerFactory!.Object, TimeProvider.System);
+        var transport = new RabbitMqTransport(Options, MockLoggerFactory.Object, TimeProvider.System);
 
         // Assert
         Assert.NotNull(transport);
@@ -350,7 +357,7 @@ public class RabbitMqTransportTests : IAsyncLifetime
         _options.MaxChannelsPerConnection = 50;
 
         // Act
-        var transport = new RabbitMqTransport(_options, _mockLoggerFactory!.Object, TimeProvider.System);
+        var transport = new RabbitMqTransport(Options, MockLoggerFactory.Object, TimeProvider.System);
 
         // Assert
         Assert.NotNull(transport);
@@ -364,8 +371,8 @@ public class RabbitMqTransportTests : IAsyncLifetime
     public void State_InitialState_IsAlwaysDisconnected()
     {
         // Arrange
-        var transport1 = new RabbitMqTransport(_options!, _mockLoggerFactory!.Object, TimeProvider.System);
-        var transport2 = new RabbitMqTransport(_options!, _mockLoggerFactory.Object, TimeProvider.System);
+        var transport1 = new RabbitMqTransport(Options, MockLoggerFactory.Object, TimeProvider.System);
+        var transport2 = new RabbitMqTransport(Options, MockLoggerFactory.Object, TimeProvider.System);
 
         // Assert
         Assert.Equal(TransportState.Disconnected, transport1.State);
@@ -377,19 +384,19 @@ public class RabbitMqTransportTests : IAsyncLifetime
     {
         // Arrange
         TransportStateChangedEventArgs? capturedArgs = null;
-        _transport!.StateChanged += (sender, args) => capturedArgs = args;
+        Transport.StateChanged += (sender, args) => capturedArgs = args;
 
         // Act
         try
         {
-            await _transport.ConnectAsync(TestContext.Current.CancellationToken);
+            await Transport.ConnectAsync(TestContext.Current.CancellationToken);
         }
         catch { /* Expected to fail */ }
 
         // Assert
-        Assert.NotNull(capturedArgs);
-        Assert.Equal(TransportState.Disconnected, capturedArgs.PreviousState);
-        Assert.Equal(TransportState.Connecting, capturedArgs.CurrentState);
+        var stateChangedArgs = Assert.IsType<TransportStateChangedEventArgs>(capturedArgs);
+        Assert.Equal(TransportState.Disconnected, stateChangedArgs.PreviousState);
+        Assert.Equal(TransportState.Connecting, stateChangedArgs.CurrentState);
     }
 
     #endregion
@@ -409,7 +416,7 @@ public class RabbitMqTransportTests : IAsyncLifetime
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await _transport!.SendAsync(destination, envelope));
+            await _transport!.SendAsync(destination, envelope, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -426,7 +433,7 @@ public class RabbitMqTransportTests : IAsyncLifetime
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await _transport!.SendAsync(destination, envelope));
+            await _transport!.SendAsync(destination, envelope, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -443,7 +450,7 @@ public class RabbitMqTransportTests : IAsyncLifetime
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await _transport!.PublishAsync(topic, envelope));
+            await _transport!.PublishAsync(topic, envelope, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -466,7 +473,7 @@ public class RabbitMqTransportTests : IAsyncLifetime
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await _transport!.SendAsync(destination, envelope));
+            await _transport!.SendAsync(destination, envelope, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     #endregion
@@ -481,7 +488,7 @@ public class RabbitMqTransportTests : IAsyncLifetime
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await _transport!.SubscribeAsync(source, null!));
+            await _transport!.SubscribeAsync(source, null!, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -490,11 +497,11 @@ public class RabbitMqTransportTests : IAsyncLifetime
         // Arrange
         var source = new TransportAddress("test-queue", TransportAddressType.Queue);
         var options = new ConsumerOptions { ConsumerId = "custom-consumer-123" };
-        Task Handler(TransportEnvelope env, MessageContext ctx, CancellationToken ct) => Task.CompletedTask;
+        static Task Handler(TransportEnvelope env, MessageContext ctx, CancellationToken ct) => Task.CompletedTask;
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await _transport!.SubscribeAsync(source, Handler, options));
+            await _transport!.SubscribeAsync(source, Handler, options, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -503,11 +510,11 @@ public class RabbitMqTransportTests : IAsyncLifetime
         // Arrange
         var source = new TransportAddress("test-queue", TransportAddressType.Queue);
         var options = new ConsumerOptions { StartImmediately = false };
-        Task Handler(TransportEnvelope env, MessageContext ctx, CancellationToken ct) => Task.CompletedTask;
+        static Task Handler(TransportEnvelope env, MessageContext ctx, CancellationToken ct) => Task.CompletedTask;
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await _transport!.SubscribeAsync(source, Handler, options));
+            await _transport!.SubscribeAsync(source, Handler, options, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     #endregion
@@ -522,7 +529,7 @@ public class RabbitMqTransportTests : IAsyncLifetime
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await _transport!.ConfigureTopologyAsync(topology));
+            await _transport!.ConfigureTopologyAsync(topology, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -536,7 +543,7 @@ public class RabbitMqTransportTests : IAsyncLifetime
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await _transport!.ConfigureTopologyAsync(topology));
+            await _transport!.ConfigureTopologyAsync(topology, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -555,7 +562,7 @@ public class RabbitMqTransportTests : IAsyncLifetime
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await _transport!.ConfigureTopologyAsync(topology));
+            await _transport!.ConfigureTopologyAsync(topology, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -572,7 +579,7 @@ public class RabbitMqTransportTests : IAsyncLifetime
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await _transport!.ConfigureTopologyAsync(topology));
+            await _transport!.ConfigureTopologyAsync(topology, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -586,7 +593,7 @@ public class RabbitMqTransportTests : IAsyncLifetime
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await _transport!.ConfigureTopologyAsync(topology));
+            await _transport!.ConfigureTopologyAsync(topology, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     #endregion
@@ -597,7 +604,7 @@ public class RabbitMqTransportTests : IAsyncLifetime
     public async Task GetHealthAsync_WhenConnected_ReturnsValidHealth()
     {
         // Act
-        var health = await _transport!.GetHealthAsync();
+        var health = await Transport.GetHealthAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(health);
@@ -609,8 +616,8 @@ public class RabbitMqTransportTests : IAsyncLifetime
     public async Task GetHealthAsync_MultipleCallsConsistent_ReturnsSameState()
     {
         // Act
-        var health1 = await _transport!.GetHealthAsync();
-        var health2 = await _transport!.GetHealthAsync();
+        var health1 = await Transport.GetHealthAsync(cancellationToken: TestContext.Current.CancellationToken);
+        var health2 = await Transport.GetHealthAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(health1.State, health2.State);
@@ -621,9 +628,10 @@ public class RabbitMqTransportTests : IAsyncLifetime
     public async Task GetHealthAsync_HasAllRequiredDataKeys()
     {
         // Act
-        var health = await _transport!.GetHealthAsync();
+        var health = await Transport.GetHealthAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
+        Assert.NotNull(health.Data);
         Assert.NotEmpty(health.Data);
         Assert.Contains("Host", health.Data.Keys);
         Assert.Contains("Port", health.Data.Keys);
@@ -638,19 +646,17 @@ public class RabbitMqTransportTests : IAsyncLifetime
     public async Task Error_EventIsInvocable()
     {
         // Arrange
-        var errorRaised = false;
         TransportErrorEventArgs? errorArgs = null;
 
-        _transport!.Error += (sender, args) =>
+        Transport.Error += (sender, args) =>
         {
-            errorRaised = true;
             errorArgs = args;
         };
 
         // Act
         try
         {
-            await _transport.ConnectAsync(TestContext.Current.CancellationToken);
+            await Transport.ConnectAsync(TestContext.Current.CancellationToken);
         }
         catch { /* Expected */ }
 
@@ -662,22 +668,22 @@ public class RabbitMqTransportTests : IAsyncLifetime
     public void StateChanged_CanSubscribeAndUnsubscribe()
     {
         // Arrange
-        EventHandler<TransportStateChangedEventArgs> handler = (_, _) => { };
+        static void Handler(object? sender, TransportStateChangedEventArgs args) { }
 
         // Act & Assert - Should not throw
-        _transport!.StateChanged += handler;
-        _transport.StateChanged -= handler;
+        Transport.StateChanged += Handler;
+        Transport.StateChanged -= Handler;
     }
 
     [Fact]
     public void Error_CanSubscribeAndUnsubscribe()
     {
         // Arrange
-        EventHandler<TransportErrorEventArgs> handler = (_, _) => { };
+        static void Handler(object? sender, TransportErrorEventArgs args) { }
 
         // Act & Assert - Should not throw
-        _transport!.Error += handler;
-        _transport.Error -= handler;
+        Transport.Error += Handler;
+        Transport.Error -= Handler;
     }
 
     #endregion
@@ -688,14 +694,14 @@ public class RabbitMqTransportTests : IAsyncLifetime
     public async Task DisconnectAsync_CalledDuringDisconnect_HandlesGracefully()
     {
         // Arrange
-        var task1 = _transport!.DisconnectAsync();
-        var task2 = _transport.DisconnectAsync();
+        var task1 = Transport.DisconnectAsync(cancellationToken: TestContext.Current.CancellationToken);
+        var task2 = Transport.DisconnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
         await Task.WhenAll(task1, task2);
 
         // Assert
-        Assert.Equal(TransportState.Disconnected, _transport.State);
+        Assert.Equal(TransportState.Disconnected, Transport.State);
     }
 
     [Fact]
@@ -704,11 +710,11 @@ public class RabbitMqTransportTests : IAsyncLifetime
         // Arrange
         var sendTask = _transport!.SendAsync(
             new TransportAddress("queue", TransportAddressType.Queue),
-            new TransportEnvelope { MessageId = "1", Body = new byte[] { 1 } });
+            new TransportEnvelope { MessageId = "1", Body = new byte[] { 1 } }, cancellationToken: TestContext.Current.CancellationToken);
 
         var publishTask = _transport.PublishAsync(
             new TransportAddress("topic", TransportAddressType.Topic),
-            new TransportEnvelope { MessageId = "2", Body = new byte[] { 2 } });
+            new TransportEnvelope { MessageId = "2", Body = new byte[] { 2 } }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(async () => await sendTask);
@@ -767,12 +773,12 @@ public class RabbitMqTransportTests : IAsyncLifetime
         _options.Password = "custom-pass";
 
         // Act
-        var transport = new RabbitMqTransport(_options, _mockLoggerFactory!.Object, TimeProvider.System);
+        _ = new RabbitMqTransport(Options, MockLoggerFactory.Object, TimeProvider.System);
 
         // Assert
-        Assert.Equal("custom-host", _options.Host);
-        Assert.Equal(5673, _options.Port);
-        Assert.Equal("/custom", _options.VirtualHost);
+        Assert.Equal("custom-host", Options.Host);
+        Assert.Equal(5673, Options.Port);
+        Assert.Equal("/custom", Options.VirtualHost);
     }
 
     [Fact]
@@ -782,7 +788,7 @@ public class RabbitMqTransportTests : IAsyncLifetime
         _options!.Heartbeat = TimeSpan.FromSeconds(30);
 
         // Act
-        var transport = new RabbitMqTransport(_options, _mockLoggerFactory!.Object, TimeProvider.System);
+        var transport = new RabbitMqTransport(Options, MockLoggerFactory.Object, TimeProvider.System);
 
         // Assert
         Assert.NotNull(transport);

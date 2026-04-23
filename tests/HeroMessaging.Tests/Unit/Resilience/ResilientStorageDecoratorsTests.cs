@@ -67,7 +67,7 @@ public class ResilientStorageDecoratorsTests
         var decorator = new ResilientMessageStorageDecorator(mockStorage.Object, mockPolicy.Object);
 
         // Act
-        var result = await decorator.StoreAsync(message, (MessageStorageOptions?)null);
+        var result = await decorator.StoreAsync(message, (MessageStorageOptions?)null, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(expectedId, result);
@@ -94,7 +94,7 @@ public class ResilientStorageDecoratorsTests
         var decorator = new ResilientMessageStorageDecorator(mockStorage.Object, mockPolicy.Object);
 
         // Act
-        var result = await decorator.RetrieveAsync<TestMessage>(messageId);
+        var result = await decorator.RetrieveAsync<TestMessage>(messageId, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Same(expectedMessage, result);
@@ -119,7 +119,7 @@ public class ResilientStorageDecoratorsTests
         var decorator = new ResilientMessageStorageDecorator(mockStorage.Object, mockPolicy.Object);
 
         // Act
-        var result = await decorator.DeleteAsync(messageId);
+        var result = await decorator.DeleteAsync(messageId, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
@@ -144,7 +144,7 @@ public class ResilientStorageDecoratorsTests
         var decorator = new ResilientMessageStorageDecorator(mockStorage.Object, mockPolicy.Object);
 
         // Act
-        var result = await decorator.BeginTransactionAsync();
+        var result = await decorator.BeginTransactionAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Same(mockTransaction.Object, result);

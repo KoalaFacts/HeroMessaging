@@ -12,13 +12,14 @@ public class InMemoryDeadLetterQueueTests
 {
     private readonly Mock<ILogger<InMemoryDeadLetterQueue>> _loggerMock;
     private readonly FakeTimeProvider _timeProvider;
-    private InMemoryDeadLetterQueue _queue = null!;
+    private InMemoryDeadLetterQueue _queue;
 
     public InMemoryDeadLetterQueueTests()
     {
         _loggerMock = new Mock<ILogger<InMemoryDeadLetterQueue>>();
         _timeProvider = new FakeTimeProvider();
         _timeProvider.SetUtcNow(new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero));
+        _queue = CreateQueue();
     }
 
     private InMemoryDeadLetterQueue CreateQueue()
@@ -69,7 +70,7 @@ public class InMemoryDeadLetterQueueTests
             RetryCount = 3
         };
 
-        var deadLetterId = await _queue.SendToDeadLetterAsync(message, context);
+        var deadLetterId = await _queue.SendToDeadLetterAsync(message, context, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.NotNull(deadLetterId);
         Assert.NotEmpty(deadLetterId);
@@ -84,7 +85,7 @@ public class InMemoryDeadLetterQueueTests
         var message = new TestMessage { MessageId = messageId };
         var context = new DeadLetterContext { Reason = "Test failure" };
 
-        await _queue.SendToDeadLetterAsync(message, context);
+        await _queue.SendToDeadLetterAsync(message, context, cancellationToken: TestContext.Current.CancellationToken);
 
         _loggerMock.Verify(
             x => x.Log(
@@ -102,7 +103,7 @@ public class InMemoryDeadLetterQueueTests
     {
         _queue = CreateQueue();
 
-        var result = await _queue.GetDeadLettersAsync<TestMessage>();
+        var result = await _queue.GetDeadLettersAsync<TestMessage>(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Empty(result);
     }
@@ -116,13 +117,13 @@ public class InMemoryDeadLetterQueueTests
         var message2 = new TestMessage();
         var context = new DeadLetterContext { Reason = "Test" };
 
-        var id1 = await _queue.SendToDeadLetterAsync(message1, context);
-        _ = await _queue.SendToDeadLetterAsync(message2, context);
+        var id1 = await _queue.SendToDeadLetterAsync(message1, context, cancellationToken: TestContext.Current.CancellationToken);
+        _ = await _queue.SendToDeadLetterAsync(message2, context, cancellationToken: TestContext.Current.CancellationToken);
 
         // Mark one as retried
-        await _queue.RetryAsync<TestMessage>(id1);
+        await _queue.RetryAsync<TestMessage>(id1, cancellationToken: TestContext.Current.CancellationToken);
 
-        var result = await _queue.GetDeadLettersAsync<TestMessage>();
+        var result = await _queue.GetDeadLettersAsync<TestMessage>(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Single(result);
         Assert.Equal(message2.MessageId, result.First().Message.MessageId);
@@ -137,10 +138,10 @@ public class InMemoryDeadLetterQueueTests
 
         for (int i = 0; i < 10; i++)
         {
-            await _queue.SendToDeadLetterAsync(new TestMessage(), context);
+            await _queue.SendToDeadLetterAsync(new TestMessage(), context, cancellationToken: TestContext.Current.CancellationToken);
         }
 
-        var result = await _queue.GetDeadLettersAsync<TestMessage>(limit: 5);
+        var result = await _queue.GetDeadLettersAsync<TestMessage>(limit: 5, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(5, result.Count());
     }
@@ -154,15 +155,15 @@ public class InMemoryDeadLetterQueueTests
 
         var messageId1 = Guid.NewGuid();
         var message1 = new TestMessage { MessageId = messageId1 };
-        await _queue.SendToDeadLetterAsync(message1, context);
+        await _queue.SendToDeadLetterAsync(message1, context, cancellationToken: TestContext.Current.CancellationToken);
 
         _timeProvider.Advance(TimeSpan.FromMinutes(1));
 
         var messageId2 = Guid.NewGuid();
         var message2 = new TestMessage { MessageId = messageId2 };
-        await _queue.SendToDeadLetterAsync(message2, context);
+        await _queue.SendToDeadLetterAsync(message2, context, cancellationToken: TestContext.Current.CancellationToken);
 
-        var result = await _queue.GetDeadLettersAsync<TestMessage>();
+        var result = await _queue.GetDeadLettersAsync<TestMessage>(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(messageId2, result.First().Message.MessageId);
         Assert.Equal(messageId1, result.Last().Message.MessageId);
@@ -176,9 +177,9 @@ public class InMemoryDeadLetterQueueTests
         var message = new TestMessage();
         var context = new DeadLetterContext { Reason = "Test" };
 
-        var deadLetterId = await _queue.SendToDeadLetterAsync(message, context);
+        var deadLetterId = await _queue.SendToDeadLetterAsync(message, context, cancellationToken: TestContext.Current.CancellationToken);
 
-        var result = await _queue.RetryAsync<TestMessage>(deadLetterId);
+        var result = await _queue.RetryAsync<TestMessage>(deadLetterId, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(result);
     }
@@ -191,13 +192,13 @@ public class InMemoryDeadLetterQueueTests
         var message = new TestMessage();
         var context = new DeadLetterContext { Reason = "Test" };
 
-        var deadLetterId = await _queue.SendToDeadLetterAsync(message, context);
+        var deadLetterId = await _queue.SendToDeadLetterAsync(message, context, cancellationToken: TestContext.Current.CancellationToken);
 
         _timeProvider.Advance(TimeSpan.FromMinutes(5));
 
-        await _queue.RetryAsync<TestMessage>(deadLetterId);
+        await _queue.RetryAsync<TestMessage>(deadLetterId, cancellationToken: TestContext.Current.CancellationToken);
 
-        var entries = await _queue.GetDeadLettersAsync<TestMessage>();
+        var entries = await _queue.GetDeadLettersAsync<TestMessage>(cancellationToken: TestContext.Current.CancellationToken);
         // Entry should not appear in active list anymore
         Assert.Empty(entries);
     }
@@ -208,7 +209,7 @@ public class InMemoryDeadLetterQueueTests
     {
         _queue = CreateQueue();
 
-        var result = await _queue.RetryAsync<TestMessage>("non-existent-id");
+        var result = await _queue.RetryAsync<TestMessage>("non-existent-id", cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.False(result);
     }
@@ -221,10 +222,10 @@ public class InMemoryDeadLetterQueueTests
         var message = new TestMessage();
         var context = new DeadLetterContext { Reason = "Test" };
 
-        var deadLetterId = await _queue.SendToDeadLetterAsync(message, context);
+        var deadLetterId = await _queue.SendToDeadLetterAsync(message, context, cancellationToken: TestContext.Current.CancellationToken);
 
         // Try to retry with wrong message type
-        var result = await _queue.RetryAsync<OtherMessage>(deadLetterId);
+        var result = await _queue.RetryAsync<OtherMessage>(deadLetterId, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.False(result);
     }
@@ -237,9 +238,9 @@ public class InMemoryDeadLetterQueueTests
         var message = new TestMessage();
         var context = new DeadLetterContext { Reason = "Test" };
 
-        var deadLetterId = await _queue.SendToDeadLetterAsync(message, context);
+        var deadLetterId = await _queue.SendToDeadLetterAsync(message, context, cancellationToken: TestContext.Current.CancellationToken);
 
-        await _queue.RetryAsync<TestMessage>(deadLetterId);
+        await _queue.RetryAsync<TestMessage>(deadLetterId, cancellationToken: TestContext.Current.CancellationToken);
 
         _loggerMock.Verify(
             x => x.Log(
@@ -259,9 +260,9 @@ public class InMemoryDeadLetterQueueTests
         var message = new TestMessage();
         var context = new DeadLetterContext { Reason = "Test" };
 
-        var deadLetterId = await _queue.SendToDeadLetterAsync(message, context);
+        var deadLetterId = await _queue.SendToDeadLetterAsync(message, context, cancellationToken: TestContext.Current.CancellationToken);
 
-        var result = await _queue.DiscardAsync<TestMessage>(deadLetterId);
+        var result = await _queue.DiscardAsync<TestMessage>(deadLetterId, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(result);
     }
@@ -274,13 +275,13 @@ public class InMemoryDeadLetterQueueTests
         var message = new TestMessage();
         var context = new DeadLetterContext { Reason = "Test" };
 
-        var deadLetterId = await _queue.SendToDeadLetterAsync(message, context);
+        var deadLetterId = await _queue.SendToDeadLetterAsync(message, context, cancellationToken: TestContext.Current.CancellationToken);
 
         _timeProvider.Advance(TimeSpan.FromMinutes(5));
 
-        await _queue.DiscardAsync<TestMessage>(deadLetterId);
+        await _queue.DiscardAsync<TestMessage>(deadLetterId, cancellationToken: TestContext.Current.CancellationToken);
 
-        var entries = await _queue.GetDeadLettersAsync<TestMessage>();
+        var entries = await _queue.GetDeadLettersAsync<TestMessage>(cancellationToken: TestContext.Current.CancellationToken);
         // Entry should not appear in active list anymore
         Assert.Empty(entries);
     }
@@ -291,7 +292,7 @@ public class InMemoryDeadLetterQueueTests
     {
         _queue = CreateQueue();
 
-        var result = await _queue.DiscardAsync<TestMessage>("non-existent-id");
+        var result = await _queue.DiscardAsync<TestMessage>("non-existent-id", cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.False(result);
     }
@@ -304,9 +305,9 @@ public class InMemoryDeadLetterQueueTests
         var message = new TestMessage();
         var context = new DeadLetterContext { Reason = "Test" };
 
-        var deadLetterId = await _queue.SendToDeadLetterAsync(message, context);
+        var deadLetterId = await _queue.SendToDeadLetterAsync(message, context, cancellationToken: TestContext.Current.CancellationToken);
 
-        await _queue.DiscardAsync<TestMessage>(deadLetterId);
+        await _queue.DiscardAsync<TestMessage>(deadLetterId, cancellationToken: TestContext.Current.CancellationToken);
 
         _loggerMock.Verify(
             x => x.Log(
@@ -324,7 +325,7 @@ public class InMemoryDeadLetterQueueTests
     {
         _queue = CreateQueue();
 
-        var count = await _queue.GetDeadLetterCountAsync();
+        var count = await _queue.GetDeadLetterCountAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(0, count);
     }
@@ -336,11 +337,11 @@ public class InMemoryDeadLetterQueueTests
         _queue = CreateQueue();
         var context = new DeadLetterContext { Reason = "Test" };
 
-        await _queue.SendToDeadLetterAsync(new TestMessage(), context);
-        await _queue.SendToDeadLetterAsync(new TestMessage(), context);
-        await _queue.SendToDeadLetterAsync(new TestMessage(), context);
+        await _queue.SendToDeadLetterAsync(new TestMessage(), context, cancellationToken: TestContext.Current.CancellationToken);
+        await _queue.SendToDeadLetterAsync(new TestMessage(), context, cancellationToken: TestContext.Current.CancellationToken);
+        await _queue.SendToDeadLetterAsync(new TestMessage(), context, cancellationToken: TestContext.Current.CancellationToken);
 
-        var count = await _queue.GetDeadLetterCountAsync();
+        var count = await _queue.GetDeadLetterCountAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(3, count);
     }
@@ -352,14 +353,14 @@ public class InMemoryDeadLetterQueueTests
         _queue = CreateQueue();
         var context = new DeadLetterContext { Reason = "Test" };
 
-        var id1 = await _queue.SendToDeadLetterAsync(new TestMessage(), context);
-        var id2 = await _queue.SendToDeadLetterAsync(new TestMessage(), context);
-        await _queue.SendToDeadLetterAsync(new TestMessage(), context);
+        var id1 = await _queue.SendToDeadLetterAsync(new TestMessage(), context, cancellationToken: TestContext.Current.CancellationToken);
+        var id2 = await _queue.SendToDeadLetterAsync(new TestMessage(), context, cancellationToken: TestContext.Current.CancellationToken);
+        await _queue.SendToDeadLetterAsync(new TestMessage(), context, cancellationToken: TestContext.Current.CancellationToken);
 
-        await _queue.RetryAsync<TestMessage>(id1);
-        await _queue.DiscardAsync<TestMessage>(id2);
+        await _queue.RetryAsync<TestMessage>(id1, cancellationToken: TestContext.Current.CancellationToken);
+        await _queue.DiscardAsync<TestMessage>(id2, cancellationToken: TestContext.Current.CancellationToken);
 
-        var count = await _queue.GetDeadLetterCountAsync();
+        var count = await _queue.GetDeadLetterCountAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(1, count);
     }
@@ -370,7 +371,7 @@ public class InMemoryDeadLetterQueueTests
     {
         _queue = CreateQueue();
 
-        var stats = await _queue.GetStatisticsAsync();
+        var stats = await _queue.GetStatisticsAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(0, stats.TotalCount);
         Assert.Equal(0, stats.ActiveCount);
@@ -388,14 +389,14 @@ public class InMemoryDeadLetterQueueTests
         var context1 = new DeadLetterContext { Reason = "Error1", Component = "ComponentA" };
         var context2 = new DeadLetterContext { Reason = "Error2", Component = "ComponentB" };
 
-        var id1 = await _queue.SendToDeadLetterAsync(new TestMessage(), context1);
-        await _queue.SendToDeadLetterAsync(new TestMessage(), context1);
-        var id3 = await _queue.SendToDeadLetterAsync(new TestMessage(), context2);
+        var id1 = await _queue.SendToDeadLetterAsync(new TestMessage(), context1, cancellationToken: TestContext.Current.CancellationToken);
+        await _queue.SendToDeadLetterAsync(new TestMessage(), context1, cancellationToken: TestContext.Current.CancellationToken);
+        var id3 = await _queue.SendToDeadLetterAsync(new TestMessage(), context2, cancellationToken: TestContext.Current.CancellationToken);
 
-        await _queue.RetryAsync<TestMessage>(id1);
-        await _queue.DiscardAsync<TestMessage>(id3);
+        await _queue.RetryAsync<TestMessage>(id1, cancellationToken: TestContext.Current.CancellationToken);
+        await _queue.DiscardAsync<TestMessage>(id3, cancellationToken: TestContext.Current.CancellationToken);
 
-        var stats = await _queue.GetStatisticsAsync();
+        var stats = await _queue.GetStatisticsAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(3, stats.TotalCount);
         Assert.Equal(1, stats.ActiveCount);
@@ -411,11 +412,11 @@ public class InMemoryDeadLetterQueueTests
         var contextA = new DeadLetterContext { Reason = "Error", Component = "ComponentA" };
         var contextB = new DeadLetterContext { Reason = "Error", Component = "ComponentB" };
 
-        await _queue.SendToDeadLetterAsync(new TestMessage(), contextA);
-        await _queue.SendToDeadLetterAsync(new TestMessage(), contextA);
-        await _queue.SendToDeadLetterAsync(new TestMessage(), contextB);
+        await _queue.SendToDeadLetterAsync(new TestMessage(), contextA, cancellationToken: TestContext.Current.CancellationToken);
+        await _queue.SendToDeadLetterAsync(new TestMessage(), contextA, cancellationToken: TestContext.Current.CancellationToken);
+        await _queue.SendToDeadLetterAsync(new TestMessage(), contextB, cancellationToken: TestContext.Current.CancellationToken);
 
-        var stats = await _queue.GetStatisticsAsync();
+        var stats = await _queue.GetStatisticsAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(2, stats.CountByComponent["ComponentA"]);
         Assert.Equal(1, stats.CountByComponent["ComponentB"]);
@@ -429,11 +430,11 @@ public class InMemoryDeadLetterQueueTests
         var context1 = new DeadLetterContext { Reason = "ValidationError", Component = "Test" };
         var context2 = new DeadLetterContext { Reason = "TimeoutError", Component = "Test" };
 
-        await _queue.SendToDeadLetterAsync(new TestMessage(), context1);
-        await _queue.SendToDeadLetterAsync(new TestMessage(), context1);
-        await _queue.SendToDeadLetterAsync(new TestMessage(), context2);
+        await _queue.SendToDeadLetterAsync(new TestMessage(), context1, cancellationToken: TestContext.Current.CancellationToken);
+        await _queue.SendToDeadLetterAsync(new TestMessage(), context1, cancellationToken: TestContext.Current.CancellationToken);
+        await _queue.SendToDeadLetterAsync(new TestMessage(), context2, cancellationToken: TestContext.Current.CancellationToken);
 
-        var stats = await _queue.GetStatisticsAsync();
+        var stats = await _queue.GetStatisticsAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(2, stats.CountByReason["ValidationError"]);
         Assert.Equal(1, stats.CountByReason["TimeoutError"]);
@@ -447,9 +448,9 @@ public class InMemoryDeadLetterQueueTests
         var longReason = new string('A', 100);
         var context = new DeadLetterContext { Reason = longReason, Component = "Test" };
 
-        await _queue.SendToDeadLetterAsync(new TestMessage(), context);
+        await _queue.SendToDeadLetterAsync(new TestMessage(), context, cancellationToken: TestContext.Current.CancellationToken);
 
-        var stats = await _queue.GetStatisticsAsync();
+        var stats = await _queue.GetStatisticsAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var truncatedKey = stats.CountByReason.Keys.First();
         Assert.True(truncatedKey.Length <= 53); // 50 chars + "..."
@@ -464,16 +465,16 @@ public class InMemoryDeadLetterQueueTests
         var context = new DeadLetterContext { Reason = "Test", Component = "Test" };
 
         var startTime = _timeProvider.GetUtcNow();
-        await _queue.SendToDeadLetterAsync(new TestMessage(), context);
+        await _queue.SendToDeadLetterAsync(new TestMessage(), context, cancellationToken: TestContext.Current.CancellationToken);
 
         _timeProvider.Advance(TimeSpan.FromHours(1));
-        await _queue.SendToDeadLetterAsync(new TestMessage(), context);
+        await _queue.SendToDeadLetterAsync(new TestMessage(), context, cancellationToken: TestContext.Current.CancellationToken);
 
         _timeProvider.Advance(TimeSpan.FromHours(1));
         var endTime = _timeProvider.GetUtcNow();
-        await _queue.SendToDeadLetterAsync(new TestMessage(), context);
+        await _queue.SendToDeadLetterAsync(new TestMessage(), context, cancellationToken: TestContext.Current.CancellationToken);
 
-        var stats = await _queue.GetStatisticsAsync();
+        var stats = await _queue.GetStatisticsAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(startTime, stats.OldestEntry);
         Assert.Equal(endTime, stats.NewestEntry);

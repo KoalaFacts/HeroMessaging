@@ -52,6 +52,9 @@ public sealed class AuthenticationCredentials
     /// Additional parameters for authentication
     /// </summary>
     public IDictionary<string, string> Parameters { get; }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AuthenticationCredentials"/> class.
+    /// </summary>
 
     public AuthenticationCredentials(string scheme, string value)
     {
@@ -95,6 +98,9 @@ public sealed class AuthenticationResult
     /// Error message if authentication failed
     /// </summary>
     public string? ErrorMessage { get; }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AuthenticationResult"/> class.
+    /// </summary>
 
     private AuthenticationResult(bool succeeded, ClaimsPrincipal? principal, string? errorMessage)
     {
@@ -102,9 +108,15 @@ public sealed class AuthenticationResult
         Principal = principal;
         ErrorMessage = errorMessage;
     }
+    /// <summary>
+    /// Executes success.
+    /// </summary>
 
     public static AuthenticationResult Success(ClaimsPrincipal principal)
         => new(true, principal, null);
+    /// <summary>
+    /// Executes failure.
+    /// </summary>
 
     public static AuthenticationResult Failure(string errorMessage)
         => new(false, null, errorMessage);

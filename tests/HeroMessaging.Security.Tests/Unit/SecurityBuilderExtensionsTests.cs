@@ -269,7 +269,7 @@ public sealed class SecurityBuilderExtensionsTests
     }
 
     [Fact]
-    public void AddClaimsAuthentication_WithConfigureAction_ConfiguresProvider()
+    public async Task AddClaimsAuthentication_WithConfigureAction_ConfiguresProvider()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -288,7 +288,7 @@ public sealed class SecurityBuilderExtensionsTests
         Assert.NotNull(authProvider);
 
         var credentials = new AuthenticationCredentials("ApiKey", configuredKey);
-        var principal = authProvider.AuthenticateAsync(credentials, TestContext.Current.CancellationToken).Result;
+        var principal = await authProvider.AuthenticateAsync(credentials, TestContext.Current.CancellationToken);
         Assert.NotNull(principal);
         Assert.Equal(configuredName, principal.Identity?.Name);
     }
@@ -366,7 +366,7 @@ public sealed class SecurityBuilderExtensionsTests
     }
 
     [Fact]
-    public void AddPolicyAuthorization_WithConfigureAction_ConfiguresProvider()
+    public async Task AddPolicyAuthorization_WithConfigureAction_ConfiguresProvider()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -387,7 +387,7 @@ public sealed class SecurityBuilderExtensionsTests
             [new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "admin")],
             "TestAuth");
         var principal = new System.Security.Claims.ClaimsPrincipal(identity);
-        var result = authzProvider.AuthorizeAsync(principal, "TestMessage", "Send", TestContext.Current.CancellationToken).Result;
+        var result = await authzProvider.AuthorizeAsync(principal, "TestMessage", "Send", TestContext.Current.CancellationToken);
         Assert.True(result.Succeeded);
     }
 

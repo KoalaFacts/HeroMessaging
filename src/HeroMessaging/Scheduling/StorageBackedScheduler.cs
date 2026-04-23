@@ -32,6 +32,9 @@ public sealed class StorageBackedScheduler : IMessageScheduler, IAsyncDisposable
     private readonly Task _deliveryTask;
     private readonly Task? _cleanupTask;
     private volatile bool _disposed;
+    /// <summary>
+    /// Initializes a new instance of the <see cref="StorageBackedScheduler"/> class.
+    /// </summary>
 
     public StorageBackedScheduler(
         IScheduledMessageStorage storage,
@@ -68,6 +71,9 @@ public sealed class StorageBackedScheduler : IMessageScheduler, IAsyncDisposable
             _options.BatchSize,
             _options.MaxConcurrency);
     }
+    /// <summary>
+    /// Executes schedule async.
+    /// </summary>
 
     public async Task<ScheduleResult> ScheduleAsync<T>(
         T message,
@@ -81,6 +87,9 @@ public sealed class StorageBackedScheduler : IMessageScheduler, IAsyncDisposable
         var deliverAt = _timeProvider.GetUtcNow().Add(delay);
         return await ScheduleAsync(message, deliverAt, options, cancellationToken);
     }
+    /// <summary>
+    /// Executes schedule async.
+    /// </summary>
 
     public async Task<ScheduleResult> ScheduleAsync<T>(
         T message,
@@ -119,6 +128,9 @@ public sealed class StorageBackedScheduler : IMessageScheduler, IAsyncDisposable
             return ScheduleResult.Failed($"Failed to schedule message: {ex.Message}");
         }
     }
+    /// <summary>
+    /// Executes cancel scheduled async.
+    /// </summary>
 
     public async Task<bool> CancelScheduledAsync(Guid scheduleId, CancellationToken cancellationToken = default)
     {
@@ -139,6 +151,9 @@ public sealed class StorageBackedScheduler : IMessageScheduler, IAsyncDisposable
             return false;
         }
     }
+    /// <summary>
+    /// Executes get scheduled async.
+    /// </summary>
 
     public async Task<ScheduledMessageInfo?> GetScheduledAsync(Guid scheduleId, CancellationToken cancellationToken = default)
     {
@@ -153,6 +168,9 @@ public sealed class StorageBackedScheduler : IMessageScheduler, IAsyncDisposable
             return null;
         }
     }
+    /// <summary>
+    /// Executes get pending async.
+    /// </summary>
 
     public async Task<IReadOnlyList<ScheduledMessageInfo>> GetPendingAsync(
         ScheduledMessageQuery? query = null,
@@ -171,6 +189,9 @@ public sealed class StorageBackedScheduler : IMessageScheduler, IAsyncDisposable
             return [];
         }
     }
+    /// <summary>
+    /// Executes get pending count async.
+    /// </summary>
 
     public async Task<long> GetPendingCountAsync(CancellationToken cancellationToken = default)
     {
@@ -271,6 +292,9 @@ public sealed class StorageBackedScheduler : IMessageScheduler, IAsyncDisposable
             await _deliveryHandler.HandleDeliveryFailureAsync(scheduledMessage.ScheduleId, ex, cancellationToken);
         }
     }
+    /// <summary>
+    /// Executes periodic cleanup async.
+    /// </summary>
 
     private async Task PeriodicCleanupAsync(CancellationToken cancellationToken)
     {
@@ -302,6 +326,9 @@ public sealed class StorageBackedScheduler : IMessageScheduler, IAsyncDisposable
 
         _logger.LogInformation("Periodic cleanup worker stopped");
     }
+    /// <summary>
+    /// Executes create message info.
+    /// </summary>
 
     private static ScheduledMessageInfo CreateMessageInfo(ScheduledMessageEntry entry)
     {
@@ -318,6 +345,9 @@ public sealed class StorageBackedScheduler : IMessageScheduler, IAsyncDisposable
             ErrorMessage = entry.ErrorMessage
         };
     }
+    /// <summary>
+    /// Executes dispose async.
+    /// </summary>
 
     public async ValueTask DisposeAsync()
     {

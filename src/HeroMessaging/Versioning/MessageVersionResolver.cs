@@ -237,9 +237,21 @@ public class MessageVersionInfo(
     string typeName,
     IReadOnlyList<MessagePropertyInfo> properties)
 {
+    /// <summary>
+    /// Gets message type.
+    /// </summary>
     public Type MessageType { get; } = messageType;
+    /// <summary>
+    /// Gets version.
+    /// </summary>
     public MessageVersion Version { get; } = version;
+    /// <summary>
+    /// Gets type name.
+    /// </summary>
     public string TypeName { get; } = typeName;
+    /// <summary>
+    /// Gets properties.
+    /// </summary>
     public IReadOnlyList<MessagePropertyInfo> Properties { get; } = properties;
 }
 
@@ -254,15 +266,39 @@ public class MessagePropertyInfo(
     string? deprecationReason = null,
     string? replacedBy = null)
 {
+    /// <summary>
+    /// Gets name.
+    /// </summary>
     public string Name { get; } = name;
+    /// <summary>
+    /// Gets property type.
+    /// </summary>
     public Type PropertyType { get; } = propertyType;
+    /// <summary>
+    /// Gets added in version.
+    /// </summary>
     public MessageVersion? AddedInVersion { get; } = addedInVersion;
+    /// <summary>
+    /// Gets deprecated in version.
+    /// </summary>
     public MessageVersion? DeprecatedInVersion { get; } = deprecatedInVersion;
+    /// <summary>
+    /// Gets deprecation reason.
+    /// </summary>
     public string? DeprecationReason { get; } = deprecationReason;
+    /// <summary>
+    /// Gets replaced by.
+    /// </summary>
     public string? ReplacedBy { get; } = replacedBy;
+    /// <summary>
+    /// Executes is deprecated.
+    /// </summary>
 
     public bool IsDeprecated(MessageVersion version) =>
         DeprecatedInVersion.HasValue && version >= DeprecatedInVersion.Value;
+    /// <summary>
+    /// Executes is available.
+    /// </summary>
 
     public bool IsAvailable(MessageVersion version) =>
         !AddedInVersion.HasValue || version >= AddedInVersion.Value;
@@ -273,10 +309,25 @@ public class MessagePropertyInfo(
 /// </summary>
 public class MessageVersionValidationResult(bool isValid, IReadOnlyList<string> errors, IReadOnlyList<string> warnings)
 {
+    /// <summary>
+    /// Gets is valid.
+    /// </summary>
     public bool IsValid { get; } = isValid;
+    /// <summary>
+    /// Gets errors.
+    /// </summary>
     public IReadOnlyList<string> Errors { get; } = errors;
+    /// <summary>
+    /// Gets warnings.
+    /// </summary>
     public IReadOnlyList<string> Warnings { get; } = warnings;
+    /// <summary>
+    /// Gets has warnings.
+    /// </summary>
 
     public bool HasWarnings => Warnings.Count > 0;
+    /// <summary>
+    /// Gets has errors.
+    /// </summary>
     public bool HasErrors => Errors.Count > 0;
 }

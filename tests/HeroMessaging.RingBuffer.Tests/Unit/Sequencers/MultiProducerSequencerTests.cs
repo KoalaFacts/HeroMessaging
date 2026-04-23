@@ -34,7 +34,7 @@ public class MultiProducerSequencerTests
     }
 
     [Fact]
-    public void Next_ConcurrentCalls_ReturnsUniqueSequences()
+    public async Task Next_ConcurrentCalls_ReturnsUniqueSequences()
     {
         // Arrange
         var sequencer = new MultiProducerSequencer(1024, new YieldingWaitStrategy());
@@ -48,10 +48,10 @@ public class MultiProducerSequencerTests
             tasks[i] = Task.Run(() =>
             {
                 sequences[index] = sequencer.Next();
-            });
+            }, TestContext.Current.CancellationToken);
         }
 
-        Task.WaitAll(tasks);
+        await Task.WhenAll(tasks);
 
         // Assert
         var uniqueSequences = sequences.Distinct().ToArray();
@@ -213,7 +213,7 @@ public class MultiProducerSequencerTests
 
         // Act
         var seq0 = sequencer.Next();
-        var seq1 = sequencer.Next();
+        sequencer.Next();
         var seq2 = sequencer.Next();
 
         sequencer.Publish(seq0);
@@ -227,7 +227,7 @@ public class MultiProducerSequencerTests
     }
 
     [Fact]
-    public void ConcurrentPublish_AllSequencesMarkedAvailable()
+    public async Task ConcurrentPublish_AllSequencesMarkedAvailable()
     {
         // Arrange
         var sequencer = new MultiProducerSequencer(1024, new YieldingWaitStrategy());
@@ -244,10 +244,10 @@ public class MultiProducerSequencerTests
                 var seq = sequencer.Next();
                 sequences[index] = seq;
                 sequencer.Publish(seq);
-            });
+            }, TestContext.Current.CancellationToken);
         }
 
-        Task.WaitAll(tasks);
+        await Task.WhenAll(tasks);
 
         // Assert - All sequences should be available
         foreach (var seq in sequences)

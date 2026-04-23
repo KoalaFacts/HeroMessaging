@@ -15,9 +15,15 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace HeroMessaging.Configuration;
+/// <summary>
+/// Represents the hero messaging builder type.
+/// </summary>
 
 public class HeroMessagingBuilder(IServiceCollection services) : IHeroMessagingBuilder
 {
+    /// <summary>
+    /// Gets services.
+    /// </summary>
     public IServiceCollection Services { get; } = services;
     private readonly List<Assembly> _assemblies = [];
     private readonly List<IMessagingPlugin> _plugins = [];
@@ -26,38 +32,59 @@ public class HeroMessagingBuilder(IServiceCollection services) : IHeroMessagingB
     private bool _withMediator;
     private bool _withEventBus;
     private bool _withQueues;
+    /// <summary>
+    /// Represents with outbox.
+    /// </summary>
     private bool _withOutbox;
     private bool _withInbox;
+    /// <summary>
+    /// Executes with mediator.
+    /// </summary>
 
     public IHeroMessagingBuilder WithMediator()
     {
         _withMediator = true;
         return this;
     }
+    /// <summary>
+    /// Executes with event bus.
+    /// </summary>
 
     public IHeroMessagingBuilder WithEventBus()
     {
         _withEventBus = true;
         return this;
     }
+    /// <summary>
+    /// Executes with queues.
+    /// </summary>
 
     public IHeroMessagingBuilder WithQueues()
     {
         _withQueues = true;
         return this;
     }
+    /// <summary>
+    /// Executes with outbox.
+    /// </summary>
 
     public IHeroMessagingBuilder WithOutbox()
     {
         _withOutbox = true;
         return this;
     }
+    /// <summary>
+    /// Executes with inbox.
+    /// </summary>
 
     public IHeroMessagingBuilder WithInbox()
     {
         _withInbox = true;
         return this;
     }
+    /// <summary>
+    /// Executes use in memory storage.
+    /// </summary>
 
     public IHeroMessagingBuilder UseInMemoryStorage()
     {
@@ -67,6 +94,9 @@ public class HeroMessagingBuilder(IServiceCollection services) : IHeroMessagingB
         Services.AddSingleton<IQueueStorage, InMemoryQueueStorage>();
         return this;
     }
+    /// <summary>
+    /// Executes with error handling.
+    /// </summary>
 
     public IHeroMessagingBuilder WithErrorHandling()
     {
@@ -74,42 +104,63 @@ public class HeroMessagingBuilder(IServiceCollection services) : IHeroMessagingB
         Services.AddSingleton<IErrorHandler, DefaultErrorHandler>();
         return this;
     }
+    /// <summary>
+    /// Executes use storage.
+    /// </summary>
 
     public IHeroMessagingBuilder UseStorage<TStorage>() where TStorage : class, IMessageStorage
     {
         Services.AddSingleton<IMessageStorage, TStorage>();
         return this;
     }
+    /// <summary>
+    /// Executes use storage.
+    /// </summary>
 
     public IHeroMessagingBuilder UseStorage(IMessageStorage storage)
     {
         Services.AddSingleton(storage);
         return this;
     }
+    /// <summary>
+    /// Executes scan assembly.
+    /// </summary>
 
     public IHeroMessagingBuilder ScanAssembly(Assembly assembly)
     {
         _assemblies.Add(assembly);
         return this;
     }
+    /// <summary>
+    /// Executes scan assemblies.
+    /// </summary>
 
     public IHeroMessagingBuilder ScanAssemblies(params IEnumerable<Assembly> assemblies)
     {
         _assemblies.AddRange(assemblies);
         return this;
     }
+    /// <summary>
+    /// Executes configure processing.
+    /// </summary>
 
     public IHeroMessagingBuilder ConfigureProcessing(Action<ProcessingOptions> configure)
     {
         configure(_processingOptions);
         return this;
     }
+    /// <summary>
+    /// Executes add plugin.
+    /// </summary>
 
     public IHeroMessagingBuilder AddPlugin<TPlugin>() where TPlugin : class, IMessagingPlugin
     {
         Services.AddSingleton<IMessagingPlugin, TPlugin>();
         return this;
     }
+    /// <summary>
+    /// Executes add plugin.
+    /// </summary>
 
     public IHeroMessagingBuilder AddPlugin<TPlugin>(Action<TPlugin> configure) where TPlugin : class, IMessagingPlugin
     {
@@ -118,6 +169,9 @@ public class HeroMessagingBuilder(IServiceCollection services) : IHeroMessagingB
         Services.AddSingleton<IMessagingPlugin>(plugin);
         return this;
     }
+    /// <summary>
+    /// Executes add plugin.
+    /// </summary>
 
     public IHeroMessagingBuilder AddPlugin(IMessagingPlugin plugin)
     {
@@ -125,6 +179,9 @@ public class HeroMessagingBuilder(IServiceCollection services) : IHeroMessagingB
         Services.AddSingleton(plugin);
         return this;
     }
+    /// <summary>
+    /// Executes development.
+    /// </summary>
 
     public IHeroMessagingBuilder Development()
     {
@@ -133,6 +190,9 @@ public class HeroMessagingBuilder(IServiceCollection services) : IHeroMessagingB
         WithEventBus();
         return this;
     }
+    /// <summary>
+    /// Executes production.
+    /// </summary>
 
     public IHeroMessagingBuilder Production(string connectionString)
     {
@@ -143,6 +203,9 @@ public class HeroMessagingBuilder(IServiceCollection services) : IHeroMessagingB
         WithInbox();
         return this;
     }
+    /// <summary>
+    /// Executes microservice.
+    /// </summary>
 
     public IHeroMessagingBuilder Microservice(string connectionString)
     {
@@ -156,12 +219,18 @@ public class HeroMessagingBuilder(IServiceCollection services) : IHeroMessagingB
         });
         return this;
     }
+    /// <summary>
+    /// Executes discover plugins.
+    /// </summary>
 
     public IHeroMessagingBuilder DiscoverPlugins()
     {
         // Discover plugins from the current app domain
         return DiscoverPlugins(AppDomain.CurrentDomain.BaseDirectory);
     }
+    /// <summary>
+    /// Executes discover plugins.
+    /// </summary>
 
     public IHeroMessagingBuilder DiscoverPlugins(string directory)
     {
@@ -169,6 +238,9 @@ public class HeroMessagingBuilder(IServiceCollection services) : IHeroMessagingB
         // For now, it's a placeholder
         return this;
     }
+    /// <summary>
+    /// Executes discover plugins.
+    /// </summary>
 
     public IHeroMessagingBuilder DiscoverPlugins(Assembly assembly)
     {
@@ -176,6 +248,9 @@ public class HeroMessagingBuilder(IServiceCollection services) : IHeroMessagingB
         // For now, it's a placeholder
         return this;
     }
+    /// <summary>
+    /// Executes build.
+    /// </summary>
 
     public IServiceCollection Build()
     {

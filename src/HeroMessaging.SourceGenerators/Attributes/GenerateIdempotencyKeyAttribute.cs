@@ -24,6 +24,9 @@ public sealed class GenerateIdempotencyKeyAttribute : Attribute
     /// Property names to include in the idempotency key.
     /// </summary>
     public string[] PropertyNames { get; }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="GenerateIdempotencyKeyAttribute"/> class.
+    /// </summary>
 
     public GenerateIdempotencyKeyAttribute(params string[] propertyNames)
     {

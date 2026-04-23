@@ -179,7 +179,7 @@ public class RingBufferQueueTests
         var envelope = CreateTestEnvelope();
 
         // Act
-        var result = await queue.EnqueueAsync(envelope);
+        var result = await queue.EnqueueAsync(envelope, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
@@ -199,7 +199,7 @@ public class RingBufferQueueTests
         // Act
         for (int i = 0; i < 10; i++)
         {
-            var result = await queue.EnqueueAsync(CreateTestEnvelope());
+            var result = await queue.EnqueueAsync(CreateTestEnvelope(), cancellationToken: TestContext.Current.CancellationToken);
             Assert.True(result);
         }
 
@@ -220,7 +220,7 @@ public class RingBufferQueueTests
 
         // Act
         await queue.DisposeAsync();
-        var result = await queue.EnqueueAsync(envelope);
+        var result = await queue.EnqueueAsync(envelope, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);
@@ -294,14 +294,14 @@ public class RingBufferQueueTests
             tcs.SetResult(true);
         });
 
-        await consumer.StartAsync();
+        await consumer.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
         queue.AddConsumer(consumer);
-        await queue.EnqueueAsync(CreateTestEnvelope("TestMessage"));
+        await queue.EnqueueAsync(CreateTestEnvelope("TestMessage"), cancellationToken: TestContext.Current.CancellationToken);
 
         // Wait for processing
-        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(receivedMessages);
@@ -348,9 +348,9 @@ public class RingBufferQueueTests
                 tcs.SetResult(true);
         });
 
-        await consumer1.StartAsync();
-        await consumer2.StartAsync();
-        await consumer3.StartAsync();
+        await consumer1.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
+        await consumer2.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
+        await consumer3.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         queue.AddConsumer(consumer1);
         queue.AddConsumer(consumer2);
@@ -359,11 +359,11 @@ public class RingBufferQueueTests
         // Act - Enqueue 9 messages (3 per consumer)
         for (int i = 0; i < 9; i++)
         {
-            await queue.EnqueueAsync(CreateTestEnvelope($"Message{i}"));
+            await queue.EnqueueAsync(CreateTestEnvelope($"Message{i}"), cancellationToken: TestContext.Current.CancellationToken);
         }
 
         // Wait for processing
-        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         // Assert - All 9 messages should be processed (distributed among consumers)
         var totalProcessed = consumer1Messages.Count + consumer2Messages.Count + consumer3Messages.Count;
@@ -437,8 +437,8 @@ public class RingBufferQueueTests
                 tcs.SetResult(true);
         });
 
-        await consumer1.StartAsync();
-        await consumer2.StartAsync();
+        await consumer1.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
+        await consumer2.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         queue.AddConsumer(consumer1);
         queue.AddConsumer(consumer2);
@@ -447,11 +447,11 @@ public class RingBufferQueueTests
         queue.RemoveConsumer(consumer1);
 
         // Enqueue messages after removal
-        await queue.EnqueueAsync(CreateTestEnvelope("AfterRemoval1"));
-        await queue.EnqueueAsync(CreateTestEnvelope("AfterRemoval2"));
+        await queue.EnqueueAsync(CreateTestEnvelope("AfterRemoval1"), cancellationToken: TestContext.Current.CancellationToken);
+        await queue.EnqueueAsync(CreateTestEnvelope("AfterRemoval2"), cancellationToken: TestContext.Current.CancellationToken);
 
         // Wait for processing
-        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         // Assert - Only consumer2 should receive messages
         Assert.Empty(consumer1Messages);
@@ -471,7 +471,7 @@ public class RingBufferQueueTests
         var tcs = new TaskCompletionSource<bool>();
 
         // Enqueue message BEFORE adding consumer to reliably capture depth
-        await queue.EnqueueAsync(CreateTestEnvelope());
+        await queue.EnqueueAsync(CreateTestEnvelope(), cancellationToken: TestContext.Current.CancellationToken);
         var depthBefore = queue.Depth;
 
         var consumer = await CreateTestConsumer(async (env, ctx, ct) =>
@@ -480,11 +480,11 @@ public class RingBufferQueueTests
             tcs.SetResult(true);
         });
 
-        await consumer.StartAsync();
+        await consumer.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
         queue.AddConsumer(consumer);
 
         // Wait for processing
-        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
         var depthAfter = queue.Depth;
 
         // Assert
@@ -518,14 +518,14 @@ public class RingBufferQueueTests
                 tcs.TrySetResult(true);
         });
 
-        await consumer.StartAsync();
+        await consumer.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
         queue.AddConsumer(consumer);
 
         // Act - Enqueue messages
         var tasks = new List<Task>();
         for (int i = 0; i < targetCount; i++)
         {
-            tasks.Add(queue.EnqueueAsync(CreateTestEnvelope($"Message{i}")).AsTask());
+            tasks.Add(queue.EnqueueAsync(CreateTestEnvelope($"Message{i}"), cancellationToken: TestContext.Current.CancellationToken).AsTask());
         }
         await Task.WhenAll(tasks);
 
@@ -586,7 +586,7 @@ public class RingBufferQueueTests
                 {
                     await queue.EnqueueAsync(CreateTestEnvelope($"Thread{threadId}-Message{i}"));
                 }
-            }));
+            }, TestContext.Current.CancellationToken));
         }
         await Task.WhenAll(tasks);
 
@@ -604,14 +604,14 @@ public class RingBufferQueueTests
         var queue = new RingBufferQueue(options);
         var consumer = await CreateTestConsumer();
 
-        await consumer.StartAsync();
+        await consumer.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
         queue.AddConsumer(consumer);
 
         // Act
         await queue.DisposeAsync();
 
         // Assert - Enqueue after dispose should fail
-        var result = await queue.EnqueueAsync(CreateTestEnvelope());
+        var result = await queue.EnqueueAsync(CreateTestEnvelope(), cancellationToken: TestContext.Current.CancellationToken);
         Assert.False(result);
 
         await consumer.DisposeAsync();
@@ -627,7 +627,7 @@ public class RingBufferQueueTests
         // Enqueue messages without consumer
         for (int i = 0; i < 10; i++)
         {
-            await queue.EnqueueAsync(CreateTestEnvelope());
+            await queue.EnqueueAsync(CreateTestEnvelope(), cancellationToken: TestContext.Current.CancellationToken);
         }
 
         // Act & Assert - Should not throw
@@ -677,13 +677,13 @@ public class RingBufferQueueTests
             }
         });
 
-        await consumer.StartAsync();
+        await consumer.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
         queue.AddConsumer(consumer);
 
         // Act - Mix of failing and successful messages
-        await queue.EnqueueAsync(CreateTestEnvelope("SuccessMessage1"));
-        await queue.EnqueueAsync(CreateTestEnvelope("FailMessage"));
-        await queue.EnqueueAsync(CreateTestEnvelope("SuccessMessage2"));
+        await queue.EnqueueAsync(CreateTestEnvelope("SuccessMessage1"), cancellationToken: TestContext.Current.CancellationToken);
+        await queue.EnqueueAsync(CreateTestEnvelope("FailMessage"), cancellationToken: TestContext.Current.CancellationToken);
+        await queue.EnqueueAsync(CreateTestEnvelope("SuccessMessage2"), cancellationToken: TestContext.Current.CancellationToken);
 
         // Wait for successful messages with reasonable timeout
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));

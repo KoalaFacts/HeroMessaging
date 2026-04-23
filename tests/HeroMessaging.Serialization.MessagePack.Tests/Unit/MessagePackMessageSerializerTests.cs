@@ -475,7 +475,7 @@ public class MessagePackMessageSerializerTests
         // Arrange
         var serializer = new MessagePackMessageSerializer();
         var original = new TestMessage { Id = 1, Name = "Test", Value = 99.99m };
-        var data = MessagePackSerializer.Serialize(original);
+        var data = MessagePackSerializer.Serialize(original, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
         var result = serializer.Deserialize<TestMessage>(data);
@@ -507,7 +507,7 @@ public class MessagePackMessageSerializerTests
         // Arrange
         var serializer = new MessagePackMessageSerializer();
         var original = new TestMessage { Id = 1, Name = "Test", Value = 99.99m };
-        var data = MessagePackSerializer.Serialize(original);
+        var data = MessagePackSerializer.Serialize(original, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
         var result = serializer.Deserialize(data, typeof(TestMessage));

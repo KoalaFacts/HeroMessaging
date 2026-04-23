@@ -17,6 +17,9 @@ namespace HeroMessaging.SourceGenerators;
 [Generator]
 public class HandlerRegistrationGenerator : IIncrementalGenerator
 {
+    /// <summary>
+    /// Executes initialize.
+    /// </summary>
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         // Find all handler types in the compilation
@@ -32,7 +35,7 @@ public class HandlerRegistrationGenerator : IIncrementalGenerator
         {
             if (!handlerInfos.Any()) return;
 
-            var source = GenerateRegistrationExtensions(handlerInfos!);
+            var source = GenerateRegistrationExtensions(handlerInfos);
             spc.AddSource("HandlerRegistrationExtensions.g.cs", SourceText.From(source, Encoding.UTF8));
         });
     }

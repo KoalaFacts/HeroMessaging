@@ -95,6 +95,9 @@ public static class PipelineConfigurations
 #pragma warning disable IDE0130 // Namespace does not match folder structure
 public static class ExtensionsToIServiceCollectionForPipeline
 {
+    /// <summary>
+    /// Executes add message processing pipeline.
+    /// </summary>
     public static IServiceCollection AddMessageProcessingPipeline(this IServiceCollection services)
     {
         if (services == null) throw new ArgumentNullException(nameof(services));
@@ -107,6 +110,9 @@ public static class ExtensionsToIServiceCollectionForPipeline
 
         return services;
     }
+    /// <summary>
+    /// Executes use predefined pipeline.
+    /// </summary>
 
     public static MessageProcessingPipelineBuilder UsePredefinedPipeline(
         this MessageProcessingPipelineBuilder builder,
@@ -124,12 +130,30 @@ public static class ExtensionsToIServiceCollectionForPipeline
         };
     }
 }
+/// <summary>
+/// Defines values for pipeline profile.
+/// </summary>
 
 public enum PipelineProfile
 {
+    /// <summary>
+    /// Specifies high throughput.
+    /// </summary>
     HighThroughput,
+    /// <summary>
+    /// Specifies critical business.
+    /// </summary>
     CriticalBusiness,
+    /// <summary>
+    /// Specifies development.
+    /// </summary>
     Development,
+    /// <summary>
+    /// Specifies integration.
+    /// </summary>
     Integration,
+    /// <summary>
+    /// Specifies minimal.
+    /// </summary>
     Minimal
 }

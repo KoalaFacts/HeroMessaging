@@ -25,18 +25,18 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
 
     public RabbitMqTransportInstrumentationIntegrationTests()
     {
-        _activities = new List<Activity>();
-        _longMeasurements = new Dictionary<string, List<Measurement<long>>>();
-        _doubleMeasurements = new Dictionary<string, List<Measurement<double>>>();
+        _activities = [];
+        _longMeasurements = [];
+        _doubleMeasurements = [];
         _instrumentation = OpenTelemetryTransportInstrumentation.Instance;
 
         // Set up activity listener to capture all activities
         _activityListener = new ActivityListener
         {
-            ShouldListenTo = source =>
+            ShouldListenTo = static source =>
                 source.Name == TransportInstrumentation.ActivitySourceName ||
                 source.Name == HeroMessagingInstrumentation.ActivitySourceName,
-            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
+            Sample = SampleAllData,
             ActivityStarted = activity => _activities.Add(activity)
         };
         ActivitySource.AddActivityListener(_activityListener);
@@ -57,7 +57,7 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
         {
             if (!_longMeasurements.ContainsKey(instrument.Name))
             {
-                _longMeasurements[instrument.Name] = new List<Measurement<long>>();
+                _longMeasurements[instrument.Name] = [];
             }
             _longMeasurements[instrument.Name].Add(new Measurement<long>(measurement, tags));
         });
@@ -66,7 +66,7 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
         {
             if (!_doubleMeasurements.ContainsKey(instrument.Name))
             {
-                _doubleMeasurements[instrument.Name] = new List<Measurement<double>>();
+                _doubleMeasurements[instrument.Name] = [];
             }
             _doubleMeasurements[instrument.Name].Add(new Measurement<double>(measurement, tags));
         });
@@ -85,6 +85,9 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
             activity?.Dispose();
         }
     }
+
+    private static ActivitySamplingResult SampleAllData(ref ActivityCreationOptions<ActivityContext> options) =>
+        ActivitySamplingResult.AllDataAndRecorded;
 
     [Fact]
     [Trait("Category", "Integration")]
@@ -123,7 +126,7 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
             // Connect and configure
             await transport.ConnectAsync(TestContext.Current.CancellationToken);
             await transport.ConfigureTopologyAsync(new TransportTopology()
-                .AddQueue(new QueueDefinition { Name = queueName, Durable = false, AutoDelete = true }));
+                .AddQueue(new QueueDefinition { Name = queueName, Durable = false, AutoDelete = true }), cancellationToken: TestContext.Current.CancellationToken);
 
             // Subscribe before sending
             var consumer = await transport.SubscribeAsync(
@@ -135,10 +138,10 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
                     messageReceived.TrySetResult(true);
                     await Task.CompletedTask;
                 },
-                new ConsumerOptions { StartImmediately = true, ConsumerId = "test-consumer" });
+                new ConsumerOptions { StartImmediately = true, ConsumerId = "test-consumer" }, cancellationToken: TestContext.Current.CancellationToken);
 
             // Give consumer time to start
-            await Task.Delay(500);
+            await Task.Delay(500, TestContext.Current.CancellationToken);
 
             // Act - Send message
             await transport.SendAsync(destination, envelope, TestContext.Current.CancellationToken);
@@ -225,7 +228,7 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
             // Connect and configure
             await transport.ConnectAsync(TestContext.Current.CancellationToken);
             await transport.ConfigureTopologyAsync(new TransportTopology()
-                .AddQueue(new QueueDefinition { Name = queueName, Durable = false, AutoDelete = true }));
+                .AddQueue(new QueueDefinition { Name = queueName, Durable = false, AutoDelete = true }), cancellationToken: TestContext.Current.CancellationToken);
 
             // Act
             await transport.SendAsync(destination, envelope, TestContext.Current.CancellationToken);
@@ -281,7 +284,7 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
                     Type = ExchangeType.Topic,
                     Durable = false,
                     AutoDelete = true
-                }));
+                }), cancellationToken: TestContext.Current.CancellationToken);
 
             // Act
             await transport.PublishAsync(topic, envelope, TestContext.Current.CancellationToken);
@@ -329,7 +332,7 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
 
         // Act - Try to send without connecting (should fail)
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await transport.SendAsync(TransportAddress.Queue("test"), envelope));
+            await transport.SendAsync(TransportAddress.Queue("test"), envelope, cancellationToken: TestContext.Current.CancellationToken));
 
         // Assert
         Assert.Contains("not connected", exception.Message);
@@ -368,7 +371,7 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
             // Connect and configure
             await transport.ConnectAsync(TestContext.Current.CancellationToken);
             await transport.ConfigureTopologyAsync(new TransportTopology()
-                .AddQueue(new QueueDefinition { Name = queueName, Durable = false, AutoDelete = true }));
+                .AddQueue(new QueueDefinition { Name = queueName, Durable = false, AutoDelete = true }), cancellationToken: TestContext.Current.CancellationToken);
 
             // Subscribe
             await transport.SubscribeAsync(
@@ -382,9 +385,9 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
                     }
                     await Task.CompletedTask;
                 },
-                new ConsumerOptions { StartImmediately = true });
+                new ConsumerOptions { StartImmediately = true }, cancellationToken: TestContext.Current.CancellationToken);
 
-            await Task.Delay(500);
+            await Task.Delay(500, TestContext.Current.CancellationToken);
 
             // Act - Send multiple messages
             for (int i = 0; i < 3; i++)
@@ -458,7 +461,7 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
             // Connect and configure
             await transport.ConnectAsync(TestContext.Current.CancellationToken);
             await transport.ConfigureTopologyAsync(new TransportTopology()
-                .AddQueue(new QueueDefinition { Name = queueName, Durable = false, AutoDelete = true }));
+                .AddQueue(new QueueDefinition { Name = queueName, Durable = false, AutoDelete = true }), cancellationToken: TestContext.Current.CancellationToken);
 
             // Act
             await transport.SendAsync(destination, envelope, TestContext.Current.CancellationToken);

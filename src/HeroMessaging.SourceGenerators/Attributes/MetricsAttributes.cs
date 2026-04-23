@@ -75,6 +75,9 @@ public sealed class InstrumentMethodAttribute : Attribute
     /// Whether to tag errors with exception type (default: true).
     /// </summary>
     public bool TagErrors { get; set; } = true;
+    /// <summary>
+    /// Initializes a new instance of the <see cref="InstrumentMethodAttribute"/> class.
+    /// </summary>
 
     public InstrumentMethodAttribute(InstrumentationType types)
     {
@@ -180,10 +183,16 @@ public sealed class GenerateMetricsAttribute : Attribute
     /// Whether to generate metrics for all public methods (default: false, opt-in only).
     /// </summary>
     public bool InstrumentAllMethods { get; set; } = false;
+    /// <summary>
+    /// Initializes a new instance of the <see cref="GenerateMetricsAttribute"/> class.
+    /// </summary>
 
     public GenerateMetricsAttribute()
     {
     }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="GenerateMetricsAttribute"/> class.
+    /// </summary>
 
     public GenerateMetricsAttribute(string meterName)
     {
@@ -204,7 +213,13 @@ public sealed class GenerateMetricsAttribute : Attribute
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
 public sealed class MetricBucketsAttribute : Attribute
 {
+    /// <summary>
+    /// Gets boundaries.
+    /// </summary>
     public double[] Boundaries { get; }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MetricBucketsAttribute"/> class.
+    /// </summary>
 
     public MetricBucketsAttribute(params double[] boundaries)
     {

@@ -13,6 +13,9 @@ public class MetricsDecorator(IMessageProcessor inner, IMetricsCollector metrics
 {
     private readonly IMetricsCollector _metricsCollector = metricsCollector;
     private readonly TimeProvider _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+    /// <summary>
+    /// Executes process async.
+    /// </summary>
 
     public override async ValueTask<ProcessingResult> ProcessAsync(IMessage message, ProcessingContext context, CancellationToken cancellationToken = default)
     {
@@ -51,18 +54,30 @@ public class MetricsDecorator(IMessageProcessor inner, IMetricsCollector metrics
         }
     }
 }
+/// <summary>
+/// Represents the in memory metrics collector type.
+/// </summary>
 
 public class InMemoryMetricsCollector : IMetricsCollector
 {
     private readonly ConcurrentDictionary<string, long> _counters = new();
     private readonly ConcurrentDictionary<string, ConcurrentBag<TimeSpan>> _durations = new();
+    /// <summary>
+    /// Represents values.
+    /// </summary>
     private readonly ConcurrentDictionary<string, ConcurrentBag<double>> _values = new();
+    /// <summary>
+    /// Executes increment counter.
+    /// </summary>
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void IncrementCounter(string name, int value = 1)
     {
         _counters.AddOrUpdate(name, value, (_, current) => current + value);
     }
+    /// <summary>
+    /// Executes record duration.
+    /// </summary>
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void RecordDuration(string name, TimeSpan duration)
@@ -70,6 +85,9 @@ public class InMemoryMetricsCollector : IMetricsCollector
         var bag = _durations.GetOrAdd(name, _ => []);
         bag.Add(duration);
     }
+    /// <summary>
+    /// Executes record value.
+    /// </summary>
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void RecordValue(string name, double value)
@@ -77,6 +95,9 @@ public class InMemoryMetricsCollector : IMetricsCollector
         var bag = _values.GetOrAdd(name, _ => []);
         bag.Add(value);
     }
+    /// <summary>
+    /// Executes get snapshot.
+    /// </summary>
 
     public Dictionary<string, object> GetSnapshot()
     {

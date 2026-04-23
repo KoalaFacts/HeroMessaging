@@ -24,6 +24,9 @@ public class SqlServerQueueStorage : IQueueStorage
     private readonly IJsonSerializer _jsonSerializer;
     private readonly SemaphoreSlim _initLock = new(1, 1);
     private bool _initialized;
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SqlServerQueueStorage"/> class.
+    /// </summary>
 
     public SqlServerQueueStorage(SqlServerStorageOptions options, TimeProvider timeProvider, IJsonSerializer jsonSerializer)
     {
@@ -39,6 +42,9 @@ public class SqlServerQueueStorage : IQueueStorage
             WriteIndented = false
         };
     }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SqlServerQueueStorage"/> class.
+    /// </summary>
 
     public SqlServerQueueStorage(SqlConnection connection, SqlTransaction? transaction, TimeProvider timeProvider, IJsonSerializer jsonSerializer)
     {
@@ -92,6 +98,9 @@ public class SqlServerQueueStorage : IQueueStorage
             _initLock.Release();
         }
     }
+    /// <summary>
+    /// Executes initialize database.
+    /// </summary>
 
     private async Task InitializeDatabase()
     {
@@ -138,6 +147,9 @@ public class SqlServerQueueStorage : IQueueStorage
         using var command = new SqlCommand(createTableSql, connection);
         await command.ExecuteNonQueryAsync();
     }
+    /// <summary>
+    /// Executes enqueue async.
+    /// </summary>
 
     public async Task<QueueEntry> EnqueueAsync(string queueName, IMessage message, EnqueueOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -185,6 +197,9 @@ public class SqlServerQueueStorage : IQueueStorage
         {
         }
     }
+    /// <summary>
+    /// Executes dequeue async.
+    /// </summary>
 
     public async Task<QueueEntry?> DequeueAsync(string queueName, CancellationToken cancellationToken = default)
     {
@@ -276,6 +291,9 @@ public class SqlServerQueueStorage : IQueueStorage
         {
         }
     }
+    /// <summary>
+    /// Executes peek async.
+    /// </summary>
 
     public async Task<IEnumerable<QueueEntry>> PeekAsync(string queueName, int count = 1, CancellationToken cancellationToken = default)
     {
@@ -338,6 +356,9 @@ public class SqlServerQueueStorage : IQueueStorage
         {
         }
     }
+    /// <summary>
+    /// Executes acknowledge async.
+    /// </summary>
 
     public async Task<bool> AcknowledgeAsync(string queueName, string entryId, CancellationToken cancellationToken = default)
     {
@@ -365,6 +386,9 @@ public class SqlServerQueueStorage : IQueueStorage
         {
         }
     }
+    /// <summary>
+    /// Executes reject async.
+    /// </summary>
 
     public async Task<bool> RejectAsync(string queueName, string entryId, bool requeue = false, CancellationToken cancellationToken = default)
     {
@@ -412,6 +436,9 @@ public class SqlServerQueueStorage : IQueueStorage
         {
         }
     }
+    /// <summary>
+    /// Executes get queue depth async.
+    /// </summary>
 
     public async Task<long> GetQueueDepthAsync(string queueName, CancellationToken cancellationToken = default)
     {
@@ -439,6 +466,9 @@ public class SqlServerQueueStorage : IQueueStorage
         {
         }
     }
+    /// <summary>
+    /// Executes create queue async.
+    /// </summary>
 
     public async Task<bool> CreateQueueAsync(string queueName, QueueOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -447,6 +477,9 @@ public class SqlServerQueueStorage : IQueueStorage
         await Task.CompletedTask;
         return true;
     }
+    /// <summary>
+    /// Executes delete queue async.
+    /// </summary>
 
     public async Task<bool> DeleteQueueAsync(string queueName, CancellationToken cancellationToken = default)
     {
@@ -472,6 +505,9 @@ public class SqlServerQueueStorage : IQueueStorage
         {
         }
     }
+    /// <summary>
+    /// Executes get queues async.
+    /// </summary>
 
     public async Task<IEnumerable<string>> GetQueuesAsync(CancellationToken cancellationToken = default)
     {
@@ -503,6 +539,9 @@ public class SqlServerQueueStorage : IQueueStorage
         {
         }
     }
+    /// <summary>
+    /// Executes queue exists async.
+    /// </summary>
 
     public async Task<bool> QueueExistsAsync(string queueName, CancellationToken cancellationToken = default)
     {

@@ -101,7 +101,7 @@ public class InMemoryTransportTests
         var transport = new InMemoryTransport(_options, _timeProvider);
 
         // Act
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(TransportState.Connected, transport.State);
@@ -118,7 +118,7 @@ public class InMemoryTransportTests
         transport.StateChanged += (sender, args) => eventArgs = args;
 
         // Act
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(eventArgs);
@@ -134,13 +134,13 @@ public class InMemoryTransportTests
     {
         // Arrange
         var transport = new InMemoryTransport(_options, _timeProvider);
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         int eventCount = 0;
         transport.StateChanged += (sender, args) => eventCount++;
 
         // Act
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(0, eventCount);
@@ -165,7 +165,7 @@ public class InMemoryTransportTests
         transport.StateChanged += (sender, args) => stateChanges.Add(args.CurrentState);
 
         // Act
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(TransportState.Connected, transport.State);
@@ -201,10 +201,10 @@ public class InMemoryTransportTests
     {
         // Arrange
         var transport = new InMemoryTransport(_options, _timeProvider);
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
-        await transport.DisconnectAsync();
+        await transport.DisconnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(TransportState.Disconnected, transport.State);
@@ -215,13 +215,13 @@ public class InMemoryTransportTests
     {
         // Arrange
         var transport = new InMemoryTransport(_options, _timeProvider);
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var stateChanges = new List<TransportState>();
         transport.StateChanged += (sender, args) => stateChanges.Add(args.CurrentState);
 
         // Act
-        await transport.DisconnectAsync();
+        await transport.DisconnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Contains(TransportState.Disconnecting, stateChanges);
@@ -233,7 +233,7 @@ public class InMemoryTransportTests
     {
         // Arrange
         var transport = new InMemoryTransport(_options, _timeProvider);
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var queue = TransportAddress.Queue("test-queue");
         var topic = TransportAddress.Topic("test-topic");
@@ -241,16 +241,17 @@ public class InMemoryTransportTests
         await transport.SendAsync(queue, CreateTestEnvelope(), CancellationToken.None);
         await transport.PublishAsync(topic, CreateTestEnvelope(), CancellationToken.None);
         await transport.SubscribeAsync(queue, (env, ctx, ct) => Task.CompletedTask,
-            new ConsumerOptions { StartImmediately = false });
+            new ConsumerOptions { StartImmediately = false }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
-        await transport.DisconnectAsync();
+        await transport.DisconnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
-        var health = await transport.GetHealthAsync();
-        Assert.Equal(0, health.Data["QueueCount"]);
-        Assert.Equal(0, health.Data["TopicCount"]);
-        Assert.Equal(0, health.Data["ConsumerCount"]);
+        var health = await transport.GetHealthAsync(cancellationToken: TestContext.Current.CancellationToken);
+        var data = Assert.IsType<Dictionary<string, object>>(health.Data);
+        Assert.Equal(0, Assert.IsType<int>(data["QueueCount"]));
+        Assert.Equal(0, Assert.IsType<int>(data["TopicCount"]));
+        Assert.Equal(0, Assert.IsType<int>(data["ConsumerCount"]));
     }
 
     [Fact]
@@ -263,7 +264,7 @@ public class InMemoryTransportTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await transport.SendAsync(destination, envelope));
+            await transport.SendAsync(destination, envelope, cancellationToken: TestContext.Current.CancellationToken));
         Assert.Contains("not connected", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -272,16 +273,16 @@ public class InMemoryTransportTests
     {
         // Arrange
         var transport = new InMemoryTransport(_options, _timeProvider);
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var destination = TransportAddress.Queue("test-queue");
         var envelope = CreateTestEnvelope();
 
         // Act
-        await transport.SendAsync(destination, envelope);
+        await transport.SendAsync(destination, envelope, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
-        var health = await transport.GetHealthAsync();
+        var health = await transport.GetHealthAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(health.PendingMessages > 0);
 
         await transport.DisposeAsync();
@@ -292,13 +293,13 @@ public class InMemoryTransportTests
     {
         // Arrange
         var transport = new InMemoryTransport(_options, _timeProvider, _instrumentationMock.Object);
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var destination = TransportAddress.Queue("test-queue");
         var envelope = CreateTestEnvelope();
 
         // Act
-        await transport.SendAsync(destination, envelope);
+        await transport.SendAsync(destination, envelope, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         _instrumentationMock.Verify(x => x.StartSendActivity(envelope, destination.Name, "TestTransport"), Times.Once);
@@ -318,13 +319,13 @@ public class InMemoryTransportTests
             DropWhenFull = false
         };
         var transport = new InMemoryTransport(options, _timeProvider);
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var destination = TransportAddress.Queue("test-queue");
 
         // Fill the queue
-        await transport.SendAsync(destination, CreateTestEnvelope());
-        await transport.SendAsync(destination, CreateTestEnvelope());
+        await transport.SendAsync(destination, CreateTestEnvelope(), cancellationToken: TestContext.Current.CancellationToken);
+        await transport.SendAsync(destination, CreateTestEnvelope(), cancellationToken: TestContext.Current.CancellationToken);
 
         // Act & Assert - Third message should fail with timeout
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
@@ -345,17 +346,17 @@ public class InMemoryTransportTests
             DropWhenFull = true
         };
         var transport = new InMemoryTransport(options, _timeProvider);
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var destination = TransportAddress.Queue("test-queue");
 
         // Act - Fill the queue and send one more
-        await transport.SendAsync(destination, CreateTestEnvelope());
-        await transport.SendAsync(destination, CreateTestEnvelope());
-        await transport.SendAsync(destination, CreateTestEnvelope()); // Should drop oldest
+        await transport.SendAsync(destination, CreateTestEnvelope(), cancellationToken: TestContext.Current.CancellationToken);
+        await transport.SendAsync(destination, CreateTestEnvelope(), cancellationToken: TestContext.Current.CancellationToken);
+        await transport.SendAsync(destination, CreateTestEnvelope(), cancellationToken: TestContext.Current.CancellationToken); // Should drop oldest
 
         // Assert - Should not throw
-        var health = await transport.GetHealthAsync();
+        var health = await transport.GetHealthAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.True(health.PendingMessages <= 2);
 
         await transport.DisposeAsync();
@@ -371,7 +372,7 @@ public class InMemoryTransportTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await transport.PublishAsync(topic, envelope));
+            await transport.PublishAsync(topic, envelope, cancellationToken: TestContext.Current.CancellationToken));
         Assert.Contains("not connected", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -380,17 +381,18 @@ public class InMemoryTransportTests
     {
         // Arrange
         var transport = new InMemoryTransport(_options, _timeProvider);
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var topic = TransportAddress.Topic("test-topic");
         var envelope = CreateTestEnvelope();
 
         // Act
-        await transport.PublishAsync(topic, envelope);
+        await transport.PublishAsync(topic, envelope, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
-        var health = await transport.GetHealthAsync();
-        Assert.True((int)health.Data["TopicCount"] >= 1);
+        var health = await transport.GetHealthAsync(cancellationToken: TestContext.Current.CancellationToken);
+        var data = Assert.IsType<Dictionary<string, object>>(health.Data);
+        Assert.True(Assert.IsType<int>(data["TopicCount"]) >= 1);
 
         await transport.DisposeAsync();
     }
@@ -400,13 +402,13 @@ public class InMemoryTransportTests
     {
         // Arrange
         var transport = new InMemoryTransport(_options, _timeProvider, _instrumentationMock.Object);
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var topic = TransportAddress.Topic("test-topic");
         var envelope = CreateTestEnvelope();
 
         // Act
-        await transport.PublishAsync(topic, envelope);
+        await transport.PublishAsync(topic, envelope, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         _instrumentationMock.Verify(x => x.StartPublishActivity(envelope, topic.Name, "TestTransport"), Times.Once);
@@ -424,7 +426,7 @@ public class InMemoryTransportTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await transport.SubscribeAsync(source, (env, ctx, ct) => Task.CompletedTask));
+            await transport.SubscribeAsync(source, (env, ctx, ct) => Task.CompletedTask, cancellationToken: TestContext.Current.CancellationToken));
         Assert.Contains("not connected", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -433,7 +435,7 @@ public class InMemoryTransportTests
     {
         // Arrange
         var transport = new InMemoryTransport(_options, _timeProvider);
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var source = TransportAddress.Queue("test-queue");
 
@@ -441,7 +443,7 @@ public class InMemoryTransportTests
         var consumer = await transport.SubscribeAsync(
             source,
             (env, ctx, ct) => Task.CompletedTask,
-            new ConsumerOptions { StartImmediately = false });
+            new ConsumerOptions { StartImmediately = false }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(consumer);
@@ -457,7 +459,7 @@ public class InMemoryTransportTests
     {
         // Arrange
         var transport = new InMemoryTransport(_options, _timeProvider);
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var source = TransportAddress.Topic("test-topic");
 
@@ -465,7 +467,7 @@ public class InMemoryTransportTests
         var consumer = await transport.SubscribeAsync(
             source,
             (env, ctx, ct) => Task.CompletedTask,
-            new ConsumerOptions { StartImmediately = false });
+            new ConsumerOptions { StartImmediately = false }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(consumer);
@@ -479,7 +481,7 @@ public class InMemoryTransportTests
     {
         // Arrange
         var transport = new InMemoryTransport(_options, _timeProvider);
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var source = TransportAddress.Queue("test-queue");
 
@@ -487,7 +489,7 @@ public class InMemoryTransportTests
         var consumer = await transport.SubscribeAsync(
             source,
             (env, ctx, ct) => Task.CompletedTask,
-            new ConsumerOptions { StartImmediately = true });
+            new ConsumerOptions { StartImmediately = true }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(consumer.IsActive);
@@ -500,17 +502,17 @@ public class InMemoryTransportTests
     {
         // Arrange
         var transport = new InMemoryTransport(_options, _timeProvider);
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var source = TransportAddress.Queue("test-queue");
         var consumerId = "duplicate-id";
         var options = new ConsumerOptions { ConsumerId = consumerId, StartImmediately = false };
 
-        await transport.SubscribeAsync(source, (env, ctx, ct) => Task.CompletedTask, options);
+        await transport.SubscribeAsync(source, (env, ctx, ct) => Task.CompletedTask, options, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await transport.SubscribeAsync(source, (env, ctx, ct) => Task.CompletedTask, options));
+            await transport.SubscribeAsync(source, (env, ctx, ct) => Task.CompletedTask, options, cancellationToken: TestContext.Current.CancellationToken));
         Assert.Contains("already exists", exception.Message, StringComparison.OrdinalIgnoreCase);
 
         await transport.DisposeAsync();
@@ -525,7 +527,7 @@ public class InMemoryTransportTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await transport.ConfigureTopologyAsync(topology));
+            await transport.ConfigureTopologyAsync(topology, cancellationToken: TestContext.Current.CancellationToken));
         Assert.Contains("not connected", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -534,7 +536,7 @@ public class InMemoryTransportTests
     {
         // Arrange
         var transport = new InMemoryTransport(_options, _timeProvider);
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var topology = new TransportTopology();
         topology.AddQueue(new QueueDefinition { Name = "queue1" });
@@ -543,12 +545,13 @@ public class InMemoryTransportTests
         topology.AddTopic(new TopicDefinition { Name = "topic2" });
 
         // Act
-        await transport.ConfigureTopologyAsync(topology);
+        await transport.ConfigureTopologyAsync(topology, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
-        var health = await transport.GetHealthAsync();
-        Assert.True((int)health.Data["QueueCount"] >= 2);
-        Assert.True((int)health.Data["TopicCount"] >= 2);
+        var health = await transport.GetHealthAsync(cancellationToken: TestContext.Current.CancellationToken);
+        var data = Assert.IsType<Dictionary<string, object>>(health.Data);
+        Assert.True(Assert.IsType<int>(data["QueueCount"]) >= 2);
+        Assert.True(Assert.IsType<int>(data["TopicCount"]) >= 2);
 
         await transport.DisposeAsync();
     }
@@ -560,7 +563,7 @@ public class InMemoryTransportTests
         var transport = new InMemoryTransport(_options, _timeProvider);
 
         // Act
-        var health = await transport.GetHealthAsync();
+        var health = await transport.GetHealthAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HealthStatus.Unhealthy, health.Status);
@@ -573,10 +576,10 @@ public class InMemoryTransportTests
     {
         // Arrange
         var transport = new InMemoryTransport(_options, _timeProvider);
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
-        var health = await transport.GetHealthAsync();
+        var health = await transport.GetHealthAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(HealthStatus.Healthy, health.Status);
@@ -593,15 +596,15 @@ public class InMemoryTransportTests
     {
         // Arrange
         var transport = new InMemoryTransport(_options, _timeProvider);
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var queue = TransportAddress.Queue("test-queue");
-        await transport.SendAsync(queue, CreateTestEnvelope());
+        await transport.SendAsync(queue, CreateTestEnvelope(), cancellationToken: TestContext.Current.CancellationToken);
         await transport.SubscribeAsync(queue, (env, ctx, ct) => Task.CompletedTask,
-            new ConsumerOptions { StartImmediately = false });
+            new ConsumerOptions { StartImmediately = false }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
-        var health = await transport.GetHealthAsync();
+        var health = await transport.GetHealthAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(health.Data);
@@ -619,7 +622,7 @@ public class InMemoryTransportTests
     {
         // Arrange
         var transport = new InMemoryTransport(_options, _timeProvider);
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
         await transport.DisposeAsync();
@@ -633,13 +636,13 @@ public class InMemoryTransportTests
     {
         // Arrange
         var transport = new InMemoryTransport(_options, _timeProvider);
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var queue = TransportAddress.Queue("test-queue");
         var consumer = await transport.SubscribeAsync(
             queue,
             (env, ctx, ct) => Task.CompletedTask,
-            new ConsumerOptions { StartImmediately = true });
+            new ConsumerOptions { StartImmediately = true }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
         await transport.DisposeAsync();
@@ -657,8 +660,8 @@ public class InMemoryTransportTests
         transport.StateChanged += (sender, args) => stateChangeEvents.Add(args);
 
         // Act
-        await transport.ConnectAsync();
-        await transport.DisconnectAsync();
+        await transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
+        await transport.DisconnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotEmpty(stateChangeEvents);
@@ -674,21 +677,21 @@ public class InMemoryTransportTests
     {
         // Arrange
         var transport = new InMemoryTransport(_options, _timeProvider);
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var queue = TransportAddress.Queue("test-queue");
         var consumer = await transport.SubscribeAsync(
             queue,
             (env, ctx, ct) => Task.CompletedTask,
-            new ConsumerOptions { StartImmediately = false });
+            new ConsumerOptions { StartImmediately = false }, cancellationToken: TestContext.Current.CancellationToken);
 
-        var healthBefore = await transport.GetHealthAsync();
+        var healthBefore = await transport.GetHealthAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
         await consumer.DisposeAsync();
 
         // Assert
-        var healthAfter = await transport.GetHealthAsync();
+        var healthAfter = await transport.GetHealthAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(healthBefore.ActiveConsumers - 1, healthAfter.ActiveConsumers);
 
         await transport.DisposeAsync();

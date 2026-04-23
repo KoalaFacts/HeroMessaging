@@ -422,7 +422,7 @@ public class CircuitBreakerRetryPolicyTests
 
     [Fact]
     [Trait("Category", "Unit")]
-    public void ShouldRetry_ConcurrentCallsWithSameException_MaintainsCircuitState()
+    public async Task ShouldRetry_ConcurrentCallsWithSameException_MaintainsCircuitState()
     {
         // Arrange
         var timeProvider = new FakeTimeProvider();
@@ -439,9 +439,9 @@ public class CircuitBreakerRetryPolicyTests
             {
                 var result = policy.ShouldRetry(exception, attemptNumber: 0);
                 results.Add(result);
-            }));
+            }, TestContext.Current.CancellationToken));
 
-        Task.WaitAll([.. tasks]);
+        await Task.WhenAll(tasks);
 
         // Assert - Some should succeed, some should fail after circuit opens
         Assert.True(results.Count(r => r) >= 3, "At least some attempts should succeed before circuit opens");

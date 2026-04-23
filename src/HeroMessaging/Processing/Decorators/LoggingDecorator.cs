@@ -18,6 +18,9 @@ public class LoggingDecorator(
     private readonly TimeProvider _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     private readonly LogLevel _successLogLevel = successLogLevel;
     private readonly bool _logPayload = logPayload;
+    /// <summary>
+    /// Executes process async.
+    /// </summary>
 
     public override async ValueTask<ProcessingResult> ProcessAsync(IMessage message, ProcessingContext context, CancellationToken cancellationToken = default)
     {

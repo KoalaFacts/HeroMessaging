@@ -459,7 +459,7 @@ public sealed class PostgreSqlUnitOfWorkTests : IAsyncDisposable
     #region Concurrent Access Tests
 
     [Fact]
-    public void ConcurrentAccess_StorageProperties_ThreadSafe()
+    public async Task ConcurrentAccess_StorageProperties_ThreadSafe()
     {
         // Arrange
         var uow = new PostgreSqlUnitOfWork(ValidConnectionString);
@@ -473,17 +473,17 @@ public sealed class PostgreSqlUnitOfWorkTests : IAsyncDisposable
             var queue = uow.QueueStorage;
             var message = uow.MessageStorage;
             return (outbox, inbox, queue, message);
-        })).ToArray();
+        }, TestContext.Current.CancellationToken)).ToArray();
 
-        Task.WaitAll(tasks);
+        var storages = await Task.WhenAll(tasks);
 
         // Assert - No exceptions thrown, all accesses successful
-        Assert.All(tasks, task =>
+        Assert.All(storages, storage =>
         {
-            Assert.NotNull(task.Result.outbox);
-            Assert.NotNull(task.Result.inbox);
-            Assert.NotNull(task.Result.queue);
-            Assert.NotNull(task.Result.message);
+            Assert.NotNull(storage.outbox);
+            Assert.NotNull(storage.inbox);
+            Assert.NotNull(storage.queue);
+            Assert.NotNull(storage.message);
         });
     }
 

@@ -20,6 +20,9 @@ public class RetryDecorator(
     private readonly ILogger<RetryDecorator> _logger = logger;
     private readonly TimeProvider _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     private readonly IRetryPolicy _retryPolicy = retryPolicy ?? new ExponentialBackoffRetryPolicy();
+    /// <summary>
+    /// Executes process async.
+    /// </summary>
 
     public override async ValueTask<ProcessingResult> ProcessAsync(IMessage message, ProcessingContext context, CancellationToken cancellationToken = default)
     {
@@ -81,15 +84,27 @@ public class ExponentialBackoffRetryPolicy(
     TimeSpan? maxDelay = null,
     double jitterFactor = RetryDelayCalculator.DefaultJitterFactor) : IRetryPolicy
 {
+    /// <summary>
+    /// Gets max retries.
+    /// </summary>
     public int MaxRetries { get; } = maxRetries;
     private readonly TimeSpan _baseDelay = baseDelay ?? RetryDelayCalculator.DefaultBaseDelay;
+    /// <summary>
+    /// Represents max delay.
+    /// </summary>
     private readonly TimeSpan _maxDelay = maxDelay ?? RetryDelayCalculator.DefaultMaxDelay;
     private readonly double _jitterFactor = jitterFactor;
+    /// <summary>
+    /// Executes should retry.
+    /// </summary>
 
     public bool ShouldRetry(Exception? exception, int attemptNumber)
     {
         return ErrorClassifier.ShouldRetry(exception, attemptNumber, MaxRetries);
     }
+    /// <summary>
+    /// Executes get retry delay.
+    /// </summary>
 
     public TimeSpan GetRetryDelay(int attemptNumber)
     {

@@ -17,8 +17,14 @@ public class JsonMessageSerializer(
     private readonly SerializationOptions _options = options ?? new SerializationOptions();
     private readonly JsonSerializerOptions _jsonOptions = jsonOptions ?? CreateDefaultOptions();
     private readonly ICompressionProvider _compressionProvider = compressionProvider ?? new GZipCompressionProvider();
+    /// <summary>
+    /// Gets content type.
+    /// </summary>
 
     public string ContentType => "application/json";
+    /// <summary>
+    /// Executes serialize async.
+    /// </summary>
 
     public async ValueTask<byte[]> SerializeAsync<T>(T message, CancellationToken cancellationToken = default)
     {
@@ -44,6 +50,9 @@ public class JsonMessageSerializer(
 
         return data;
     }
+    /// <summary>
+    /// Executes serialize.
+    /// </summary>
 
     public int Serialize<T>(T message, Span<byte> destination)
     {
@@ -58,6 +67,9 @@ public class JsonMessageSerializer(
         written.CopyTo(destination);
         return written.Length;
     }
+    /// <summary>
+    /// Executes try serialize.
+    /// </summary>
 
     public bool TrySerialize<T>(T message, Span<byte> destination, out int bytesWritten)
     {
@@ -72,12 +84,18 @@ public class JsonMessageSerializer(
             return false;
         }
     }
+    /// <summary>
+    /// Executes get required buffer size.
+    /// </summary>
 
     public int GetRequiredBufferSize<T>(T message)
     {
         // Estimate 4KB for typical messages
         return 4096;
     }
+    /// <summary>
+    /// Executes deserialize.
+    /// </summary>
 
     public T Deserialize<T>(ReadOnlySpan<byte> data) where T : class
     {
@@ -86,6 +104,9 @@ public class JsonMessageSerializer(
         var reader = new Utf8JsonReader(data);
         return JsonSerializer.Deserialize<T>(ref reader, _jsonOptions)!;
     }
+    /// <summary>
+    /// Executes deserialize.
+    /// </summary>
 
     public object? Deserialize(ReadOnlySpan<byte> data, Type messageType)
     {
@@ -94,6 +115,9 @@ public class JsonMessageSerializer(
         var reader = new Utf8JsonReader(data);
         return JsonSerializer.Deserialize(ref reader, messageType, _jsonOptions);
     }
+    /// <summary>
+    /// Executes deserialize async.
+    /// </summary>
 
     public async ValueTask<T> DeserializeAsync<T>(byte[] data, CancellationToken cancellationToken = default) where T : class
     {
@@ -111,6 +135,9 @@ public class JsonMessageSerializer(
         var result = JsonSerializer.Deserialize<T>(json, _jsonOptions);
         return result!;
     }
+    /// <summary>
+    /// Executes deserialize async.
+    /// </summary>
 
     public async ValueTask<object?> DeserializeAsync(byte[] data, Type messageType, CancellationToken cancellationToken = default)
     {

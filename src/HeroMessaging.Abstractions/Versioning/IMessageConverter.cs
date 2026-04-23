@@ -48,8 +48,17 @@ public interface IMessageConverter<TMessage> : IMessageConverter
 public abstract class MessageConverterBase<TMessage> : IMessageConverter<TMessage>
     where TMessage : class, IMessage
 {
+    /// <summary>
+    /// Gets message type.
+    /// </summary>
     public Type MessageType => typeof(TMessage);
+    /// <summary>
+    /// Gets supported version range.
+    /// </summary>
     public abstract MessageVersionRange SupportedVersionRange { get; }
+    /// <summary>
+    /// Executes can convert.
+    /// </summary>
 
     public virtual bool CanConvert(Type messageType, MessageVersion fromVersion, MessageVersion toVersion)
     {
@@ -57,6 +66,9 @@ public abstract class MessageConverterBase<TMessage> : IMessageConverter<TMessag
                SupportedVersionRange.Contains(fromVersion) &&
                SupportedVersionRange.Contains(toVersion);
     }
+    /// <summary>
+    /// Executes convert async.
+    /// </summary>
 
     public abstract Task<TMessage> ConvertAsync(TMessage message, MessageVersion fromVersion, MessageVersion toVersion, CancellationToken cancellationToken = default);
 
@@ -74,8 +86,17 @@ public abstract class MessageConverterBase<TMessage> : IMessageConverter<TMessag
 /// </summary>
 public readonly record struct MessageVersionRange
 {
+    /// <summary>
+    /// Gets min version.
+    /// </summary>
     public MessageVersion MinVersion { get; }
+    /// <summary>
+    /// Gets max version.
+    /// </summary>
     public MessageVersion MaxVersion { get; }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MessageVersionRange"/> class.
+    /// </summary>
 
     public MessageVersionRange(MessageVersion minVersion, MessageVersion maxVersion)
     {
@@ -85,6 +106,9 @@ public readonly record struct MessageVersionRange
         MinVersion = minVersion;
         MaxVersion = maxVersion;
     }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MessageVersionRange"/> class.
+    /// </summary>
 
     public MessageVersionRange(MessageVersion singleVersion)
     {
@@ -106,6 +130,9 @@ public readonly record struct MessageVersionRange
     {
         return MinVersion <= other.MaxVersion && MaxVersion >= other.MinVersion;
     }
+    /// <summary>
+    /// Executes to string.
+    /// </summary>
 
     public override string ToString() =>
         MinVersion == MaxVersion ? MinVersion.ToString() : $"{MinVersion}-{MaxVersion}";
@@ -152,12 +179,30 @@ public interface IMessageConverterRegistry
 /// </summary>
 public class MessageConversionPath(Type messageType, MessageVersion fromVersion, MessageVersion toVersion, IEnumerable<MessageConversionStep> steps)
 {
+    /// <summary>
+    /// Gets message type.
+    /// </summary>
     public Type MessageType { get; } = messageType;
+    /// <summary>
+    /// Gets from version.
+    /// </summary>
     public MessageVersion FromVersion { get; } = fromVersion;
+    /// <summary>
+    /// Gets to version.
+    /// </summary>
     public MessageVersion ToVersion { get; } = toVersion;
+    /// <summary>
+    /// Gets steps.
+    /// </summary>
     public IReadOnlyList<MessageConversionStep> Steps { get; } = steps.ToList().AsReadOnly();
+    /// <summary>
+    /// Gets is direct.
+    /// </summary>
 
     public bool IsDirect => Steps.Count == 1;
+    /// <summary>
+    /// Gets requires multiple steps.
+    /// </summary>
     public bool RequiresMultipleSteps => Steps.Count > 1;
 }
 
@@ -166,7 +211,16 @@ public class MessageConversionPath(Type messageType, MessageVersion fromVersion,
 /// </summary>
 public class MessageConversionStep(MessageVersion fromVersion, MessageVersion toVersion, IMessageConverter converter)
 {
+    /// <summary>
+    /// Gets from version.
+    /// </summary>
     public MessageVersion FromVersion { get; } = fromVersion;
+    /// <summary>
+    /// Gets to version.
+    /// </summary>
     public MessageVersion ToVersion { get; } = toVersion;
+    /// <summary>
+    /// Gets converter.
+    /// </summary>
     public IMessageConverter Converter { get; } = converter;
 }

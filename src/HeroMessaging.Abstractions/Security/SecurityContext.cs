@@ -36,6 +36,9 @@ public sealed record SecurityContext
     /// Timestamp when context was created
     /// </summary>
     public DateTimeOffset Timestamp { get; init; }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SecurityContext"/> class.
+    /// </summary>
 
     public SecurityContext(TimeProvider timeProvider)
     {

@@ -53,7 +53,7 @@ public class StorageHealthCheckTests
 
             // Return the actual stored message if ID matches and type is compatible
             if (messageId == _lastStoredId && _lastStoredMessage is T typedMessage)
-                return Task.FromResult(typedMessage);
+                return Task.FromResult<T?>(typedMessage);
 
             return Task.FromResult<T?>(default);
         }

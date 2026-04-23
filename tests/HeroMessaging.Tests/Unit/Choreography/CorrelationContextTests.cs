@@ -333,7 +333,7 @@ public sealed class CorrelationContextTests
                 // Context should flow to async continuations
                 Assert.Equal(correlationId, CorrelationContext.CurrentCorrelationId);
                 Assert.Equal(messageId, CorrelationContext.CurrentMessageId);
-            });
+            }, TestContext.Current.CancellationToken);
 
             Assert.Equal(correlationId, CorrelationContext.CurrentCorrelationId);
         }
@@ -351,7 +351,7 @@ public sealed class CorrelationContextTests
             Thread.Sleep(50); // Simulate some work
             Assert.Equal("correlation-1", CorrelationContext.CurrentCorrelationId);
             Assert.Equal("message-1", CorrelationContext.CurrentMessageId);
-        });
+        }, TestContext.Current.CancellationToken);
 
         var task2 = Task.Run(() =>
         {
@@ -359,7 +359,7 @@ public sealed class CorrelationContextTests
             Thread.Sleep(50); // Simulate some work
             Assert.Equal("correlation-2", CorrelationContext.CurrentCorrelationId);
             Assert.Equal("message-2", CorrelationContext.CurrentMessageId);
-        });
+        }, TestContext.Current.CancellationToken);
 
         // Assert
         await Task.WhenAll(task1, task2);

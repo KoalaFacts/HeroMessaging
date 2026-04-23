@@ -4,16 +4,28 @@ using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Storage;
 
 namespace HeroMessaging.Storage;
+/// <summary>
+/// Represents the in memory outbox storage type.
+/// </summary>
 
 public class InMemoryOutboxStorage : IOutboxStorage
 {
+    /// <summary>
+    /// Represents entries.
+    /// </summary>
     private readonly ConcurrentDictionary<string, OutboxEntry> _entries = new();
     private readonly TimeProvider _timeProvider;
+    /// <summary>
+    /// Initializes a new instance of the <see cref="InMemoryOutboxStorage"/> class.
+    /// </summary>
 
     public InMemoryOutboxStorage(TimeProvider timeProvider)
     {
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
+    /// <summary>
+    /// Executes add async.
+    /// </summary>
 
     public Task<OutboxEntry> AddAsync(IMessage message, OutboxOptions options, CancellationToken cancellationToken = default)
     {
@@ -29,6 +41,9 @@ public class InMemoryOutboxStorage : IOutboxStorage
         _entries[entry.Id] = entry;
         return Task.FromResult(entry);
     }
+    /// <summary>
+    /// Executes get pending async.
+    /// </summary>
 
     public Task<IEnumerable<OutboxEntry>> GetPendingAsync(OutboxQuery query, CancellationToken cancellationToken = default)
     {
@@ -70,6 +85,9 @@ public class InMemoryOutboxStorage : IOutboxStorage
 
         return Task.FromResult(pending);
     }
+    /// <summary>
+    /// Executes get pending async.
+    /// </summary>
 
     public Task<IEnumerable<OutboxEntry>> GetPendingAsync(int limit = 100, CancellationToken cancellationToken = default)
     {
@@ -82,6 +100,9 @@ public class InMemoryOutboxStorage : IOutboxStorage
 
         return Task.FromResult(pending);
     }
+    /// <summary>
+    /// Executes mark processed async.
+    /// </summary>
 
     public Task<bool> MarkProcessedAsync(string entryId, CancellationToken cancellationToken = default)
     {
@@ -94,6 +115,9 @@ public class InMemoryOutboxStorage : IOutboxStorage
 
         return Task.FromResult(false);
     }
+    /// <summary>
+    /// Executes mark failed async.
+    /// </summary>
 
     public Task<bool> MarkFailedAsync(string entryId, string error, CancellationToken cancellationToken = default)
     {
@@ -106,6 +130,9 @@ public class InMemoryOutboxStorage : IOutboxStorage
 
         return Task.FromResult(false);
     }
+    /// <summary>
+    /// Executes update retry count async.
+    /// </summary>
 
     public Task<bool> UpdateRetryCountAsync(string entryId, int retryCount, DateTimeOffset? nextRetry = null, CancellationToken cancellationToken = default)
     {
@@ -124,12 +151,18 @@ public class InMemoryOutboxStorage : IOutboxStorage
 
         return Task.FromResult(false);
     }
+    /// <summary>
+    /// Executes get pending count async.
+    /// </summary>
 
     public Task<long> GetPendingCountAsync(CancellationToken cancellationToken = default)
     {
         var count = _entries.Values.Count(e => e.Status == OutboxStatus.Pending);
         return Task.FromResult((long)count);
     }
+    /// <summary>
+    /// Executes get failed async.
+    /// </summary>
 
     public Task<IEnumerable<OutboxEntry>> GetFailedAsync(int limit = 100, CancellationToken cancellationToken = default)
     {

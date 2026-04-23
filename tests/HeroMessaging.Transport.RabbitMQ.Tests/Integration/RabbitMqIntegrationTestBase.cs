@@ -27,8 +27,7 @@ public abstract class RabbitMqIntegrationTestBase : IAsyncLifetime
     public async ValueTask InitializeAsync()
     {
         // Create and start RabbitMQ container
-        _rabbitMqContainer = new RabbitMqBuilder()
-            .WithImage("rabbitmq:3.13-management-alpine")
+        _rabbitMqContainer = new RabbitMqBuilder("rabbitmq:3.13-management-alpine")
             .WithPortBinding(5672, true) // Random host port
             .WithUsername("guest")
             .WithPassword("guest")

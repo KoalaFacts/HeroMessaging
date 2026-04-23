@@ -141,7 +141,7 @@ public sealed class SqlServerDeadLetterQueueTests : IDisposable
     {
         var queue = CreateDeadLetterQueue();
 
-        var result = await queue.GetDeadLettersAsync<IMessage>();
+        var result = await queue.GetDeadLettersAsync<IMessage>(cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotNull(result);
         Assert.Empty(result);
     }
@@ -152,7 +152,7 @@ public sealed class SqlServerDeadLetterQueueTests : IDisposable
         var queue = CreateDeadLetterQueue();
         var limit = 50;
 
-        var result = await queue.GetDeadLettersAsync<IMessage>(limit);
+        var result = await queue.GetDeadLettersAsync<IMessage>(limit, cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotNull(result);
     }
 
@@ -162,7 +162,7 @@ public sealed class SqlServerDeadLetterQueueTests : IDisposable
         var queue = CreateDeadLetterQueue();
         var deadLetterId = Guid.NewGuid().ToString();
 
-        var result = await queue.RetryAsync<IMessage>(deadLetterId);
+        var result = await queue.RetryAsync<IMessage>(deadLetterId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.False(result);
     }
 
@@ -172,7 +172,7 @@ public sealed class SqlServerDeadLetterQueueTests : IDisposable
         var queue = CreateDeadLetterQueue();
         var deadLetterId = Guid.NewGuid().ToString();
 
-        var result = await queue.DiscardAsync<IMessage>(deadLetterId);
+        var result = await queue.DiscardAsync<IMessage>(deadLetterId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.False(result);
     }
 

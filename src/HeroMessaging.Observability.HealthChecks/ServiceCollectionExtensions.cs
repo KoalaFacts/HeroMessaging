@@ -5,11 +5,17 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace Microsoft.Extensions.Diagnostics.HealthChecks;
+/// <summary>
+/// Represents the extensions to ihealth checks builder for hero messaging type.
+/// </summary>
 
 // ReSharper disable once CheckNamespace
 #pragma warning disable IDE0130 // Namespace does not match folder structure
 public static class ExtensionsToIHealthChecksBuilderForHeroMessaging
 {
+    /// <summary>
+    /// Executes add hero messaging health checks.
+    /// </summary>
     public static IHealthChecksBuilder AddHeroMessagingHealthChecks(
         this IHealthChecksBuilder builder,
         Action<HeroMessagingHealthCheckOptions>? configure = null)
@@ -96,6 +102,9 @@ public static class ExtensionsToIHealthChecksBuilderForHeroMessaging
 
         return builder;
     }
+    /// <summary>
+    /// Executes add transport health checks.
+    /// </summary>
 
     private static IHealthChecksBuilder AddTransportHealthChecks(
         this IHealthChecksBuilder builder,
@@ -127,6 +136,9 @@ public static class ExtensionsToIHealthChecksBuilderForHeroMessaging
 
         return builder;
     }
+    /// <summary>
+    /// Executes add composite health check.
+    /// </summary>
 
     public static IHealthChecksBuilder AddCompositeHealthCheck(
         this IHealthChecksBuilder builder,

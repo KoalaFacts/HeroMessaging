@@ -46,14 +46,14 @@ public class ChoreographyWorkflowTests
             CorrelationId = initialCorrelationId
         };
 
-        await messaging.PublishAsync(orderCreatedEvent);
+        await messaging.PublishAsync(orderCreatedEvent, cancellationToken: TestContext.Current.CancellationToken);
 
         // Allow async processing to complete with polling
         var timeout = TimeSpan.FromSeconds(5);
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         while (capturedEvents.Count < 3 && stopwatch.Elapsed < timeout)
         {
-            await Task.Delay(100); // Poll every 100ms
+            await Task.Delay(100, TestContext.Current.CancellationToken); // Poll every 100ms
         }
 
         // Assert - All events in the workflow should have the same CorrelationId

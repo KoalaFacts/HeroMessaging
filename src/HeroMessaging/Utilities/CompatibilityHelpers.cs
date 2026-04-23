@@ -17,7 +17,7 @@ internal static class CompatibilityHelpers
         tcs.SetCanceled(cancellationToken);
     }
 
-    public static bool Contains(this string text, string value, StringComparison comparison)
+    public static bool Contains(this string? text, string value, StringComparison comparison)
     {
         return text?.Contains(value, comparison) ?? false;
     }

@@ -4,16 +4,28 @@ using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Storage;
 
 namespace HeroMessaging.Storage;
+/// <summary>
+/// Represents the in memory inbox storage type.
+/// </summary>
 
 public class InMemoryInboxStorage : IInboxStorage
 {
+    /// <summary>
+    /// Represents entries.
+    /// </summary>
     private readonly ConcurrentDictionary<string, InboxEntry> _entries = new();
     private readonly TimeProvider _timeProvider;
+    /// <summary>
+    /// Initializes a new instance of the <see cref="InMemoryInboxStorage"/> class.
+    /// </summary>
 
     public InMemoryInboxStorage(TimeProvider timeProvider)
     {
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
+    /// <summary>
+    /// Executes add async.
+    /// </summary>
 
     public Task<InboxEntry?> AddAsync(IMessage message, InboxOptions options, CancellationToken cancellationToken = default)
     {
@@ -38,6 +50,9 @@ public class InMemoryInboxStorage : IInboxStorage
         _entries[messageId] = entry;
         return Task.FromResult<InboxEntry?>(entry);
     }
+    /// <summary>
+    /// Executes is duplicate async.
+    /// </summary>
 
     public Task<bool> IsDuplicateAsync(string messageId, TimeSpan? window = null, CancellationToken cancellationToken = default)
     {
@@ -55,12 +70,18 @@ public class InMemoryInboxStorage : IInboxStorage
 
         return Task.FromResult(false);
     }
+    /// <summary>
+    /// Executes get async.
+    /// </summary>
 
     public Task<InboxEntry?> GetAsync(string messageId, CancellationToken cancellationToken = default)
     {
         _entries.TryGetValue(messageId, out var entry);
         return Task.FromResult(entry);
     }
+    /// <summary>
+    /// Executes mark processed async.
+    /// </summary>
 
     public Task<bool> MarkProcessedAsync(string messageId, CancellationToken cancellationToken = default)
     {
@@ -73,6 +94,9 @@ public class InMemoryInboxStorage : IInboxStorage
 
         return Task.FromResult(false);
     }
+    /// <summary>
+    /// Executes mark failed async.
+    /// </summary>
 
     public Task<bool> MarkFailedAsync(string messageId, string error, CancellationToken cancellationToken = default)
     {
@@ -85,6 +109,9 @@ public class InMemoryInboxStorage : IInboxStorage
 
         return Task.FromResult(false);
     }
+    /// <summary>
+    /// Executes get pending async.
+    /// </summary>
 
     public Task<IEnumerable<InboxEntry>> GetPendingAsync(InboxQuery query, CancellationToken cancellationToken = default)
     {
@@ -124,6 +151,9 @@ public class InMemoryInboxStorage : IInboxStorage
 
         return Task.FromResult(pending);
     }
+    /// <summary>
+    /// Executes get unprocessed async.
+    /// </summary>
 
     public Task<IEnumerable<InboxEntry>> GetUnprocessedAsync(int limit = 100, CancellationToken cancellationToken = default)
     {
@@ -134,12 +164,18 @@ public class InMemoryInboxStorage : IInboxStorage
 
         return Task.FromResult(unprocessed);
     }
+    /// <summary>
+    /// Executes get unprocessed count async.
+    /// </summary>
 
     public Task<long> GetUnprocessedCountAsync(CancellationToken cancellationToken = default)
     {
         var count = _entries.Values.Count(e => e.Status == InboxStatus.Pending);
         return Task.FromResult((long)count);
     }
+    /// <summary>
+    /// Executes cleanup old entries async.
+    /// </summary>
 
     public Task CleanupOldEntriesAsync(TimeSpan olderThan, CancellationToken cancellationToken = default)
     {

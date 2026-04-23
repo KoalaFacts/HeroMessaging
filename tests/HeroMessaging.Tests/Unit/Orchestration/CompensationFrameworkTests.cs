@@ -90,7 +90,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             var context = new CompensationContext();
 
             // Act & Assert - should not throw
-            await context.CompensateAsync();
+            await context.CompensateAsync(cancellationToken: TestContext.Current.CancellationToken);
         }
 
         [Fact]
@@ -102,7 +102,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             context.AddCompensation(action.Object);
 
             // Act
-            await context.CompensateAsync();
+            await context.CompensateAsync(cancellationToken: TestContext.Current.CancellationToken);
 
             // Assert
             action.Verify(a => a.CompensateAsync(It.IsAny<CancellationToken>()), Times.Once);
@@ -138,7 +138,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             context.AddCompensation(action3);
 
             // Act
-            await context.CompensateAsync();
+            await context.CompensateAsync(cancellationToken: TestContext.Current.CancellationToken);
 
             // Assert - LIFO order
             Assert.Equal(3, executionOrder.Count);
@@ -159,7 +159,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
 
             // Act & Assert
             var ex = await Assert.ThrowsAsync<AggregateException>(
-                async () => await context.CompensateAsync());
+                async () => await context.CompensateAsync(cancellationToken: TestContext.Current.CancellationToken));
 
             Assert.Single(ex.InnerExceptions);
             Assert.IsType<CompensationException>(ex.InnerExceptions[0]);
@@ -195,7 +195,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
 
             // Act & Assert
             await Assert.ThrowsAsync<AggregateException>(
-                async () => await context.CompensateAsync(stopOnFirstError: true));
+                async () => await context.CompensateAsync(stopOnFirstError: true, cancellationToken: TestContext.Current.CancellationToken));
 
             // Only Action3 and FailingAction should have executed (LIFO)
             Assert.Equal(2, executionOrder.Count);
@@ -232,7 +232,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
 
             // Act & Assert
             var ex = await Assert.ThrowsAsync<AggregateException>(
-                async () => await context.CompensateAsync(stopOnFirstError: false));
+                async () => await context.CompensateAsync(stopOnFirstError: false, cancellationToken: TestContext.Current.CancellationToken));
 
             // All actions should have executed despite the failure
             Assert.Equal(3, executionOrder.Count);
@@ -258,7 +258,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
 
             // Act & Assert
             var ex = await Assert.ThrowsAsync<AggregateException>(
-                async () => await context.CompensateAsync(stopOnFirstError: false));
+                async () => await context.CompensateAsync(stopOnFirstError: false, cancellationToken: TestContext.Current.CancellationToken));
 
             Assert.Equal(2, ex.InnerExceptions.Count);
             Assert.All(ex.InnerExceptions, e => Assert.IsType<CompensationException>(e));
@@ -310,7 +310,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             context.Clear();
 
             // Act
-            await context.CompensateAsync();
+            await context.CompensateAsync(cancellationToken: TestContext.Current.CancellationToken);
 
             // Assert
             action.Verify(a => a.CompensateAsync(It.IsAny<CancellationToken>()), Times.Never);
@@ -364,7 +364,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             var action = new DelegateCompensatingAction("Test", () => executed = true);
 
             // Act
-            await action.CompensateAsync();
+            await action.CompensateAsync(cancellationToken: TestContext.Current.CancellationToken);
 
             // Assert
             Assert.True(executed);
@@ -382,7 +382,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             });
 
             // Act
-            await action.CompensateAsync();
+            await action.CompensateAsync(cancellationToken: TestContext.Current.CancellationToken);
 
             // Assert
             Assert.True(executed);
@@ -447,12 +447,9 @@ namespace HeroMessaging.Tests.Unit.Orchestration
         {
             // Arrange
             var context = new CompensationContext();
-            var executed = false;
-
             // Act
             context.AddCompensation("TestAction", (ct) =>
             {
-                executed = true;
                 return Task.CompletedTask;
             });
 
@@ -475,7 +472,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             });
 
             // Act
-            await context.CompensateAsync();
+            await context.CompensateAsync(cancellationToken: TestContext.Current.CancellationToken);
 
             // Assert
             Assert.True(executed);
@@ -486,10 +483,8 @@ namespace HeroMessaging.Tests.Unit.Orchestration
         {
             // Arrange
             var context = new CompensationContext();
-            var executed = false;
-
             // Act
-            context.AddCompensation("TestAction", () => executed = true);
+            context.AddCompensation("TestAction", () => { });
 
             // Assert
             Assert.True(context.HasActions);
@@ -506,7 +501,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             context.AddCompensation("TestAction", () => executed = true);
 
             // Act
-            await context.CompensateAsync();
+            await context.CompensateAsync(cancellationToken: TestContext.Current.CancellationToken);
 
             // Assert
             Assert.True(executed);
@@ -517,12 +512,9 @@ namespace HeroMessaging.Tests.Unit.Orchestration
         {
             // Arrange
             var context = new CompensationContext();
-            var executed = false;
-
             // Act
             context.AddCompensation("TestAction", () =>
             {
-                executed = true;
                 return Task.CompletedTask;
             });
 
@@ -545,7 +537,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
             });
 
             // Act
-            await context.CompensateAsync();
+            await context.CompensateAsync(cancellationToken: TestContext.Current.CancellationToken);
 
             // Assert
             Assert.True(executed);

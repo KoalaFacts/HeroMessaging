@@ -67,8 +67,17 @@ public sealed class GenerateContractTestsAttribute : Attribute
 /// </summary>
 public enum TestFramework
 {
+    /// <summary>
+    /// Specifies xunit.
+    /// </summary>
     Xunit,
+    /// <summary>
+    /// Specifies nunit.
+    /// </summary>
     NUnit,
+    /// <summary>
+    /// Specifies mstest.
+    /// </summary>
     MSTest
 }
 
@@ -143,6 +152,9 @@ public sealed class ContractSampleAttribute : Attribute
     /// Name of this sample (e.g., "ValidOrder", "MinimalOrder").
     /// </summary>
     public string SampleName { get; }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ContractSampleAttribute"/> class.
+    /// </summary>
 
     public ContractSampleAttribute(string sampleName)
     {
@@ -180,6 +192,9 @@ public sealed class ExpectedJsonAttribute : Attribute
     /// Whether to ignore property order when comparing JSON.
     /// </summary>
     public bool IgnoreOrder { get; set; } = true;
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ExpectedJsonAttribute"/> class.
+    /// </summary>
 
     public ExpectedJsonAttribute(string json)
     {
@@ -203,6 +218,9 @@ public sealed class BreakingChangeRuleAttribute : Attribute
     /// Examples of what would violate this rule.
     /// </summary>
     public string? Examples { get; set; }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="BreakingChangeRuleAttribute"/> class.
+    /// </summary>
 
     public BreakingChangeRuleAttribute(string rule)
     {
@@ -231,6 +249,9 @@ public sealed class AllowTypeChangeAttribute : Attribute
     /// Reason this type change is safe.
     /// </summary>
     public string? Reason { get; set; }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AllowTypeChangeAttribute"/> class.
+    /// </summary>
 
     public AllowTypeChangeAttribute(string fromType, string toType)
     {
@@ -260,6 +281,9 @@ public sealed class ContractVersionAttribute : Attribute
     /// Date this version was introduced (ISO 8601).
     /// </summary>
     public string? IntroducedDate { get; set; }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ContractVersionAttribute"/> class.
+    /// </summary>
 
     public ContractVersionAttribute(string version)
     {

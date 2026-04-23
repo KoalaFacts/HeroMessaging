@@ -40,6 +40,9 @@ public sealed class RabbitMqTransport : IMessageTransport
 
     /// <inheritdoc/>
     public event EventHandler<TransportErrorEventArgs>? Error;
+    /// <summary>
+    /// Initializes a new instance of the <see cref="RabbitMqTransport"/> class.
+    /// </summary>
 
     public RabbitMqTransport(
         RabbitMqTransportOptions options,
@@ -167,7 +170,7 @@ public sealed class RabbitMqTransport : IMessageTransport
                 // Copy headers including trace context
                 if (envelope.Headers.Count > 0)
                 {
-                    properties.Headers = new Dictionary<string, object>(envelope.Headers);
+                    properties.Headers = ToNullableArguments(envelope.Headers);
                 }
 
                 _instrumentation.AddEvent(activity, "serialization.complete",
@@ -244,7 +247,7 @@ public sealed class RabbitMqTransport : IMessageTransport
                 // Copy headers including trace context
                 if (envelope.Headers.Count > 0)
                 {
-                    properties.Headers = new Dictionary<string, object>(envelope.Headers);
+                    properties.Headers = ToNullableArguments(envelope.Headers);
                 }
 
                 _instrumentation.AddEvent(activity, "serialization.complete",
@@ -365,7 +368,7 @@ public sealed class RabbitMqTransport : IMessageTransport
                     durable: exchange.Durable,
                     autoDelete: exchange.AutoDelete,
                     cancellationToken: cancellationToken,
-                    arguments: exchange.Arguments).ConfigureAwait(false);
+                    arguments: ToNullableArguments(exchange.Arguments)).ConfigureAwait(false);
             }
 
             // Declare queues
@@ -373,7 +376,7 @@ public sealed class RabbitMqTransport : IMessageTransport
             {
                 _logger.LogDebug("Declaring queue: {QueueName}", queue.Name);
 
-                var arguments = queue.Arguments ?? [];
+                var arguments = ToNullableArguments(queue.Arguments);
 
                 // Add dead letter exchange if specified
                 if (!string.IsNullOrEmpty(queue.DeadLetterExchange))
@@ -422,7 +425,7 @@ public sealed class RabbitMqTransport : IMessageTransport
                     queue: binding.Destination,
                     exchange: binding.SourceExchange,
                     routingKey: binding.RoutingKey ?? "",
-                    arguments: binding.Arguments,
+                    arguments: ToNullableArguments(binding.Arguments),
                     cancellationToken: cancellationToken).ConfigureAwait(false);
             }
         }, cancellationToken).ConfigureAwait(false);
@@ -475,6 +478,16 @@ public sealed class RabbitMqTransport : IMessageTransport
     internal void RemoveConsumer(string consumerId)
     {
         _consumers.TryRemove(consumerId, out _);
+    }
+
+    private static Dictionary<string, object?> ToNullableArguments(IEnumerable<KeyValuePair<string, object>> arguments)
+    {
+        return arguments.ToDictionary(static kvp => kvp.Key, static kvp => (object?)kvp.Value);
+    }
+
+    private static Dictionary<string, object?> ToNullableArguments(IDictionary<string, object>? arguments)
+    {
+        return arguments is null ? [] : ToNullableArguments(arguments.AsEnumerable());
     }
 
     private async Task<RabbitMqChannelPool> GetOrCreateChannelPoolAsync(CancellationToken cancellationToken)

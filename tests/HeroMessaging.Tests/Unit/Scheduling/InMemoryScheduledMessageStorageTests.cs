@@ -26,7 +26,7 @@ public sealed class InMemoryScheduledMessageStorageTests
     {
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentNullException>(async () =>
-            await _storage.AddAsync(null!));
+            await _storage.AddAsync(null!, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -36,7 +36,7 @@ public sealed class InMemoryScheduledMessageStorageTests
         var message = CreateScheduledMessage();
 
         // Act
-        var entry = await _storage.AddAsync(message);
+        var entry = await _storage.AddAsync(message, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(entry);
@@ -52,11 +52,11 @@ public sealed class InMemoryScheduledMessageStorageTests
     {
         // Arrange
         var message = CreateScheduledMessage();
-        await _storage.AddAsync(message);
+        await _storage.AddAsync(message, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act & Assert
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await _storage.AddAsync(message));
+            await _storage.AddAsync(message, cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Contains("already exists", ex.Message);
     }
@@ -85,10 +85,10 @@ public sealed class InMemoryScheduledMessageStorageTests
     {
         // Arrange
         var futureMessage = CreateScheduledMessage(DateTimeOffset.UtcNow.AddHours(1));
-        await _storage.AddAsync(futureMessage);
+        await _storage.AddAsync(futureMessage, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
-        var dueMessages = await _storage.GetDueAsync(DateTimeOffset.UtcNow);
+        var dueMessages = await _storage.GetDueAsync(DateTimeOffset.UtcNow, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Empty(dueMessages);
@@ -101,11 +101,11 @@ public sealed class InMemoryScheduledMessageStorageTests
         var pastMessage = CreateScheduledMessage(DateTimeOffset.UtcNow.AddMinutes(-5));
         var futureMessage = CreateScheduledMessage(DateTimeOffset.UtcNow.AddMinutes(5));
 
-        await _storage.AddAsync(pastMessage);
-        await _storage.AddAsync(futureMessage);
+        await _storage.AddAsync(pastMessage, cancellationToken: TestContext.Current.CancellationToken);
+        await _storage.AddAsync(futureMessage, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
-        var dueMessages = await _storage.GetDueAsync(DateTimeOffset.UtcNow);
+        var dueMessages = await _storage.GetDueAsync(DateTimeOffset.UtcNow, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(dueMessages);
@@ -118,10 +118,10 @@ public sealed class InMemoryScheduledMessageStorageTests
         // Arrange
         var now = DateTimeOffset.UtcNow;
         var exactMessage = CreateScheduledMessage(now);
-        await _storage.AddAsync(exactMessage);
+        await _storage.AddAsync(exactMessage, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
-        var dueMessages = await _storage.GetDueAsync(now);
+        var dueMessages = await _storage.GetDueAsync(now, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(dueMessages);
@@ -135,11 +135,11 @@ public sealed class InMemoryScheduledMessageStorageTests
         for (int i = 0; i < 10; i++)
         {
             var message = CreateScheduledMessage(now.AddMinutes(-i - 1));
-            await _storage.AddAsync(message);
+            await _storage.AddAsync(message, cancellationToken: TestContext.Current.CancellationToken);
         }
 
         // Act
-        var dueMessages = await _storage.GetDueAsync(now, limit: 5);
+        var dueMessages = await _storage.GetDueAsync(now, limit: 5, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(5, dueMessages.Count);
@@ -158,12 +158,12 @@ public sealed class InMemoryScheduledMessageStorageTests
         // Later time, highest priority
         var message3 = CreateScheduledMessage(now.AddMinutes(-5), priority: 100);
 
-        await _storage.AddAsync(message3);
-        await _storage.AddAsync(message1);
-        await _storage.AddAsync(message2);
+        await _storage.AddAsync(message3, cancellationToken: TestContext.Current.CancellationToken);
+        await _storage.AddAsync(message1, cancellationToken: TestContext.Current.CancellationToken);
+        await _storage.AddAsync(message2, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
-        var dueMessages = await _storage.GetDueAsync(now);
+        var dueMessages = await _storage.GetDueAsync(now, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(3, dueMessages.Count);
@@ -181,12 +181,12 @@ public sealed class InMemoryScheduledMessageStorageTests
         var pendingMessage = CreateScheduledMessage(now.AddMinutes(-5));
         var deliveredMessage = CreateScheduledMessage(now.AddMinutes(-10));
 
-        await _storage.AddAsync(pendingMessage);
-        await _storage.AddAsync(deliveredMessage);
-        await _storage.MarkDeliveredAsync(deliveredMessage.ScheduleId);
+        await _storage.AddAsync(pendingMessage, cancellationToken: TestContext.Current.CancellationToken);
+        await _storage.AddAsync(deliveredMessage, cancellationToken: TestContext.Current.CancellationToken);
+        await _storage.MarkDeliveredAsync(deliveredMessage.ScheduleId, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
-        var dueMessages = await _storage.GetDueAsync(now);
+        var dueMessages = await _storage.GetDueAsync(now, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(dueMessages);
@@ -201,7 +201,7 @@ public sealed class InMemoryScheduledMessageStorageTests
     public async Task GetAsync_WithNonExistentScheduleId_ReturnsNull()
     {
         // Act
-        var entry = await _storage.GetAsync(Guid.NewGuid());
+        var entry = await _storage.GetAsync(Guid.NewGuid(), cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Null(entry);
@@ -212,10 +212,10 @@ public sealed class InMemoryScheduledMessageStorageTests
     {
         // Arrange
         var message = CreateScheduledMessage();
-        var addedEntry = await _storage.AddAsync(message);
+        var addedEntry = await _storage.AddAsync(message, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
-        var retrievedEntry = await _storage.GetAsync(message.ScheduleId);
+        var retrievedEntry = await _storage.GetAsync(message.ScheduleId, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(retrievedEntry);
@@ -228,7 +228,7 @@ public sealed class InMemoryScheduledMessageStorageTests
     {
         // Arrange
         var message = CreateScheduledMessage();
-        await _storage.AddAsync(message);
+        await _storage.AddAsync(message, cancellationToken: TestContext.Current.CancellationToken);
         using var cts = new CancellationTokenSource();
 
         // Act
@@ -246,7 +246,7 @@ public sealed class InMemoryScheduledMessageStorageTests
     public async Task CancelAsync_WithNonExistentScheduleId_ReturnsFalse()
     {
         // Act
-        var result = await _storage.CancelAsync(Guid.NewGuid());
+        var result = await _storage.CancelAsync(Guid.NewGuid(), cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);
@@ -257,15 +257,15 @@ public sealed class InMemoryScheduledMessageStorageTests
     {
         // Arrange
         var message = CreateScheduledMessage();
-        await _storage.AddAsync(message);
+        await _storage.AddAsync(message, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _storage.CancelAsync(message.ScheduleId);
+        var result = await _storage.CancelAsync(message.ScheduleId, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
 
-        var entry = await _storage.GetAsync(message.ScheduleId);
+        var entry = await _storage.GetAsync(message.ScheduleId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotNull(entry);
         Assert.Equal(ScheduledMessageStatus.Cancelled, entry.Status);
     }
@@ -275,16 +275,16 @@ public sealed class InMemoryScheduledMessageStorageTests
     {
         // Arrange
         var message = CreateScheduledMessage();
-        await _storage.AddAsync(message);
-        await _storage.MarkDeliveredAsync(message.ScheduleId);
+        await _storage.AddAsync(message, cancellationToken: TestContext.Current.CancellationToken);
+        await _storage.MarkDeliveredAsync(message.ScheduleId, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _storage.CancelAsync(message.ScheduleId);
+        var result = await _storage.CancelAsync(message.ScheduleId, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);
 
-        var entry = await _storage.GetAsync(message.ScheduleId);
+        var entry = await _storage.GetAsync(message.ScheduleId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotNull(entry);
         Assert.Equal(ScheduledMessageStatus.Delivered, entry.Status); // Should remain Delivered
     }
@@ -294,16 +294,16 @@ public sealed class InMemoryScheduledMessageStorageTests
     {
         // Arrange
         var message = CreateScheduledMessage();
-        await _storage.AddAsync(message);
-        await Task.Delay(10); // Small delay to ensure timestamp difference
+        await _storage.AddAsync(message, cancellationToken: TestContext.Current.CancellationToken);
+        await Task.Delay(10, TestContext.Current.CancellationToken); // Small delay to ensure timestamp difference
 
         // Act
         var beforeCancel = DateTimeOffset.UtcNow;
-        await _storage.CancelAsync(message.ScheduleId);
+        await _storage.CancelAsync(message.ScheduleId, cancellationToken: TestContext.Current.CancellationToken);
         var afterCancel = DateTimeOffset.UtcNow;
 
         // Assert
-        var entry = await _storage.GetAsync(message.ScheduleId);
+        var entry = await _storage.GetAsync(message.ScheduleId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotNull(entry);
         Assert.True(entry.LastUpdated >= beforeCancel);
         Assert.True(entry.LastUpdated <= afterCancel);
@@ -317,7 +317,7 @@ public sealed class InMemoryScheduledMessageStorageTests
     public async Task MarkDeliveredAsync_WithNonExistentScheduleId_ReturnsFalse()
     {
         // Act
-        var result = await _storage.MarkDeliveredAsync(Guid.NewGuid());
+        var result = await _storage.MarkDeliveredAsync(Guid.NewGuid(), cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);
@@ -328,17 +328,17 @@ public sealed class InMemoryScheduledMessageStorageTests
     {
         // Arrange
         var message = CreateScheduledMessage();
-        await _storage.AddAsync(message);
+        await _storage.AddAsync(message, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
         var beforeDelivery = DateTimeOffset.UtcNow;
-        var result = await _storage.MarkDeliveredAsync(message.ScheduleId);
+        var result = await _storage.MarkDeliveredAsync(message.ScheduleId, cancellationToken: TestContext.Current.CancellationToken);
         var afterDelivery = DateTimeOffset.UtcNow;
 
         // Assert
         Assert.True(result);
 
-        var entry = await _storage.GetAsync(message.ScheduleId);
+        var entry = await _storage.GetAsync(message.ScheduleId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotNull(entry);
         Assert.Equal(ScheduledMessageStatus.Delivered, entry.Status);
         Assert.NotNull(entry.DeliveredAt);
@@ -353,7 +353,7 @@ public sealed class InMemoryScheduledMessageStorageTests
     {
         // Arrange
         var message = CreateScheduledMessage();
-        await _storage.AddAsync(message);
+        await _storage.AddAsync(message, cancellationToken: TestContext.Current.CancellationToken);
         using var cts = new CancellationTokenSource();
 
         // Act
@@ -371,7 +371,7 @@ public sealed class InMemoryScheduledMessageStorageTests
     public async Task MarkFailedAsync_WithNonExistentScheduleId_ReturnsFalse()
     {
         // Act
-        var result = await _storage.MarkFailedAsync(Guid.NewGuid(), "Error message");
+        var result = await _storage.MarkFailedAsync(Guid.NewGuid(), "Error message", cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result);
@@ -382,18 +382,18 @@ public sealed class InMemoryScheduledMessageStorageTests
     {
         // Arrange
         var message = CreateScheduledMessage();
-        await _storage.AddAsync(message);
+        await _storage.AddAsync(message, cancellationToken: TestContext.Current.CancellationToken);
         var errorMessage = "Test error message";
 
         // Act
         var beforeFailed = DateTimeOffset.UtcNow;
-        var result = await _storage.MarkFailedAsync(message.ScheduleId, errorMessage);
+        var result = await _storage.MarkFailedAsync(message.ScheduleId, errorMessage, cancellationToken: TestContext.Current.CancellationToken);
         var afterFailed = DateTimeOffset.UtcNow;
 
         // Assert
         Assert.True(result);
 
-        var entry = await _storage.GetAsync(message.ScheduleId);
+        var entry = await _storage.GetAsync(message.ScheduleId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotNull(entry);
         Assert.Equal(ScheduledMessageStatus.Failed, entry.Status);
         Assert.Equal(errorMessage, entry.ErrorMessage);
@@ -406,7 +406,7 @@ public sealed class InMemoryScheduledMessageStorageTests
     {
         // Arrange
         var message = CreateScheduledMessage();
-        await _storage.AddAsync(message);
+        await _storage.AddAsync(message, cancellationToken: TestContext.Current.CancellationToken);
         using var cts = new CancellationTokenSource();
 
         // Act
@@ -424,7 +424,7 @@ public sealed class InMemoryScheduledMessageStorageTests
     public async Task GetPendingCountAsync_WithNoMessages_ReturnsZero()
     {
         // Act
-        var count = await _storage.GetPendingCountAsync();
+        var count = await _storage.GetPendingCountAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(0, count);
@@ -434,12 +434,12 @@ public sealed class InMemoryScheduledMessageStorageTests
     public async Task GetPendingCountAsync_WithOnlyPendingMessages_ReturnsCorrectCount()
     {
         // Arrange
-        await _storage.AddAsync(CreateScheduledMessage());
-        await _storage.AddAsync(CreateScheduledMessage());
-        await _storage.AddAsync(CreateScheduledMessage());
+        await _storage.AddAsync(CreateScheduledMessage(), cancellationToken: TestContext.Current.CancellationToken);
+        await _storage.AddAsync(CreateScheduledMessage(), cancellationToken: TestContext.Current.CancellationToken);
+        await _storage.AddAsync(CreateScheduledMessage(), cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
-        var count = await _storage.GetPendingCountAsync();
+        var count = await _storage.GetPendingCountAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(3, count);
@@ -453,15 +453,15 @@ public sealed class InMemoryScheduledMessageStorageTests
         var message2 = CreateScheduledMessage();
         var message3 = CreateScheduledMessage();
 
-        await _storage.AddAsync(message1);
-        await _storage.AddAsync(message2);
-        await _storage.AddAsync(message3);
+        await _storage.AddAsync(message1, cancellationToken: TestContext.Current.CancellationToken);
+        await _storage.AddAsync(message2, cancellationToken: TestContext.Current.CancellationToken);
+        await _storage.AddAsync(message3, cancellationToken: TestContext.Current.CancellationToken);
 
-        await _storage.MarkDeliveredAsync(message1.ScheduleId);
-        await _storage.CancelAsync(message2.ScheduleId);
+        await _storage.MarkDeliveredAsync(message1.ScheduleId, cancellationToken: TestContext.Current.CancellationToken);
+        await _storage.CancelAsync(message2.ScheduleId, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
-        var count = await _storage.GetPendingCountAsync();
+        var count = await _storage.GetPendingCountAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(1, count); // Only message3 is still pending
@@ -471,7 +471,7 @@ public sealed class InMemoryScheduledMessageStorageTests
     public async Task GetPendingCountAsync_WithCancellationToken_CompletesSuccessfully()
     {
         // Arrange
-        await _storage.AddAsync(CreateScheduledMessage());
+        await _storage.AddAsync(CreateScheduledMessage(), cancellationToken: TestContext.Current.CancellationToken);
         using var cts = new CancellationTokenSource();
 
         // Act
@@ -490,21 +490,21 @@ public sealed class InMemoryScheduledMessageStorageTests
     {
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentNullException>(async () =>
-            await _storage.QueryAsync(null!));
+            await _storage.QueryAsync(null!, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
     public async Task QueryAsync_WithNoFilters_ReturnsAllMessages()
     {
         // Arrange
-        await _storage.AddAsync(CreateScheduledMessage());
-        await _storage.AddAsync(CreateScheduledMessage());
-        await _storage.AddAsync(CreateScheduledMessage());
+        await _storage.AddAsync(CreateScheduledMessage(), cancellationToken: TestContext.Current.CancellationToken);
+        await _storage.AddAsync(CreateScheduledMessage(), cancellationToken: TestContext.Current.CancellationToken);
+        await _storage.AddAsync(CreateScheduledMessage(), cancellationToken: TestContext.Current.CancellationToken);
 
         var query = new ScheduledMessageQuery();
 
         // Act
-        var results = await _storage.QueryAsync(query);
+        var results = await _storage.QueryAsync(query, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(3, results.Count);
@@ -518,17 +518,17 @@ public sealed class InMemoryScheduledMessageStorageTests
         var message2 = CreateScheduledMessage();
         var message3 = CreateScheduledMessage();
 
-        await _storage.AddAsync(message1);
-        await _storage.AddAsync(message2);
-        await _storage.AddAsync(message3);
+        await _storage.AddAsync(message1, cancellationToken: TestContext.Current.CancellationToken);
+        await _storage.AddAsync(message2, cancellationToken: TestContext.Current.CancellationToken);
+        await _storage.AddAsync(message3, cancellationToken: TestContext.Current.CancellationToken);
 
-        await _storage.MarkDeliveredAsync(message1.ScheduleId);
-        await _storage.CancelAsync(message2.ScheduleId);
+        await _storage.MarkDeliveredAsync(message1.ScheduleId, cancellationToken: TestContext.Current.CancellationToken);
+        await _storage.CancelAsync(message2.ScheduleId, cancellationToken: TestContext.Current.CancellationToken);
 
         var query = new ScheduledMessageQuery { Status = ScheduledMessageStatus.Pending };
 
         // Act
-        var results = await _storage.QueryAsync(query);
+        var results = await _storage.QueryAsync(query, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(results);
@@ -543,14 +543,14 @@ public sealed class InMemoryScheduledMessageStorageTests
         var message2 = CreateScheduledMessage(destination: "queue-b");
         var message3 = CreateScheduledMessage(destination: "queue-a");
 
-        await _storage.AddAsync(message1);
-        await _storage.AddAsync(message2);
-        await _storage.AddAsync(message3);
+        await _storage.AddAsync(message1, cancellationToken: TestContext.Current.CancellationToken);
+        await _storage.AddAsync(message2, cancellationToken: TestContext.Current.CancellationToken);
+        await _storage.AddAsync(message3, cancellationToken: TestContext.Current.CancellationToken);
 
         var query = new ScheduledMessageQuery { Destination = "queue-a" };
 
         // Act
-        var results = await _storage.QueryAsync(query);
+        var results = await _storage.QueryAsync(query, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(2, results.Count);
@@ -564,13 +564,13 @@ public sealed class InMemoryScheduledMessageStorageTests
         var message1 = CreateScheduledMessage();
         var message2 = CreateScheduledMessage();
 
-        await _storage.AddAsync(message1);
-        await _storage.AddAsync(message2);
+        await _storage.AddAsync(message1, cancellationToken: TestContext.Current.CancellationToken);
+        await _storage.AddAsync(message2, cancellationToken: TestContext.Current.CancellationToken);
 
         var query = new ScheduledMessageQuery { MessageType = nameof(TestMessage) };
 
         // Act
-        var results = await _storage.QueryAsync(query);
+        var results = await _storage.QueryAsync(query, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(2, results.Count);
@@ -585,14 +585,14 @@ public sealed class InMemoryScheduledMessageStorageTests
         var message2 = CreateScheduledMessage(now.AddHours(-1));
         var message3 = CreateScheduledMessage(now.AddHours(1));
 
-        await _storage.AddAsync(message1);
-        await _storage.AddAsync(message2);
-        await _storage.AddAsync(message3);
+        await _storage.AddAsync(message1, cancellationToken: TestContext.Current.CancellationToken);
+        await _storage.AddAsync(message2, cancellationToken: TestContext.Current.CancellationToken);
+        await _storage.AddAsync(message3, cancellationToken: TestContext.Current.CancellationToken);
 
         var query = new ScheduledMessageQuery { DeliverAfter = now.AddMinutes(-90) };
 
         // Act
-        var results = await _storage.QueryAsync(query);
+        var results = await _storage.QueryAsync(query, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(2, results.Count); // message2 and message3
@@ -607,14 +607,14 @@ public sealed class InMemoryScheduledMessageStorageTests
         var message2 = CreateScheduledMessage(now.AddHours(-1));
         var message3 = CreateScheduledMessage(now.AddHours(1));
 
-        await _storage.AddAsync(message1);
-        await _storage.AddAsync(message2);
-        await _storage.AddAsync(message3);
+        await _storage.AddAsync(message1, cancellationToken: TestContext.Current.CancellationToken);
+        await _storage.AddAsync(message2, cancellationToken: TestContext.Current.CancellationToken);
+        await _storage.AddAsync(message3, cancellationToken: TestContext.Current.CancellationToken);
 
         var query = new ScheduledMessageQuery { DeliverBefore = now };
 
         // Act
-        var results = await _storage.QueryAsync(query);
+        var results = await _storage.QueryAsync(query, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(2, results.Count); // message1 and message2
@@ -626,7 +626,7 @@ public sealed class InMemoryScheduledMessageStorageTests
         // Arrange
         for (int i = 0; i < 10; i++)
         {
-            await _storage.AddAsync(CreateScheduledMessage());
+            await _storage.AddAsync(CreateScheduledMessage(), cancellationToken: TestContext.Current.CancellationToken);
         }
 
         var query = new ScheduledMessageQuery
@@ -636,7 +636,7 @@ public sealed class InMemoryScheduledMessageStorageTests
         };
 
         // Act
-        var results = await _storage.QueryAsync(query);
+        var results = await _storage.QueryAsync(query, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(5, results.Count);
@@ -651,11 +651,11 @@ public sealed class InMemoryScheduledMessageStorageTests
         var message2 = CreateScheduledMessage(now.AddHours(2), "queue-b");
         var message3 = CreateScheduledMessage(now.AddHours(3), "queue-a");
 
-        await _storage.AddAsync(message1);
-        await _storage.AddAsync(message2);
-        await _storage.AddAsync(message3);
+        await _storage.AddAsync(message1, cancellationToken: TestContext.Current.CancellationToken);
+        await _storage.AddAsync(message2, cancellationToken: TestContext.Current.CancellationToken);
+        await _storage.AddAsync(message3, cancellationToken: TestContext.Current.CancellationToken);
 
-        await _storage.CancelAsync(message3.ScheduleId);
+        await _storage.CancelAsync(message3.ScheduleId, cancellationToken: TestContext.Current.CancellationToken);
 
         var query = new ScheduledMessageQuery
         {
@@ -665,7 +665,7 @@ public sealed class InMemoryScheduledMessageStorageTests
         };
 
         // Act
-        var results = await _storage.QueryAsync(query);
+        var results = await _storage.QueryAsync(query, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Single(results);
@@ -680,11 +680,11 @@ public sealed class InMemoryScheduledMessageStorageTests
     public async Task CleanupAsync_WithNoOldMessages_ReturnsZero()
     {
         // Arrange
-        await _storage.AddAsync(CreateScheduledMessage());
+        await _storage.AddAsync(CreateScheduledMessage(), cancellationToken: TestContext.Current.CancellationToken);
         var olderThan = DateTimeOffset.UtcNow.AddDays(-1);
 
         // Act
-        var removed = await _storage.CleanupAsync(olderThan);
+        var removed = await _storage.CleanupAsync(olderThan, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(0, removed);
@@ -695,21 +695,21 @@ public sealed class InMemoryScheduledMessageStorageTests
     {
         // Arrange
         var oldMessage = CreateScheduledMessage();
-        await _storage.AddAsync(oldMessage);
-        await _storage.MarkDeliveredAsync(oldMessage.ScheduleId);
+        await _storage.AddAsync(oldMessage, cancellationToken: TestContext.Current.CancellationToken);
+        await _storage.MarkDeliveredAsync(oldMessage.ScheduleId, cancellationToken: TestContext.Current.CancellationToken);
 
         // Simulate old LastUpdated time by waiting and using future threshold
-        await Task.Delay(10);
+        await Task.Delay(10, TestContext.Current.CancellationToken);
         var olderThan = DateTimeOffset.UtcNow.AddMilliseconds(100);
 
         // Act
-        await Task.Delay(100); // Wait for threshold
-        var removed = await _storage.CleanupAsync(olderThan);
+        await Task.Delay(100, TestContext.Current.CancellationToken); // Wait for threshold
+        var removed = await _storage.CleanupAsync(olderThan, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(1, removed);
 
-        var entry = await _storage.GetAsync(oldMessage.ScheduleId);
+        var entry = await _storage.GetAsync(oldMessage.ScheduleId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Null(entry);
     }
 
@@ -718,21 +718,21 @@ public sealed class InMemoryScheduledMessageStorageTests
     {
         // Arrange
         var oldMessage = CreateScheduledMessage();
-        await _storage.AddAsync(oldMessage);
-        await _storage.CancelAsync(oldMessage.ScheduleId);
+        await _storage.AddAsync(oldMessage, cancellationToken: TestContext.Current.CancellationToken);
+        await _storage.CancelAsync(oldMessage.ScheduleId, cancellationToken: TestContext.Current.CancellationToken);
 
         // Simulate old LastUpdated time
-        await Task.Delay(10);
+        await Task.Delay(10, TestContext.Current.CancellationToken);
         var olderThan = DateTimeOffset.UtcNow.AddMilliseconds(100);
 
         // Act
-        await Task.Delay(100);
-        var removed = await _storage.CleanupAsync(olderThan);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
+        var removed = await _storage.CleanupAsync(olderThan, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(1, removed);
 
-        var entry = await _storage.GetAsync(oldMessage.ScheduleId);
+        var entry = await _storage.GetAsync(oldMessage.ScheduleId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.Null(entry);
     }
 
@@ -741,19 +741,19 @@ public sealed class InMemoryScheduledMessageStorageTests
     {
         // Arrange
         var pendingMessage = CreateScheduledMessage();
-        await _storage.AddAsync(pendingMessage);
+        await _storage.AddAsync(pendingMessage, cancellationToken: TestContext.Current.CancellationToken);
 
-        await Task.Delay(10);
+        await Task.Delay(10, TestContext.Current.CancellationToken);
         var olderThan = DateTimeOffset.UtcNow.AddMilliseconds(100);
 
         // Act
-        await Task.Delay(100);
-        var removed = await _storage.CleanupAsync(olderThan);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
+        var removed = await _storage.CleanupAsync(olderThan, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(0, removed);
 
-        var entry = await _storage.GetAsync(pendingMessage.ScheduleId);
+        var entry = await _storage.GetAsync(pendingMessage.ScheduleId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotNull(entry);
     }
 
@@ -762,21 +762,21 @@ public sealed class InMemoryScheduledMessageStorageTests
     {
         // Arrange
         var failedMessage = CreateScheduledMessage();
-        await _storage.AddAsync(failedMessage);
-        await _storage.MarkFailedAsync(failedMessage.ScheduleId, "Error");
+        await _storage.AddAsync(failedMessage, cancellationToken: TestContext.Current.CancellationToken);
+        await _storage.MarkFailedAsync(failedMessage.ScheduleId, "Error", cancellationToken: TestContext.Current.CancellationToken);
 
         // Note: Current implementation only cleans Delivered and Cancelled, not Failed
-        await Task.Delay(10);
+        await Task.Delay(10, TestContext.Current.CancellationToken);
         var olderThan = DateTimeOffset.UtcNow.AddMilliseconds(100);
 
         // Act
-        await Task.Delay(100);
-        var removed = await _storage.CleanupAsync(olderThan);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
+        var removed = await _storage.CleanupAsync(olderThan, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(0, removed); // Failed messages are not cleaned up
 
-        var entry = await _storage.GetAsync(failedMessage.ScheduleId);
+        var entry = await _storage.GetAsync(failedMessage.ScheduleId, cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotNull(entry);
     }
 
@@ -788,27 +788,27 @@ public sealed class InMemoryScheduledMessageStorageTests
         var message2 = CreateScheduledMessage();
         var message3 = CreateScheduledMessage();
 
-        await _storage.AddAsync(message1);
-        await _storage.AddAsync(message2);
-        await _storage.AddAsync(message3);
+        await _storage.AddAsync(message1, cancellationToken: TestContext.Current.CancellationToken);
+        await _storage.AddAsync(message2, cancellationToken: TestContext.Current.CancellationToken);
+        await _storage.AddAsync(message3, cancellationToken: TestContext.Current.CancellationToken);
 
-        await _storage.MarkDeliveredAsync(message1.ScheduleId);
-        await _storage.CancelAsync(message2.ScheduleId);
+        await _storage.MarkDeliveredAsync(message1.ScheduleId, cancellationToken: TestContext.Current.CancellationToken);
+        await _storage.CancelAsync(message2.ScheduleId, cancellationToken: TestContext.Current.CancellationToken);
         // message3 remains pending
 
-        await Task.Delay(10);
+        await Task.Delay(10, TestContext.Current.CancellationToken);
         var olderThan = DateTimeOffset.UtcNow.AddMilliseconds(100);
 
         // Act
-        await Task.Delay(100);
-        var removed = await _storage.CleanupAsync(olderThan);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
+        var removed = await _storage.CleanupAsync(olderThan, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(2, removed); // message1 and message2
 
-        Assert.Null(await _storage.GetAsync(message1.ScheduleId));
-        Assert.Null(await _storage.GetAsync(message2.ScheduleId));
-        Assert.NotNull(await _storage.GetAsync(message3.ScheduleId));
+        Assert.Null(await _storage.GetAsync(message1.ScheduleId, cancellationToken: TestContext.Current.CancellationToken));
+        Assert.Null(await _storage.GetAsync(message2.ScheduleId, cancellationToken: TestContext.Current.CancellationToken));
+        Assert.NotNull(await _storage.GetAsync(message3.ScheduleId, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -836,7 +836,7 @@ public sealed class InMemoryScheduledMessageStorageTests
         var tasks = new List<Task<ScheduledMessageEntry>>();
         for (int i = 0; i < 100; i++)
         {
-            tasks.Add(_storage.AddAsync(CreateScheduledMessage()));
+            tasks.Add(_storage.AddAsync(CreateScheduledMessage(), cancellationToken: TestContext.Current.CancellationToken));
         }
 
         // Act
@@ -846,7 +846,7 @@ public sealed class InMemoryScheduledMessageStorageTests
         Assert.Equal(100, entries.Length);
         Assert.All(entries, Assert.NotNull);
 
-        var count = await _storage.GetPendingCountAsync();
+        var count = await _storage.GetPendingCountAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(100, count);
     }
 
@@ -869,25 +869,25 @@ public sealed class InMemoryScheduledMessageStorageTests
         // Cancel half
         for (int i = 0; i < 25; i++)
         {
-            tasks.Add(_storage.CancelAsync(messages[i].ScheduleId));
+            tasks.Add(_storage.CancelAsync(messages[i].ScheduleId, cancellationToken: TestContext.Current.CancellationToken));
         }
 
         // Mark some as delivered
         for (int i = 25; i < 40; i++)
         {
-            tasks.Add(_storage.MarkDeliveredAsync(messages[i].ScheduleId));
+            tasks.Add(_storage.MarkDeliveredAsync(messages[i].ScheduleId, cancellationToken: TestContext.Current.CancellationToken));
         }
 
         // Query while modifying
         for (int i = 0; i < 10; i++)
         {
-            tasks.Add(_storage.GetPendingCountAsync());
+            tasks.Add(_storage.GetPendingCountAsync(cancellationToken: TestContext.Current.CancellationToken));
         }
 
         await Task.WhenAll(tasks);
 
         // Assert - Final state should be consistent
-        var finalCount = await _storage.GetPendingCountAsync();
+        var finalCount = await _storage.GetPendingCountAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(10, finalCount); // 50 - 25 cancelled - 15 delivered = 10 pending
     }
 

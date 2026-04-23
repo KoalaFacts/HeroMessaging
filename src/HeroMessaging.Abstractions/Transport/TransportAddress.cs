@@ -6,6 +6,9 @@ namespace HeroMessaging.Abstractions.Transport;
 /// </summary>
 public readonly record struct TransportAddress
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="TransportAddress"/> class.
+    /// </summary>
     public TransportAddress(string name, TransportAddressType type = TransportAddressType.Queue)
     {
         Name = name ?? throw new ArgumentNullException(nameof(name));
@@ -16,6 +19,9 @@ public readonly record struct TransportAddress
         VirtualHost = null;
         Path = null;
     }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="TransportAddress"/> class.
+    /// </summary>
 
     public TransportAddress(Uri uri)
     {

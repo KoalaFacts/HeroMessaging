@@ -22,6 +22,9 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
     private readonly IJsonSerializer _jsonSerializer;
     private readonly SemaphoreSlim _initLock = new(1, 1);
     private bool _initialized;
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PostgreSqlOutboxStorage"/> class.
+    /// </summary>
 
     public PostgreSqlOutboxStorage(
         PostgreSqlStorageOptions options,
@@ -41,6 +44,9 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
         _jsonOptionsProvider = jsonOptionsProvider ?? new DefaultJsonOptionsProvider();
         _schemaInitializer = schemaInitializer ?? new PostgreSqlSchemaInitializer(_connectionProvider);
     }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PostgreSqlOutboxStorage"/> class.
+    /// </summary>
 
     public PostgreSqlOutboxStorage(
         NpgsqlConnection connection,
@@ -76,6 +82,9 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
             _initLock.Release();
         }
     }
+    /// <summary>
+    /// Executes initialize database.
+    /// </summary>
 
     private async Task InitializeDatabase()
     {
@@ -108,6 +117,9 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
 
         await _schemaInitializer.ExecuteSchemaScriptAsync(createTableSql).ConfigureAwait(false);
     }
+    /// <summary>
+    /// Executes add async.
+    /// </summary>
 
     public async Task<OutboxEntry> AddAsync(IMessage message, OutboxOptions options, CancellationToken cancellationToken = default)
     {
@@ -152,6 +164,9 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
         {
         }
     }
+    /// <summary>
+    /// Executes get pending async.
+    /// </summary>
 
     public async Task<IEnumerable<OutboxEntry>> GetPendingAsync(OutboxQuery query, CancellationToken cancellationToken = default)
     {
@@ -242,6 +257,9 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
         {
         }
     }
+    /// <summary>
+    /// Executes get pending async.
+    /// </summary>
 
     public async Task<IEnumerable<OutboxEntry>> GetPendingAsync(int limit = 100, CancellationToken cancellationToken = default)
     {
@@ -253,6 +271,9 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
 
         return await GetPendingAsync(query, cancellationToken).ConfigureAwait(false);
     }
+    /// <summary>
+    /// Executes mark processed async.
+    /// </summary>
 
     public async Task<bool> MarkProcessedAsync(string entryId, CancellationToken cancellationToken = default)
     {
@@ -281,6 +302,9 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
         {
         }
     }
+    /// <summary>
+    /// Executes mark failed async.
+    /// </summary>
 
     public async Task<bool> MarkFailedAsync(string entryId, string error, CancellationToken cancellationToken = default)
     {
@@ -310,6 +334,9 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
         {
         }
     }
+    /// <summary>
+    /// Executes update retry count async.
+    /// </summary>
 
     public async Task<bool> UpdateRetryCountAsync(string entryId, int retryCount, DateTimeOffset? nextRetry = null, CancellationToken cancellationToken = default)
     {
@@ -338,6 +365,9 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
         {
         }
     }
+    /// <summary>
+    /// Executes get pending count async.
+    /// </summary>
 
     public async Task<long> GetPendingCountAsync(CancellationToken cancellationToken = default)
     {
@@ -358,6 +388,9 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
         {
         }
     }
+    /// <summary>
+    /// Executes get failed async.
+    /// </summary>
 
     public async Task<IEnumerable<OutboxEntry>> GetFailedAsync(int limit = 100, CancellationToken cancellationToken = default)
     {

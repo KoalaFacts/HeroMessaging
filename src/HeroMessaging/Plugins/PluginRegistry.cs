@@ -11,11 +11,17 @@ public class PluginRegistry : IPluginRegistry
 {
     private readonly ConcurrentDictionary<string, IPluginDescriptor> _plugins = new();
     private readonly ILogger<PluginRegistry>? _logger;
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PluginRegistry"/> class.
+    /// </summary>
 
     public PluginRegistry(ILogger<PluginRegistry>? logger = null)
     {
         _logger = logger;
     }
+    /// <summary>
+    /// Executes register.
+    /// </summary>
 
     public void Register(IPluginDescriptor descriptor)
     {
@@ -32,6 +38,9 @@ public class PluginRegistry : IPluginRegistry
             _logger?.LogWarning("Plugin already registered: {PluginName}", descriptor.Name);
         }
     }
+    /// <summary>
+    /// Executes register range.
+    /// </summary>
 
     public void RegisterRange(IEnumerable<IPluginDescriptor> descriptors)
     {
@@ -43,16 +52,25 @@ public class PluginRegistry : IPluginRegistry
             Register(descriptor);
         }
     }
+    /// <summary>
+    /// Executes get all.
+    /// </summary>
 
     public IEnumerable<IPluginDescriptor> GetAll()
     {
         return [.. _plugins.Values];
     }
+    /// <summary>
+    /// Executes get by category.
+    /// </summary>
 
     public IEnumerable<IPluginDescriptor> GetByCategory(PluginCategory category)
     {
         return [.. _plugins.Values.Where(p => p.Category == category)];
     }
+    /// <summary>
+    /// Executes get by name.
+    /// </summary>
 
     public IPluginDescriptor? GetByName(string name)
     {
@@ -62,6 +80,9 @@ public class PluginRegistry : IPluginRegistry
         _plugins.TryGetValue(name, out var descriptor);
         return descriptor;
     }
+    /// <summary>
+    /// Executes is registered.
+    /// </summary>
 
     public bool IsRegistered(string name)
     {
@@ -70,6 +91,9 @@ public class PluginRegistry : IPluginRegistry
 
         return _plugins.ContainsKey(name);
     }
+    /// <summary>
+    /// Executes unregister.
+    /// </summary>
 
     public bool Unregister(string name)
     {
@@ -83,6 +107,9 @@ public class PluginRegistry : IPluginRegistry
 
         return false;
     }
+    /// <summary>
+    /// Executes clear.
+    /// </summary>
 
     public void Clear()
     {
@@ -90,6 +117,9 @@ public class PluginRegistry : IPluginRegistry
         _plugins.Clear();
         _logger?.LogInformation("Cleared {Count} plugins from registry", count);
     }
+    /// <summary>
+    /// Executes get by feature.
+    /// </summary>
 
     public IEnumerable<IPluginDescriptor> GetByFeature(string feature)
     {

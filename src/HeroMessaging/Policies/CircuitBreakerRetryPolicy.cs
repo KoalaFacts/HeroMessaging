@@ -13,12 +13,21 @@ public class CircuitBreakerRetryPolicy(
     TimeSpan? openCircuitDuration = null,
     TimeSpan? baseDelay = null) : IRetryPolicy
 {
+    /// <summary>
+    /// Gets max retries.
+    /// </summary>
     public int MaxRetries { get; } = maxRetries;
     private readonly int _failureThreshold = failureThreshold;
     private readonly TimeSpan _openCircuitDuration = openCircuitDuration ?? TimeSpan.FromMinutes(1);
     private readonly TimeSpan _baseDelay = baseDelay ?? TimeSpan.FromSeconds(1);
     private readonly ConcurrentDictionary<string, CircuitState> _circuits = new();
+    /// <summary>
+    /// Represents time provider.
+    /// </summary>
     private readonly TimeProvider _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+    /// <summary>
+    /// Executes should retry.
+    /// </summary>
 
 
     public bool ShouldRetry(Exception? exception, int attemptNumber)
@@ -61,6 +70,9 @@ public class CircuitBreakerRetryPolicy(
 
         return true;
     }
+    /// <summary>
+    /// Executes get retry delay.
+    /// </summary>
 
     public TimeSpan GetRetryDelay(int attemptNumber)
     {

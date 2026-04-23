@@ -15,8 +15,14 @@ public sealed class HmacSha256MessageSigner : IMessageSigner, IDisposable
     private readonly string? _keyId;
     private readonly TimeProvider _timeProvider;
     private bool _disposed;
+    /// <summary>
+    /// Gets algorithm.
+    /// </summary>
 
     public string Algorithm => "HMAC-SHA256";
+    /// <summary>
+    /// Gets signature size.
+    /// </summary>
     public int SignatureSize => HashSize;
 
     /// <summary>
@@ -57,6 +63,9 @@ public sealed class HmacSha256MessageSigner : IMessageSigner, IDisposable
             CryptographicOperations.ZeroMemory(key);
         }
     }
+    /// <summary>
+    /// Executes sign async.
+    /// </summary>
 
     public Task<MessageSignature> SignAsync(
         byte[] data,
@@ -84,6 +93,9 @@ public sealed class HmacSha256MessageSigner : IMessageSigner, IDisposable
             throw new SecurityException("Failed to sign message", ex);
         }
     }
+    /// <summary>
+    /// Executes verify async.
+    /// </summary>
 
     public Task<bool> VerifyAsync(
         byte[] data,
@@ -116,6 +128,9 @@ public sealed class HmacSha256MessageSigner : IMessageSigner, IDisposable
             throw new SignatureVerificationException("Failed to verify signature", ex);
         }
     }
+    /// <summary>
+    /// Executes sign.
+    /// </summary>
 
     public int Sign(ReadOnlySpan<byte> data, Span<byte> signature, SecurityContext context)
     {
@@ -137,6 +152,9 @@ public sealed class HmacSha256MessageSigner : IMessageSigner, IDisposable
             throw new SecurityException("Failed to sign message", ex);
         }
     }
+    /// <summary>
+    /// Executes try sign.
+    /// </summary>
 
     public bool TrySign(ReadOnlySpan<byte> data, Span<byte> signature, SecurityContext context, out int bytesWritten)
     {
@@ -151,6 +169,9 @@ public sealed class HmacSha256MessageSigner : IMessageSigner, IDisposable
             return false;
         }
     }
+    /// <summary>
+    /// Executes verify.
+    /// </summary>
 
     public bool Verify(ReadOnlySpan<byte> data, ReadOnlySpan<byte> signature, SecurityContext context)
     {

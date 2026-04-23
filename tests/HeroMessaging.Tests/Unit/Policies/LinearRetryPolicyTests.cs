@@ -531,7 +531,7 @@ public class LinearRetryPolicyTests
 
     [Fact]
     [Trait("Category", "Unit")]
-    public void ShouldRetry_ConcurrentCalls_ProducesConsistentResults()
+    public async Task ShouldRetry_ConcurrentCalls_ProducesConsistentResults()
     {
         // Arrange
         var policy = new LinearRetryPolicy(maxRetries: 10);
@@ -544,18 +544,17 @@ public class LinearRetryPolicyTests
             {
                 var result = policy.ShouldRetry(exception, attemptNumber: i % 15);
                 results.Add(result);
-            }));
+            }, TestContext.Current.CancellationToken));
 
-        Task.WaitAll([.. tasks]);
+        await Task.WhenAll(tasks);
 
         // Assert - All calls within maxRetries should return true
-        var expectedTrueCount = 100 * 10 / 15 + (100 % 15 <= 10 ? 100 % 15 : 10);
         Assert.True(results.Count(r => r) >= 60, "Majority of attempts within retry limit should succeed");
     }
 
     [Fact]
     [Trait("Category", "Unit")]
-    public void GetRetryDelay_ConcurrentCalls_ReturnsConsistentDelay()
+    public async Task GetRetryDelay_ConcurrentCalls_ReturnsConsistentDelay()
     {
         // Arrange
         var expectedDelay = TimeSpan.FromSeconds(2);
@@ -568,9 +567,9 @@ public class LinearRetryPolicyTests
             {
                 var delay = policy.GetRetryDelay(attemptNumber: i);
                 results.Add(delay);
-            }));
+            }, TestContext.Current.CancellationToken));
 
-        Task.WaitAll([.. tasks]);
+        await Task.WhenAll(tasks);
 
         // Assert - All delays should be the same
         Assert.All(results, delay => Assert.Equal(expectedDelay, delay));

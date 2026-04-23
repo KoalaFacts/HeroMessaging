@@ -16,9 +16,18 @@ public sealed class AesGcmMessageEncryptor : IMessageEncryptor, IDisposable
     private readonly byte[] _key;
     private readonly string? _keyId;
     private bool _disposed;
+    /// <summary>
+    /// Gets algorithm.
+    /// </summary>
 
     public string Algorithm => "AES-256-GCM";
+    /// <summary>
+    /// Gets ivsize.
+    /// </summary>
     public int IVSize => NonceSize;
+    /// <summary>
+    /// Gets tag size.
+    /// </summary>
     public int TagSize => TagSizeValue;
 
     /// <summary>
@@ -56,6 +65,9 @@ public sealed class AesGcmMessageEncryptor : IMessageEncryptor, IDisposable
             CryptographicOperations.ZeroMemory(key);
         }
     }
+    /// <summary>
+    /// Executes encrypt async.
+    /// </summary>
 
     public Task<EncryptedData> EncryptAsync(
         byte[] plaintext,
@@ -97,6 +109,9 @@ public sealed class AesGcmMessageEncryptor : IMessageEncryptor, IDisposable
             throw new EncryptionException("Failed to encrypt message", ex);
         }
     }
+    /// <summary>
+    /// Executes decrypt async.
+    /// </summary>
 
     public Task<byte[]> DecryptAsync(
         EncryptedData encryptedData,
@@ -133,6 +148,9 @@ public sealed class AesGcmMessageEncryptor : IMessageEncryptor, IDisposable
             throw new EncryptionException("Failed to decrypt message. The message may have been tampered with.", ex);
         }
     }
+    /// <summary>
+    /// Executes encrypt.
+    /// </summary>
 
     public int Encrypt(ReadOnlySpan<byte> plaintext, Span<byte> ciphertext, Span<byte> iv, Span<byte> tag, SecurityContext context)
     {
@@ -163,6 +181,9 @@ public sealed class AesGcmMessageEncryptor : IMessageEncryptor, IDisposable
             throw new EncryptionException("Failed to encrypt message", ex);
         }
     }
+    /// <summary>
+    /// Executes try encrypt.
+    /// </summary>
 
     public bool TryEncrypt(ReadOnlySpan<byte> plaintext, Span<byte> ciphertext, Span<byte> iv, Span<byte> tag, SecurityContext context, out int bytesWritten)
     {
@@ -177,6 +198,9 @@ public sealed class AesGcmMessageEncryptor : IMessageEncryptor, IDisposable
             return false;
         }
     }
+    /// <summary>
+    /// Executes decrypt.
+    /// </summary>
 
     public int Decrypt(ReadOnlySpan<byte> ciphertext, ReadOnlySpan<byte> iv, ReadOnlySpan<byte> tag, Span<byte> plaintext, SecurityContext context)
     {
@@ -204,6 +228,9 @@ public sealed class AesGcmMessageEncryptor : IMessageEncryptor, IDisposable
             throw new EncryptionException("Failed to decrypt message. The message may have been tampered with.", ex);
         }
     }
+    /// <summary>
+    /// Executes try decrypt.
+    /// </summary>
 
     public bool TryDecrypt(ReadOnlySpan<byte> ciphertext, ReadOnlySpan<byte> iv, ReadOnlySpan<byte> tag, Span<byte> plaintext, SecurityContext context, out int bytesWritten)
     {

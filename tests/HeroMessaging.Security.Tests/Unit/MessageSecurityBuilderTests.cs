@@ -176,7 +176,7 @@ public sealed class MessageSecurityBuilderTests
     }
 
     [Fact]
-    public void WithClaimsAuthentication_WithConfigureAction_ConfiguresProvider()
+    public async Task WithClaimsAuthentication_WithConfigureAction_ConfiguresProvider()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -197,7 +197,7 @@ public sealed class MessageSecurityBuilderTests
         Assert.NotNull(authProvider);
 
         var credentials = new AuthenticationCredentials("ApiKey", testKey);
-        var principal = authProvider.AuthenticateAsync(credentials, TestContext.Current.CancellationToken).Result;
+        var principal = await authProvider.AuthenticateAsync(credentials, TestContext.Current.CancellationToken);
         Assert.NotNull(principal);
         Assert.Equal(testName, principal.Identity?.Name);
     }
@@ -237,7 +237,7 @@ public sealed class MessageSecurityBuilderTests
     }
 
     [Fact]
-    public void WithPolicyAuthorization_WithConfigureAction_ConfiguresProvider()
+    public async Task WithPolicyAuthorization_WithConfigureAction_ConfiguresProvider()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -260,7 +260,7 @@ public sealed class MessageSecurityBuilderTests
             [new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "admin")],
             "TestAuth");
         var principal = new System.Security.Claims.ClaimsPrincipal(identity);
-        var authResult = authzProvider.AuthorizeAsync(principal, "Command", "Execute", TestContext.Current.CancellationToken).Result;
+        var authResult = await authzProvider.AuthorizeAsync(principal, "Command", "Execute", TestContext.Current.CancellationToken);
         Assert.True(authResult.Succeeded);
     }
 
@@ -442,7 +442,7 @@ public sealed class MessageSecurityBuilderTests
     }
 
     [Fact]
-    public void ComplexScenario_FullSecurityStack_AllComponentsWork()
+    public async Task ComplexScenario_FullSecurityStack_AllComponentsWork()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -480,12 +480,12 @@ public sealed class MessageSecurityBuilderTests
 
         // Verify auth works
         var adminCreds = new AuthenticationCredentials("ApiKey", "admin-key");
-        var adminPrincipal = authProvider!.AuthenticateAsync(adminCreds, TestContext.Current.CancellationToken).Result;
+        var adminPrincipal = await authProvider.AuthenticateAsync(adminCreds, TestContext.Current.CancellationToken);
         Assert.NotNull(adminPrincipal);
         Assert.True(adminPrincipal.IsInRole("admin"));
 
         // Verify authz works
-        var authzResult = authzProvider!.AuthorizeAsync(adminPrincipal, "AdminCommand", "Execute", TestContext.Current.CancellationToken).Result;
+        var authzResult = await authzProvider.AuthorizeAsync(adminPrincipal, "AdminCommand", "Execute", TestContext.Current.CancellationToken);
         Assert.True(authzResult.Succeeded);
     }
 }

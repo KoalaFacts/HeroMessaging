@@ -14,6 +14,9 @@ namespace HeroMessaging.SourceGenerators;
 [Generator]
 public class MessageValidatorGenerator : IIncrementalGenerator
 {
+    /// <summary>
+    /// Executes initialize.
+    /// </summary>
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         // Register attribute source

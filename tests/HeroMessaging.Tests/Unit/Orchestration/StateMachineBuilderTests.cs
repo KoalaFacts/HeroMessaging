@@ -196,15 +196,12 @@ namespace HeroMessaging.Tests.Unit.Orchestration
         {
             // Arrange
             var builder = new StateMachineBuilder<TestSaga>();
-            var actionExecuted = false;
-
             // Act
             builder.Initially()
                 .When(new Event<OrderStartedEvent>("OrderStartedEvent"))
                 .Then(async ctx =>
                 {
                     await Task.Delay(1);
-                    actionExecuted = true;
                 })
                 .TransitionTo(new State("Processing"));
 
@@ -466,18 +463,15 @@ namespace HeroMessaging.Tests.Unit.Orchestration
         {
             // Arrange
             var builder = new StateMachineBuilder<TestSaga>();
-            var action1Called = false;
-            var action2Called = false;
-
             // Act
             builder.Initially()
                 .When(new Event<OrderStartedEvent>("OrderStartedEvent"))
-                    .Then(ctx => { action1Called = true; })
+                    .Then(ctx => { })
                     .TransitionTo(new State("Processing"));
 
             builder.During(new State("Processing"))
                 .When(new Event<PaymentCompletedEvent>("PaymentCompletedEvent"))
-                    .Then(ctx => { action2Called = true; })
+                    .Then(ctx => { })
                     .TransitionTo(new State("Completed"))
                     .Finalize();
 

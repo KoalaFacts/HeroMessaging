@@ -24,8 +24,7 @@ public abstract class SqlServerIntegrationTestBase : IAsyncLifetime
         else
         {
             // Fall back to Testcontainers for local development
-            Container = new MsSqlBuilder()
-                .WithImage("mcr.microsoft.com/mssql/server:2022-latest")
+            Container = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest")
                 .WithPassword("YourStrong@Passw0rd")
                 .Build();
 

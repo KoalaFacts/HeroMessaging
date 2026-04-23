@@ -29,16 +29,16 @@ public class InMemoryTopicTests
     {
         // Arrange
         var transport = new InMemoryTransport(_options, TimeProvider.System);
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var topic = TransportAddress.Topic("test-topic");
         var envelope = CreateTestEnvelope();
 
         // Act
-        await transport.PublishAsync(topic, envelope);
+        await transport.PublishAsync(topic, envelope, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert - Should not throw
-        var health = await transport.GetHealthAsync();
+        var health = await transport.GetHealthAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.NotNull(health);
 
         await transport.DisposeAsync();
@@ -49,7 +49,7 @@ public class InMemoryTopicTests
     {
         // Arrange
         var transport = new InMemoryTransport(_options, TimeProvider.System);
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var topic = TransportAddress.Topic("test-topic");
         var receivedMessages = new List<string>();
@@ -60,13 +60,13 @@ public class InMemoryTopicTests
                 receivedMessages.Add(env.MessageType);
                 await ctx.AcknowledgeAsync(ct);
             },
-            new ConsumerOptions { StartImmediately = true });
+            new ConsumerOptions { StartImmediately = true }, cancellationToken: TestContext.Current.CancellationToken);
 
         var envelope = CreateTestEnvelope("TestEvent");
 
         // Act
-        await transport.PublishAsync(topic, envelope);
-        await Task.Delay(100); // Wait for processing
+        await transport.PublishAsync(topic, envelope, cancellationToken: TestContext.Current.CancellationToken);
+        await Task.Delay(100, TestContext.Current.CancellationToken); // Wait for processing
 
         // Assert
         Assert.Single(receivedMessages);
@@ -80,7 +80,7 @@ public class InMemoryTopicTests
     {
         // Arrange
         var transport = new InMemoryTransport(_options, TimeProvider.System);
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var topic = TransportAddress.Topic("test-topic");
         var consumer1Messages = new List<string>();
@@ -93,7 +93,7 @@ public class InMemoryTopicTests
                 consumer1Messages.Add(env.MessageType);
                 await ctx.AcknowledgeAsync(ct);
             },
-            new ConsumerOptions { StartImmediately = true, ConsumerId = "consumer1" });
+            new ConsumerOptions { StartImmediately = true, ConsumerId = "consumer1" }, cancellationToken: TestContext.Current.CancellationToken);
 
         await transport.SubscribeAsync(topic,
             async (env, ctx, ct) =>
@@ -101,7 +101,7 @@ public class InMemoryTopicTests
                 consumer2Messages.Add(env.MessageType);
                 await ctx.AcknowledgeAsync(ct);
             },
-            new ConsumerOptions { StartImmediately = true, ConsumerId = "consumer2" });
+            new ConsumerOptions { StartImmediately = true, ConsumerId = "consumer2" }, cancellationToken: TestContext.Current.CancellationToken);
 
         await transport.SubscribeAsync(topic,
             async (env, ctx, ct) =>
@@ -109,13 +109,13 @@ public class InMemoryTopicTests
                 consumer3Messages.Add(env.MessageType);
                 await ctx.AcknowledgeAsync(ct);
             },
-            new ConsumerOptions { StartImmediately = true, ConsumerId = "consumer3" });
+            new ConsumerOptions { StartImmediately = true, ConsumerId = "consumer3" }, cancellationToken: TestContext.Current.CancellationToken);
 
         var envelope = CreateTestEnvelope("BroadcastEvent");
 
         // Act
-        await transport.PublishAsync(topic, envelope);
-        await Task.Delay(100); // Wait for processing
+        await transport.PublishAsync(topic, envelope, cancellationToken: TestContext.Current.CancellationToken);
+        await Task.Delay(100, TestContext.Current.CancellationToken); // Wait for processing
 
         // Assert - All consumers should receive the message
         Assert.Single(consumer1Messages);
@@ -133,7 +133,7 @@ public class InMemoryTopicTests
     {
         // Arrange
         var transport = new InMemoryTransport(_options, TimeProvider.System);
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var topic = TransportAddress.Topic("test-topic");
         var consumer1Messages = new List<string>();
@@ -145,7 +145,7 @@ public class InMemoryTopicTests
                 consumer1Messages.Add(env.MessageType);
                 await ctx.AcknowledgeAsync(ct);
             },
-            new ConsumerOptions { StartImmediately = true, ConsumerId = "consumer1" });
+            new ConsumerOptions { StartImmediately = true, ConsumerId = "consumer1" }, cancellationToken: TestContext.Current.CancellationToken);
 
         await transport.SubscribeAsync(topic,
             async (env, ctx, ct) =>
@@ -153,14 +153,14 @@ public class InMemoryTopicTests
                 consumer2Messages.Add(env.MessageType);
                 await ctx.AcknowledgeAsync(ct);
             },
-            new ConsumerOptions { StartImmediately = true, ConsumerId = "consumer2" });
+            new ConsumerOptions { StartImmediately = true, ConsumerId = "consumer2" }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
-        await transport.PublishAsync(topic, CreateTestEnvelope("Event1"));
-        await transport.PublishAsync(topic, CreateTestEnvelope("Event2"));
-        await transport.PublishAsync(topic, CreateTestEnvelope("Event3"));
+        await transport.PublishAsync(topic, CreateTestEnvelope("Event1"), cancellationToken: TestContext.Current.CancellationToken);
+        await transport.PublishAsync(topic, CreateTestEnvelope("Event2"), cancellationToken: TestContext.Current.CancellationToken);
+        await transport.PublishAsync(topic, CreateTestEnvelope("Event3"), cancellationToken: TestContext.Current.CancellationToken);
 
-        await Task.Delay(200); // Wait for processing
+        await Task.Delay(200, TestContext.Current.CancellationToken); // Wait for processing
 
         // Assert
         Assert.Equal(3, consumer1Messages.Count);
@@ -177,7 +177,7 @@ public class InMemoryTopicTests
     {
         // Arrange
         var transport = new InMemoryTransport(_options, TimeProvider.System);
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var topic = TransportAddress.Topic("test-topic");
         var workingConsumerMessages = new List<string>();
@@ -192,7 +192,7 @@ public class InMemoryTopicTests
                 StartImmediately = true,
                 ConsumerId = "failing-consumer",
                 MessageRetryPolicy = new RetryPolicy { MaxAttempts = 1 }
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         await transport.SubscribeAsync(topic,
             async (env, ctx, ct) =>
@@ -200,13 +200,13 @@ public class InMemoryTopicTests
                 workingConsumerMessages.Add(env.MessageType);
                 await ctx.AcknowledgeAsync(ct);
             },
-            new ConsumerOptions { StartImmediately = true, ConsumerId = "working-consumer" });
+            new ConsumerOptions { StartImmediately = true, ConsumerId = "working-consumer" }, cancellationToken: TestContext.Current.CancellationToken);
 
         var envelope = CreateTestEnvelope("TestEvent");
 
         // Act
-        await transport.PublishAsync(topic, envelope);
-        await Task.Delay(200); // Wait for processing
+        await transport.PublishAsync(topic, envelope, cancellationToken: TestContext.Current.CancellationToken);
+        await Task.Delay(200, TestContext.Current.CancellationToken); // Wait for processing
 
         // Assert - Working consumer should still receive message
         Assert.Single(workingConsumerMessages);
@@ -220,7 +220,7 @@ public class InMemoryTopicTests
     {
         // Arrange
         var transport = new InMemoryTransport(_options, TimeProvider.System);
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var topic = TransportAddress.Topic("test-topic");
 
@@ -231,7 +231,7 @@ public class InMemoryTopicTests
                 StartImmediately = true,
                 ConsumerId = "consumer1",
                 MessageRetryPolicy = new RetryPolicy { MaxAttempts = 1 }
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         await transport.SubscribeAsync(topic,
             (env, ctx, ct) => throw new InvalidOperationException("Consumer 2 fails"),
@@ -240,13 +240,13 @@ public class InMemoryTopicTests
                 StartImmediately = true,
                 ConsumerId = "consumer2",
                 MessageRetryPolicy = new RetryPolicy { MaxAttempts = 1 }
-            });
+            }, cancellationToken: TestContext.Current.CancellationToken);
 
         var envelope = CreateTestEnvelope("TestEvent");
 
         // Act & Assert - Should not throw even though all subscribers fail
-        await transport.PublishAsync(topic, envelope);
-        await Task.Delay(200); // Wait for processing
+        await transport.PublishAsync(topic, envelope, cancellationToken: TestContext.Current.CancellationToken);
+        await Task.Delay(200, TestContext.Current.CancellationToken); // Wait for processing
 
         await transport.DisposeAsync();
     }
@@ -256,7 +256,7 @@ public class InMemoryTopicTests
     {
         // Arrange
         var transport = new InMemoryTransport(_options, TimeProvider.System);
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var topic = TransportAddress.Topic("test-topic");
         var consumer1Messages = new List<string>();
@@ -268,7 +268,7 @@ public class InMemoryTopicTests
                 consumer1Messages.Add(env.MessageType);
                 await ctx.AcknowledgeAsync(ct);
             },
-            new ConsumerOptions { StartImmediately = true, ConsumerId = "consumer1" });
+            new ConsumerOptions { StartImmediately = true, ConsumerId = "consumer1" }, cancellationToken: TestContext.Current.CancellationToken);
 
         await transport.SubscribeAsync(topic,
             async (env, ctx, ct) =>
@@ -276,14 +276,14 @@ public class InMemoryTopicTests
                 consumer2Messages.Add(env.MessageType);
                 await ctx.AcknowledgeAsync(ct);
             },
-            new ConsumerOptions { StartImmediately = true, ConsumerId = "consumer2" });
+            new ConsumerOptions { StartImmediately = true, ConsumerId = "consumer2" }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act - Unsubscribe consumer1
         await consumer1.DisposeAsync();
 
         // Publish after unsubscription
-        await transport.PublishAsync(topic, CreateTestEnvelope("AfterUnsubscribe"));
-        await Task.Delay(100); // Wait for processing
+        await transport.PublishAsync(topic, CreateTestEnvelope("AfterUnsubscribe"), cancellationToken: TestContext.Current.CancellationToken);
+        await Task.Delay(100, TestContext.Current.CancellationToken); // Wait for processing
 
         // Assert - Only consumer2 should receive the message
         Assert.Empty(consumer1Messages);
@@ -298,7 +298,7 @@ public class InMemoryTopicTests
     {
         // Arrange
         var transport = new InMemoryTransport(_options, TimeProvider.System);
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var topic = TransportAddress.Topic("test-topic");
         var deliveryTimes = new System.Collections.Concurrent.ConcurrentBag<DateTimeOffset>();
@@ -315,13 +315,13 @@ public class InMemoryTopicTests
                     deliveryTimes.Add(DateTimeOffset.UtcNow);
                     await ctx.AcknowledgeAsync(ct);
                 },
-                new ConsumerOptions { StartImmediately = true, ConsumerId = consumerId });
+                new ConsumerOptions { StartImmediately = true, ConsumerId = consumerId }, cancellationToken: TestContext.Current.CancellationToken);
         }
 
         var envelope = CreateTestEnvelope("ParallelEvent");
 
         // Act
-        await transport.PublishAsync(topic, envelope);
+        await transport.PublishAsync(topic, envelope, cancellationToken: TestContext.Current.CancellationToken);
         var endTime = DateTimeOffset.UtcNow;
 
         // Assert - If parallel, total time should be ~50ms, not 150ms (3 * 50ms)
@@ -336,7 +336,7 @@ public class InMemoryTopicTests
     {
         // Arrange
         var transport = new InMemoryTransport(_options, TimeProvider.System);
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var topic = TransportAddress.Topic("test-topic");
         var messageCount = 0;
@@ -347,16 +347,16 @@ public class InMemoryTopicTests
                 Interlocked.Increment(ref messageCount);
                 await ctx.AcknowledgeAsync(ct);
             },
-            new ConsumerOptions { StartImmediately = true });
+            new ConsumerOptions { StartImmediately = true }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act - Publish multiple messages concurrently
         var tasks = new List<Task>();
         for (int i = 0; i < 10; i++)
         {
-            tasks.Add(transport.PublishAsync(topic, CreateTestEnvelope($"Event{i}")));
+            tasks.Add(transport.PublishAsync(topic, CreateTestEnvelope($"Event{i}"), cancellationToken: TestContext.Current.CancellationToken));
         }
         await Task.WhenAll(tasks);
-        await Task.Delay(200); // Wait for processing
+        await Task.Delay(200, TestContext.Current.CancellationToken); // Wait for processing
 
         // Assert
         Assert.Equal(10, messageCount);
@@ -369,12 +369,12 @@ public class InMemoryTopicTests
     {
         // Arrange
         var transport = new InMemoryTransport(_options, TimeProvider.System);
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var topic = TransportAddress.Topic("test-topic");
 
         // Publish before subscribing
-        await transport.PublishAsync(topic, CreateTestEnvelope("EarlyEvent"));
+        await transport.PublishAsync(topic, CreateTestEnvelope("EarlyEvent"), cancellationToken: TestContext.Current.CancellationToken);
 
         var lateSubscriberMessages = new List<string>();
 
@@ -385,13 +385,13 @@ public class InMemoryTopicTests
                 lateSubscriberMessages.Add(env.MessageType);
                 await ctx.AcknowledgeAsync(ct);
             },
-            new ConsumerOptions { StartImmediately = true });
+            new ConsumerOptions { StartImmediately = true }, cancellationToken: TestContext.Current.CancellationToken);
 
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         // Publish after subscribing
-        await transport.PublishAsync(topic, CreateTestEnvelope("LateEvent"));
-        await Task.Delay(100);
+        await transport.PublishAsync(topic, CreateTestEnvelope("LateEvent"), cancellationToken: TestContext.Current.CancellationToken);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         // Assert - Should only receive messages after subscription
         Assert.Single(lateSubscriberMessages);
@@ -405,7 +405,7 @@ public class InMemoryTopicTests
     {
         // Arrange
         var transport = new InMemoryTransport(_options, TimeProvider.System);
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var topic = TransportAddress.Topic("test-topic");
         var fastTcs = new TaskCompletionSource<bool>();
@@ -418,7 +418,7 @@ public class InMemoryTopicTests
                 fastTcs.SetResult(true);
                 await ctx.AcknowledgeAsync(ct);
             },
-            new ConsumerOptions { StartImmediately = true, ConsumerId = "fast" });
+            new ConsumerOptions { StartImmediately = true, ConsumerId = "fast" }, cancellationToken: TestContext.Current.CancellationToken);
 
         await transport.SubscribeAsync(topic,
             async (env, ctx, ct) =>
@@ -427,18 +427,18 @@ public class InMemoryTopicTests
                 slowTcs.SetResult(true);
                 await ctx.AcknowledgeAsync(ct);
             },
-            new ConsumerOptions { StartImmediately = true, ConsumerId = "slow" });
+            new ConsumerOptions { StartImmediately = true, ConsumerId = "slow" }, cancellationToken: TestContext.Current.CancellationToken);
 
         var envelope = CreateTestEnvelope("TestEvent");
 
         // Act
-        await transport.PublishAsync(topic, envelope);
+        await transport.PublishAsync(topic, envelope, cancellationToken: TestContext.Current.CancellationToken);
 
         // Wait for both consumers to process the message
         // PublishAsync delivers to channel but doesn't wait for processing
         await Task.WhenAll(
-            fastTcs.Task.WaitAsync(TimeSpan.FromSeconds(5)),
-            slowTcs.Task.WaitAsync(TimeSpan.FromSeconds(5)));
+            fastTcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken),
+            slowTcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
 
         // Assert - Both should have received and processed the message
         Assert.True(fastTcs.Task.IsCompletedSuccessfully);
@@ -452,7 +452,7 @@ public class InMemoryTopicTests
     {
         // Arrange
         var transport = new InMemoryTransport(_options, TimeProvider.System);
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var topic = TransportAddress.Topic("test-topic");
         var consumer1Count = 0;
@@ -464,7 +464,7 @@ public class InMemoryTopicTests
                 Interlocked.Increment(ref consumer1Count);
                 await ctx.AcknowledgeAsync(ct);
             },
-            new ConsumerOptions { StartImmediately = true, ConsumerId = "consumer1" });
+            new ConsumerOptions { StartImmediately = true, ConsumerId = "consumer1" }, cancellationToken: TestContext.Current.CancellationToken);
 
         await transport.SubscribeAsync(topic,
             async (env, ctx, ct) =>
@@ -472,16 +472,16 @@ public class InMemoryTopicTests
                 Interlocked.Increment(ref consumer2Count);
                 await ctx.AcknowledgeAsync(ct);
             },
-            new ConsumerOptions { StartImmediately = true, ConsumerId = "consumer2" });
+            new ConsumerOptions { StartImmediately = true, ConsumerId = "consumer2" }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act - Publish many events
         var tasks = new List<Task>();
         for (int i = 0; i < 50; i++)
         {
-            tasks.Add(transport.PublishAsync(topic, CreateTestEnvelope($"Event{i}")));
+            tasks.Add(transport.PublishAsync(topic, CreateTestEnvelope($"Event{i}"), cancellationToken: TestContext.Current.CancellationToken));
         }
         await Task.WhenAll(tasks);
-        await Task.Delay(500); // Wait for processing
+        await Task.Delay(500, TestContext.Current.CancellationToken); // Wait for processing
 
         // Assert - Each consumer should receive all events
         Assert.Equal(50, consumer1Count);

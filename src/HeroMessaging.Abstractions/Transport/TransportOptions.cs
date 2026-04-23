@@ -77,6 +77,9 @@ public abstract class TransportOptionsBase
 /// </summary>
 public class InMemoryTransportOptions : TransportOptionsBase
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="InMemoryTransportOptions"/> class.
+    /// </summary>
     [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     public InMemoryTransportOptions()
     {
@@ -115,6 +118,9 @@ public class InMemoryTransportOptions : TransportOptionsBase
 /// </summary>
 public class RabbitMqTransportOptions : TransportOptionsBase
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="RabbitMqTransportOptions"/> class.
+    /// </summary>
     [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     public RabbitMqTransportOptions()
     {
@@ -188,6 +194,9 @@ public class RabbitMqTransportOptions : TransportOptionsBase
 /// </summary>
 public class AzureServiceBusTransportOptions : TransportOptionsBase
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AzureServiceBusTransportOptions"/> class.
+    /// </summary>
     [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     public AzureServiceBusTransportOptions()
     {
@@ -237,7 +246,13 @@ public class AzureServiceBusTransportOptions : TransportOptionsBase
 /// </summary>
 public enum AzureServiceBusTransportType
 {
+    /// <summary>
+    /// Specifies amqp.
+    /// </summary>
     Amqp,
+    /// <summary>
+    /// Specifies amqp web sockets.
+    /// </summary>
     AmqpWebSockets
 }
 
@@ -246,6 +261,9 @@ public enum AzureServiceBusTransportType
 /// </summary>
 public class AmazonSqsTransportOptions : TransportOptionsBase
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AmazonSqsTransportOptions"/> class.
+    /// </summary>
     [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     public AmazonSqsTransportOptions()
     {
@@ -309,6 +327,9 @@ public class AmazonSqsTransportOptions : TransportOptionsBase
 /// </summary>
 public class KafkaTransportOptions : TransportOptionsBase
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="KafkaTransportOptions"/> class.
+    /// </summary>
     [System.Diagnostics.CodeAnalysis.SetsRequiredMembers]
     public KafkaTransportOptions()
     {
@@ -376,33 +397,87 @@ public class KafkaTransportOptions : TransportOptionsBase
     /// </summary>
     public TimeSpan LingerMs { get; set; } = TimeSpan.Zero;
 }
+/// <summary>
+/// Defines values for kafka security protocol.
+/// </summary>
 
 public enum KafkaSecurityProtocol
 {
+    /// <summary>
+    /// Specifies plaintext.
+    /// </summary>
     Plaintext,
+    /// <summary>
+    /// Specifies ssl.
+    /// </summary>
     Ssl,
+    /// <summary>
+    /// Specifies sasl plaintext.
+    /// </summary>
     SaslPlaintext,
+    /// <summary>
+    /// Specifies sasl ssl.
+    /// </summary>
     SaslSsl
 }
+/// <summary>
+/// Defines values for kafka auto offset reset.
+/// </summary>
 
 public enum KafkaAutoOffsetReset
 {
+    /// <summary>
+    /// Specifies latest.
+    /// </summary>
     Latest,
+    /// <summary>
+    /// Specifies earliest.
+    /// </summary>
     Earliest
 }
+/// <summary>
+/// Defines values for kafka acks.
+/// </summary>
 
 public enum KafkaAcks
 {
+    /// <summary>
+    /// Specifies none.
+    /// </summary>
     None = 0,
+    /// <summary>
+    /// Specifies leader.
+    /// </summary>
     Leader = 1,
+    /// <summary>
+    /// Specifies all.
+    /// </summary>
     All = -1
 }
+/// <summary>
+/// Defines values for kafka compression type.
+/// </summary>
 
 public enum KafkaCompressionType
 {
+    /// <summary>
+    /// Specifies none.
+    /// </summary>
     None,
+    /// <summary>
+    /// Specifies gzip.
+    /// </summary>
     Gzip,
+    /// <summary>
+    /// Specifies snappy.
+    /// </summary>
     Snappy,
+    /// <summary>
+    /// Specifies lz4.
+    /// </summary>
     Lz4,
+    /// <summary>
+    /// Specifies zstd.
+    /// </summary>
     Zstd
 }

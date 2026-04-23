@@ -164,10 +164,25 @@ public static class ExtensionsToIHeroMessagingBuilderForTransactions
 /// </summary>
 public class TransactionConfiguration
 {
+    /// <summary>
+    /// Gets or sets command isolation level.
+    /// </summary>
     public IsolationLevel? CommandIsolationLevel { get; set; } = IsolationLevel.ReadCommitted;
+    /// <summary>
+    /// Gets or sets query isolation level.
+    /// </summary>
     public IsolationLevel? QueryIsolationLevel { get; set; } = IsolationLevel.ReadCommitted;
+    /// <summary>
+    /// Gets or sets event isolation level.
+    /// </summary>
     public IsolationLevel? EventIsolationLevel { get; set; } = IsolationLevel.ReadCommitted;
+    /// <summary>
+    /// Gets or sets outbox isolation level.
+    /// </summary>
     public IsolationLevel? OutboxIsolationLevel { get; set; } = IsolationLevel.ReadCommitted;
+    /// <summary>
+    /// Gets or sets inbox isolation level.
+    /// </summary>
     public IsolationLevel? InboxIsolationLevel { get; set; } = IsolationLevel.ReadCommitted;
 
     /// <summary>

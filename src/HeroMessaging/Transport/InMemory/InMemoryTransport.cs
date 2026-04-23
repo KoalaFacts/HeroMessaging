@@ -65,10 +65,20 @@ public class InMemoryTransport(
                 ChangeState(TransportState.Connected, "Connected to in-memory transport");
             }
         }
+        catch (Exception ex)
+        {
+            RaiseError(new TransportErrorEventArgs(ex, "ConnectAsync failed"));
+            throw;
+        }
         finally
         {
             _connectLock.Release();
         }
+    }
+
+    private void RaiseError(TransportErrorEventArgs args)
+    {
+        Error?.Invoke(this, args);
     }
 
     /// <inheritdoc/>

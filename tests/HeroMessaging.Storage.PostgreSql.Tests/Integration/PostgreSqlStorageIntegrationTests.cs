@@ -20,7 +20,7 @@ public class PostgreSqlStorageIntegrationTests : PostgreSqlIntegrationTestBase
         var message = TestMessageBuilder.CreateValidMessage("PostgreSQL test message");
 
         // Act
-        await storage.StoreAsync(message, (IStorageTransaction?)null);
+        await storage.StoreAsync(message, (IStorageTransaction?)null, cancellationToken: TestContext.Current.CancellationToken);
         var retrievedMessage = await storage.RetrieveAsync(message.MessageId, null, TestContext.Current.CancellationToken);
 
         // Assert
@@ -109,7 +109,7 @@ public class PostgreSqlStorageIntegrationTests : PostgreSqlIntegrationTestBase
 
         foreach (var message in messages)
         {
-            await storage.StoreAsync(message, (IStorageTransaction?)null);
+            await storage.StoreAsync(message, (IStorageTransaction?)null, cancellationToken: TestContext.Current.CancellationToken);
         }
 
         // Act
@@ -119,7 +119,7 @@ public class PostgreSqlStorageIntegrationTests : PostgreSqlIntegrationTestBase
             FromTimestamp = baseTime,
             ToTimestamp = baseTime.AddMinutes(5),
             MaxResults = 10
-        });
+        }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(3, queryResult.Count); // Should find 3 messages with "Query test"
@@ -137,7 +137,7 @@ public class PostgreSqlStorageIntegrationTests : PostgreSqlIntegrationTestBase
         var message = TestMessageBuilder.CreateValidMessage("Delete test message");
 
         // Act
-        await storage.StoreAsync(message, (IStorageTransaction?)null);
+        await storage.StoreAsync(message, (IStorageTransaction?)null, cancellationToken: TestContext.Current.CancellationToken);
 
         // Verify it exists
         var retrievedBeforeDelete = await storage.RetrieveAsync(message.MessageId, null, TestContext.Current.CancellationToken);

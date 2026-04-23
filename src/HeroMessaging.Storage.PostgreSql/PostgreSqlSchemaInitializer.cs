@@ -9,6 +9,9 @@ namespace HeroMessaging.Storage.PostgreSql;
 public class PostgreSqlSchemaInitializer : IDbSchemaInitializer
 {
     private readonly IDbConnectionProvider<NpgsqlConnection, NpgsqlTransaction> _connectionProvider;
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PostgreSqlSchemaInitializer"/> class.
+    /// </summary>
 
     public PostgreSqlSchemaInitializer(IDbConnectionProvider<NpgsqlConnection, NpgsqlTransaction> connectionProvider)
     {

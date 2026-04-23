@@ -47,10 +47,10 @@ public class SequenceTests
     public void Value_MultipleUpdates_ReturnsLatestValue()
     {
         // Arrange
-        var sequence = new Sequence(0);
-
-        // Act
-        sequence.Value = 10;
+        var sequence = new Sequence(0)
+        {
+            Value = 10
+        };
         sequence.Value = 20;
         sequence.Value = 30;
 
@@ -62,10 +62,10 @@ public class SequenceTests
     public void Value_NegativeValues_HandledCorrectly()
     {
         // Arrange
-        var sequence = new Sequence(-1);
-
-        // Act
-        sequence.Value = -100;
+        var sequence = new Sequence(-1)
+        {
+            Value = -100
+        };
 
         // Assert
         Assert.Equal(-100, sequence.Value);
@@ -75,10 +75,10 @@ public class SequenceTests
     public void Value_MaxValue_HandledCorrectly()
     {
         // Arrange
-        var sequence = new Sequence(-1);
-
-        // Act
-        sequence.Value = long.MaxValue;
+        var sequence = new Sequence(-1)
+        {
+            Value = long.MaxValue
+        };
 
         // Assert
         Assert.Equal(long.MaxValue, sequence.Value);
@@ -88,10 +88,10 @@ public class SequenceTests
     public void Value_MinValue_HandledCorrectly()
     {
         // Arrange
-        var sequence = new Sequence(-1);
-
-        // Act
-        sequence.Value = long.MinValue;
+        var sequence = new Sequence(-1)
+        {
+            Value = long.MinValue
+        };
 
         // Assert
         Assert.Equal(long.MinValue, sequence.Value);
@@ -111,7 +111,7 @@ public class SequenceTests
     }
 
     [Fact]
-    public void Value_ConcurrentReads_ReturnConsistentValue()
+    public async Task Value_ConcurrentReads_ReturnConsistentValue()
     {
         // Arrange
         var sequence = new Sequence(100);
@@ -125,17 +125,17 @@ public class SequenceTests
             tasks[i] = Task.Run(() =>
             {
                 results[index] = sequence.Value;
-            });
+            }, TestContext.Current.CancellationToken);
         }
 
-        Task.WaitAll(tasks);
+        await Task.WhenAll(tasks);
 
         // Assert
         Assert.All(results, value => Assert.Equal(100, value));
     }
 
     [Fact]
-    public void Value_ConcurrentWrites_LastWriteWins()
+    public async Task Value_ConcurrentWrites_LastWriteWins()
     {
         // Arrange
         var sequence = new Sequence(0);
@@ -148,10 +148,10 @@ public class SequenceTests
             tasks[i] = Task.Run(() =>
             {
                 sequence.Value = value;
-            });
+            }, TestContext.Current.CancellationToken);
         }
 
-        Task.WaitAll(tasks);
+        await Task.WhenAll(tasks);
 
         // Assert
         // One of the values 0-99 should be the final value

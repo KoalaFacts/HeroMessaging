@@ -25,8 +25,7 @@ public sealed class SqlServerIdempotencyStoreFixture : IAsyncLifetime
         else
         {
             // Fall back to Testcontainers for local development
-            _container = new MsSqlBuilder()
-                .WithImage("mcr.microsoft.com/mssql/server:2022-latest")
+            _container = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest")
                 .WithPassword("YourStrong@Passw0rd")
                 .Build();
 

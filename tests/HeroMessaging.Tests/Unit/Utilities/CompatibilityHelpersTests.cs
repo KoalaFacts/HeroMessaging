@@ -69,7 +69,7 @@ public class CompatibilityHelpersTests
     #region FromResult Tests
 
     [Fact]
-    public void FromResult_WithIntValue_ReturnsValueTask()
+    public async Task FromResult_WithIntValue_ReturnsValueTask()
     {
         // Arrange
         var value = 42;
@@ -79,11 +79,11 @@ public class CompatibilityHelpersTests
 
         // Assert
         Assert.True(result.IsCompletedSuccessfully);
-        Assert.Equal(value, result.Result);
+        Assert.Equal(value, await result);
     }
 
     [Fact]
-    public void FromResult_WithStringValue_ReturnsValueTask()
+    public async Task FromResult_WithStringValue_ReturnsValueTask()
     {
         // Arrange
         var value = "test";
@@ -93,11 +93,11 @@ public class CompatibilityHelpersTests
 
         // Assert
         Assert.True(result.IsCompletedSuccessfully);
-        Assert.Equal(value, result.Result);
+        Assert.Equal(value, await result);
     }
 
     [Fact]
-    public void FromResult_WithNullValue_ReturnsValueTaskWithNull()
+    public async Task FromResult_WithNullValue_ReturnsValueTaskWithNull()
     {
         // Arrange
         string? value = null;
@@ -107,11 +107,11 @@ public class CompatibilityHelpersTests
 
         // Assert
         Assert.True(result.IsCompletedSuccessfully);
-        Assert.Null(result.Result);
+        Assert.Null(await result);
     }
 
     [Fact]
-    public void FromResult_WithComplexObject_ReturnsValueTask()
+    public async Task FromResult_WithComplexObject_ReturnsValueTask()
     {
         // Arrange
         var value = new TestObject { Id = 1, Name = "Test" };
@@ -121,8 +121,9 @@ public class CompatibilityHelpersTests
 
         // Assert
         Assert.True(result.IsCompletedSuccessfully);
-        Assert.Equal(value.Id, result.Result.Id);
-        Assert.Equal(value.Name, result.Result.Name);
+        var actual = await result;
+        Assert.Equal(value.Id, actual.Id);
+        Assert.Equal(value.Name, actual.Name);
     }
 
     #endregion

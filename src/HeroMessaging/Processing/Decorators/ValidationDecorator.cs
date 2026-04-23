@@ -15,6 +15,9 @@ public class ValidationDecorator(
 {
     private readonly IMessageValidator _validator = validator;
     private readonly ILogger<ValidationDecorator> _logger = logger;
+    /// <summary>
+    /// Executes process async.
+    /// </summary>
 
     public override async ValueTask<ProcessingResult> ProcessAsync(IMessage message, ProcessingContext context, CancellationToken cancellationToken = default)
     {
@@ -33,15 +36,24 @@ public class ValidationDecorator(
         return await _inner.ProcessAsync(message, context, cancellationToken).ConfigureAwait(false);
     }
 }
+/// <summary>
+/// Represents the composite validator type.
+/// </summary>
 
 public class CompositeValidator : IMessageValidator
 {
     private readonly List<IMessageValidator> _validators = [];
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CompositeValidator"/> class.
+    /// </summary>
 
     public CompositeValidator(params IMessageValidator[] validators)
     {
         _validators.AddRange(validators);
     }
+    /// <summary>
+    /// Executes validate async.
+    /// </summary>
 
     public async ValueTask<ValidationResult> ValidateAsync(IMessage message, CancellationToken cancellationToken = default)
     {

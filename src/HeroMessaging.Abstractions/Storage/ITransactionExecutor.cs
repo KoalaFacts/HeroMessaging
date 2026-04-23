@@ -34,12 +34,18 @@ public sealed class TransactionExecutor : ITransactionExecutor
 {
     private readonly IUnitOfWorkFactory _unitOfWorkFactory;
     private readonly ILogger<TransactionExecutor> _logger;
+    /// <summary>
+    /// Initializes a new instance of the <see cref="TransactionExecutor"/> class.
+    /// </summary>
 
     public TransactionExecutor(IUnitOfWorkFactory unitOfWorkFactory, ILogger<TransactionExecutor> logger)
     {
         _unitOfWorkFactory = unitOfWorkFactory ?? throw new ArgumentNullException(nameof(unitOfWorkFactory));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
+    /// <summary>
+    /// Executes execute in transaction async.
+    /// </summary>
 
     public async Task ExecuteInTransactionAsync(
         Func<CancellationToken, Task> operation,
@@ -66,6 +72,9 @@ public sealed class TransactionExecutor : ITransactionExecutor
             throw;
         }
     }
+    /// <summary>
+    /// Executes execute in transaction async.
+    /// </summary>
 
     public async Task<TResult> ExecuteInTransactionAsync<TResult>(
         Func<CancellationToken, Task<TResult>> operation,

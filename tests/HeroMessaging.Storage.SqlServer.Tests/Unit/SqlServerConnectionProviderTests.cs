@@ -147,54 +147,51 @@ public sealed class SqlServerConnectionProviderTests
     #region Thread Safety Tests
 
     [Fact]
-    public void IsSharedConnection_AccessedConcurrently_ReturnsConsistentValue()
+    public async Task IsSharedConnection_AccessedConcurrently_ReturnsConsistentValue()
     {
         // Arrange
         var provider = new SqlServerConnectionProvider(ValidConnectionString);
 
         // Act
         var tasks = Enumerable.Range(0, 10)
-            .Select(_ => Task.Run(() => provider.IsSharedConnection))
+            .Select(_ => Task.Run(() => provider.IsSharedConnection, TestContext.Current.CancellationToken))
             .ToArray();
 
-        Task.WaitAll(tasks);
-        var results = tasks.Select(t => t.Result).ToArray();
+        var results = await Task.WhenAll(tasks);
 
         // Assert
         Assert.All(results, Assert.False);
     }
 
     [Fact]
-    public void ConnectionString_AccessedConcurrently_ReturnsConsistentValue()
+    public async Task ConnectionString_AccessedConcurrently_ReturnsConsistentValue()
     {
         // Arrange
         var provider = new SqlServerConnectionProvider(ValidConnectionString);
 
         // Act
         var tasks = Enumerable.Range(0, 10)
-            .Select(_ => Task.Run(() => provider.ConnectionString))
+            .Select(_ => Task.Run(() => provider.ConnectionString, TestContext.Current.CancellationToken))
             .ToArray();
 
-        Task.WaitAll(tasks);
-        var results = tasks.Select(t => t.Result).ToArray();
+        var results = await Task.WhenAll(tasks);
 
         // Assert
         Assert.All(results, result => Assert.Equal(ValidConnectionString, result));
     }
 
     [Fact]
-    public void GetTransaction_AccessedConcurrently_ReturnsConsistentNull()
+    public async Task GetTransaction_AccessedConcurrently_ReturnsConsistentNull()
     {
         // Arrange
         var provider = new SqlServerConnectionProvider(ValidConnectionString);
 
         // Act
         var tasks = Enumerable.Range(0, 10)
-            .Select(_ => Task.Run(() => provider.GetTransaction()))
+            .Select(_ => Task.Run(() => provider.GetTransaction(), TestContext.Current.CancellationToken))
             .ToArray();
 
-        Task.WaitAll(tasks);
-        var results = tasks.Select(t => t.Result).ToArray();
+        var results = await Task.WhenAll(tasks);
 
         // Assert
         Assert.All(results, Assert.Null);

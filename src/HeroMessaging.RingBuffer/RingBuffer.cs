@@ -339,5 +339,8 @@ public interface ISequenceBarrier
 /// </summary>
 public class AlertException : Exception
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AlertException"/> class.
+    /// </summary>
     public AlertException() : base("Sequence barrier alerted") { }
 }

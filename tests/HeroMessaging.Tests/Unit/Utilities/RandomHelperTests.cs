@@ -112,7 +112,7 @@ public class RandomHelperTests
     }
 
     [Fact]
-    public void Instance_MultipleThreads_ReturnsDifferentInstances()
+    public async Task Instance_MultipleThreads_ReturnsDifferentInstances()
     {
         // Arrange
         Random? random1 = null;
@@ -125,15 +125,15 @@ public class RandomHelperTests
         {
             random1 = RandomHelper.Instance;
             task1Complete = true;
-        });
+        }, TestContext.Current.CancellationToken);
 
         var task2 = Task.Run(() =>
         {
             random2 = RandomHelper.Instance;
             task2Complete = true;
-        });
+        }, TestContext.Current.CancellationToken);
 
-        Task.WaitAll(task1, task2);
+        await Task.WhenAll(task1, task2);
 
         // Assert
         Assert.True(task1Complete);

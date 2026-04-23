@@ -66,7 +66,7 @@ public sealed class OutboxProcessorTests : IDisposable
             .ReturnsAsync(entry);
 
         // Act
-        await processor.PublishToOutboxAsync(message);
+        await processor.PublishToOutboxAsync(message, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         _storageMock.Verify(s => s.AddAsync(message, It.IsAny<OutboxOptions>(), It.IsAny<CancellationToken>()), Times.Once);
@@ -92,7 +92,7 @@ public sealed class OutboxProcessorTests : IDisposable
             .ReturnsAsync(entry);
 
         // Act
-        await processor.PublishToOutboxAsync(message, options);
+        await processor.PublishToOutboxAsync(message, options, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         _storageMock.Verify(s => s.AddAsync(message, options, It.IsAny<CancellationToken>()), Times.Once);
@@ -118,7 +118,7 @@ public sealed class OutboxProcessorTests : IDisposable
             .ReturnsAsync(entry);
 
         // Act
-        await processor.PublishToOutboxAsync(message, options);
+        await processor.PublishToOutboxAsync(message, options, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         _storageMock.Verify(s => s.AddAsync(message, options, It.IsAny<CancellationToken>()), Times.Once);
@@ -144,14 +144,14 @@ public sealed class OutboxProcessorTests : IDisposable
             .ReturnsAsync(entries);
 
         // Act
-        await processor.StartAsync();
-        await Task.Delay(200); // Wait for polling
+        await processor.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
+        await Task.Delay(200, TestContext.Current.CancellationToken); // Wait for polling
 
         // Assert
         _storageMock.Verify(s => s.GetPendingAsync(100, It.IsAny<CancellationToken>()), Times.AtLeastOnce);
 
         // Cleanup
-        await processor.StopAsync();
+        await processor.StopAsync(cancellationToken: TestContext.Current.CancellationToken);
     }
 
     #endregion
@@ -181,7 +181,7 @@ public sealed class OutboxProcessorTests : IDisposable
             .ReturnsAsync(true);
 
         // Act
-        await processor.PublishToOutboxAsync(command);
+        await processor.PublishToOutboxAsync(command, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         _storageMock.Verify(s => s.AddAsync(command, It.IsAny<OutboxOptions>(), It.IsAny<CancellationToken>()), Times.Once);
@@ -214,7 +214,7 @@ public sealed class OutboxProcessorTests : IDisposable
             .ReturnsAsync(true);
 
         // Act
-        await processor.PublishToOutboxAsync(@event);
+        await processor.PublishToOutboxAsync(@event, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         _storageMock.Verify(s => s.AddAsync(@event, It.IsAny<OutboxOptions>(), It.IsAny<CancellationToken>()), Times.Once);
@@ -267,11 +267,11 @@ public sealed class OutboxProcessorTests : IDisposable
             _timeProvider);
 
         // Act
-        await processorWithFailure.StartAsync();
-        await Task.Delay(300); // Wait for processing
+        await processorWithFailure.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
+        await Task.Delay(300, TestContext.Current.CancellationToken); // Wait for processing
 
         // Cleanup
-        await processorWithFailure.StopAsync();
+        await processorWithFailure.StopAsync(cancellationToken: TestContext.Current.CancellationToken);
         serviceProvider.Dispose();
 
         // Assert - Verify retry count was updated (implementation specific)
@@ -318,11 +318,11 @@ public sealed class OutboxProcessorTests : IDisposable
             _timeProvider);
 
         // Act
-        await processorWithFailure.StartAsync();
-        await Task.Delay(300); // Wait for processing
+        await processorWithFailure.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
+        await Task.Delay(300, TestContext.Current.CancellationToken); // Wait for processing
 
         // Cleanup
-        await processorWithFailure.StopAsync();
+        await processorWithFailure.StopAsync(cancellationToken: TestContext.Current.CancellationToken);
         serviceProvider.Dispose();
 
         // Assert - Verify it was marked as failed
@@ -376,7 +376,7 @@ public sealed class OutboxProcessorTests : IDisposable
             .ReturnsAsync(entry);
 
         // Act
-        await processor.PublishToOutboxAsync(message, options);
+        await processor.PublishToOutboxAsync(message, options, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         _storageMock.Verify(s => s.AddAsync(message, options, It.IsAny<CancellationToken>()), Times.Once);
@@ -401,13 +401,13 @@ public sealed class OutboxProcessorTests : IDisposable
         await processor.StartAsync(cts.Token);
 
         // Wait a bit for background processing to start
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(processor.IsRunning);
 
         // Cleanup
-        await processor.StopAsync();
+        await processor.StopAsync(cancellationToken: TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -420,11 +420,11 @@ public sealed class OutboxProcessorTests : IDisposable
             .Setup(s => s.GetPendingAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
 
-        await processor.StartAsync();
-        await Task.Delay(100);
+        await processor.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         // Act
-        await processor.StopAsync();
+        await processor.StopAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert - Processor should have stopped gracefully
         Assert.True(true); // If we get here without hanging, the test passes
@@ -478,11 +478,11 @@ public sealed class OutboxProcessorTests : IDisposable
             .ReturnsAsync(true);
 
         // Act
-        await processor.StartAsync();
-        await Task.Delay(300); // Wait for processing
+        await processor.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
+        await Task.Delay(300, TestContext.Current.CancellationToken); // Wait for processing
 
         // Cleanup
-        await processor.StopAsync();
+        await processor.StopAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert - Information log should be called
         _loggerMock.Verify(
@@ -532,11 +532,11 @@ public sealed class OutboxProcessorTests : IDisposable
             _timeProvider);
 
         // Act
-        await processorWithFailure.StartAsync();
-        await Task.Delay(500); // Wait for processing (increased for reliability)
+        await processorWithFailure.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
+        await Task.Delay(500, TestContext.Current.CancellationToken); // Wait for processing (increased for reliability)
 
         // Cleanup
-        await processorWithFailure.StopAsync();
+        await processorWithFailure.StopAsync(cancellationToken: TestContext.Current.CancellationToken);
         serviceProvider.Dispose();
 
         // Assert - Error log should be called
@@ -574,13 +574,13 @@ public sealed class OutboxProcessorTests : IDisposable
             .ReturnsAsync([]);
 
         // Act
-        await processor.StartAsync();
+        await processor.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert - After starting, IsRunning should be true
         Assert.True(processor.IsRunning);
 
         // Cleanup
-        await processor.StopAsync();
+        await processor.StopAsync(cancellationToken: TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -593,8 +593,8 @@ public sealed class OutboxProcessorTests : IDisposable
             .ReturnsAsync([]);
 
         // Act
-        await processor.StartAsync();
-        await processor.StopAsync();
+        await processor.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
+        await processor.StopAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert - After stopping, IsRunning should be false
         Assert.False(processor.IsRunning);

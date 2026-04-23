@@ -79,7 +79,7 @@ public sealed class PostgreSqlIdempotencyStoreTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentNullException>(() =>
-            store.GetAsync(null!).AsTask());
+            store.GetAsync(null!, cancellationToken: TestContext.Current.CancellationToken).AsTask());
 
         Assert.Equal("idempotencyKey", exception.ParamName);
     }
@@ -92,7 +92,7 @@ public sealed class PostgreSqlIdempotencyStoreTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
-            store.GetAsync(string.Empty).AsTask());
+            store.GetAsync(string.Empty, cancellationToken: TestContext.Current.CancellationToken).AsTask());
 
         Assert.Equal("idempotencyKey", exception.ParamName);
         Assert.Contains("cannot be empty", exception.Message);
@@ -106,7 +106,7 @@ public sealed class PostgreSqlIdempotencyStoreTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentNullException>(() =>
-            store.StoreSuccessAsync(null!, "result", TimeSpan.FromHours(1)).AsTask());
+            store.StoreSuccessAsync(null!, "result", TimeSpan.FromHours(1), cancellationToken: TestContext.Current.CancellationToken).AsTask());
 
         Assert.Equal("idempotencyKey", exception.ParamName);
     }
@@ -119,7 +119,7 @@ public sealed class PostgreSqlIdempotencyStoreTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
-            store.StoreSuccessAsync(string.Empty, "result", TimeSpan.FromHours(1)).AsTask());
+            store.StoreSuccessAsync(string.Empty, "result", TimeSpan.FromHours(1), cancellationToken: TestContext.Current.CancellationToken).AsTask());
 
         Assert.Equal("idempotencyKey", exception.ParamName);
         Assert.Contains("cannot be empty", exception.Message);
@@ -134,7 +134,7 @@ public sealed class PostgreSqlIdempotencyStoreTests
 
         // Act & Assert
         var thrownException = await Assert.ThrowsAsync<ArgumentNullException>(() =>
-            store.StoreFailureAsync(null!, exception, TimeSpan.FromHours(1)).AsTask());
+            store.StoreFailureAsync(null!, exception, TimeSpan.FromHours(1), cancellationToken: TestContext.Current.CancellationToken).AsTask());
 
         Assert.Equal("idempotencyKey", thrownException.ParamName);
     }
@@ -148,7 +148,7 @@ public sealed class PostgreSqlIdempotencyStoreTests
 
         // Act & Assert
         var thrownException = await Assert.ThrowsAsync<ArgumentException>(() =>
-            store.StoreFailureAsync(string.Empty, exception, TimeSpan.FromHours(1)).AsTask());
+            store.StoreFailureAsync(string.Empty, exception, TimeSpan.FromHours(1), cancellationToken: TestContext.Current.CancellationToken).AsTask());
 
         Assert.Equal("idempotencyKey", thrownException.ParamName);
         Assert.Contains("cannot be empty", thrownException.Message);
@@ -162,7 +162,7 @@ public sealed class PostgreSqlIdempotencyStoreTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentNullException>(() =>
-            store.StoreFailureAsync("test-key", null!, TimeSpan.FromHours(1)).AsTask());
+            store.StoreFailureAsync("test-key", null!, TimeSpan.FromHours(1), cancellationToken: TestContext.Current.CancellationToken).AsTask());
 
         Assert.Equal("exception", exception.ParamName);
     }
@@ -175,7 +175,7 @@ public sealed class PostgreSqlIdempotencyStoreTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentNullException>(() =>
-            store.ExistsAsync(null!).AsTask());
+            store.ExistsAsync(null!, cancellationToken: TestContext.Current.CancellationToken).AsTask());
 
         Assert.Equal("idempotencyKey", exception.ParamName);
     }
@@ -188,7 +188,7 @@ public sealed class PostgreSqlIdempotencyStoreTests
 
         // Act & Assert
         var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
-            store.ExistsAsync(string.Empty).AsTask());
+            store.ExistsAsync(string.Empty, cancellationToken: TestContext.Current.CancellationToken).AsTask());
 
         Assert.Equal("idempotencyKey", exception.ParamName);
         Assert.Contains("cannot be empty", exception.Message);

@@ -18,8 +18,14 @@ public class CommandProcessor : ICommandProcessor, IProcessor, IAsyncDisposable
     private readonly SemaphoreSlim _processingLock = new(1, 1);
     private readonly ProcessorMetricsCollector _metrics;
     private volatile bool _isRunning = true;
+    /// <summary>
+    /// Gets is running.
+    /// </summary>
 
     public bool IsRunning => _isRunning;
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CommandProcessor"/> class.
+    /// </summary>
 
     public CommandProcessor(IServiceProvider serviceProvider, ILogger<CommandProcessor>? logger = null, TimeProvider? timeProvider = null)
     {
@@ -28,6 +34,9 @@ public class CommandProcessor : ICommandProcessor, IProcessor, IAsyncDisposable
         _timeProvider = timeProvider ?? TimeProvider.System;
         _metrics = new ProcessorMetricsCollector(_timeProvider);
     }
+    /// <summary>
+    /// Executes send async.
+    /// </summary>
 
     public async Task SendAsync(ICommand command, CancellationToken cancellationToken = default)
     {
@@ -70,6 +79,9 @@ public class CommandProcessor : ICommandProcessor, IProcessor, IAsyncDisposable
             _processingLock.Release();
         }
     }
+    /// <summary>
+    /// Executes send async.
+    /// </summary>
 
     public async Task<TResponse> SendAsync<TResponse>(ICommand<TResponse> command, CancellationToken cancellationToken = default)
     {
@@ -113,6 +125,9 @@ public class CommandProcessor : ICommandProcessor, IProcessor, IAsyncDisposable
             _processingLock.Release();
         }
     }
+    /// <summary>
+    /// Executes get metrics.
+    /// </summary>
 
     public IProcessorMetrics GetMetrics() => _metrics.GetMetrics();
 

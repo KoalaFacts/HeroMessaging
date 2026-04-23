@@ -9,11 +9,17 @@ namespace HeroMessaging.Configuration;
 public class ObservabilityBuilder : IObservabilityBuilder
 {
     private readonly IServiceCollection _services;
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ObservabilityBuilder"/> class.
+    /// </summary>
 
     public ObservabilityBuilder(IServiceCollection services)
     {
         _services = services ?? throw new ArgumentNullException(nameof(services));
     }
+    /// <summary>
+    /// Executes add health checks.
+    /// </summary>
 
     public IObservabilityBuilder AddHealthChecks(Action<object>? configure = null)
     {
@@ -34,6 +40,9 @@ public class ObservabilityBuilder : IObservabilityBuilder
 
         return this;
     }
+    /// <summary>
+    /// Executes add open telemetry.
+    /// </summary>
 
     public IObservabilityBuilder AddOpenTelemetry(Action<OpenTelemetryOptions>? configure = null)
     {
@@ -56,6 +65,9 @@ public class ObservabilityBuilder : IObservabilityBuilder
 
         return this;
     }
+    /// <summary>
+    /// Executes add metrics.
+    /// </summary>
 
     public IObservabilityBuilder AddMetrics(Action<MetricsOptions>? configure = null)
     {
@@ -75,6 +87,9 @@ public class ObservabilityBuilder : IObservabilityBuilder
         });
         return this;
     }
+    /// <summary>
+    /// Executes add tracing.
+    /// </summary>
 
     public IObservabilityBuilder AddTracing(Action<TracingOptions>? configure = null)
     {
@@ -93,6 +108,9 @@ public class ObservabilityBuilder : IObservabilityBuilder
         });
         return this;
     }
+    /// <summary>
+    /// Executes add logging enrichment.
+    /// </summary>
 
     public IObservabilityBuilder AddLoggingEnrichment(Action<LoggingOptions>? configure = null)
     {
@@ -111,6 +129,9 @@ public class ObservabilityBuilder : IObservabilityBuilder
 
         return this;
     }
+    /// <summary>
+    /// Executes add custom provider.
+    /// </summary>
 
     public IObservabilityBuilder AddCustomProvider<T>(Action<T>? configure = null) where T : class
     {
@@ -121,6 +142,9 @@ public class ObservabilityBuilder : IObservabilityBuilder
 
         return this;
     }
+    /// <summary>
+    /// Executes enable performance counters.
+    /// </summary>
 
     public IObservabilityBuilder EnablePerformanceCounters()
     {
@@ -130,6 +154,9 @@ public class ObservabilityBuilder : IObservabilityBuilder
         });
         return this;
     }
+    /// <summary>
+    /// Executes enable diagnostic listeners.
+    /// </summary>
 
     public IObservabilityBuilder EnableDiagnosticListeners()
     {
@@ -139,6 +166,9 @@ public class ObservabilityBuilder : IObservabilityBuilder
         });
         return this;
     }
+    /// <summary>
+    /// Executes with sampling rate.
+    /// </summary>
 
     public IObservabilityBuilder WithSamplingRate(double rate)
     {
@@ -151,21 +181,39 @@ public class ObservabilityBuilder : IObservabilityBuilder
         });
         return this;
     }
+    /// <summary>
+    /// Executes build.
+    /// </summary>
 
     public IServiceCollection Build()
     {
         return _services;
     }
 }
+/// <summary>
+/// Represents the observability options type.
+/// </summary>
 
 // Configuration option classes
 public class ObservabilityOptions
 {
+    /// <summary>
+    /// Gets or sets enable performance counters.
+    /// </summary>
     public bool EnablePerformanceCounters { get; set; }
+    /// <summary>
+    /// Gets or sets enable diagnostic listeners.
+    /// </summary>
     public bool EnableDiagnosticListeners { get; set; }
 }
+/// <summary>
+/// Represents the health check options type.
+/// </summary>
 
 public class HealthCheckOptions
 {
+    /// <summary>
+    /// Gets or sets the callback used to configure a registered health check.
+    /// </summary>
     public Action<object>? ConfigureAction { get; set; }
 }

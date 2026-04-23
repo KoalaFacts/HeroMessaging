@@ -173,7 +173,7 @@ public sealed class PostgreSqlDeadLetterQueueTests : IDisposable
         var queue = CreateDeadLetterQueue();
 
         // Act
-        var result = await queue.GetDeadLettersAsync<IMessage>();
+        var result = await queue.GetDeadLettersAsync<IMessage>(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(result);

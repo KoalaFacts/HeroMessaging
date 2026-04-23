@@ -174,7 +174,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
 
     private async Task OnMessageReceivedAsync(object sender, BasicDeliverEventArgs ea)
     {
-        var messageId = ea.BasicProperties.MessageId;
+        var messageId = ea.BasicProperties.MessageId ?? string.Empty;
 
         _logger.LogTrace("Received message {MessageId} from {Queue}", messageId, Source.Name);
 
@@ -186,18 +186,21 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
             _instrumentation.AddEvent(activity, "receive.start");
 
             // Build transport envelope with headers including trace context
-            var headers = ea.BasicProperties.Headers?.ToDictionary(
-                kvp => kvp.Key,
-                kvp => kvp.Value) ?? [];
+            var headers = ea.BasicProperties.Headers?
+                .Where(static kvp => kvp.Value is not null)
+                .ToImmutableDictionary(
+                    static kvp => kvp.Key,
+                    static kvp => kvp.Value!)
+                ?? ImmutableDictionary<string, object>.Empty;
 
             var envelope = new TransportEnvelope
             {
                 MessageId = messageId,
                 CorrelationId = ea.BasicProperties.CorrelationId,
-                ContentType = ea.BasicProperties.ContentType,
+                ContentType = ea.BasicProperties.ContentType ?? "application/octet-stream",
                 Body = ea.Body,
                 MessageType = ea.BasicProperties.Type ?? "Unknown",
-                Headers = headers.ToImmutableDictionary()
+                Headers = headers
             };
 
             // Extract trace context from message headers
@@ -223,8 +226,8 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
                 {
                     ["DeliveryTag"] = ea.DeliveryTag,
                     ["Redelivered"] = ea.Redelivered,
-                    ["Exchange"] = ea.Exchange,
-                    ["RoutingKey"] = ea.RoutingKey,
+                    ["Exchange"] = ea.Exchange ?? string.Empty,
+                    ["RoutingKey"] = ea.RoutingKey ?? string.Empty,
                     ["MessageId"] = envelope.MessageId,
                     ["CorrelationId"] = envelope.CorrelationId ?? string.Empty
                 }.ToImmutableDictionary(),

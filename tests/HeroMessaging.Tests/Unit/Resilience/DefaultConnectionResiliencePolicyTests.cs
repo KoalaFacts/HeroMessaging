@@ -97,7 +97,7 @@ public class DefaultConnectionResiliencePolicyTests
                 await Task.CompletedTask;
                 executionCount++;
             },
-            "TestOperation");
+            "TestOperation", cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(1, executionCount);
@@ -120,7 +120,7 @@ public class DefaultConnectionResiliencePolicyTests
                 if (executionCount == 1)
                     throw new TimeoutException("Transient error");
             },
-            "TestOperation");
+            "TestOperation", cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(2, executionCount);
@@ -143,7 +143,7 @@ public class DefaultConnectionResiliencePolicyTests
                     executionCount++;
                     throw new InvalidOperationException("Non-transient error");
                 },
-                "TestOperation"));
+                "TestOperation", cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Equal(1, executionCount);
     }
@@ -165,7 +165,7 @@ public class DefaultConnectionResiliencePolicyTests
                     executionCount++;
                     throw new TimeoutException("Persistent error");
                 },
-                "TestOperation"));
+                "TestOperation", cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Equal(4, executionCount); // Initial attempt + 3 retries
     }
@@ -189,7 +189,7 @@ public class DefaultConnectionResiliencePolicyTests
                 await Task.CompletedTask;
                 return expectedResult;
             },
-            "TestOperation");
+            "TestOperation", cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(expectedResult, result);
@@ -213,7 +213,7 @@ public class DefaultConnectionResiliencePolicyTests
                     throw new TimeoutException("Transient error");
                 return "Success";
             },
-            "TestOperation");
+            "TestOperation", cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal("Success", result);
@@ -242,7 +242,7 @@ public class DefaultConnectionResiliencePolicyTests
                         await Task.CompletedTask;
                         throw new TimeoutException("Transient error");
                     },
-                    "TestOperation");
+                    "TestOperation", cancellationToken: TestContext.Current.CancellationToken);
             }
             catch (TimeoutException)
             {
@@ -258,7 +258,7 @@ public class DefaultConnectionResiliencePolicyTests
                     await Task.CompletedTask;
                     return 0;
                 },
-                "TestOperation"));
+                "TestOperation", cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -279,7 +279,7 @@ public class DefaultConnectionResiliencePolicyTests
                         await Task.CompletedTask;
                         throw new TimeoutException("Transient error");
                     },
-                    "TestOperation");
+                    "TestOperation", cancellationToken: TestContext.Current.CancellationToken);
             }
             catch (TimeoutException)
             {
@@ -297,7 +297,7 @@ public class DefaultConnectionResiliencePolicyTests
                 await Task.CompletedTask;
                 return 42;
             },
-            "TestOperation");
+            "TestOperation", cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(42, result);
     }
@@ -323,7 +323,7 @@ public class DefaultConnectionResiliencePolicyTests
                 if (executionCount == 1)
                     throw new TimeoutException("Timeout");
             },
-            "TestOperation");
+            "TestOperation", cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(2, executionCount);
@@ -346,7 +346,7 @@ public class DefaultConnectionResiliencePolicyTests
                     executionCount++;
                     throw new TaskCanceledException("Canceled");
                 },
-                "TestOperation"));
+                "TestOperation", cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Equal(1, executionCount);
     }
@@ -368,7 +368,7 @@ public class DefaultConnectionResiliencePolicyTests
                     executionCount++;
                     throw new OperationCanceledException("Canceled");
                 },
-                "TestOperation"));
+                "TestOperation", cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Equal(1, executionCount);
     }
@@ -390,7 +390,7 @@ public class DefaultConnectionResiliencePolicyTests
                 if (executionCount == 1)
                     throw new TestDbException(2); // Transient error code
             },
-            "TestOperation");
+            "TestOperation", cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(2, executionCount);
@@ -413,7 +413,7 @@ public class DefaultConnectionResiliencePolicyTests
                 if (executionCount == 1)
                     throw new InvalidOperationException("Connection failed");
             },
-            "TestOperation");
+            "TestOperation", cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(2, executionCount);
@@ -439,7 +439,7 @@ public class DefaultConnectionResiliencePolicyTests
                     throw new InvalidOperationException("Outer error", innerException);
                 }
             },
-            "TestOperation");
+            "TestOperation", cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(2, executionCount);
@@ -473,7 +473,7 @@ public class DefaultConnectionResiliencePolicyTests
                     executionCount++;
                     throw new TimeoutException("Persistent error");
                 },
-                "TestOperation");
+                "TestOperation", cancellationToken: TestContext.Current.CancellationToken);
         }
         catch (TimeoutException)
         {
@@ -512,7 +512,7 @@ public class DefaultConnectionResiliencePolicyTests
                     if (executionCount <= 2)
                         throw new TimeoutException("Transient error");
                 },
-                "TestOperation");
+                "TestOperation", cancellationToken: TestContext.Current.CancellationToken);
         }
         catch
         {
@@ -545,7 +545,7 @@ public class DefaultConnectionResiliencePolicyTests
         // Act
         await policy.ExecuteAsync(
             async () => { await Task.CompletedTask; },
-            "TestOperation");
+            "TestOperation", cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         // Verify by checking metrics instead of mocking
@@ -577,7 +577,7 @@ public class DefaultConnectionResiliencePolicyTests
                     await Task.CompletedTask;
                     throw new InvalidOperationException("Non-transient error");
                 },
-                "TestOperation");
+                "TestOperation", cancellationToken: TestContext.Current.CancellationToken);
         }
         catch (InvalidOperationException)
         {
@@ -621,7 +621,7 @@ public class DefaultConnectionResiliencePolicyTests
                         await Task.CompletedTask;
                         throw new TimeoutException("Transient error");
                     },
-                    "TestOperation");
+                    "TestOperation", cancellationToken: TestContext.Current.CancellationToken);
             }
             catch (TimeoutException)
             {
@@ -646,7 +646,7 @@ public class DefaultConnectionResiliencePolicyTests
                     await Task.CompletedTask;
                     return 0;
                 },
-                "TestOperation");
+                "TestOperation", cancellationToken: TestContext.Current.CancellationToken);
         }
         catch (ConnectionResilienceException)
         {
@@ -684,7 +684,7 @@ public class DefaultConnectionResiliencePolicyTests
                     executionCount++;
                     throw new TimeoutException("Error");
                 },
-                "TestOperation"));
+                "TestOperation", cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Equal(1, executionCount);
     }
@@ -730,7 +730,7 @@ public class DefaultConnectionResiliencePolicyTests
                 if (executionCount == 1)
                     throw new TimeoutException("Transient error");
             },
-            "TestOperation");
+            "TestOperation", cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         _mockLogger.Verify(
@@ -759,7 +759,7 @@ public class DefaultConnectionResiliencePolicyTests
                     await Task.CompletedTask;
                     throw new TimeoutException("Transient error");
                 },
-                "TestOperation");
+                "TestOperation", cancellationToken: TestContext.Current.CancellationToken);
         }
         catch (TimeoutException)
         {
@@ -793,7 +793,7 @@ public class DefaultConnectionResiliencePolicyTests
                     await Task.CompletedTask;
                     throw new TimeoutException("Persistent error");
                 },
-                "TestOperation");
+                "TestOperation", cancellationToken: TestContext.Current.CancellationToken);
         }
         catch (TimeoutException)
         {

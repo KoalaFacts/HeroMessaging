@@ -9,6 +9,9 @@ namespace HeroMessaging.Abstractions.Transport;
 /// </summary>
 public readonly record struct TransportEnvelope
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="TransportEnvelope"/> class.
+    /// </summary>
     public TransportEnvelope()
     {
         MessageId = Guid.NewGuid().ToString();
@@ -23,6 +26,9 @@ public readonly record struct TransportEnvelope
         ExpiresAt = null;
         Priority = 0;
     }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="TransportEnvelope"/> class.
+    /// </summary>
 
     public TransportEnvelope(
         string messageType,

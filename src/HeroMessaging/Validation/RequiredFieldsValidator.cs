@@ -10,6 +10,9 @@ namespace HeroMessaging.Validation;
 /// </summary>
 public class RequiredFieldsValidator : IMessageValidator
 {
+    /// <summary>
+    /// Executes validate async.
+    /// </summary>
     public ValueTask<ValidationResult> ValidateAsync(IMessage message, CancellationToken cancellationToken = default)
     {
         var errors = new List<string>();

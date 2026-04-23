@@ -7,9 +7,18 @@ namespace HeroMessaging.Policies;
 /// </summary>
 public class LinearRetryPolicy : IRetryPolicy
 {
+    /// <summary>
+    /// Gets max retries.
+    /// </summary>
     public int MaxRetries { get; }
+    /// <summary>
+    /// Represents delay.
+    /// </summary>
     private readonly TimeSpan _delay;
     private readonly HashSet<Type> _retryableExceptions;
+    /// <summary>
+    /// Initializes a new instance of the <see cref="LinearRetryPolicy"/> class.
+    /// </summary>
 
     public LinearRetryPolicy(
         int maxRetries = 3,
@@ -22,6 +31,9 @@ public class LinearRetryPolicy : IRetryPolicy
             ? [.. retryableExceptions]
             : [typeof(TimeoutException), typeof(TaskCanceledException)];
     }
+    /// <summary>
+    /// Executes should retry.
+    /// </summary>
 
     public bool ShouldRetry(Exception? exception, int attemptNumber)
     {
@@ -39,6 +51,9 @@ public class LinearRetryPolicy : IRetryPolicy
         // Check if exception type is retryable
         return IsRetryableException(exception);
     }
+    /// <summary>
+    /// Executes get retry delay.
+    /// </summary>
 
     public TimeSpan GetRetryDelay(int attemptNumber)
     {

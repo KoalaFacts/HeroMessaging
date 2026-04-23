@@ -70,6 +70,9 @@ public sealed class PolicyAuthorizationProvider : IAuthorizationProvider
 
         _policies[policyName] = policy;
     }
+    /// <summary>
+    /// Executes authorize async.
+    /// </summary>
 
     public Task<AuthorizationResult> AuthorizeAsync(
         ClaimsPrincipal principal,
@@ -77,6 +80,8 @@ public sealed class PolicyAuthorizationProvider : IAuthorizationProvider
         string operation,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(principal);
+
         if (string.IsNullOrWhiteSpace(messageType))
             throw new ArgumentException("Message type cannot be empty", nameof(messageType));
 
@@ -110,17 +115,19 @@ public sealed class PolicyAuthorizationProvider : IAuthorizationProvider
 
         return Task.FromResult(AuthorizationResult.Success());
     }
+    /// <summary>
+    /// Executes has permission async.
+    /// </summary>
 
     public Task<bool> HasPermissionAsync(
         ClaimsPrincipal principal,
         string permission,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(principal);
+
         if (string.IsNullOrWhiteSpace(permission))
             throw new ArgumentException("Permission cannot be empty", nameof(permission));
-
-        if (principal == null)
-            return Task.FromResult(false);
 
         // Check for permission claim
         var hasPermission = principal.HasClaim(c =>
@@ -144,10 +151,19 @@ public sealed class AuthorizationPolicy
     private bool _requireAuthentication = true;
     private bool _allowAnonymous;
     private readonly HashSet<string> _requiredRoles;
+    /// <summary>
+    /// Represents required claims.
+    /// </summary>
     private readonly Dictionary<string, HashSet<string>> _requiredClaims;
     private readonly List<Func<ClaimsPrincipal, bool>> _customRequirements;
+    /// <summary>
+    /// Gets name.
+    /// </summary>
 
     public string Name { get; }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AuthorizationPolicy"/> class.
+    /// </summary>
 
     public AuthorizationPolicy(string name)
     {
@@ -236,6 +252,8 @@ public sealed class AuthorizationPolicy
     /// </summary>
     public AuthorizationResult Evaluate(ClaimsPrincipal principal)
     {
+        ArgumentNullException.ThrowIfNull(principal);
+
         // Allow anonymous if configured
         if (_allowAnonymous)
             return AuthorizationResult.Success();
@@ -243,7 +261,7 @@ public sealed class AuthorizationPolicy
         // Check authentication requirement (any identity being authenticated is sufficient)
         if (_requireAuthentication)
         {
-            var isAnyAuthenticated = principal?.Identities?.Any(i => i.IsAuthenticated) == true;
+            var isAnyAuthenticated = principal.Identities.Any(i => i.IsAuthenticated);
             if (!isAnyAuthenticated)
             {
                 return AuthorizationResult.Failure(

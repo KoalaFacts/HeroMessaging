@@ -26,6 +26,9 @@ public class CompensationContext
 {
     private readonly Stack<ICompensatingAction> _actions = new();
     private readonly ILogger<CompensationContext>? _logger;
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CompensationContext"/> class.
+    /// </summary>
 
     public CompensationContext(ILogger<CompensationContext>? logger = null)
     {
@@ -117,7 +120,13 @@ public class CompensationContext
 /// </summary>
 public class CompensationException : Exception
 {
+    /// <summary>
+    /// Gets action name.
+    /// </summary>
     public string ActionName { get; }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CompensationException"/> class.
+    /// </summary>
 
     public CompensationException(string actionName, Exception innerException)
         : base($"Failed to compensate action '{actionName}': {innerException.Message}", innerException)
@@ -132,19 +141,31 @@ public class CompensationException : Exception
 public class DelegateCompensatingAction : ICompensatingAction
 {
     private readonly Func<CancellationToken, Task> _compensateFunc;
+    /// <summary>
+    /// Gets action name.
+    /// </summary>
 
     public string ActionName { get; }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DelegateCompensatingAction"/> class.
+    /// </summary>
 
     public DelegateCompensatingAction(string actionName, Func<CancellationToken, Task> compensateFunc)
     {
         ActionName = actionName ?? throw new ArgumentNullException(nameof(actionName));
         _compensateFunc = compensateFunc ?? throw new ArgumentNullException(nameof(compensateFunc));
     }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DelegateCompensatingAction"/> class.
+    /// </summary>
 
     public DelegateCompensatingAction(string actionName, Func<Task> compensateFunc)
         : this(actionName, compensateFunc != null ? _ => compensateFunc() : throw new ArgumentNullException(nameof(compensateFunc)))
     {
     }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DelegateCompensatingAction"/> class.
+    /// </summary>
 
     public DelegateCompensatingAction(string actionName, Action compensateAction)
         : this(actionName, compensateAction != null ? _ =>
@@ -155,6 +176,9 @@ public class DelegateCompensatingAction : ICompensatingAction
     : throw new ArgumentNullException(nameof(compensateAction)))
     {
     }
+    /// <summary>
+    /// Executes compensate async.
+    /// </summary>
 
     public Task CompensateAsync(CancellationToken cancellationToken = default)
     {

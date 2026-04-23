@@ -92,6 +92,9 @@ public sealed class MessageSignature
     /// Timestamp when signature was created
     /// </summary>
     public DateTimeOffset Timestamp { get; }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MessageSignature"/> class.
+    /// </summary>
 
     public MessageSignature(
         byte[] signatureBytes,

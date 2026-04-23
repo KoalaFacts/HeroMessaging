@@ -9,7 +9,13 @@ namespace HeroMessaging.Observability.OpenTelemetry;
 /// </summary>
 public static class HeroMessagingInstrumentation
 {
+    /// <summary>
+    /// Represents activity source name.
+    /// </summary>
     public const string ActivitySourceName = "HeroMessaging";
+    /// <summary>
+    /// Represents meter name.
+    /// </summary>
     public const string MeterName = "HeroMessaging.Metrics";
 
     private static readonly ActivitySource ActivitySource = new(ActivitySourceName, "1.0.0");

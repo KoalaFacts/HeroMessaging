@@ -16,18 +16,17 @@ public class BatchEventProcessorTests
 
     private class TestEventFactory : IEventFactory<TestEvent>
     {
-        public TestEvent Create() => new TestEvent();
+        public TestEvent Create() => new();
     }
 
     private class TestEventHandler : IEventHandler<TestEvent>
     {
-        private readonly List<(TestEvent data, long sequence, bool endOfBatch)> _events = new();
-        private readonly List<Exception> _errors = new();
-        private bool _shutdownCalled;
+        private readonly List<(TestEvent data, long sequence, bool endOfBatch)> _events = [];
+        private readonly List<Exception> _errors = [];
 
         public IReadOnlyList<(TestEvent data, long sequence, bool endOfBatch)> Events => _events;
         public IReadOnlyList<Exception> Errors => _errors;
-        public bool ShutdownCalled => _shutdownCalled;
+        public bool ShutdownCalled { get; private set; }
 
         public void OnEvent(TestEvent data, long sequence, bool endOfBatch)
         {
@@ -41,7 +40,7 @@ public class BatchEventProcessorTests
 
         public void OnShutdown()
         {
-            _shutdownCalled = true;
+            ShutdownCalled = true;
         }
     }
 

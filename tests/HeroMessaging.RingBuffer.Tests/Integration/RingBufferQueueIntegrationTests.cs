@@ -9,8 +9,12 @@ public class RingBufferQueueIntegrationTests
 {
     private class TestConsumer
     {
-        private readonly List<TransportEnvelope> _receivedMessages = new();
+        private readonly List<TransportEnvelope> _receivedMessages = [];
+#if NET9_0_OR_GREATER
+        private readonly System.Threading.Lock _lock = new();
+#else
         private readonly object _lock = new();
+#endif
 
         public IReadOnlyList<TransportEnvelope> ReceivedMessages
         {
@@ -18,7 +22,7 @@ public class RingBufferQueueIntegrationTests
             {
                 lock (_lock)
                 {
-                    return _receivedMessages.ToList();
+                    return [.. _receivedMessages];
                 }
             }
         }
@@ -75,7 +79,7 @@ public class RingBufferQueueIntegrationTests
         var result = await queue.EnqueueAsync(envelope, TestContext.Current.CancellationToken);
 
         // Wait for processing
-        await Task.Delay(200);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result);
@@ -123,7 +127,7 @@ public class RingBufferQueueIntegrationTests
         }
 
         // Wait for all messages to be processed
-        await Task.Delay(500);
+        await Task.Delay(500, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(10, testConsumer.ReceivedMessages.Count);
@@ -180,7 +184,7 @@ public class RingBufferQueueIntegrationTests
         }
 
         // Wait for processing
-        await Task.Delay(1000);
+        await Task.Delay(1000, TestContext.Current.CancellationToken);
 
         // Assert - Each consumer should have received ~10 messages
         var total = consumer1.ReceivedMessages.Count +
@@ -236,7 +240,7 @@ public class RingBufferQueueIntegrationTests
         sw.Stop();
 
         // Wait for all to be processed
-        await Task.Delay(2000);
+        await Task.Delay(2000, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(1000, testConsumer.ReceivedMessages.Count);
@@ -334,7 +338,7 @@ public class RingBufferQueueIntegrationTests
             await queue.EnqueueAsync(envelope, TestContext.Current.CancellationToken);
         }
 
-        await Task.Delay(200);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(5, testConsumer.ReceivedMessages.Count);
@@ -371,7 +375,7 @@ public class RingBufferQueueIntegrationTests
             messageId: "msg-1");
 
         await queue.EnqueueAsync(envelope1, TestContext.Current.CancellationToken);
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         Assert.Single(testConsumer.ReceivedMessages);
 
@@ -384,7 +388,7 @@ public class RingBufferQueueIntegrationTests
             messageId: "msg-2");
 
         await queue.EnqueueAsync(envelope2, TestContext.Current.CancellationToken);
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         // Assert - Should still be 1 (consumer was removed)
         Assert.Single(testConsumer.ReceivedMessages);
@@ -432,11 +436,11 @@ public class RingBufferQueueIntegrationTests
 
                     await queue.EnqueueAsync(envelope, TestContext.Current.CancellationToken);
                 }
-            });
+            }, TestContext.Current.CancellationToken);
         }
 
         await Task.WhenAll(tasks);
-        await Task.Delay(1000); // Wait for processing
+        await Task.Delay(1000, TestContext.Current.CancellationToken); // Wait for processing
 
         // Assert
         Assert.Equal(threadCount * messagesPerThread, testConsumer.ReceivedMessages.Count);

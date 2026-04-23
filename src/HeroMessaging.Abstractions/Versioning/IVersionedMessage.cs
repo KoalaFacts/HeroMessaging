@@ -31,9 +31,21 @@ public interface IVersionedMessage<TResponse> : IVersionedMessage, IMessage<TRes
 /// </summary>
 public readonly record struct MessageVersion : IComparable<MessageVersion>, IComparable
 {
+    /// <summary>
+    /// Gets major.
+    /// </summary>
     public int Major { get; }
+    /// <summary>
+    /// Gets minor.
+    /// </summary>
     public int Minor { get; }
+    /// <summary>
+    /// Gets patch.
+    /// </summary>
     public int Patch { get; }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MessageVersion"/> class.
+    /// </summary>
 
     public MessageVersion(int major, int minor = 0, int patch = 0)
     {
@@ -112,23 +124,47 @@ public readonly record struct MessageVersion : IComparable<MessageVersion>, ICom
     {
         return IsCompatibleWith(messageVersion) && this >= messageVersion;
     }
+    /// <summary>
+    /// Executes to string.
+    /// </summary>
 
     public override string ToString() => $"{Major}.{Minor}.{Patch}";
+    /// <summary>
+    /// Performs the conversion operation.
+    /// </summary>
 
     public static implicit operator string(MessageVersion version)
     {
         return version.ToString();
     }
+    /// <summary>
+    /// Performs the conversion operation.
+    /// </summary>
 
     public static explicit operator MessageVersion(string version)
     {
         return Parse(version);
     }
+    /// <summary>
+    /// Performs the operator operation.
+    /// </summary>
 
     public static bool operator >(MessageVersion left, MessageVersion right) => left.CompareTo(right) > 0;
+    /// <summary>
+    /// Performs the operator operation.
+    /// </summary>
     public static bool operator >=(MessageVersion left, MessageVersion right) => left.CompareTo(right) >= 0;
+    /// <summary>
+    /// Performs the operator operation.
+    /// </summary>
     public static bool operator <(MessageVersion left, MessageVersion right) => left.CompareTo(right) < 0;
+    /// <summary>
+    /// Performs the operator operation.
+    /// </summary>
     public static bool operator <=(MessageVersion left, MessageVersion right) => left.CompareTo(right) <= 0;
+    /// <summary>
+    /// Executes compare to.
+    /// </summary>
 
     public int CompareTo(MessageVersion other)
     {
@@ -140,6 +176,9 @@ public readonly record struct MessageVersion : IComparable<MessageVersion>, ICom
 
         return Patch.CompareTo(other.Patch);
     }
+    /// <summary>
+    /// Executes compare to.
+    /// </summary>
 
     int IComparable.CompareTo(object? obj)
     {
@@ -155,9 +194,21 @@ public readonly record struct MessageVersion : IComparable<MessageVersion>, ICom
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
 public sealed class MessageVersionAttribute(int major, int minor = 0, int patch = 0) : Attribute
 {
+    /// <summary>
+    /// Gets major.
+    /// </summary>
     public int Major { get; } = major;
+    /// <summary>
+    /// Gets minor.
+    /// </summary>
     public int Minor { get; } = minor;
+    /// <summary>
+    /// Gets patch.
+    /// </summary>
     public int Patch { get; } = patch;
+    /// <summary>
+    /// Gets version.
+    /// </summary>
     public MessageVersion Version { get; } = new MessageVersion(major, minor, patch);
 }
 
@@ -167,9 +218,21 @@ public sealed class MessageVersionAttribute(int major, int minor = 0, int patch 
 [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = false, Inherited = true)]
 public sealed class AddedInVersionAttribute(int major, int minor = 0, int patch = 0) : Attribute
 {
+    /// <summary>
+    /// Gets major.
+    /// </summary>
     public int Major { get; } = major;
+    /// <summary>
+    /// Gets minor.
+    /// </summary>
     public int Minor { get; } = minor;
+    /// <summary>
+    /// Gets patch.
+    /// </summary>
     public int Patch { get; } = patch;
+    /// <summary>
+    /// Gets version.
+    /// </summary>
     public MessageVersion Version { get; } = new MessageVersion(major, minor, patch);
 }
 
@@ -179,12 +242,33 @@ public sealed class AddedInVersionAttribute(int major, int minor = 0, int patch 
 [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = false, Inherited = true)]
 public sealed class DeprecatedInVersionAttribute : Attribute
 {
+    /// <summary>
+    /// Gets major.
+    /// </summary>
     public int Major { get; }
+    /// <summary>
+    /// Gets minor.
+    /// </summary>
     public int Minor { get; }
+    /// <summary>
+    /// Gets patch.
+    /// </summary>
     public int Patch { get; }
+    /// <summary>
+    /// Gets version.
+    /// </summary>
     public MessageVersion Version { get; }
+    /// <summary>
+    /// Gets or sets reason.
+    /// </summary>
     public string? Reason { get; set; }
+    /// <summary>
+    /// Gets or sets replaced by.
+    /// </summary>
     public string? ReplacedBy { get; set; }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DeprecatedInVersionAttribute"/> class.
+    /// </summary>
 
     public DeprecatedInVersionAttribute(int major, int minor = 0, int patch = 0)
     {

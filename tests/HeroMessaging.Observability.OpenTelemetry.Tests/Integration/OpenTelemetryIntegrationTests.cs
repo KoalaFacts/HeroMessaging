@@ -14,8 +14,7 @@ namespace HeroMessaging.Observability.OpenTelemetry.Tests;
 
 public class OpenTelemetryIntegrationTests : IDisposable
 {
-    private readonly List<Activity> _exportedActivities = new();
-    private readonly List<Metric> _exportedMetrics = new();
+    private readonly List<Activity> _exportedActivities = [];
     private readonly ActivityListener _activityListener;
     private readonly MeterListener _meterListener;
     private readonly ServiceProvider _serviceProvider;
@@ -25,20 +24,22 @@ public class OpenTelemetryIntegrationTests : IDisposable
         // Set up activity listener
         _activityListener = new ActivityListener
         {
-            ShouldListenTo = source => source.Name == HeroMessagingInstrumentation.ActivitySourceName,
-            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
+            ShouldListenTo = static source => source.Name == HeroMessagingInstrumentation.ActivitySourceName,
+            Sample = SampleAllData,
             ActivityStarted = activity => { },
             ActivityStopped = activity => _exportedActivities.Add(activity)
         };
         ActivitySource.AddActivityListener(_activityListener);
 
         // Set up meter listener
-        _meterListener = new MeterListener();
-        _meterListener.InstrumentPublished = (instrument, listener) =>
+        _meterListener = new MeterListener
         {
-            if (instrument.Meter.Name == HeroMessagingInstrumentation.MeterName)
+            InstrumentPublished = (instrument, listener) =>
             {
-                listener.EnableMeasurementEvents(instrument);
+                if (instrument.Meter.Name == HeroMessagingInstrumentation.MeterName)
+                {
+                    listener.EnableMeasurementEvents(instrument);
+                }
             }
         };
         _meterListener.Start();
@@ -55,6 +56,9 @@ public class OpenTelemetryIntegrationTests : IDisposable
 
         _serviceProvider = services.BuildServiceProvider();
     }
+
+    private static ActivitySamplingResult SampleAllData(ref ActivityCreationOptions<ActivityContext> options) =>
+        ActivitySamplingResult.AllDataAndRecorded;
 
     [Fact]
     [Trait("Category", "Integration")]
@@ -326,16 +330,14 @@ public class OpenTelemetryIntegrationTests : IDisposable
 
     private class TestHeroMessagingBuilder : IHeroMessagingBuilder
     {
-        private readonly IServiceCollection _services;
-
         public TestHeroMessagingBuilder(IServiceCollection services)
         {
-            _services = services;
+            Services = services;
         }
 
-        public IServiceCollection Services => _services;
+        public IServiceCollection Services { get; }
 
-        public IServiceCollection Build() => _services;
+        public IServiceCollection Build() => Services;
 
         public IHeroMessagingBuilder WithMediator() => this;
         public IHeroMessagingBuilder WithEventBus() => this;

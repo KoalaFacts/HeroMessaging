@@ -12,6 +12,9 @@ namespace HeroMessaging.Security.Authentication;
 public sealed class ClaimsAuthenticationProvider : IAuthenticationProvider
 {
     private readonly ConcurrentDictionary<string, ClaimsPrincipal> _apiKeys;
+    /// <summary>
+    /// Gets scheme.
+    /// </summary>
 
     public string Scheme { get; }
 
@@ -52,6 +55,9 @@ public sealed class ClaimsAuthenticationProvider : IAuthenticationProvider
         var principal = new ClaimsPrincipal(identity);
         _apiKeys[apiKey] = principal;
     }
+    /// <summary>
+    /// Executes authenticate async.
+    /// </summary>
 
     public Task<ClaimsPrincipal?> AuthenticateAsync(
         AuthenticationCredentials credentials,
@@ -70,6 +76,9 @@ public sealed class ClaimsAuthenticationProvider : IAuthenticationProvider
 
         return Task.FromResult<ClaimsPrincipal?>(null);
     }
+    /// <summary>
+    /// Executes validate token async.
+    /// </summary>
 
     public Task<ClaimsPrincipal?> ValidateTokenAsync(
         string token,

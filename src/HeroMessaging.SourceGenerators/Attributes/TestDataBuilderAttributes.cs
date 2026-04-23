@@ -102,6 +102,9 @@ public sealed class BuilderScenarioAttribute : Attribute
     /// Name of the scenario (e.g., "Valid", "Invalid", "Expensive").
     /// </summary>
     public string ScenarioName { get; }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="BuilderScenarioAttribute"/> class.
+    /// </summary>
 
     public BuilderScenarioAttribute(string scenarioName)
     {
@@ -171,11 +174,29 @@ public sealed class RandomStringAttribute : RandomDataAttribute
 /// </summary>
 public enum RandomStringCharSet
 {
+    /// <summary>
+    /// Specifies alphanumeric.
+    /// </summary>
     Alphanumeric,
+    /// <summary>
+    /// Specifies alphabetic.
+    /// </summary>
     Alphabetic,
+    /// <summary>
+    /// Specifies numeric.
+    /// </summary>
     Numeric,
+    /// <summary>
+    /// Specifies hex.
+    /// </summary>
     Hex,
+    /// <summary>
+    /// Specifies alphabetic lowercase.
+    /// </summary>
     AlphabeticLowercase,
+    /// <summary>
+    /// Specifies alphabetic uppercase.
+    /// </summary>
     AlphabeticUppercase
 }
 

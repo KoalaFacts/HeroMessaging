@@ -7,19 +7,52 @@ namespace HeroMessaging.Plugins;
 /// </summary>
 public class PluginDescriptor : IPluginDescriptor
 {
+    /// <summary>
+    /// Gets or sets name.
+    /// </summary>
     public string Name { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or sets version.
+    /// </summary>
     public Version Version { get; set; } = new Version(1, 0, 0);
+    /// <summary>
+    /// Gets or sets category.
+    /// </summary>
     public PluginCategory Category { get; set; }
+    /// <summary>
+    /// Gets or sets description.
+    /// </summary>
     public string? Description { get; set; }
+    /// <summary>
+    /// Gets or sets assembly name.
+    /// </summary>
     public string AssemblyName { get; set; } = string.Empty;
+    /// <summary>
+    /// Gets or sets plugin type.
+    /// </summary>
     public Type PluginType { get; set; } = typeof(object);
+    /// <summary>
+    /// Gets or sets dependencies.
+    /// </summary>
     public IReadOnlyList<string> Dependencies { get; set; } = [];
+    /// <summary>
+    /// Gets or sets configuration options.
+    /// </summary>
     public IReadOnlyDictionary<string, Type> ConfigurationOptions { get; set; } = new Dictionary<string, Type>();
+    /// <summary>
+    /// Gets or sets provided features.
+    /// </summary>
     public IReadOnlyList<string> ProvidedFeatures { get; set; } = [];
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PluginDescriptor"/> class.
+    /// </summary>
 
     public PluginDescriptor()
     {
     }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PluginDescriptor"/> class.
+    /// </summary>
 
     public PluginDescriptor(Type pluginType, HeroMessagingPluginAttribute? attribute = null)
     {

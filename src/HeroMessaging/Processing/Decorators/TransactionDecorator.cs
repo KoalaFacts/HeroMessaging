@@ -17,6 +17,9 @@ public class TransactionCommandProcessorDecorator(
     private readonly ICommandProcessor _inner = inner ?? throw new ArgumentNullException(nameof(inner));
     private readonly ITransactionExecutor _transactionExecutor = transactionExecutor ?? throw new ArgumentNullException(nameof(transactionExecutor));
     private readonly IsolationLevel _defaultIsolationLevel = defaultIsolationLevel;
+    /// <summary>
+    /// Executes send async.
+    /// </summary>
 
     public async Task SendAsync(ICommand command, CancellationToken cancellationToken = default)
     {
@@ -26,6 +29,9 @@ public class TransactionCommandProcessorDecorator(
             _defaultIsolationLevel,
             cancellationToken).ConfigureAwait(false);
     }
+    /// <summary>
+    /// Executes send async.
+    /// </summary>
 
     public async Task<TResponse> SendAsync<TResponse>(ICommand<TResponse> command, CancellationToken cancellationToken = default)
     {
@@ -35,8 +41,14 @@ public class TransactionCommandProcessorDecorator(
             _defaultIsolationLevel,
             cancellationToken).ConfigureAwait(false);
     }
+    /// <summary>
+    /// Gets is running.
+    /// </summary>
 
     public bool IsRunning => (_inner as IProcessor)?.IsRunning ?? true;
+    /// <summary>
+    /// Executes get metrics.
+    /// </summary>
 
     public IProcessorMetrics GetMetrics() => _inner.GetMetrics();
 }
@@ -50,6 +62,9 @@ public class TransactionQueryProcessorDecorator(
 {
     private readonly IQueryProcessor _inner = inner ?? throw new ArgumentNullException(nameof(inner));
     private readonly ITransactionExecutor _transactionExecutor = transactionExecutor ?? throw new ArgumentNullException(nameof(transactionExecutor));
+    /// <summary>
+    /// Executes send async.
+    /// </summary>
 
     public async Task<TResponse> SendAsync<TResponse>(IQuery<TResponse> query, CancellationToken cancellationToken = default)
     {
@@ -59,8 +74,14 @@ public class TransactionQueryProcessorDecorator(
             IsolationLevel.ReadCommitted,
             cancellationToken).ConfigureAwait(false);
     }
+    /// <summary>
+    /// Gets is running.
+    /// </summary>
 
     public bool IsRunning => (_inner as IProcessor)?.IsRunning ?? true;
+    /// <summary>
+    /// Executes get metrics.
+    /// </summary>
 
     public IQueryProcessorMetrics GetMetrics() => _inner.GetMetrics();
 }

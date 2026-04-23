@@ -18,8 +18,14 @@ public class QueryProcessor : IQueryProcessor, IProcessor, IAsyncDisposable
     private readonly SemaphoreSlim _processingLock = new(1, 1);
     private readonly ProcessorMetricsCollector _metrics;
     private volatile bool _isRunning = true;
+    /// <summary>
+    /// Gets is running.
+    /// </summary>
 
     public bool IsRunning => _isRunning;
+    /// <summary>
+    /// Initializes a new instance of the <see cref="QueryProcessor"/> class.
+    /// </summary>
 
     public QueryProcessor(IServiceProvider serviceProvider, ILogger<QueryProcessor>? logger = null, TimeProvider? timeProvider = null)
     {
@@ -28,6 +34,9 @@ public class QueryProcessor : IQueryProcessor, IProcessor, IAsyncDisposable
         _timeProvider = timeProvider ?? TimeProvider.System;
         _metrics = new ProcessorMetricsCollector(_timeProvider);
     }
+    /// <summary>
+    /// Executes send async.
+    /// </summary>
 
     public async Task<TResponse> SendAsync<TResponse>(IQuery<TResponse> query, CancellationToken cancellationToken = default)
     {
@@ -71,6 +80,9 @@ public class QueryProcessor : IQueryProcessor, IProcessor, IAsyncDisposable
             _processingLock.Release();
         }
     }
+    /// <summary>
+    /// Executes get metrics.
+    /// </summary>
 
     public IQueryProcessorMetrics GetMetrics() => _metrics.GetQueryMetrics();
 

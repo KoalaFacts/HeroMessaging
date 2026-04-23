@@ -32,6 +32,9 @@ public class EventBus : IEventBus, IAsyncDisposable
     private long _publishedCount;
     private long _failedCount;
     private int _registeredHandlers;
+    /// <summary>
+    /// Initializes a new instance of the <see cref="EventBus"/> class.
+    /// </summary>
 
     public EventBus(IServiceProvider serviceProvider, ILogger<EventBus>? logger = null)
     {
@@ -50,8 +53,14 @@ public class EventBus : IEventBus, IAsyncDisposable
                 BoundedCapacity = ProcessingConstants.EventBusBoundedCapacity
             });
     }
+    /// <summary>
+    /// Gets or sets is running.
+    /// </summary>
 
     public bool IsRunning { get; private set; } = true;
+    /// <summary>
+    /// Executes configure pipeline.
+    /// </summary>
 
     private void ConfigurePipeline()
     {
@@ -63,6 +72,9 @@ public class EventBus : IEventBus, IAsyncDisposable
             .UseErrorHandling()     // Handle errors with dead letter queue
             .UseRetry();            // Innermost - retry the actual processing
     }
+    /// <summary>
+    /// Executes publish async.
+    /// </summary>
 
     public async Task PublishAsync(IEvent @event, CancellationToken cancellationToken = default)
     {
@@ -185,6 +197,9 @@ public class EventBus : IEventBus, IAsyncDisposable
             _envelopePool.Add(envelope);
         }
     }
+    /// <summary>
+    /// Executes get or create pipeline factory.
+    /// </summary>
 
     private Func<EventEnvelope, IMessageProcessor> GetOrCreatePipelineFactory(Type handlerType, System.Reflection.MethodInfo handleMethod)
     {
@@ -202,6 +217,9 @@ public class EventBus : IEventBus, IAsyncDisposable
             };
         });
     }
+    /// <summary>
+    /// Executes get metrics.
+    /// </summary>
 
     public IEventBusMetrics GetMetrics()
     {

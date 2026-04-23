@@ -99,7 +99,7 @@ public class InMemoryConsumerTests : IDisposable
         var consumer = CreateConsumer(handler);
 
         // Act
-        await consumer.StartAsync();
+        await consumer.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(consumer.IsActive);
@@ -114,10 +114,10 @@ public class InMemoryConsumerTests : IDisposable
         var handler = new Func<TransportEnvelope, MessageContext, CancellationToken, Task>(
             (env, ctx, ct) => Task.CompletedTask);
         var consumer = CreateConsumer(handler);
-        await consumer.StartAsync();
+        await consumer.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
-        await consumer.StartAsync();
+        await consumer.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(consumer.IsActive);
@@ -132,10 +132,10 @@ public class InMemoryConsumerTests : IDisposable
         var handler = new Func<TransportEnvelope, MessageContext, CancellationToken, Task>(
             (env, ctx, ct) => Task.CompletedTask);
         var consumer = CreateConsumer(handler);
-        await consumer.StartAsync();
+        await consumer.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
-        await consumer.StopAsync();
+        await consumer.StopAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(consumer.IsActive);
@@ -150,7 +150,7 @@ public class InMemoryConsumerTests : IDisposable
         var consumer = CreateConsumer(handler);
 
         // Act
-        await consumer.StopAsync();
+        await consumer.StopAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(consumer.IsActive);
@@ -168,13 +168,13 @@ public class InMemoryConsumerTests : IDisposable
                 return Task.CompletedTask;
             });
         var consumer = CreateConsumer(handler);
-        await consumer.StartAsync();
+        await consumer.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var envelope = CreateTestEnvelope();
 
         // Act
         await DeliverMessage(consumer, envelope);
-        await Task.Delay(100); // Give time for processing
+        await Task.Delay(100, TestContext.Current.CancellationToken); // Give time for processing
 
         // Assert
         Assert.True(messageReceived);
@@ -199,7 +199,7 @@ public class InMemoryConsumerTests : IDisposable
 
         // Act
         await DeliverMessage(consumer, envelope);
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(messageReceived);
@@ -225,13 +225,13 @@ public class InMemoryConsumerTests : IDisposable
         };
 
         var consumer = CreateConsumer(handler, options: options);
-        await consumer.StartAsync();
+        await consumer.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var envelope = CreateTestEnvelope();
 
         // Act
         await DeliverMessage(consumer, envelope);
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         // Assert
         var metrics = consumer.GetMetrics();
@@ -262,13 +262,13 @@ public class InMemoryConsumerTests : IDisposable
         };
 
         var consumer = CreateConsumer(handler, options: options);
-        await consumer.StartAsync();
+        await consumer.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var envelope = CreateTestEnvelope();
 
         // Act
         await DeliverMessage(consumer, envelope);
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(manuallyAcknowledged);
@@ -289,13 +289,13 @@ public class InMemoryConsumerTests : IDisposable
             });
 
         var consumer = CreateConsumer(handler);
-        await consumer.StartAsync();
+        await consumer.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var envelope = CreateTestEnvelope();
 
         // Act
         await DeliverMessage(consumer, envelope);
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         // Assert
         var metrics = consumer.GetMetrics();
@@ -324,13 +324,13 @@ public class InMemoryConsumerTests : IDisposable
             });
 
         var consumer = CreateConsumer(handler);
-        await consumer.StartAsync();
+        await consumer.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var envelope = CreateTestEnvelope();
 
         // Act
         await DeliverMessage(consumer, envelope);
-        await Task.Delay(200); // Give time for requeue and reprocessing
+        await Task.Delay(200, TestContext.Current.CancellationToken); // Give time for requeue and reprocessing
 
         // Assert
         Assert.True(processCount >= 1);
@@ -351,13 +351,13 @@ public class InMemoryConsumerTests : IDisposable
             });
 
         var consumer = CreateConsumer(handler);
-        await consumer.StartAsync();
+        await consumer.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var envelope = CreateTestEnvelope();
 
         // Act
         await DeliverMessage(consumer, envelope);
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         // Assert
         var metrics = consumer.GetMetrics();
@@ -383,13 +383,13 @@ public class InMemoryConsumerTests : IDisposable
         };
 
         var consumer = CreateConsumer(handler, options: options);
-        await consumer.StartAsync();
+        await consumer.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var envelope = CreateTestEnvelope();
 
         // Act
         await DeliverMessage(consumer, envelope);
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         // Assert
         var metrics = consumer.GetMetrics();
@@ -420,13 +420,13 @@ public class InMemoryConsumerTests : IDisposable
         };
 
         var consumer = CreateConsumer(handler, options: options);
-        await consumer.StartAsync();
+        await consumer.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var envelope = CreateTestEnvelope();
 
         // Act
         await DeliverMessage(consumer, envelope);
-        await Task.Delay(300);
+        await Task.Delay(300, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(attemptCount >= 1);
@@ -453,13 +453,13 @@ public class InMemoryConsumerTests : IDisposable
         };
 
         var consumer = CreateConsumer(handler, options: options);
-        await consumer.StartAsync();
+        await consumer.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var envelope = CreateTestEnvelope();
 
         // Act
         await DeliverMessage(consumer, envelope);
-        await Task.Delay(200);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
 
         // Assert
         var metrics = consumer.GetMetrics();
@@ -479,13 +479,13 @@ public class InMemoryConsumerTests : IDisposable
             });
 
         var consumer = CreateConsumer(handler);
-        await consumer.StartAsync();
+        await consumer.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var envelope = CreateTestEnvelope();
 
         // Act
         await DeliverMessage(consumer, envelope);
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         // Assert
         var metrics = consumer.GetMetrics();
@@ -511,18 +511,18 @@ public class InMemoryConsumerTests : IDisposable
             });
 
         var consumer = CreateConsumer(handler);
-        await consumer.StartAsync();
+        await consumer.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var envelope = CreateTestEnvelope();
 
         // Act
         await DeliverMessage(consumer, envelope);
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         var metricsWhileProcessing = consumer.GetMetrics();
 
         tcs.SetResult(true);
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         var metricsAfterProcessing = consumer.GetMetrics();
 
@@ -545,13 +545,13 @@ public class InMemoryConsumerTests : IDisposable
             });
 
         var consumer = CreateConsumer(handler);
-        await consumer.StartAsync();
+        await consumer.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var envelope = CreateTestEnvelope();
 
         // Act
         await DeliverMessage(consumer, envelope);
-        await Task.Delay(150);
+        await Task.Delay(150, TestContext.Current.CancellationToken);
 
         // Assert
         var metrics = consumer.GetMetrics();
@@ -567,7 +567,7 @@ public class InMemoryConsumerTests : IDisposable
         var handler = new Func<TransportEnvelope, MessageContext, CancellationToken, Task>(
             (env, ctx, ct) => Task.CompletedTask);
         var consumer = CreateConsumer(handler);
-        await consumer.StartAsync();
+        await consumer.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
         await consumer.DisposeAsync();
@@ -586,7 +586,7 @@ public class InMemoryConsumerTests : IDisposable
             MaxQueueLength = 100
         };
         var transport = new InMemoryTransport(transportOptions, _timeProvider);
-        await transport.ConnectAsync();
+        await transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var handler = new Func<TransportEnvelope, MessageContext, CancellationToken, Task>(
             (env, ctx, ct) => Task.CompletedTask);
@@ -594,13 +594,13 @@ public class InMemoryConsumerTests : IDisposable
         var consumer = await transport.SubscribeAsync(
             _source,
             handler,
-            new ConsumerOptions { StartImmediately = false });
+            new ConsumerOptions { StartImmediately = false }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
         await consumer.DisposeAsync();
 
         // Assert - Consumer should be removed
-        var health = await transport.GetHealthAsync();
+        var health = await transport.GetHealthAsync(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(0, health.ActiveConsumers);
 
         await transport.DisposeAsync();
@@ -644,7 +644,7 @@ public class InMemoryConsumerTests : IDisposable
         };
 
         var consumer = CreateConsumer(handler, options: options);
-        await consumer.StartAsync();
+        await consumer.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         // Act
         for (int i = 0; i < 5; i++)
@@ -652,7 +652,7 @@ public class InMemoryConsumerTests : IDisposable
             await DeliverMessage(consumer, CreateTestEnvelope());
         }
 
-        await Task.Delay(500);
+        await Task.Delay(500, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(maxConcurrent <= 2);
@@ -671,13 +671,13 @@ public class InMemoryConsumerTests : IDisposable
             });
 
         var consumer = CreateConsumer(handler);
-        await consumer.StartAsync();
+        await consumer.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var envelope = CreateTestEnvelope();
 
         // Act
         await DeliverMessage(consumer, envelope);
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         // Assert
         _instrumentationMock.Verify(x => x.StartReceiveActivity(
@@ -712,13 +712,13 @@ public class InMemoryConsumerTests : IDisposable
         };
 
         var consumer = CreateConsumer(handler, options: options);
-        await consumer.StartAsync();
+        await consumer.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var envelope = CreateTestEnvelope();
 
         // Act
         await DeliverMessage(consumer, envelope);
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         // Assert
         _instrumentationMock.Verify(x => x.RecordError(

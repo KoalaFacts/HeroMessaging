@@ -9,12 +9,24 @@ namespace HeroMessaging.Abstractions.Processing;
 /// <typeparam name="TWorkItem">The type of work item to process</typeparam>
 public abstract class PollingBackgroundServiceBase<TWorkItem> : IAsyncDisposable
 {
+    /// <summary>
+    /// Gets logger.
+    /// </summary>
     protected ILogger Logger { get; }
+    /// <summary>
+    /// Gets time provider.
+    /// </summary>
     protected TimeProvider TimeProvider { get; }
     private readonly ActionBlock<TWorkItem> _processingBlock;
     private CancellationTokenSource? _cancellationTokenSource;
+    /// <summary>
+    /// Represents polling task.
+    /// </summary>
     private Task? _pollingTask;
     private bool _disposed;
+    /// <summary>
+    /// Initializes a new instance.
+    /// </summary>
 
     protected PollingBackgroundServiceBase(
         ILogger logger,

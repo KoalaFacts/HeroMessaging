@@ -23,9 +23,15 @@ public class TransactionEventBusDecorator(
 #pragma warning disable IDE0052 // Remove unread private members - Reserved for future transaction support
     private readonly IUnitOfWorkFactory _unitOfWorkFactory = unitOfWorkFactory ?? throw new ArgumentNullException(nameof(unitOfWorkFactory));
     private readonly IsolationLevel _defaultIsolationLevel = defaultIsolationLevel;
+    /// <summary>
+    /// Gets is running.
+    /// </summary>
 #pragma warning restore IDE0052
 
     public bool IsRunning => _inner.IsRunning;
+    /// <summary>
+    /// Executes publish async.
+    /// </summary>
 
     public async Task PublishAsync(IEvent @event, CancellationToken cancellationToken = default)
     {
@@ -41,6 +47,9 @@ public class TransactionEventBusDecorator(
         _logger.LogDebug("Event {EventType} with ID {EventId} published successfully",
             @event.GetType().Name, @event.MessageId);
     }
+    /// <summary>
+    /// Executes get metrics.
+    /// </summary>
 
     public IEventBusMetrics GetMetrics() => _inner.GetMetrics();
 }
@@ -54,8 +63,14 @@ public class TransactionEventHandlerWrapper<TEvent>(
     IsolationLevel isolationLevel = IsolationLevel.ReadCommitted) where TEvent : IEvent
 {
     private readonly Func<TEvent, CancellationToken, Task> _handler = handler ?? throw new ArgumentNullException(nameof(handler));
+    /// <summary>
+    /// Represents transaction executor.
+    /// </summary>
     private readonly ITransactionExecutor _transactionExecutor = transactionExecutor ?? throw new ArgumentNullException(nameof(transactionExecutor));
     private readonly IsolationLevel _isolationLevel = isolationLevel;
+    /// <summary>
+    /// Executes handle async.
+    /// </summary>
 
     public async Task HandleAsync(TEvent @event, CancellationToken cancellationToken = default)
     {

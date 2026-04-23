@@ -19,8 +19,14 @@ public class PropertyAdditionConverter<TMessage>(
     private readonly MessageVersionRange _versionRange = fromVersion.CompareTo(toVersion) <= 0
         ? new MessageVersionRange(fromVersion, toVersion)
         : new MessageVersionRange(toVersion, fromVersion);
+    /// <summary>
+    /// Gets supported version range.
+    /// </summary>
 
     public override MessageVersionRange SupportedVersionRange => _versionRange;
+    /// <summary>
+    /// Executes convert async.
+    /// </summary>
 
     public override async Task<TMessage> ConvertAsync(TMessage message, MessageVersion fromVersion, MessageVersion toVersion, CancellationToken cancellationToken = default)
     {
@@ -51,13 +57,22 @@ public class PropertyRemovalConverter<TMessage>(
     where TMessage : class, IMessage
 {
     private readonly ILogger<PropertyRemovalConverter<TMessage>> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    /// <summary>
+    /// Represents version range.
+    /// </summary>
     // MessageVersionRange requires minVersion <= maxVersion, so order appropriately
     private readonly MessageVersionRange _versionRange = fromVersion.CompareTo(toVersion) <= 0
         ? new MessageVersionRange(fromVersion, toVersion)
         : new MessageVersionRange(toVersion, fromVersion);
     private readonly HashSet<string> _removedProperties = [.. removedProperties ?? throw new ArgumentNullException(nameof(removedProperties))];
+    /// <summary>
+    /// Gets supported version range.
+    /// </summary>
 
     public override MessageVersionRange SupportedVersionRange => _versionRange;
+    /// <summary>
+    /// Executes convert async.
+    /// </summary>
 
     public override async Task<TMessage> ConvertAsync(TMessage message, MessageVersion fromVersion, MessageVersion toVersion, CancellationToken cancellationToken = default)
     {
@@ -94,13 +109,22 @@ public class PropertyMappingConverter<TMessage>(
     where TMessage : class, IMessage
 {
     private readonly ILogger<PropertyMappingConverter<TMessage>> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    /// <summary>
+    /// Represents version range.
+    /// </summary>
     // MessageVersionRange requires minVersion <= maxVersion, so order appropriately
     private readonly MessageVersionRange _versionRange = fromVersion.CompareTo(toVersion) <= 0
         ? new MessageVersionRange(fromVersion, toVersion)
         : new MessageVersionRange(toVersion, fromVersion);
     private readonly IReadOnlyDictionary<string, string> _propertyMappings = propertyMappings ?? throw new ArgumentNullException(nameof(propertyMappings));
+    /// <summary>
+    /// Gets supported version range.
+    /// </summary>
 
     public override MessageVersionRange SupportedVersionRange => _versionRange;
+    /// <summary>
+    /// Executes convert async.
+    /// </summary>
 
     public override async Task<TMessage> ConvertAsync(TMessage message, MessageVersion fromVersion, MessageVersion toVersion, CancellationToken cancellationToken = default)
     {
@@ -138,14 +162,26 @@ public class TransformationConverter<TMessage>(
     ILogger<TransformationConverter<TMessage>> logger) : MessageConverterBase<TMessage>
     where TMessage : class, IMessage
 {
+    /// <summary>
+    /// Represents logger.
+    /// </summary>
     private readonly ILogger<TransformationConverter<TMessage>> _logger = logger;
+    /// <summary>
+    /// Represents version range.
+    /// </summary>
     // MessageVersionRange requires minVersion <= maxVersion, so order appropriately
     private readonly MessageVersionRange _versionRange = fromVersion.CompareTo(toVersion) <= 0
         ? new MessageVersionRange(fromVersion, toVersion)
         : new MessageVersionRange(toVersion, fromVersion);
     private readonly IReadOnlyDictionary<string, Func<object?, object?>> _transformations = transformations;
+    /// <summary>
+    /// Gets supported version range.
+    /// </summary>
 
     public override MessageVersionRange SupportedVersionRange => _versionRange;
+    /// <summary>
+    /// Executes convert async.
+    /// </summary>
 
     public override async Task<TMessage> ConvertAsync(TMessage message, MessageVersion fromVersion, MessageVersion toVersion, CancellationToken cancellationToken = default)
     {
@@ -268,13 +304,25 @@ public class SimplePassThroughConverter<TMessage>(
     ILogger<SimplePassThroughConverter<TMessage>> logger) : MessageConverterBase<TMessage>
     where TMessage : class, IMessage
 {
+    /// <summary>
+    /// Represents logger.
+    /// </summary>
     private readonly ILogger<SimplePassThroughConverter<TMessage>> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    /// <summary>
+    /// Represents version range.
+    /// </summary>
     // MessageVersionRange requires minVersion <= maxVersion, so order appropriately
     private readonly MessageVersionRange _versionRange = fromVersion.CompareTo(toVersion) <= 0
         ? new MessageVersionRange(fromVersion, toVersion)
         : new MessageVersionRange(toVersion, fromVersion);
+    /// <summary>
+    /// Gets supported version range.
+    /// </summary>
 
     public override MessageVersionRange SupportedVersionRange => _versionRange;
+    /// <summary>
+    /// Executes convert async.
+    /// </summary>
 
     public override async Task<TMessage> ConvertAsync(TMessage message, MessageVersion fromVersion, MessageVersion toVersion, CancellationToken cancellationToken = default)
     {
@@ -292,7 +340,16 @@ public class SimplePassThroughConverter<TMessage>(
 /// </summary>
 public class MessageConversionException : Exception
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MessageConversionException"/> class.
+    /// </summary>
     public MessageConversionException() : base("Message conversion failed") { }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MessageConversionException"/> class.
+    /// </summary>
     public MessageConversionException(string message) : base(message) { }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MessageConversionException"/> class.
+    /// </summary>
     public MessageConversionException(string message, Exception innerException) : base(message, innerException) { }
 }

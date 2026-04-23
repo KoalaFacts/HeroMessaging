@@ -12,17 +12,26 @@ public class MessageSizeValidator : IMessageValidator
 {
     private readonly int _maxSizeInBytes;
     private readonly IJsonSerializer _jsonSerializer;
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MessageSizeValidator"/> class.
+    /// </summary>
 
     public MessageSizeValidator(int maxSizeInBytes, IJsonSerializer jsonSerializer)
     {
         _maxSizeInBytes = maxSizeInBytes;
         _jsonSerializer = jsonSerializer ?? throw new ArgumentNullException(nameof(jsonSerializer));
     }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MessageSizeValidator"/> class.
+    /// </summary>
 
     public MessageSizeValidator(IJsonSerializer jsonSerializer)
         : this(1024 * 1024, jsonSerializer)
     {
     }
+    /// <summary>
+    /// Executes validate async.
+    /// </summary>
 
     public ValueTask<ValidationResult> ValidateAsync(IMessage message, CancellationToken cancellationToken = default)
     {

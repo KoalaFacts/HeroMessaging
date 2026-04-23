@@ -12,6 +12,9 @@ public class PluginDiscovery : IPluginDiscovery
     private readonly ILogger<PluginDiscovery>? _logger;
 #pragma warning disable IDE0052 // Remove unread private members - Reserved for future plugin registration
     private readonly IPluginRegistry _registry;
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PluginDiscovery"/> class.
+    /// </summary>
 #pragma warning restore IDE0052
 
     public PluginDiscovery(IPluginRegistry registry, ILogger<PluginDiscovery>? logger = null)
@@ -19,6 +22,9 @@ public class PluginDiscovery : IPluginDiscovery
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         _logger = logger;
     }
+    /// <summary>
+    /// Executes discover plugins async.
+    /// </summary>
 
     public Task<IEnumerable<IPluginDescriptor>> DiscoverPluginsAsync(
         Assembly assembly,
@@ -66,6 +72,9 @@ public class PluginDiscovery : IPluginDiscovery
 
         return Task.FromResult<IEnumerable<IPluginDescriptor>>(plugins);
     }
+    /// <summary>
+    /// Executes discover plugins async.
+    /// </summary>
 
     public async Task<IEnumerable<IPluginDescriptor>> DiscoverPluginsAsync(
         string directory,
@@ -113,6 +122,9 @@ public class PluginDiscovery : IPluginDiscovery
 
         return plugins;
     }
+    /// <summary>
+    /// Executes discover plugins async.
+    /// </summary>
 
     public async Task<IEnumerable<IPluginDescriptor>> DiscoverPluginsAsync(
         CancellationToken cancellationToken = default)
@@ -133,6 +145,9 @@ public class PluginDiscovery : IPluginDiscovery
 
         return plugins;
     }
+    /// <summary>
+    /// Executes discover plugins async.
+    /// </summary>
 
     public async Task<IEnumerable<IPluginDescriptor>> DiscoverPluginsAsync(
         PluginCategory category,

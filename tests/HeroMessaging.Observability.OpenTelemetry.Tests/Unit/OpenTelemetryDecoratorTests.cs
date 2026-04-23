@@ -8,7 +8,7 @@ using Xunit;
 
 namespace HeroMessaging.Observability.OpenTelemetry.Tests;
 
-public class OpenTelemetryDecoratorTests
+public class OpenTelemetryDecoratorTests : IDisposable
 {
     private readonly Mock<IMessageProcessor> _innerProcessor;
     private readonly ActivityListener _activityListener;
@@ -18,18 +18,21 @@ public class OpenTelemetryDecoratorTests
     public OpenTelemetryDecoratorTests()
     {
         _innerProcessor = new Mock<IMessageProcessor>();
-        _activities = new List<Activity>();
+        _activities = [];
         _fakeTimeProvider = new FakeTimeProvider(DateTimeOffset.UtcNow);
 
         // Set up activity listener to capture activities
         _activityListener = new ActivityListener
         {
-            ShouldListenTo = source => source.Name == HeroMessagingInstrumentation.ActivitySourceName,
-            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
+            ShouldListenTo = static source => source.Name == HeroMessagingInstrumentation.ActivitySourceName,
+            Sample = SampleAllData,
             ActivityStarted = activity => _activities.Add(activity)
         };
         ActivitySource.AddActivityListener(_activityListener);
     }
+
+    private static ActivitySamplingResult SampleAllData(ref ActivityCreationOptions<ActivityContext> options) =>
+        ActivitySamplingResult.AllDataAndRecorded;
 
     [Fact]
     [Trait("Category", "Unit")]
@@ -108,7 +111,7 @@ public class OpenTelemetryDecoratorTests
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            decorator.ProcessAsync(message, context).AsTask());
+            decorator.ProcessAsync(message, context, cancellationToken: TestContext.Current.CancellationToken).AsTask());
 
         Assert.Single(_activities);
         var activity = _activities[0];

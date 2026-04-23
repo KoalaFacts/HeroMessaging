@@ -24,8 +24,7 @@ public abstract class PostgreSqlIntegrationTestBase : IAsyncLifetime
         else
         {
             // Fall back to Testcontainers for local development
-            Container = new PostgreSqlBuilder()
-                .WithImage("postgres:17-alpine")
+            Container = new PostgreSqlBuilder("postgres:17-alpine")
                 .WithPassword("postgres")
                 .Build();
 

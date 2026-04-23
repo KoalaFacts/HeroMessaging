@@ -17,6 +17,9 @@ public class SagaTimeoutHandler<TSaga> : BackgroundService
     private readonly SagaTimeoutOptions _options;
     private readonly ILogger<SagaTimeoutHandler<TSaga>> _logger;
     private readonly TimeProvider _timeProvider;
+    /// <summary>
+    /// Initializes a new instance.
+    /// </summary>
 
     public SagaTimeoutHandler(
         IServiceProvider serviceProvider,
@@ -29,6 +32,9 @@ public class SagaTimeoutHandler<TSaga> : BackgroundService
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _timeProvider = timeProvider ?? TimeProvider.System;
     }
+    /// <summary>
+    /// Executes execute async.
+    /// </summary>
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {

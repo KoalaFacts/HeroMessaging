@@ -10,11 +10,17 @@ namespace HeroMessaging.Configuration;
 public class SerializationBuilder : ISerializationBuilder
 {
     private readonly IServiceCollection _services;
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SerializationBuilder"/> class.
+    /// </summary>
 
     public SerializationBuilder(IServiceCollection services)
     {
         _services = services ?? throw new ArgumentNullException(nameof(services));
     }
+    /// <summary>
+    /// Executes use json.
+    /// </summary>
 
     public ISerializationBuilder UseJson(Action<JsonSerializationOptions>? configure = null)
     {
@@ -30,6 +36,9 @@ public class SerializationBuilder : ISerializationBuilder
 
         return this;
     }
+    /// <summary>
+    /// Executes use protobuf.
+    /// </summary>
 
     public ISerializationBuilder UseProtobuf(Action<ProtobufSerializationOptions>? configure = null)
     {
@@ -44,6 +53,9 @@ public class SerializationBuilder : ISerializationBuilder
 
         return this;
     }
+    /// <summary>
+    /// Executes use message pack.
+    /// </summary>
 
     public ISerializationBuilder UseMessagePack(Action<MessagePackSerializationOptions>? configure = null)
     {
@@ -58,18 +70,27 @@ public class SerializationBuilder : ISerializationBuilder
 
         return this;
     }
+    /// <summary>
+    /// Executes use custom.
+    /// </summary>
 
     public ISerializationBuilder UseCustom<T>() where T : class, IMessageSerializer
     {
         _services.AddSingleton<IMessageSerializer, T>();
         return this;
     }
+    /// <summary>
+    /// Executes use custom.
+    /// </summary>
 
     public ISerializationBuilder UseCustom(IMessageSerializer serializer)
     {
         _services.AddSingleton(serializer);
         return this;
     }
+    /// <summary>
+    /// Executes add type serializer.
+    /// </summary>
 
     public ISerializationBuilder AddTypeSerializer<TMessage, TSerializer>()
         where TSerializer : class, IMessageSerializer
@@ -85,12 +106,18 @@ public class SerializationBuilder : ISerializationBuilder
 
         return this;
     }
+    /// <summary>
+    /// Executes set default.
+    /// </summary>
 
     public ISerializationBuilder SetDefault<T>() where T : class, IMessageSerializer
     {
         _services.AddSingleton<IMessageSerializer, T>();
         return this;
     }
+    /// <summary>
+    /// Executes with compression.
+    /// </summary>
 
     public ISerializationBuilder WithCompression(CompressionLevel level = CompressionLevel.Optimal)
     {
@@ -101,6 +128,9 @@ public class SerializationBuilder : ISerializationBuilder
         });
         return this;
     }
+    /// <summary>
+    /// Executes with max message size.
+    /// </summary>
 
     public ISerializationBuilder WithMaxMessageSize(int maxSizeInBytes)
     {
@@ -110,6 +140,9 @@ public class SerializationBuilder : ISerializationBuilder
         });
         return this;
     }
+    /// <summary>
+    /// Executes build.
+    /// </summary>
 
     public IServiceCollection Build()
     {
@@ -118,20 +151,41 @@ public class SerializationBuilder : ISerializationBuilder
         return _services;
     }
 }
+/// <summary>
+/// Represents the serialization options type.
+/// </summary>
 
 // Configuration option classes
 public class SerializationOptions
 {
+    /// <summary>
+    /// Gets or sets max message size.
+    /// </summary>
     public int MaxMessageSize { get; set; } = 1024 * 1024 * 10; // 10MB default
 }
+/// <summary>
+/// Represents the serialization compression options type.
+/// </summary>
 
 public class SerializationCompressionOptions : SerializationOptions
 {
+    /// <summary>
+    /// Gets or sets enable compression.
+    /// </summary>
     public bool EnableCompression { get; set; }
+    /// <summary>
+    /// Gets or sets compression level.
+    /// </summary>
     public CompressionLevel CompressionLevel { get; set; } = CompressionLevel.Optimal;
 }
+/// <summary>
+/// Represents the serialization type mapping type.
+/// </summary>
 
 public class SerializationTypeMapping
 {
+    /// <summary>
+    /// Gets the serializer type mappings keyed by the message type.
+    /// </summary>
     public Dictionary<Type, Type> TypeSerializers { get; } = [];
 }

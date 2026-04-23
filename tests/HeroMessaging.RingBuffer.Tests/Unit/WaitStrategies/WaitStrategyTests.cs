@@ -8,17 +8,18 @@ namespace HeroMessaging.RingBuffer.Tests.Unit.WaitStrategies;
 public class WaitStrategyTests
 {
     [Fact]
-    public void BlockingWaitStrategy_WaitFor_ReturnsSequence()
+    public async Task BlockingWaitStrategy_WaitFor_ReturnsSequence()
     {
         // Arrange
         var strategy = new BlockingWaitStrategy();
         const long expectedSequence = 42;
 
         // Act - Signal in parallel
-        var waitTask = Task.Run(() => strategy.WaitFor(expectedSequence));
-        Task.Delay(10).ContinueWith(_ => strategy.SignalAllWhenBlocking());
+        var waitTask = Task.Run(() => strategy.WaitFor(expectedSequence), TestContext.Current.CancellationToken);
+        await Task.Delay(10, TestContext.Current.CancellationToken);
+        strategy.SignalAllWhenBlocking();
 
-        var result = waitTask.Result;
+        var result = await waitTask;
 
         // Assert
         Assert.Equal(expectedSequence, result);
@@ -93,7 +94,7 @@ public class WaitStrategyTests
     }
 
     [Fact]
-    public void TimeoutBlockingWaitStrategy_WaitFor_WithSignal_ReturnsSequence()
+    public async Task TimeoutBlockingWaitStrategy_WaitFor_WithSignal_ReturnsSequence()
     {
         // Arrange
         var timeout = TimeSpan.FromSeconds(1);
@@ -101,10 +102,11 @@ public class WaitStrategyTests
         const long expectedSequence = 42;
 
         // Act - Signal in parallel
-        var waitTask = Task.Run(() => strategy.WaitFor(expectedSequence));
-        Task.Delay(10).ContinueWith(_ => strategy.SignalAllWhenBlocking());
+        var waitTask = Task.Run(() => strategy.WaitFor(expectedSequence), TestContext.Current.CancellationToken);
+        await Task.Delay(10, TestContext.Current.CancellationToken);
+        strategy.SignalAllWhenBlocking();
 
-        var result = waitTask.Result;
+        var result = await waitTask;
 
         // Assert
         Assert.Equal(expectedSequence, result);
@@ -135,7 +137,7 @@ public class WaitStrategyTests
     }
 
     [Fact]
-    public void BlockingWaitStrategy_MultipleWaiters_AllSignaled()
+    public async Task BlockingWaitStrategy_MultipleWaiters_AllSignaled()
     {
         // Arrange
         var strategy = new BlockingWaitStrategy();
@@ -146,18 +148,18 @@ public class WaitStrategyTests
         for (int i = 0; i < waiterCount; i++)
         {
             int sequence = i;
-            tasks[i] = Task.Run(() => strategy.WaitFor(sequence));
+            tasks[i] = Task.Run(() => strategy.WaitFor(sequence), TestContext.Current.CancellationToken);
         }
 
-        Task.Delay(10).Wait();
+        await Task.Delay(10, TestContext.Current.CancellationToken);
         strategy.SignalAllWhenBlocking();
 
-        Task.WaitAll(tasks);
+        var results = await Task.WhenAll(tasks);
 
         // Assert
         for (int i = 0; i < waiterCount; i++)
         {
-            Assert.Equal(i, tasks[i].Result);
+            Assert.Equal(i, results[i]);
         }
     }
 
