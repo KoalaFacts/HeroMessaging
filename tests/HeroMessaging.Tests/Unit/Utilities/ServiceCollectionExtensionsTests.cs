@@ -5,8 +5,7 @@ using Xunit;
 
 namespace HeroMessaging.Tests.Unit.Utilities;
 
-#pragma warning disable CA1052 // Test class with nested test classes
-public class ServiceCollectionExtensionsTests
+public static class ServiceCollectionExtensionsTests
 {
     // Test interfaces and implementations
     public interface ITestService

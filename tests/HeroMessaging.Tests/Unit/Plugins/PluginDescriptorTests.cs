@@ -291,10 +291,9 @@ namespace HeroMessaging.Tests.Unit.Plugins
 
         public class TestPluginWithDependencies
         {
-#pragma warning disable IDE0060 // Remove unused parameter - Demonstrates dependency injection pattern
             public TestPluginWithDependencies(ITestDependency dependency)
-#pragma warning restore IDE0060
             {
+                ArgumentNullException.ThrowIfNull(dependency);
             }
         }
 

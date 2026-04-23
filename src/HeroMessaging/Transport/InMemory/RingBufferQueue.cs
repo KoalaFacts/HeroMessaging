@@ -58,12 +58,13 @@ internal class RingBufferQueue : IDisposable, IAsyncDisposable
             waitStrategy);
     }
 
-#pragma warning disable IDE0060 // Remove unused parameter - Part of interface contract, ring buffer enqueue is synchronous
     public ValueTask<bool> EnqueueAsync(
         TransportEnvelope envelope,
         CancellationToken cancellationToken = default)
-#pragma warning restore IDE0060
     {
+        if (cancellationToken.IsCancellationRequested)
+            return ValueTask.FromCanceled<bool>(cancellationToken);
+
         if (_cts.IsCancellationRequested)
             return new ValueTask<bool>(false);
 

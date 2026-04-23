@@ -48,8 +48,6 @@ public interface ITransportBuilder<TOptions> : ITransportBuilder
 /// <summary>
 /// Extension methods for transport configuration
 /// </summary>
-// ReSharper disable once CheckNamespace
-#pragma warning disable IDE0130 // Namespace does not match folder structure
 public static class ExtensionsToITransportConfigurationForBuilders
 {
     /// <summary>

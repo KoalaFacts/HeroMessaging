@@ -100,8 +100,6 @@ public interface IUnitOfWorkFactory
 /// <summary>
 /// Extension methods for IUnitOfWork to provide common transaction patterns
 /// </summary>
-// ReSharper disable once CheckNamespace
-#pragma warning disable IDE0130 // Namespace does not match folder structure - Extension methods follow target type namespace
 public static class ExtensionsToIUnitOfWorkForTransactions
 {
     /// <summary>

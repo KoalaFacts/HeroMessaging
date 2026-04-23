@@ -506,14 +506,11 @@ public sealed class MessageConverterRegistryTests
     public sealed class TestMessageConverter : MessageConverterBase<TestMessage>
     {
         private readonly MessageVersionRange _versionRange;
-#pragma warning disable IDE0052 // Remove unread private members - Reserved for future logging
-        private readonly ILogger<TestMessageConverter> _logger;
-#pragma warning restore IDE0052
 
         public TestMessageConverter(MessageVersion fromVersion, MessageVersion toVersion, ILogger<TestMessageConverter> logger)
         {
             _versionRange = new MessageVersionRange(fromVersion, toVersion);
-            _logger = logger;
+            ArgumentNullException.ThrowIfNull(logger);
         }
 
         public override MessageVersionRange SupportedVersionRange => _versionRange;

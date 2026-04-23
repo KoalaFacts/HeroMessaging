@@ -1,8 +1,6 @@
 using HeroMessaging.Abstractions.Events;
 using HeroMessaging.Abstractions.Sagas;
 using HeroMessaging.Orchestration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Time.Testing;
 using Xunit;
 
 namespace HeroMessaging.Tests.Unit.Orchestration
@@ -10,17 +8,6 @@ namespace HeroMessaging.Tests.Unit.Orchestration
     [Trait("Category", "Unit")]
     public sealed class StateMachineBuilderTests
     {
-#pragma warning disable IDE0052 // Remove unread private members - Test fixture for future tests
-        private readonly IServiceProvider _serviceProvider;
-#pragma warning restore IDE0052
-
-        public StateMachineBuilderTests()
-        {
-            var services = new ServiceCollection();
-            services.AddSingleton<TimeProvider>(new FakeTimeProvider());
-            _serviceProvider = services.BuildServiceProvider();
-        }
-
         #region Builder Construction Tests
 
         [Fact]

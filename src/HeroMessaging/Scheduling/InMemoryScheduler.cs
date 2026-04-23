@@ -80,15 +80,14 @@ public sealed class InMemoryScheduler : IMessageScheduler, IDisposable
     /// Executes schedule async internal.
     /// </summary>
 
-#pragma warning disable IDE0060 // Remove unused parameter - Part of interface contract, scheduling is synchronous
     private Task<ScheduleResult> ScheduleAsyncInternal<T>(
         T message,
         DateTimeOffset deliverAt,
         DateTimeOffset now,
         SchedulingOptions? options,
         CancellationToken cancellationToken) where T : IMessage
-#pragma warning restore IDE0060
     {
+        cancellationToken.ThrowIfCancellationRequested();
         ThrowIfDisposed();
 
         var scheduleId = Guid.NewGuid();

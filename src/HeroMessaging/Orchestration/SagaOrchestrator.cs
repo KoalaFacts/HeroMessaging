@@ -16,13 +16,10 @@ public class SagaOrchestrator<TSaga> where TSaga : class, ISaga, new()
     private readonly StateMachineDefinition<TSaga> _stateMachine;
     private readonly IServiceProvider _services;
     private readonly ILogger<SagaOrchestrator<TSaga>> _logger;
-#pragma warning disable IDE0052 // Remove unread private members - Reserved for future timeout/scheduling operations
-    private readonly TimeProvider _timeProvider;
+
     /// <summary>
     /// Initializes a new instance.
     /// </summary>
-#pragma warning restore IDE0052
-
     public SagaOrchestrator(
         ISagaRepository<TSaga> repository,
         StateMachineDefinition<TSaga> stateMachine,
@@ -34,7 +31,7 @@ public class SagaOrchestrator<TSaga> where TSaga : class, ISaga, new()
         _stateMachine = stateMachine ?? throw new ArgumentNullException(nameof(stateMachine));
         _services = services ?? throw new ArgumentNullException(nameof(services));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+        ArgumentNullException.ThrowIfNull(timeProvider);
     }
 
     /// <summary>

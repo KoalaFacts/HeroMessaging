@@ -16,9 +16,6 @@ public sealed class RingBuffer<T> where T : class
     private readonly T[] _entries;
     private readonly int _bufferMask;
     private readonly Sequencer _sequencer;
-#pragma warning disable IDE0052 // Remove unread private members - Reserved for future factory reset/clone operations
-    private readonly IEventFactory<T> _eventFactory;
-#pragma warning restore IDE0052
 
     /// <summary>
     /// Creates a new ring buffer
@@ -51,7 +48,7 @@ public sealed class RingBuffer<T> where T : class
         BufferSize = bufferSize;
         _entries = new T[bufferSize];
         _bufferMask = bufferSize - 1;
-        _eventFactory = eventFactory ?? throw new ArgumentNullException(nameof(eventFactory));
+        ArgumentNullException.ThrowIfNull(eventFactory);
 
         // Pre-allocate all entries to avoid allocation during publishing
         for (int i = 0; i < bufferSize; i++)

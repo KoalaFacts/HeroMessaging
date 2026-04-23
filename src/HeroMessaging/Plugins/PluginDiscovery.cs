@@ -10,16 +10,14 @@ namespace HeroMessaging.Plugins;
 public class PluginDiscovery : IPluginDiscovery
 {
     private readonly ILogger<PluginDiscovery>? _logger;
-#pragma warning disable IDE0052 // Remove unread private members - Reserved for future plugin registration
-    private readonly IPluginRegistry _registry;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="PluginDiscovery"/> class.
     /// </summary>
-#pragma warning restore IDE0052
 
     public PluginDiscovery(IPluginRegistry registry, ILogger<PluginDiscovery>? logger = null)
     {
-        _registry = registry ?? throw new ArgumentNullException(nameof(registry));
+        ArgumentNullException.ThrowIfNull(registry);
         _logger = logger;
     }
     /// <summary>

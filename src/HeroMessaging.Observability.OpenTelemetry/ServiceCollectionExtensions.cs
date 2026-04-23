@@ -12,8 +12,6 @@ namespace HeroMessaging.Abstractions.Configuration;
 /// <summary>
 /// Extension methods for registering OpenTelemetry instrumentation
 /// </summary>
-// ReSharper disable once CheckNamespace
-#pragma warning disable IDE0130 // Namespace does not match folder structure
 public static class ExtensionsToIHeroMessagingBuilderForOpenTelemetry
 {
     /// <summary>

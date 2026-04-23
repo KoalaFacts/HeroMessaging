@@ -8,8 +8,6 @@ namespace HeroMessaging.Abstractions.Sagas;
 /// <summary>
 /// Enhanced builder extensions for more intuitive and powerful state machine definition
 /// </summary>
-// ReSharper disable once CheckNamespace
-#pragma warning disable IDE0130 // Namespace does not match folder structure
 public static class ExtensionsToStateMachineBuilderForSagas
 {
     /// <summary>
@@ -308,8 +306,6 @@ public class ElseConfigurator<TSaga, TEvent>
 /// <summary>
 /// Extension methods for adding conditional logic to state transitions
 /// </summary>
-// ReSharper disable once CheckNamespace
-#pragma warning disable IDE0130 // Namespace does not match folder structure
 public static class ExtensionsToWhenConfiguratorForConditions
 {
     /// <summary>

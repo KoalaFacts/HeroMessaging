@@ -16,10 +16,6 @@ public class SqlServerMessageStorage : IMessageStorage
     private readonly string _connectionString;
     private readonly JsonSerializerOptions _jsonOptions;
     private readonly string _tableName;
-#pragma warning disable IDE0052 // Remove unread private members - Reserved for future transaction support
-    private readonly SqlConnection? _sharedConnection;
-    private readonly SqlTransaction? _sharedTransaction;
-#pragma warning restore IDE0052
     private readonly TimeProvider _timeProvider;
     private readonly IJsonSerializer _jsonSerializer;
     private readonly SemaphoreSlim _initLock = new(1, 1);
@@ -59,8 +55,11 @@ public class SqlServerMessageStorage : IMessageStorage
         TimeProvider timeProvider,
         IJsonSerializer jsonSerializer)
     {
-        _sharedConnection = connection ?? throw new ArgumentNullException(nameof(connection));
-        _sharedTransaction = transaction;
+        ArgumentNullException.ThrowIfNull(connection);
+        if (transaction?.Connection != null && !ReferenceEquals(transaction.Connection, connection))
+        {
+            throw new ArgumentException("Transaction must belong to the supplied connection.", nameof(transaction));
+        }
 
         // Use default options when using shared connection
         _options = new SqlServerStorageOptions { ConnectionString = connection.ConnectionString };

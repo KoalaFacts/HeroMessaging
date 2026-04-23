@@ -12,8 +12,7 @@ namespace HeroMessaging.Tests.Unit.Resilience;
 /// Unit tests for <see cref="ConnectionResilienceDecorator"/> implementation.
 /// Tests cover connection resilience, retry logic, and transaction handling.
 /// </summary>
-#pragma warning disable CA1001 // Test class with disposable field - disposed in individual tests
-public class ConnectionResilienceDecoratorTests
+public class ConnectionResilienceDecoratorTests : IAsyncLifetime
 {
     private readonly Mock<IUnitOfWork> _mockUnitOfWork;
     private readonly Mock<IConnectionResiliencePolicy> _mockResiliencePolicy;
@@ -30,6 +29,13 @@ public class ConnectionResilienceDecoratorTests
             _mockUnitOfWork.Object,
             _mockResiliencePolicy.Object,
             _mockLogger.Object);
+    }
+
+    public ValueTask InitializeAsync() => ValueTask.CompletedTask;
+
+    public async ValueTask DisposeAsync()
+    {
+        await _decorator.DisposeAsync();
     }
 
     #region Constructor Tests

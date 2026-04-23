@@ -13,8 +13,7 @@ namespace HeroMessaging.Tests.Unit.Resilience;
 /// Unit tests for <see cref="ResilientUnitOfWork"/> and <see cref="ResilientUnitOfWorkFactory"/> implementations.
 /// Tests cover resilience patterns, retry logic, and factory operations.
 /// </summary>
-#pragma warning disable CA1001 // Test class with disposable field - disposed in individual tests
-public class ResilientUnitOfWorkTests
+public class ResilientUnitOfWorkTests : IAsyncLifetime
 {
     #region ResilientUnitOfWork Tests
 
@@ -33,6 +32,13 @@ public class ResilientUnitOfWorkTests
             _mockUnitOfWork.Object,
             _mockResiliencePolicy.Object,
             _mockLogger.Object);
+    }
+
+    public ValueTask InitializeAsync() => ValueTask.CompletedTask;
+
+    public async ValueTask DisposeAsync()
+    {
+        await _resilientUnitOfWork.DisposeAsync();
     }
 
     #region Constructor Tests

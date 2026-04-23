@@ -73,10 +73,10 @@ public abstract class PollingBackgroundServiceBase<TWorkItem> : IAsyncDisposable
     /// <summary>
     /// Stops the background polling service
     /// </summary>
-#pragma warning disable IDE0060 // Remove unused parameter - Part of public API contract for future graceful shutdown support
     public async Task StopAsync(CancellationToken cancellationToken = default)
-#pragma warning restore IDE0060
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (_cancellationTokenSource == null)
             return;
 

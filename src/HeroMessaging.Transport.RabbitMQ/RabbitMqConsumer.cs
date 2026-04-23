@@ -16,9 +16,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
 {
     private readonly IChannel _channel;
     private readonly Func<TransportEnvelope, MessageContext, CancellationToken, Task> _handler;
-#pragma warning disable IDE0052 // Remove unread private members - Reserved for future consumer configuration
     private readonly ConsumerOptions _options;
-#pragma warning restore IDE0052
     private readonly RabbitMqTransport _transport;
     private readonly ILogger<RabbitMqConsumer> _logger;
     private readonly ITransportInstrumentation _instrumentation;
@@ -69,9 +67,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
     /// <summary>
     /// Start consuming messages
     /// </summary>
-#pragma warning disable IDE0060 // Remove unused parameter - Part of interface contract
     public async Task StartAsync(CancellationToken cancellationToken = default)
-#pragma warning restore IDE0060
     {
         lock (_stateLock)
         {
@@ -90,11 +86,18 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
         _consumer.ReceivedAsync += OnMessageReceivedAsync;
         _consumer.ShutdownAsync += OnConsumerShutdownAsync;
 
+        await _channel.BasicQosAsync(
+            prefetchSize: 0,
+            prefetchCount: _options.PrefetchCount,
+            global: false,
+            cancellationToken).ConfigureAwait(false);
+
         // Start consuming
         _consumerTag = await _channel.BasicConsumeAsync(
             queue: Source.Name,
             autoAck: false, // Manual acknowledgment for reliability
-            consumer: _consumer).ConfigureAwait(false);
+            consumer: _consumer,
+            cancellationToken: cancellationToken).ConfigureAwait(false);
 
         _logger.LogInformation("Consumer {ConsumerId} started with tag {ConsumerTag}", ConsumerId, _consumerTag);
     }

@@ -15,8 +15,6 @@ namespace HeroMessaging.Abstractions.Configuration;
 /// <summary>
 /// Extension methods for configuring transaction management in HeroMessaging
 /// </summary>
-// ReSharper disable once CheckNamespace
-#pragma warning disable IDE0130 // Namespace does not match folder structure
 public static class ExtensionsToIHeroMessagingBuilderForTransactions
 {
     /// <summary>

@@ -64,10 +64,10 @@ internal class InMemoryConsumer : ITransportConsumer
         _messageChannel = Channel.CreateUnbounded<TransportEnvelope>(channelOptions);
     }
 
-#pragma warning disable IDE0060 // Remove unused parameter - Part of interface contract
     public Task StartAsync(CancellationToken cancellationToken = default)
-#pragma warning restore IDE0060
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (IsActive)
             return Task.CompletedTask;
 

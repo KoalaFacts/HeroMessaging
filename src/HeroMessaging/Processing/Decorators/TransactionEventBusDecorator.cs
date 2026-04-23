@@ -10,24 +10,33 @@ namespace HeroMessaging.Processing.Decorators;
 /// Decorator that wraps event processing in database transactions
 /// Each event handler execution gets its own transaction to maintain independence
 /// </summary>
-public class TransactionEventBusDecorator(
-    IEventBus inner,
-    IUnitOfWorkFactory unitOfWorkFactory,
-    ILogger<TransactionEventBusDecorator> logger,
-    IsolationLevel defaultIsolationLevel = IsolationLevel.ReadCommitted) : IEventBus
+public class TransactionEventBusDecorator : IEventBus
 {
-    private readonly IEventBus _inner = inner ?? throw new ArgumentNullException(nameof(inner));
-    private readonly ILogger<TransactionEventBusDecorator> _logger = logger;
+    private readonly IEventBus _inner;
+    private readonly ILogger<TransactionEventBusDecorator> _logger;
 
-    // These are kept for future use and to maintain the public API
-#pragma warning disable IDE0052 // Remove unread private members - Reserved for future transaction support
-    private readonly IUnitOfWorkFactory _unitOfWorkFactory = unitOfWorkFactory ?? throw new ArgumentNullException(nameof(unitOfWorkFactory));
-    private readonly IsolationLevel _defaultIsolationLevel = defaultIsolationLevel;
+    /// <summary>
+    /// Initializes a new instance of the <see cref="TransactionEventBusDecorator"/> class.
+    /// </summary>
+    public TransactionEventBusDecorator(
+        IEventBus inner,
+        IUnitOfWorkFactory unitOfWorkFactory,
+        ILogger<TransactionEventBusDecorator> logger,
+        IsolationLevel defaultIsolationLevel = IsolationLevel.ReadCommitted)
+    {
+        _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+        ArgumentNullException.ThrowIfNull(unitOfWorkFactory);
+        if (!Enum.IsDefined(defaultIsolationLevel))
+        {
+            throw new ArgumentOutOfRangeException(nameof(defaultIsolationLevel), defaultIsolationLevel, "Invalid isolation level.");
+        }
+
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    }
+
     /// <summary>
     /// Gets is running.
     /// </summary>
-#pragma warning restore IDE0052
-
     public bool IsRunning => _inner.IsRunning;
     /// <summary>
     /// Executes publish async.

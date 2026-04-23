@@ -62,9 +62,6 @@ public sealed class IdempotencyDecorator : MessageProcessorDecorator
     private readonly IIdempotencyStore _store;
     private readonly IIdempotencyPolicy _policy;
     private readonly ILogger<IdempotencyDecorator> _logger;
-#pragma warning disable IDE0052 // Remove unread private members - Reserved for future timestamp-based operations
-    private readonly TimeProvider _timeProvider;
-#pragma warning restore IDE0052
 
     /// <summary>
     /// Initializes a new instance of the <see cref="IdempotencyDecorator"/> class.
@@ -88,7 +85,7 @@ public sealed class IdempotencyDecorator : MessageProcessorDecorator
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _policy = policy ?? throw new ArgumentNullException(nameof(policy));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+        ArgumentNullException.ThrowIfNull(timeProvider);
     }
 
     /// <inheritdoc />

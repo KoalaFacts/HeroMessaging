@@ -7,8 +7,6 @@ namespace HeroMessaging.Abstractions.Messages;
 /// Extension methods for applying correlation and causation tracking to messages
 /// Supports choreography pattern by automatically linking related messages in workflows
 /// </summary>
-// ReSharper disable once CheckNamespace
-#pragma warning disable IDE0130 // Namespace does not match folder structure
 public static class ExtensionsToMessageBaseForCorrelation
 {
     /// <summary>

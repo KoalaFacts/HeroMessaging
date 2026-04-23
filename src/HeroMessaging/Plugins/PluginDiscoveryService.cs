@@ -11,9 +11,6 @@ public class PluginDiscoveryService
 {
     private readonly IPluginDiscovery _discovery;
     private readonly IPluginRegistry _registry;
-#pragma warning disable IDE0052 // Remove unread private members - Reserved for future plugin loading operations
-    private readonly IPluginLoader _loader;
-#pragma warning restore IDE0052
     private readonly IServiceCollection _services;
     private readonly ILogger<PluginDiscoveryService>? _logger;
     /// <summary>
@@ -29,7 +26,7 @@ public class PluginDiscoveryService
     {
         _discovery = discovery ?? throw new ArgumentNullException(nameof(discovery));
         _registry = registry ?? throw new ArgumentNullException(nameof(registry));
-        _loader = loader ?? throw new ArgumentNullException(nameof(loader));
+        ArgumentNullException.ThrowIfNull(loader);
         _services = services ?? throw new ArgumentNullException(nameof(services));
         _logger = logger;
     }

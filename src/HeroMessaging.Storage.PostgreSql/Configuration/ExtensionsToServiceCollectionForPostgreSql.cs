@@ -8,8 +8,6 @@ namespace HeroMessaging.Storage.PostgreSql;
 /// <summary>
 /// Extension methods for configuring PostgreSQL idempotency storage.
 /// </summary>
-// Inline analyzer ignore for namespace deviation from extension target
-#pragma warning disable IDE0130 // Namespace does not match folder structure
 public static class ExtensionsToServiceCollectionForPostgreSql
 #pragma warning restore IDE0130
 {
