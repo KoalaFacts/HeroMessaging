@@ -242,7 +242,7 @@ jobs:
               -reports:"./all-test-results/**/coverage.cobertura.xml" \
               -targetdir:"./coverage-report" \
               -reporttypes:"Html;Badges;TextSummary" \
-              -classfilters:"-System.*;-Microsoft.*;-*Exception;-*Exception`*" \
+              -classfilters:'-System.*;-Microsoft.*;-*Exception;-*Exception`*' \
               -assemblyfilters:"-*.Tests;-*.Tests.*;-*Benchmarks;-*Benchmarks.*;-*.Examples;-*.Examples.*;-*.Demo;-*.Demo.*"
           else
             echo "No coverage files found, skipping report generation"
