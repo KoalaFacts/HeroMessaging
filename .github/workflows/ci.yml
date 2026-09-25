@@ -83,16 +83,22 @@ jobs:
             fi
 
             project_name=$(basename "$project" .csproj)
-            dotnet test "$project" \
-              --configuration Release \
-              --no-build \
-              --verbosity minimal \
-              --framework ${{ matrix.framework }} \
-              --filter "Category!=Integration" \
-              --collect:"XPlat Code Coverage" \
-              --results-directory "./test-results/$project_name" \
-              --logger "trx;LogFileName=unit-tests-${{ matrix.os }}-${{ matrix.framework }}-$project_name.trx" \
-              -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
+            test_args=(
+              --configuration Release
+              --no-build
+              --verbosity minimal
+              --framework ${{ matrix.framework }}
+              --filter "Category!=Integration"
+              --results-directory "./test-results/$project_name"
+              --logger "trx;LogFileName=unit-tests-${{ matrix.os }}-${{ matrix.framework }}-$project_name.trx"
+            )
+
+            if [[ "$project_name" != "HeroMessaging.Architecture.Tests" ]]; then
+              test_args+=(--collect:"XPlat Code Coverage")
+              test_args+=(-- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura)
+            fi
+
+            dotnet test "$project" "${test_args[@]}"
           done
 
       - name: Upload test results
