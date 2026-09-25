@@ -75,16 +75,25 @@ jobs:
       - name: Run unit tests
         shell: bash
         run: |
-          dotnet test \
-            --configuration Release \
-            --no-build \
-            --verbosity minimal \
-            --framework ${{ matrix.framework }} \
-            --filter "Category=Unit" \
-            --collect:"XPlat Code Coverage" \
-            --results-directory ./test-results \
-            --logger "trx;LogFileName=unit-tests-${{ matrix.os }}-${{ matrix.framework }}.trx" \
-            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
+          set -euo pipefail
+          for project in tests/*/*.Tests.csproj; do
+            frameworks=$(dotnet msbuild "$project" -getProperty:TargetFrameworks -nologo)
+            if [[ ";$frameworks;" != *";${{ matrix.framework }};"* ]]; then
+              continue
+            fi
+
+            project_name=$(basename "$project" .csproj)
+            dotnet test "$project" \
+              --configuration Release \
+              --no-build \
+              --verbosity minimal \
+              --framework ${{ matrix.framework }} \
+              --filter "Category!=Integration" \
+              --collect:"XPlat Code Coverage" \
+              --results-directory "./test-results/$project_name" \
+              --logger "trx;LogFileName=unit-tests-${{ matrix.os }}-${{ matrix.framework }}-$project_name.trx" \
+              -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
+          done
 
       - name: Upload test results
         uses: actions/upload-artifact@v7

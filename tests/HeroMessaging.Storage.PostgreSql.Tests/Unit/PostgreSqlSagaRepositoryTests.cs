@@ -20,7 +20,7 @@ public sealed class PostgreSqlSagaRepositoryTests : IDisposable
 
         _options = new PostgreSqlStorageOptions
         {
-            ConnectionString = "Host=localhost;Database=test",
+            ConnectionString = Environment.GetEnvironmentVariable("PostgreSql__ConnectionString") ?? "Host=localhost;Database=test",
             AutoCreateTables = true,
             SagasTableName = $"sagas_{Guid.NewGuid():N}",
             Schema = "public"
