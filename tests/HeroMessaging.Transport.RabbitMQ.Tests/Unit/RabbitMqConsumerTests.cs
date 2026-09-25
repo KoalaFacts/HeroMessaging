@@ -953,8 +953,40 @@ public class RabbitMqConsumerTests : IAsyncLifetime
 
     #endregion
 
-    // Note: Testing the actual message handling (OnMessageReceived) is difficult
-    // without refactoring to expose the AsyncEventingBasicConsumer or using
-    // integration tests with real RabbitMQ. The handler callbacks are internal
-    // to the RabbitMQ.Client library.
+    [Fact]
+    public async Task ReceivedMessage_KeepsBodyAfterClientBufferIsReused()
+    {
+        IAsyncBasicConsumer? rabbitMqConsumer = null;
+        _mockChannel!.Setup(ch => ch.BasicConsumeAsync(
+            It.IsAny<string>(),
+            It.IsAny<bool>(),
+            It.IsAny<string>(),
+            It.IsAny<bool>(),
+            It.IsAny<bool>(),
+            It.IsAny<IDictionary<string, object?>>(),
+            It.IsAny<IAsyncBasicConsumer>(),
+            It.IsAny<CancellationToken>()))
+            .Callback<string, bool, string, bool, bool, IDictionary<string, object?>, IAsyncBasicConsumer, CancellationToken>(
+                (_, _, _, _, _, _, consumer, _) => rabbitMqConsumer = consumer)
+            .ReturnsAsync("consumer-tag-123");
+
+        await _consumer!.StartAsync(TestContext.Current.CancellationToken);
+
+        var originalBody = System.Text.Encoding.UTF8.GetBytes("Original message");
+        var expectedBody = originalBody.ToArray();
+        await rabbitMqConsumer!.HandleBasicDeliverAsync(
+            "consumer-tag-123",
+            1,
+            false,
+            string.Empty,
+            "test-queue",
+            new BasicProperties { MessageId = "message-1" },
+            originalBody,
+            TestContext.Current.CancellationToken);
+
+        Array.Fill(originalBody, (byte)0);
+
+        Assert.Single(_handledMessages);
+        Assert.Equal(expectedBody, _handledMessages[0].envelope.Body.ToArray());
+    }
 }
