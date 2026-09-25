@@ -6,7 +6,7 @@ using Xunit;
 
 namespace HeroMessaging.Storage.PostgreSql.Tests.Unit;
 
-[Trait("Category", "Unit")]
+[Trait("Category", "Integration")]
 public sealed class PostgreSqlSagaRepositoryTests : IDisposable
 {
     private readonly Mock<TimeProvider> _mockTimeProvider;

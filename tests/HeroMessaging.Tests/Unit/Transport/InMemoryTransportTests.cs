@@ -621,6 +621,36 @@ public class InMemoryTransportTests
     }
 
     [Fact]
+    public async Task SubscribeAsync_WhenStartedLater_DeliversQueuedMessage()
+    {
+        var transport = new InMemoryTransport(_options, _timeProvider);
+        await transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
+
+        var queue = TransportAddress.Queue("deferred-consumer-queue");
+        var envelope = CreateTestEnvelope();
+        await transport.SendAsync(queue, envelope, cancellationToken: TestContext.Current.CancellationToken);
+
+        var received = new TaskCompletionSource<TransportEnvelope>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var consumer = Assert.IsType<InMemoryConsumer>(await transport.SubscribeAsync(queue,
+            (message, _, _) =>
+            {
+                received.TrySetResult(message);
+                return Task.CompletedTask;
+            },
+            new ConsumerOptions { StartImmediately = false },
+            cancellationToken: TestContext.Current.CancellationToken));
+
+        var health = await transport.GetHealthAsync(cancellationToken: TestContext.Current.CancellationToken);
+        Assert.Equal(1, health.PendingMessages);
+
+        await consumer.StartAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(envelope.MessageId,
+            (await received.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken)).MessageId);
+
+        await transport.DisposeAsync();
+    }
+
+    [Fact]
     public async Task DisposeAsync_DisconnectsTransport()
     {
         // Arrange

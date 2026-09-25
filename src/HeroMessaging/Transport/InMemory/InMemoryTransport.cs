@@ -294,6 +294,16 @@ public class InMemoryTransport(
         _consumers.TryRemove(consumerId, out _);
     }
 
+    internal void NotifyConsumerStarted(InMemoryConsumer consumer)
+    {
+        if (consumer.Source.Type == TransportAddressType.Queue &&
+            _consumers.ContainsKey(consumer.ConsumerId) &&
+            _queues.TryGetValue(consumer.Source.Name, out var queue))
+        {
+            queue.StartProcessingIfNeeded();
+        }
+    }
+
     private void EnsureConnected()
     {
         if (State != TransportState.Connected)

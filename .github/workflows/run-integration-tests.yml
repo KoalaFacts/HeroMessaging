@@ -64,6 +64,16 @@ jobs:
           --health-retries 10
           --health-start-period 30s
 
+      rabbitmq:
+        image: rabbitmq:3.13-management-alpine
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
     env:
       # PostgreSQL connection string for tests
       PostgreSql__ConnectionString: "Host=localhost;Database=heromessaging_tests;Username=postgres;Password=postgres"

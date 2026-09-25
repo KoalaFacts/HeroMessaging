@@ -73,6 +73,7 @@ internal class InMemoryConsumer : ITransportConsumer
 
         IsActive = true;
         _processingTask = ProcessMessagesAsync(_cts.Token);
+        _transport.NotifyConsumerStarted(this);
 
         return Task.CompletedTask;
     }
