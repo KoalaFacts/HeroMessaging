@@ -1,21 +1,13 @@
 name: Integration Tests
 
 on:
-  pull_request:
-    branches: [ main, develop ]
-  schedule:
-    # Run nightly on main branch at 3 AM UTC
-    - cron: '0 3 * * *'
+  workflow_call:
   workflow_dispatch:
 
 permissions:
   contents: read
   pull-requests: write
   checks: write
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
 
 env:
   DOTNET_NOLOGO: true
