@@ -19,7 +19,6 @@ permissions:
   contents: read
   pull-requests: write
   checks: write
-  id-token: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -111,15 +110,6 @@ jobs:
             ./test-results/**/*.trx
             ./test-results/**/*.xml
           retention-days: 7
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v7
-        if: matrix.os == 'ubuntu-latest' && matrix.framework == 'net8.0'
-        with:
-          directory: ./test-results
-          flags: unit-tests
-          use_oidc: true
-          fail_ci_if_error: true
 
   integration-tests:
     uses: ./.github/workflows/run-integration-tests.yml

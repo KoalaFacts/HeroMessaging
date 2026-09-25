@@ -207,7 +207,7 @@ src/
 **CI Features**:
 - Multi-framework matrix testing (net6.0, net7.0, net8.0, net9.0)
 - Multi-OS testing (Windows, Linux, macOS)
-- Code coverage reporting (Codecov integration)
+- Code coverage collection and an 80% production-code quality gate in CI
 - Performance regression detection (10% threshold)
 - Automated NuGet package publishing with versioning
 - Source Link support for debugging
