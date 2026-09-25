@@ -100,6 +100,7 @@ public interface IUnitOfWorkFactory
 /// <summary>
 /// Extension methods for IUnitOfWork to provide common transaction patterns
 /// </summary>
+// ReSharper disable once CheckNamespace
 public static class ExtensionsToIUnitOfWorkForTransactions
 {
     /// <summary>

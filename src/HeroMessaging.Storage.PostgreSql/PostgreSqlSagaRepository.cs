@@ -260,8 +260,8 @@ public class PostgreSqlSagaRepository<TSaga> : ISagaRepository<TSaga>, IDisposab
         command.Parameters.AddWithValue("@CorrelationId", saga.CorrelationId);
         command.Parameters.AddWithValue("@SagaType", _sagaTypeName);
         command.Parameters.AddWithValue("@CurrentState", saga.CurrentState);
-        command.Parameters.AddWithValue("@CreatedAt", saga.CreatedAt);
-        command.Parameters.AddWithValue("@UpdatedAt", saga.UpdatedAt);
+        command.Parameters.AddWithValue("@CreatedAt", saga.CreatedAt.ToUniversalTime());
+        command.Parameters.AddWithValue("@UpdatedAt", saga.UpdatedAt.ToUniversalTime());
         command.Parameters.AddWithValue("@IsCompleted", saga.IsCompleted);
         command.Parameters.AddWithValue("@Version", saga.Version);
         command.Parameters.AddWithValue("@SagaData", _jsonSerializer.SerializeToString(saga, SharedJsonOptions));
@@ -353,7 +353,7 @@ public class PostgreSqlSagaRepository<TSaga> : ISagaRepository<TSaga>, IDisposab
             updateCommand.Parameters.AddWithValue("@CorrelationId", saga.CorrelationId);
             updateCommand.Parameters.AddWithValue("@SagaType", _sagaTypeName);
             updateCommand.Parameters.AddWithValue("@CurrentState", saga.CurrentState);
-            updateCommand.Parameters.AddWithValue("@UpdatedAt", saga.UpdatedAt);
+            updateCommand.Parameters.AddWithValue("@UpdatedAt", saga.UpdatedAt.ToUniversalTime());
             updateCommand.Parameters.AddWithValue("@IsCompleted", saga.IsCompleted);
             updateCommand.Parameters.AddWithValue("@Version", saga.Version);
             updateCommand.Parameters.AddWithValue("@SagaData", _jsonSerializer.SerializeToString(saga, SharedJsonOptions));

@@ -321,7 +321,7 @@ public class RabbitMqTransportExtensionsTests
 
         // Assert
         Assert.NotNull(result);
-        Assert.Equal(2, _services.Count); // Transport + Topology
+        Assert.Equal(3, _services.Count); // TimeProvider + Transport + Topology
     }
 
     #endregion

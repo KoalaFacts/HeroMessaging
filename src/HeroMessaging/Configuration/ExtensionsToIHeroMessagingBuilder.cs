@@ -10,6 +10,7 @@ namespace HeroMessaging.Abstractions.Configuration; // Matching target interface
 /// <summary>
 /// Extension methods for HeroMessaging builder to support both automatic discovery and manual configuration
 /// </summary>
+// ReSharper disable once CheckNamespace
 public static class ExtensionsToIHeroMessagingBuilder
 {
     /// <summary>
@@ -168,4 +169,3 @@ public static class ExtensionsToIHeroMessagingBuilder
         });
     }
 }
-

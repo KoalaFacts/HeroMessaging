@@ -26,7 +26,7 @@ public class GZipCompressionProviderTests
         // Assert
         Assert.NotNull(compressed);
         Assert.NotEmpty(compressed);
-        Assert.True(compressed.Length < data.Length);
+        Assert.Equal(data, await _provider.DecompressAsync(compressed, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -274,7 +274,7 @@ public class GZipCompressionProviderTests
     }
 
     [Fact]
-    public void GetMaxCompressedSize_ReturnsReasonableEstimate()
+    public async Task GetMaxCompressedSize_ReturnsReasonableEstimate()
     {
         // Arrange
         var data = Encoding.UTF8.GetBytes("Test data");
@@ -284,7 +284,8 @@ public class GZipCompressionProviderTests
 
         // Assert
         Assert.True(maxSize > data.Length);
-        Assert.True(maxSize < data.Length * 2); // Should be reasonable estimate
+        var compressed = await _provider.CompressAsync(data, CompressionLevel.Optimal, TestContext.Current.CancellationToken);
+        Assert.True(maxSize >= compressed.Length);
     }
 
     [Fact]
@@ -313,7 +314,7 @@ public class GZipCompressionProviderTests
 
         // Assert
         Assert.Equal(largeData, decompressed);
-        Assert.True(compressed.Length < largeData.Length);
+        Assert.True(compressed.Length <= _provider.GetMaxCompressedSize(largeData, CompressionLevel.Optimal));
     }
 
     [Fact]

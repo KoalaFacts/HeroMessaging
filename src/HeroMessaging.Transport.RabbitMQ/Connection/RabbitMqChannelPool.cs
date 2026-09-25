@@ -17,6 +17,7 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
     private readonly int _maxChannels;
     private readonly TimeSpan _channelLifetime;
     private readonly TimeProvider _timeProvider;
+    private readonly bool _publisherConfirmsEnabled;
     private int _channelCount;
     private bool _disposed;
 
@@ -25,11 +26,13 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
         int maxChannels,
         TimeSpan channelLifetime,
         ILogger<RabbitMqChannelPool> logger,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        bool publisherConfirmsEnabled = false)
     {
         _connection = connection ?? throw new ArgumentNullException(nameof(connection));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+        _publisherConfirmsEnabled = publisherConfirmsEnabled;
         _maxChannels = maxChannels;
         _channelLifetime = channelLifetime;
 
@@ -110,7 +113,11 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
             throw new InvalidOperationException("Cannot create channel: connection is not open");
         }
 
-        var channel = await _connection.CreateChannelAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+        var channel = await _connection.CreateChannelAsync(
+            new CreateChannelOptions(
+                publisherConfirmationsEnabled: _publisherConfirmsEnabled,
+                publisherConfirmationTrackingEnabled: _publisherConfirmsEnabled),
+            cancellationToken).ConfigureAwait(false);
         Interlocked.Increment(ref _channelCount);
 
         _logger.LogDebug("Created new channel {ChannelNumber} (Total: {TotalChannels})",

@@ -5,6 +5,7 @@ namespace Microsoft.Extensions.DependencyInjection;
 /// <summary>
 /// Extension methods for IServiceCollection to support decorator pattern
 /// </summary>
+// ReSharper disable once CheckNamespace
 public static class ExtensionsToIServiceCollectionForDecorator
 {
     /// <summary>

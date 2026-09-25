@@ -5,6 +5,7 @@ namespace HeroMessaging.Abstractions.Configuration; // Matching target interface
 /// <summary>
 /// Extension methods for IStorageBuilder to support database storage options
 /// </summary>
+// ReSharper disable once CheckNamespace
 public static class ExtensionsToIStorageBuilder
 {
     /// <summary>

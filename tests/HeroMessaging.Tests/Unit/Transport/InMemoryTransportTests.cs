@@ -165,7 +165,10 @@ public class InMemoryTransportTests
         transport.StateChanged += (sender, args) => stateChanges.Add(args.CurrentState);
 
         // Act
-        await transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
+        var connectTask = transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
+        Assert.Equal(TransportState.Connecting, transport.State);
+        _timeProvider.Advance(options.SimulatedDelayMin);
+        await connectTask;
 
         // Assert
         Assert.Equal(TransportState.Connected, transport.State);

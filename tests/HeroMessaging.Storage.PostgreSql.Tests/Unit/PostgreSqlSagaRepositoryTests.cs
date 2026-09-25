@@ -21,8 +21,8 @@ public sealed class PostgreSqlSagaRepositoryTests : IDisposable
         _options = new PostgreSqlStorageOptions
         {
             ConnectionString = "Host=localhost;Database=test",
-            AutoCreateTables = false,
-            SagasTableName = "sagas",
+            AutoCreateTables = true,
+            SagasTableName = $"sagas_{Guid.NewGuid():N}",
             Schema = "public"
         };
 
@@ -31,7 +31,7 @@ public sealed class PostgreSqlSagaRepositoryTests : IDisposable
             .Returns(DateTimeOffset.UtcNow);
 
         _mockJsonSerializer
-            .Setup(x => x.SerializeToString(It.IsAny<object>(), It.IsAny<JsonSerializerOptions>()))
+            .Setup(x => x.SerializeToString(It.IsAny<TestSaga>(), It.IsAny<JsonSerializerOptions>()))
             .Returns("{}");
 
         _mockJsonSerializer
@@ -135,7 +135,7 @@ public sealed class PostgreSqlSagaRepositoryTests : IDisposable
         cts.Cancel();
 
         // Act & Assert
-        await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
             await repository.FindAsync(correlationId, cts.Token));
     }
 
@@ -144,7 +144,7 @@ public sealed class PostgreSqlSagaRepositoryTests : IDisposable
     {
         // Arrange
         var repository = CreateRepository();
-        var state = "InitialState";
+        var state = $"NoSagas-{Guid.NewGuid():N}";
 
         // Act
         var result = await repository.FindByStateAsync(state, TestContext.Current.CancellationToken);
@@ -185,7 +185,7 @@ public sealed class PostgreSqlSagaRepositoryTests : IDisposable
         cts.Cancel();
 
         // Act & Assert
-        await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
             await repository.FindByStateAsync("InitialState", cts.Token));
     }
 
@@ -224,7 +224,7 @@ public sealed class PostgreSqlSagaRepositoryTests : IDisposable
         cts.Cancel();
 
         // Act & Assert
-        await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
             await repository.SaveAsync(saga, cts.Token));
     }
 
@@ -261,7 +261,7 @@ public sealed class PostgreSqlSagaRepositoryTests : IDisposable
         cts.Cancel();
 
         // Act & Assert
-        await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
             await repository.UpdateAsync(saga, cts.Token));
     }
 
@@ -289,7 +289,7 @@ public sealed class PostgreSqlSagaRepositoryTests : IDisposable
         cts.Cancel();
 
         // Act & Assert
-        await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
             await repository.DeleteAsync(correlationId, cts.Token));
     }
 
@@ -330,7 +330,7 @@ public sealed class PostgreSqlSagaRepositoryTests : IDisposable
         cts.Cancel();
 
         // Act & Assert
-        await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
             await repository.FindStaleAsync(TimeSpan.FromHours(1), cts.Token));
     }
 

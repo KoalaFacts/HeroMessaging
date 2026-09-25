@@ -23,8 +23,8 @@ public sealed class PostgreSqlDeadLetterQueueTests : IDisposable
         _options = new PostgreSqlStorageOptions
         {
             ConnectionString = "Host=localhost;Database=test",
-            AutoCreateTables = false,
-            DeadLetterTableName = "dead_letters",
+            AutoCreateTables = true,
+            DeadLetterTableName = $"dead_letters_{Guid.NewGuid():N}",
             Schema = "public"
         };
 
@@ -33,8 +33,9 @@ public sealed class PostgreSqlDeadLetterQueueTests : IDisposable
             .Returns(DateTimeOffset.UtcNow);
 
         _mockJsonSerializer
-            .Setup(x => x.SerializeToString(It.IsAny<object>(), It.IsAny<JsonSerializerOptions>()))
+            .Setup(x => x.SerializeToString(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()))
             .Returns("{}");
+        _mockJsonSerializer.SetReturnsDefault("{}");
 
         _mockJsonSerializer
             .Setup(x => x.DeserializeFromString<Dictionary<string, object>>(It.IsAny<string>(), It.IsAny<JsonSerializerOptions>()))
@@ -309,7 +310,7 @@ public sealed class PostgreSqlDeadLetterQueueTests : IDisposable
         cts.Cancel();
 
         // Act & Assert
-        await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
             await queue.SendToDeadLetterAsync(message, context, cts.Token));
     }
 
@@ -322,7 +323,7 @@ public sealed class PostgreSqlDeadLetterQueueTests : IDisposable
         cts.Cancel();
 
         // Act & Assert
-        await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
             await queue.GetDeadLettersAsync<IMessage>(100, cts.Token));
     }
 

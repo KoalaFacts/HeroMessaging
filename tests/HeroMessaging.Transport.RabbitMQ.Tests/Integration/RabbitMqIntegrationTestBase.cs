@@ -29,9 +29,15 @@ public abstract class RabbitMqIntegrationTestBase : IAsyncLifetime
         // Create and start RabbitMQ container
         _rabbitMqContainer = new RabbitMqBuilder("rabbitmq:3.13-management-alpine")
             .WithPortBinding(5672, true) // Random host port
+            .WithCreateParameterModifier(parameters =>
+            {
+                parameters.HostConfig ??= new Docker.DotNet.Models.HostConfig();
+                parameters.HostConfig.Tmpfs ??= new System.Collections.Generic.Dictionary<string, string>();
+                parameters.HostConfig.Tmpfs["/var/lib/rabbitmq"] = "rw,size=64m,mode=1777";
+            })
             .WithUsername("guest")
             .WithPassword("guest")
-            .WithWaitStrategy(Wait.ForUnixContainer().UntilCommandIsCompleted("rabbitmq-diagnostics check_port_connectivity"))
+            .WithWaitStrategy(Wait.ForUnixContainer().UntilMessageIsLogged("Server startup complete"))
             .Build();
 
         await _rabbitMqContainer.StartAsync(TestContext.Current.CancellationToken);

@@ -10,6 +10,7 @@ namespace HeroMessaging.Configuration;
 /// <summary>
 /// Extension methods for configuring batch processing support in HeroMessaging.
 /// </summary>
+// ReSharper disable once CheckNamespace
 public static class ExtensionsToIHeroMessagingBuilderForBatchProcessing
 {
     /// <summary>

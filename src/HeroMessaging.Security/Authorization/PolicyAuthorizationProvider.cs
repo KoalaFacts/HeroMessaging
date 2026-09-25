@@ -75,13 +75,11 @@ public sealed class PolicyAuthorizationProvider : IAuthorizationProvider
     /// </summary>
 
     public Task<AuthorizationResult> AuthorizeAsync(
-        ClaimsPrincipal principal,
+        ClaimsPrincipal? principal,
         string messageType,
         string operation,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(principal);
-
         if (string.IsNullOrWhiteSpace(messageType))
             throw new ArgumentException("Message type cannot be empty", nameof(messageType));
 
@@ -120,14 +118,15 @@ public sealed class PolicyAuthorizationProvider : IAuthorizationProvider
     /// </summary>
 
     public Task<bool> HasPermissionAsync(
-        ClaimsPrincipal principal,
+        ClaimsPrincipal? principal,
         string permission,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(principal);
-
         if (string.IsNullOrWhiteSpace(permission))
             throw new ArgumentException("Permission cannot be empty", nameof(permission));
+
+        if (principal is null)
+            return Task.FromResult(false);
 
         // Check for permission claim
         var hasPermission = principal.HasClaim(c =>
@@ -250,13 +249,18 @@ public sealed class AuthorizationPolicy
     /// <summary>
     /// Evaluates the policy against a principal
     /// </summary>
-    public AuthorizationResult Evaluate(ClaimsPrincipal principal)
+    public AuthorizationResult Evaluate(ClaimsPrincipal? principal)
     {
-        ArgumentNullException.ThrowIfNull(principal);
-
         // Allow anonymous if configured
         if (_allowAnonymous)
             return AuthorizationResult.Success();
+
+        if (principal is null)
+        {
+            return AuthorizationResult.Failure(
+                $"Policy '{Name}' requires an authenticated user",
+                "Unauthenticated");
+        }
 
         // Check authentication requirement (any identity being authenticated is sufficient)
         if (_requireAuthentication)

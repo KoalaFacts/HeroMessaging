@@ -34,8 +34,8 @@ namespace HeroMessaging.Storage.PostgreSql;
 ///     failure_type VARCHAR(500) NULL,
 ///     failure_message TEXT NULL,
 ///     failure_stack_trace TEXT NULL,
-///     stored_at TIMESTAMP NOT NULL,
-///     expires_at TIMESTAMP NOT NULL
+///     stored_at TIMESTAMPTZ NOT NULL,
+///     expires_at TIMESTAMPTZ NOT NULL
 /// );
 /// CREATE INDEX idx_idempotency_responses_expires_at ON idempotency_responses(expires_at);
 /// </code>
@@ -149,8 +149,8 @@ public sealed class PostgreSqlIdempotencyStore : IIdempotencyStore
                 failure_type VARCHAR(500) NULL,
                 failure_message TEXT NULL,
                 failure_stack_trace TEXT NULL,
-                stored_at TIMESTAMP NOT NULL,
-                expires_at TIMESTAMP NOT NULL
+                stored_at TIMESTAMPTZ NOT NULL,
+                expires_at TIMESTAMPTZ NOT NULL
             );
             CREATE INDEX IF NOT EXISTS idx_{_options.Schema}_idempotency_responses_expires_at
                 ON {_tableName}(expires_at);
@@ -193,7 +193,7 @@ public sealed class PostgreSqlIdempotencyStore : IIdempotencyStore
 
             await using var command = new NpgsqlCommand(sql, connection);
             command.Parameters.AddWithValue(idempotencyKey);
-            command.Parameters.AddWithValue(_timeProvider.GetUtcNow().UtcDateTime);
+            command.Parameters.AddWithValue(_timeProvider.GetUtcNow());
 
             await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
 
@@ -210,8 +210,8 @@ public sealed class PostgreSqlIdempotencyStore : IIdempotencyStore
                 FailureType = reader.IsDBNull(3) ? null : reader.GetString(3),
                 FailureMessage = reader.IsDBNull(4) ? null : reader.GetString(4),
                 FailureStackTrace = reader.IsDBNull(5) ? null : reader.GetString(5),
-                StoredAt = reader.GetDateTime(6),
-                ExpiresAt = reader.GetDateTime(7)
+                StoredAt = reader.GetFieldValue<DateTimeOffset>(6),
+                ExpiresAt = reader.GetFieldValue<DateTimeOffset>(7)
             };
         }
         catch (NpgsqlException ex)
@@ -236,7 +236,7 @@ public sealed class PostgreSqlIdempotencyStore : IIdempotencyStore
 
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
 
-        var now = _timeProvider.GetUtcNow().UtcDateTime;
+        var now = _timeProvider.GetUtcNow();
         var expiresAt = now.Add(ttl);
         var serializedResult = SerializeResult(result);
 
@@ -293,7 +293,7 @@ public sealed class PostgreSqlIdempotencyStore : IIdempotencyStore
 
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
 
-        var now = _timeProvider.GetUtcNow().UtcDateTime;
+        var now = _timeProvider.GetUtcNow();
         var expiresAt = now.Add(ttl);
 
         var sql = $@"
@@ -360,7 +360,7 @@ public sealed class PostgreSqlIdempotencyStore : IIdempotencyStore
 
             await using var command = new NpgsqlCommand(sql, connection);
             command.Parameters.AddWithValue(idempotencyKey);
-            command.Parameters.AddWithValue(_timeProvider.GetUtcNow().UtcDateTime);
+            command.Parameters.AddWithValue(_timeProvider.GetUtcNow());
 
             var count = Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false));
             return count > 0;
@@ -392,7 +392,7 @@ public sealed class PostgreSqlIdempotencyStore : IIdempotencyStore
             await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
             await using var command = new NpgsqlCommand(sql, connection);
-            command.Parameters.AddWithValue(_timeProvider.GetUtcNow().UtcDateTime);
+            command.Parameters.AddWithValue(_timeProvider.GetUtcNow());
 
             var rowCount = Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false));
             return rowCount;

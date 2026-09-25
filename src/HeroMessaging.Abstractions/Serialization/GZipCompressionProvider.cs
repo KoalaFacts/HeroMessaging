@@ -160,6 +160,11 @@ public class GZipCompressionProvider : ICompressionProvider
             }
         }
 
+        if (totalRead == destination.Length && gzip.ReadByte() >= 0)
+        {
+            throw new ArgumentException("Destination buffer too small.", nameof(destination));
+        }
+
         return totalRead;
     }
 

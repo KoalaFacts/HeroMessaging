@@ -228,14 +228,16 @@ public class TransactionOutboxProcessorDecoratorTests
     public async Task StopAsync_CallsInnerStopAsync()
     {
         // Arrange
+        using var cts = new CancellationTokenSource();
+        var cancellationToken = cts.Token;
         _mockInner.Setup(x => x.StopAsync(It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act
-        await _sut.StopAsync(cancellationToken: TestContext.Current.CancellationToken);
+        await _sut.StopAsync(cancellationToken);
 
         // Assert
-        _mockInner.Verify(x => x.StopAsync(), Times.Once);
+        _mockInner.Verify(x => x.StopAsync(cancellationToken), Times.Once);
     }
 
     #endregion
@@ -475,14 +477,16 @@ public class TransactionInboxProcessorDecoratorTests
     public async Task StopAsync_CallsInnerStopAsync()
     {
         // Arrange
+        using var cts = new CancellationTokenSource();
+        var cancellationToken = cts.Token;
         _mockInner.Setup(x => x.StopAsync(It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         // Act
-        await _sut.StopAsync(cancellationToken: TestContext.Current.CancellationToken);
+        await _sut.StopAsync(cancellationToken);
 
         // Assert
-        _mockInner.Verify(x => x.StopAsync(), Times.Once);
+        _mockInner.Verify(x => x.StopAsync(cancellationToken), Times.Once);
     }
 
     #endregion

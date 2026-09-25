@@ -25,7 +25,7 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
 
     public PostgreSqlDeadLetterQueue(PostgreSqlStorageOptions options, TimeProvider timeProvider, IJsonSerializer jsonSerializer)
     {
-        _options = options;
+        _options = options ?? throw new ArgumentNullException(nameof(options));
         _tableName = _options.GetFullTableName(_options.DeadLetterTableName);
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         _jsonSerializer = jsonSerializer ?? throw new ArgumentNullException(nameof(jsonSerializer));
@@ -69,11 +69,11 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
                 reason TEXT NOT NULL,
                 component VARCHAR(200) NOT NULL,
                 retry_count INTEGER NOT NULL,
-                failure_time TIMESTAMP NOT NULL,
+                failure_time TIMESTAMPTZ NOT NULL,
                 status INTEGER NOT NULL DEFAULT 0,
-                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                retried_at TIMESTAMP NULL,
-                discarded_at TIMESTAMP NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                retried_at TIMESTAMPTZ NULL,
+                discarded_at TIMESTAMPTZ NULL,
                 exception_message TEXT NULL,
                 metadata JSONB NULL
             );
@@ -127,7 +127,7 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         command.Parameters.AddWithValue("@reason", context.Reason);
         command.Parameters.AddWithValue("@component", context.Component);
         command.Parameters.AddWithValue("@retry_count", context.RetryCount);
-        command.Parameters.AddWithValue("@failure_time", context.FailureTime);
+        command.Parameters.AddWithValue("@failure_time", context.FailureTime.ToUniversalTime());
         command.Parameters.AddWithValue("@status", (int)DeadLetterStatus.Active);
         command.Parameters.AddWithValue("@created_at", _timeProvider.GetUtcNow());
         command.Parameters.AddWithValue("@exception_message", context.Exception?.Message ?? (object)DBNull.Value);
@@ -190,14 +190,14 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
                         Reason = reader.GetString(2),
                         Component = reader.GetString(3),
                         RetryCount = reader.GetInt32(4),
-                        FailureTime = reader.GetDateTime(5),
+                        FailureTime = reader.GetFieldValue<DateTimeOffset>(5),
                         Exception = reader.IsDBNull(10) ? null : new Exception(reader.GetString(10)),
                         Metadata = metadata
                     },
                     Status = (DeadLetterStatus)reader.GetInt32(6),
-                    CreatedAt = reader.GetDateTime(7),
-                    RetriedAt = reader.IsDBNull(8) ? null : reader.GetDateTime(8),
-                    DiscardedAt = reader.IsDBNull(9) ? null : reader.GetDateTime(9)
+                    CreatedAt = reader.GetFieldValue<DateTimeOffset>(7),
+                    RetriedAt = reader.IsDBNull(8) ? null : reader.GetFieldValue<DateTimeOffset>(8),
+                    DiscardedAt = reader.IsDBNull(9) ? null : reader.GetFieldValue<DateTimeOffset>(9)
                 });
             }
         }
@@ -372,8 +372,8 @@ public class PostgreSqlDeadLetterQueue : IDeadLetterQueue
         {
             if (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
-                oldestEntry = reader.IsDBNull(0) ? null : reader.GetDateTime(0);
-                newestEntry = reader.IsDBNull(1) ? null : reader.GetDateTime(1);
+                oldestEntry = reader.IsDBNull(0) ? null : reader.GetFieldValue<DateTimeOffset>(0);
+                newestEntry = reader.IsDBNull(1) ? null : reader.GetFieldValue<DateTimeOffset>(1);
             }
         }
 

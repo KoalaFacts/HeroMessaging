@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Globalization;
 
 namespace HeroMessaging.RingBuffer.Sequences;
 
@@ -53,4 +54,9 @@ public sealed class Sequence : ISequence
     {
         return Interlocked.CompareExchange(ref _value, update, expected);
     }
+
+    /// <summary>
+    /// Returns the current sequence value as an invariant-culture string.
+    /// </summary>
+    public override string ToString() => Value.ToString(CultureInfo.InvariantCulture);
 }

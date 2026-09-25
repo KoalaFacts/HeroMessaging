@@ -9,6 +9,7 @@ namespace Microsoft.Extensions.DependencyInjection;
 /// <summary>
 /// Extension methods for registering JSON serialization
 /// </summary>
+// ReSharper disable once CheckNamespace
 public static class ExtensionsToIServiceCollectionForJsonSerialization
 {
     /// <summary>

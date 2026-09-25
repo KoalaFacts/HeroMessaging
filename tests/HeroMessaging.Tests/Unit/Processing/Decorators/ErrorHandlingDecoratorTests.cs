@@ -247,11 +247,16 @@ public sealed class ErrorHandlingDecoratorTests
     public async Task ProcessAsync_WithRetryDelay_WaitsBeforeRetrying()
     {
         // Arrange
-        var decorator = CreateDecorator(maxRetries: 1);
         var message = new TestMessage();
         var context = new ProcessingContext();
         var testException = new TimeoutException("Timeout");
         var retryDelay = TimeSpan.FromMilliseconds(100);
+        var decorator = new ErrorHandlingDecorator(
+            _innerMock.Object,
+            _errorHandlerMock.Object,
+            _loggerMock.Object,
+            TimeProvider.System,
+            maxRetries: 1);
 
         _innerMock
             .Setup(p => p.ProcessAsync(message, It.IsAny<ProcessingContext>(), It.IsAny<CancellationToken>()))

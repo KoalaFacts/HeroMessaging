@@ -150,12 +150,12 @@ public class SqlServerMessageStorage : IMessageStorage
                     Id NVARCHAR(100) PRIMARY KEY,
                     MessageType NVARCHAR(500) NOT NULL,
                     Payload NVARCHAR(MAX) NOT NULL,
-                    Timestamp DATETIME2 NOT NULL,
+                    Timestamp DATETIMEOFFSET NOT NULL,
                     CorrelationId NVARCHAR(100) NULL,
                     Collection NVARCHAR(100) NULL,
                     Metadata NVARCHAR(MAX) NULL,
-                    ExpiresAt DATETIME2 NULL,
-                    CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+                    ExpiresAt DATETIMEOFFSET NULL,
+                    CreatedAt DATETIMEOFFSET NOT NULL DEFAULT TODATETIMEOFFSET(SYSUTCDATETIME(), '+00:00'),
                     INDEX IX_{_options.MessagesTableName}_Timestamp (Timestamp DESC),
                     INDEX IX_{_options.MessagesTableName}_Type (MessageType),
                     INDEX IX_{_options.MessagesTableName}_CorrelationId (CorrelationId),
@@ -193,14 +193,14 @@ public class SqlServerMessageStorage : IMessageStorage
         command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = messageId;
         command.Parameters.Add("@MessageType", SqlDbType.NVarChar, 500).Value = message.GetType().AssemblyQualifiedName ?? "Unknown";
         command.Parameters.Add("@Payload", SqlDbType.NVarChar, -1).Value = _jsonSerializer.SerializeToString(message, message.GetType(), _jsonOptions);
-        command.Parameters.Add("@Timestamp", SqlDbType.DateTime2).Value = message.Timestamp;
+        command.Parameters.Add("@Timestamp", SqlDbType.DateTimeOffset).Value = message.Timestamp;
         command.Parameters.Add("@CorrelationId", SqlDbType.NVarChar, 100).Value = (object?)message.CorrelationId ?? DBNull.Value;
         command.Parameters.Add("@Collection", SqlDbType.NVarChar, 100).Value = (object?)options?.Collection ?? DBNull.Value;
         command.Parameters.Add("@Metadata", SqlDbType.NVarChar, -1).Value = options?.Metadata != null
             ? _jsonSerializer.SerializeToString(options.Metadata, _jsonOptions)
             : DBNull.Value;
-        command.Parameters.Add("@ExpiresAt", SqlDbType.DateTime2).Value = (object?)expiresAt ?? DBNull.Value;
-        command.Parameters.Add("@CreatedAt", SqlDbType.DateTime2).Value = _timeProvider.GetUtcNow();
+        command.Parameters.Add("@ExpiresAt", SqlDbType.DateTimeOffset).Value = (object?)expiresAt ?? DBNull.Value;
+        command.Parameters.Add("@CreatedAt", SqlDbType.DateTimeOffset).Value = _timeProvider.GetUtcNow();
 
         await command.ExecuteNonQueryAsync(cancellationToken);
         return messageId;
@@ -219,7 +219,7 @@ public class SqlServerMessageStorage : IMessageStorage
         var sql = $"""
             SELECT Payload FROM {_tableName} 
             WHERE Id = @Id 
-            AND (ExpiresAt IS NULL OR ExpiresAt > GETUTCDATE())
+            AND (ExpiresAt IS NULL OR ExpiresAt > TODATETIMEOFFSET(SYSUTCDATETIME(), '+00:00'))
             """;
 
         using var command = new SqlCommand(sql, connection);
@@ -245,7 +245,7 @@ public class SqlServerMessageStorage : IMessageStorage
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
-        var whereClauses = new List<string> { "(ExpiresAt IS NULL OR ExpiresAt > GETUTCDATE())" };
+        var whereClauses = new List<string> { "(ExpiresAt IS NULL OR ExpiresAt > TODATETIMEOFFSET(SYSUTCDATETIME(), '+00:00'))" };
         var parameters = new List<SqlParameter>();
 
         if (!string.IsNullOrEmpty(query.Collection))
@@ -257,13 +257,13 @@ public class SqlServerMessageStorage : IMessageStorage
         if (query.FromTimestamp.HasValue)
         {
             whereClauses.Add("Timestamp >= @FromTimestamp");
-            parameters.Add(new SqlParameter("@FromTimestamp", SqlDbType.DateTime2) { Value = query.FromTimestamp.Value });
+            parameters.Add(new SqlParameter("@FromTimestamp", SqlDbType.DateTimeOffset) { Value = query.FromTimestamp.Value });
         }
 
         if (query.ToTimestamp.HasValue)
         {
             whereClauses.Add("Timestamp <= @ToTimestamp");
-            parameters.Add(new SqlParameter("@ToTimestamp", SqlDbType.DateTime2) { Value = query.ToTimestamp.Value });
+            parameters.Add(new SqlParameter("@ToTimestamp", SqlDbType.DateTimeOffset) { Value = query.ToTimestamp.Value });
         }
 
         var whereClause = string.Join(" AND ", whereClauses);
@@ -291,7 +291,7 @@ public class SqlServerMessageStorage : IMessageStorage
         while (await reader.ReadAsync(cancellationToken))
         {
             var payload = reader.GetString(0);
-            var message = JsonSerializer.Deserialize<T>(payload, _jsonOptions);
+            var message = _jsonSerializer.DeserializeFromString<T>(payload, _jsonOptions);
             if (message != null)
             {
                 messages.Add(message);
@@ -343,7 +343,7 @@ public class SqlServerMessageStorage : IMessageStorage
         command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = messageId;
         command.Parameters.Add("@MessageType", SqlDbType.NVarChar, 500).Value = message.GetType().FullName ?? "Unknown";
         command.Parameters.Add("@Payload", SqlDbType.NVarChar, -1).Value = _jsonSerializer.SerializeToString(message, _jsonOptions);
-        command.Parameters.Add("@Timestamp", SqlDbType.DateTime2).Value = message.Timestamp;
+        command.Parameters.Add("@Timestamp", SqlDbType.DateTimeOffset).Value = message.Timestamp;
         command.Parameters.Add("@CorrelationId", SqlDbType.NVarChar, 100).Value = DBNull.Value;
 
         var result = await command.ExecuteNonQueryAsync(cancellationToken);
@@ -363,7 +363,7 @@ public class SqlServerMessageStorage : IMessageStorage
         var sql = $"""
             SELECT COUNT(*) FROM {_tableName} 
             WHERE Id = @Id 
-            AND (ExpiresAt IS NULL OR ExpiresAt > GETUTCDATE())
+            AND (ExpiresAt IS NULL OR ExpiresAt > TODATETIMEOFFSET(SYSUTCDATETIME(), '+00:00'))
             """;
 
         using var command = new SqlCommand(sql, connection);
@@ -383,7 +383,7 @@ public class SqlServerMessageStorage : IMessageStorage
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
-        var whereClauses = new List<string> { "(ExpiresAt IS NULL OR ExpiresAt > GETUTCDATE())" };
+        var whereClauses = new List<string> { "(ExpiresAt IS NULL OR ExpiresAt > TODATETIMEOFFSET(SYSUTCDATETIME(), '+00:00'))" };
         var parameters = new List<SqlParameter>();
 
         if (query != null)
@@ -397,13 +397,13 @@ public class SqlServerMessageStorage : IMessageStorage
             if (query.FromTimestamp.HasValue)
             {
                 whereClauses.Add("Timestamp >= @FromTimestamp");
-                parameters.Add(new SqlParameter("@FromTimestamp", SqlDbType.DateTime2) { Value = query.FromTimestamp.Value });
+                parameters.Add(new SqlParameter("@FromTimestamp", SqlDbType.DateTimeOffset) { Value = query.FromTimestamp.Value });
             }
 
             if (query.ToTimestamp.HasValue)
             {
                 whereClauses.Add("Timestamp <= @ToTimestamp");
-                parameters.Add(new SqlParameter("@ToTimestamp", SqlDbType.DateTime2) { Value = query.ToTimestamp.Value });
+                parameters.Add(new SqlParameter("@ToTimestamp", SqlDbType.DateTimeOffset) { Value = query.ToTimestamp.Value });
             }
         }
 
@@ -436,9 +436,10 @@ public class SqlServerMessageStorage : IMessageStorage
     /// Executes store async.
     /// </summary>
 
-    // New interface methods for compatibility with test infrastructure
     public async Task StoreAsync(IMessage message, IStorageTransaction? transaction = null, CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+
         SqlConnection? connection = null;
         SqlTransaction? sqlTransaction = null;
 
@@ -467,9 +468,9 @@ public class SqlServerMessageStorage : IMessageStorage
             command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = messageId;
             command.Parameters.Add("@MessageType", SqlDbType.NVarChar, 500).Value = messageType.AssemblyQualifiedName ?? "Unknown";
             command.Parameters.Add("@Payload", SqlDbType.NVarChar, -1).Value = _jsonSerializer.SerializeToString(message, messageType, _jsonOptions);
-            command.Parameters.Add("@Timestamp", SqlDbType.DateTime2).Value = message.Timestamp;
+            command.Parameters.Add("@Timestamp", SqlDbType.DateTimeOffset).Value = message.Timestamp;
             command.Parameters.Add("@CorrelationId", SqlDbType.NVarChar, 100).Value = (object?)message.CorrelationId ?? DBNull.Value;
-            command.Parameters.Add("@CreatedAt", SqlDbType.DateTime2).Value = _timeProvider.GetUtcNow();
+            command.Parameters.Add("@CreatedAt", SqlDbType.DateTimeOffset).Value = _timeProvider.GetUtcNow();
 
             await command.ExecuteNonQueryAsync(cancellationToken);
         }
@@ -487,6 +488,8 @@ public class SqlServerMessageStorage : IMessageStorage
 
     public async Task<IMessage?> RetrieveAsync(Guid messageId, IStorageTransaction? transaction = null, CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+
         SqlConnection? connection = null;
         SqlTransaction? sqlTransaction = null;
 
@@ -507,7 +510,7 @@ public class SqlServerMessageStorage : IMessageStorage
             var sql = $"""
                 SELECT Payload, MessageType FROM {_tableName}
                 WHERE Id = @Id
-                AND (ExpiresAt IS NULL OR ExpiresAt > GETUTCDATE())
+                AND (ExpiresAt IS NULL OR ExpiresAt > TODATETIMEOFFSET(SYSUTCDATETIME(), '+00:00'))
                 """;
 
             using var command = new SqlCommand(sql, connection, sqlTransaction);
@@ -541,10 +544,12 @@ public class SqlServerMessageStorage : IMessageStorage
 
     public async Task<List<IMessage>> QueryAsync(MessageQuery query, CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
 
-        var whereClauses = new List<string> { "(ExpiresAt IS NULL OR ExpiresAt > GETUTCDATE())" };
+        var whereClauses = new List<string> { "(ExpiresAt IS NULL OR ExpiresAt > TODATETIMEOFFSET(SYSUTCDATETIME(), '+00:00'))" };
         var parameters = new List<SqlParameter>();
 
         if (!string.IsNullOrEmpty(query.Collection))
@@ -556,13 +561,13 @@ public class SqlServerMessageStorage : IMessageStorage
         if (query.FromTimestamp.HasValue)
         {
             whereClauses.Add("Timestamp >= @FromTimestamp");
-            parameters.Add(new SqlParameter("@FromTimestamp", SqlDbType.DateTime2) { Value = query.FromTimestamp.Value });
+            parameters.Add(new SqlParameter("@FromTimestamp", SqlDbType.DateTimeOffset) { Value = query.FromTimestamp.Value });
         }
 
         if (query.ToTimestamp.HasValue)
         {
             whereClauses.Add("Timestamp <= @ToTimestamp");
-            parameters.Add(new SqlParameter("@ToTimestamp", SqlDbType.DateTime2) { Value = query.ToTimestamp.Value });
+            parameters.Add(new SqlParameter("@ToTimestamp", SqlDbType.DateTimeOffset) { Value = query.ToTimestamp.Value });
         }
 
         var whereClause = string.Join(" AND ", whereClauses);
@@ -597,7 +602,7 @@ public class SqlServerMessageStorage : IMessageStorage
 
             // Deserialize using the concrete type stored in the database
             var messageType = Type.GetType(messageTypeName) ?? throw new InvalidOperationException($"Unable to resolve message type: {messageTypeName}");
-            var message = JsonSerializer.Deserialize(payload, messageType, _jsonOptions);
+            var message = _jsonSerializer.DeserializeFromString(payload, messageType, _jsonOptions);
             if (message is IMessage imessage)
             {
                 messages.Add(imessage);
@@ -612,6 +617,8 @@ public class SqlServerMessageStorage : IMessageStorage
 
     public async Task DeleteAsync(Guid messageId, CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+
         using var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
 
@@ -628,6 +635,8 @@ public class SqlServerMessageStorage : IMessageStorage
 
     public async Task<IStorageTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+
         var connection = new SqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
         var transaction = connection.BeginTransaction(IsolationLevel.ReadCommitted);

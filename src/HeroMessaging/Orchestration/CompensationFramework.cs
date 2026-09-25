@@ -189,6 +189,7 @@ public class DelegateCompensatingAction : ICompensatingAction
 /// <summary>
 /// Extension methods for easier compensation context usage
 /// </summary>
+// ReSharper disable once CheckNamespace
 public static class ExtensionsToCompensationContext
 {
     /// <summary>

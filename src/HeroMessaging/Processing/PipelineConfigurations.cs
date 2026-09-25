@@ -91,6 +91,7 @@ public static class PipelineConfigurations
 /// <summary>
 /// Extension methods for pipeline configuration
 /// </summary>
+// ReSharper disable once CheckNamespace
 public static class ExtensionsToIServiceCollectionForPipeline
 {
     /// <summary>

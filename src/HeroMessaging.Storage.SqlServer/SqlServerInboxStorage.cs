@@ -102,8 +102,8 @@ public class SqlServerInboxStorage : IInboxStorage
                     Payload NVARCHAR(MAX) NOT NULL,
                     Source NVARCHAR(200) NULL,
                     Status NVARCHAR(50) NOT NULL DEFAULT 'Pending',
-                    ReceivedAt DATETIME2 NOT NULL,
-                    ProcessedAt DATETIME2 NULL,
+                    ReceivedAt DATETIMEOFFSET NOT NULL,
+                    ProcessedAt DATETIMEOFFSET NULL,
                     Error NVARCHAR(MAX) NULL,
                     RequireIdempotency BIT NOT NULL DEFAULT 1,
                     DeduplicationWindowMinutes INT NULL,
@@ -153,7 +153,7 @@ public class SqlServerInboxStorage : IInboxStorage
             command.Parameters.Add("@Payload", SqlDbType.NVarChar, -1).Value = _jsonSerializer.SerializeToString(message, _jsonOptionsProvider.GetOptions());
             command.Parameters.Add("@Source", SqlDbType.NVarChar, 200).Value = (object?)options.Source ?? DBNull.Value;
             command.Parameters.Add("@Status", SqlDbType.NVarChar, 50).Value = "Pending";
-            command.Parameters.Add("@ReceivedAt", SqlDbType.DateTime2).Value = now;
+            command.Parameters.Add("@ReceivedAt", SqlDbType.DateTimeOffset).Value = now;
             command.Parameters.Add("@RequireIdempotency", SqlDbType.Bit).Value = options.RequireIdempotency;
             command.Parameters.Add("@DeduplicationWindowMinutes", SqlDbType.Int).Value = (object?)options.DeduplicationWindow?.TotalMinutes ?? DBNull.Value;
 
@@ -195,7 +195,7 @@ public class SqlServerInboxStorage : IInboxStorage
             if (window.HasValue)
             {
                 var windowStart = _timeProvider.GetUtcNow().Subtract(window.Value);
-                command.Parameters.Add("@WindowStart", SqlDbType.DateTime2).Value = windowStart;
+                command.Parameters.Add("@WindowStart", SqlDbType.DateTimeOffset).Value = windowStart;
             }
 
             var count = (int)await command.ExecuteScalarAsync(cancellationToken);
@@ -234,8 +234,8 @@ public class SqlServerInboxStorage : IInboxStorage
                 var payload = reader.GetString(1);
                 var source = reader.IsDBNull(2) ? null : reader.GetString(2);
                 var status = Enum.Parse<InboxStatus>(reader.GetString(3));
-                var receivedAt = reader.GetDateTime(4);
-                var processedAt = reader.IsDBNull(5) ? (DateTimeOffset?)null : reader.GetDateTime(5);
+                var receivedAt = reader.GetFieldValue<DateTimeOffset>(4);
+                var processedAt = reader.IsDBNull(5) ? (DateTimeOffset?)null : reader.GetFieldValue<DateTimeOffset>(5);
                 var error = reader.IsDBNull(6) ? null : reader.GetString(6);
                 var requireIdempotency = reader.GetBoolean(7);
                 var deduplicationWindowMinutes = reader.IsDBNull(8) ? (int?)null : reader.GetInt32(8);
@@ -290,7 +290,7 @@ public class SqlServerInboxStorage : IInboxStorage
             using var command = new SqlCommand(sql, connection, transaction);
             command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = messageId;
             command.Parameters.Add("@Status", SqlDbType.NVarChar, 50).Value = "Processed";
-            command.Parameters.Add("@ProcessedAt", SqlDbType.DateTime2).Value = _timeProvider.GetUtcNow();
+            command.Parameters.Add("@ProcessedAt", SqlDbType.DateTimeOffset).Value = _timeProvider.GetUtcNow();
 
             var rowsAffected = await command.ExecuteNonQueryAsync(cancellationToken);
             return rowsAffected > 0;
@@ -321,7 +321,7 @@ public class SqlServerInboxStorage : IInboxStorage
             using var command = new SqlCommand(sql, connection, transaction);
             command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = messageId;
             command.Parameters.Add("@Status", SqlDbType.NVarChar, 50).Value = "Failed";
-            command.Parameters.Add("@ProcessedAt", SqlDbType.DateTime2).Value = _timeProvider.GetUtcNow();
+            command.Parameters.Add("@ProcessedAt", SqlDbType.DateTimeOffset).Value = _timeProvider.GetUtcNow();
             command.Parameters.Add("@Error", SqlDbType.NVarChar, -1).Value = error;
 
             var rowsAffected = await command.ExecuteNonQueryAsync(cancellationToken);
@@ -356,13 +356,13 @@ public class SqlServerInboxStorage : IInboxStorage
             if (query.OlderThan.HasValue)
             {
                 whereClauses.Add("ReceivedAt < @OlderThan");
-                parameters.Add(new SqlParameter("@OlderThan", SqlDbType.DateTime2) { Value = query.OlderThan.Value });
+                parameters.Add(new SqlParameter("@OlderThan", SqlDbType.DateTimeOffset) { Value = query.OlderThan.Value });
             }
 
             if (query.NewerThan.HasValue)
             {
                 whereClauses.Add("ReceivedAt > @NewerThan");
-                parameters.Add(new SqlParameter("@NewerThan", SqlDbType.DateTime2) { Value = query.NewerThan.Value });
+                parameters.Add(new SqlParameter("@NewerThan", SqlDbType.DateTimeOffset) { Value = query.NewerThan.Value });
             }
 
             var whereClause = whereClauses.Count > 0 ? "WHERE " + string.Join(" AND ", whereClauses) : "";
@@ -392,8 +392,8 @@ public class SqlServerInboxStorage : IInboxStorage
                 var payload = reader.GetString(2);
                 var source = reader.IsDBNull(3) ? null : reader.GetString(3);
                 var status = Enum.Parse<InboxStatus>(reader.GetString(4));
-                var receivedAt = reader.GetDateTime(5);
-                var processedAt = reader.IsDBNull(6) ? (DateTimeOffset?)null : reader.GetDateTime(6);
+                var receivedAt = reader.GetFieldValue<DateTimeOffset>(5);
+                var processedAt = reader.IsDBNull(6) ? (DateTimeOffset?)null : reader.GetFieldValue<DateTimeOffset>(6);
                 var error = reader.IsDBNull(7) ? null : reader.GetString(7);
                 var requireIdempotency = reader.GetBoolean(8);
                 var deduplicationWindowMinutes = reader.IsDBNull(9) ? (int?)null : reader.GetInt32(9);
@@ -484,7 +484,7 @@ public class SqlServerInboxStorage : IInboxStorage
                 """;
 
             using var command = new SqlCommand(sql, connection, transaction);
-            command.Parameters.Add("@CutoffTime", SqlDbType.DateTime2).Value = cutoffTime;
+            command.Parameters.Add("@CutoffTime", SqlDbType.DateTimeOffset).Value = cutoffTime;
 
             await command.ExecuteNonQueryAsync(cancellationToken);
         }

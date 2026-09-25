@@ -7,6 +7,7 @@ namespace Microsoft.Extensions.DependencyInjection;
 /// <summary>
 /// Extension methods for configuring InMemoryTransport
 /// </summary>
+// ReSharper disable once CheckNamespace
 public static class ExtensionsToIServiceCollectionForInMemoryTransport
 {
     /// <summary>

@@ -12,7 +12,7 @@ namespace HeroMessaging.Transport.RabbitMQ;
 /// <summary>
 /// RabbitMQ implementation of IMessageTransport
 /// </summary>
-public sealed class RabbitMqTransport : IMessageTransport
+public sealed class RabbitMqTransport : IMessageTransport, IRabbitMqConsumerHost
 {
     private readonly RabbitMqTransportOptions _options;
     private readonly ILogger<RabbitMqTransport> _logger;
@@ -189,7 +189,11 @@ public sealed class RabbitMqTransport : IMessageTransport
                     body: envelope.Body,
                     cancellationToken: cancellationToken).ConfigureAwait(false);
 
-                // Publisher confirms are handled via CancellationToken timeout in RabbitMQ 7.x
+                if (_options.UsePublisherConfirms)
+                {
+                    _instrumentation.AddEvent(activity, "publish.confirmed");
+                }
+
                 _instrumentation.AddEvent(activity, "publish.complete");
 
                 _logger.LogDebug("Sent message {MessageId} to queue {Queue}", envelope.MessageId, destination.Name);
@@ -268,6 +272,11 @@ public sealed class RabbitMqTransport : IMessageTransport
                     basicProperties: properties,
                     body: envelope.Body,
                     cancellationToken: cancellationToken).ConfigureAwait(false);
+
+                if (_options.UsePublisherConfirms)
+                {
+                    _instrumentation.AddEvent(activity, "publish.confirmed");
+                }
 
                 _instrumentation.AddEvent(activity, "publish.complete");
 
@@ -475,7 +484,7 @@ public sealed class RabbitMqTransport : IMessageTransport
         _connectLock.Dispose();
     }
 
-    internal void RemoveConsumer(string consumerId)
+    void IRabbitMqConsumerHost.RemoveConsumer(string consumerId)
     {
         _consumers.TryRemove(consumerId, out _);
     }
@@ -504,7 +513,8 @@ public sealed class RabbitMqTransport : IMessageTransport
             maxChannels: _options.MaxChannelsPerConnection,
             channelLifetime: _options.ChannelLifetime,
             _loggerFactory.CreateLogger<RabbitMqChannelPool>(),
-            _timeProvider));
+            _timeProvider,
+            publisherConfirmsEnabled: _options.UsePublisherConfirms));
     }
 
     private void EnsureConnected()

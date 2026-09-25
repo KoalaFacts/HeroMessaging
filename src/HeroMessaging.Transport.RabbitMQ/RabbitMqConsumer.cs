@@ -9,6 +9,13 @@ using System.Threading;
 
 namespace HeroMessaging.Transport.RabbitMQ;
 
+internal interface IRabbitMqConsumerHost
+{
+    string Name { get; }
+
+    void RemoveConsumer(string consumerId);
+}
+
 /// <summary>
 /// RabbitMQ implementation of ITransportConsumer
 /// </summary>
@@ -17,7 +24,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
     private readonly IChannel _channel;
     private readonly Func<TransportEnvelope, MessageContext, CancellationToken, Task> _handler;
     private readonly ConsumerOptions _options;
-    private readonly RabbitMqTransport _transport;
+    private readonly IRabbitMqConsumerHost _transport;
     private readonly ILogger<RabbitMqConsumer> _logger;
     private readonly ITransportInstrumentation _instrumentation;
     private readonly TimeProvider _timeProvider;
@@ -46,12 +53,14 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
         IChannel channel,
         Func<TransportEnvelope, MessageContext, CancellationToken, Task> handler,
         ConsumerOptions options,
-        RabbitMqTransport transport,
+        IRabbitMqConsumerHost transport,
         ILogger<RabbitMqConsumer> logger,
         TimeProvider timeProvider,
         ITransportInstrumentation? instrumentation = null)
     {
-        ConsumerId = consumerId ?? throw new ArgumentNullException(nameof(consumerId));
+        ConsumerId = string.IsNullOrEmpty(consumerId)
+            ? throw new ArgumentNullException(nameof(consumerId))
+            : consumerId;
         if (string.IsNullOrEmpty(source.Name))
             throw new ArgumentException("Source address name cannot be null or empty", nameof(source));
         Source = source;

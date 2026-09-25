@@ -129,7 +129,7 @@ public class ObservabilityTests : IAsyncDisposable
 
     [Fact]
     [Trait("Category", "Integration")]
-    public async Task CustomMetrics_IncrementAndTrackCorrectly()
+    public void CustomMetrics_IncrementAndTrackCorrectly()
     {
         // Arrange
         var customMetrics = new TestCustomMetrics();

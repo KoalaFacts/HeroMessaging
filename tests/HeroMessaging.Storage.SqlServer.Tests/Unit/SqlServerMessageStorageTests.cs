@@ -8,21 +8,22 @@ using Xunit;
 namespace HeroMessaging.Storage.SqlServer.Tests.Unit;
 
 [Trait("Category", "Unit")]
+[Collection(nameof(SqlServerIdempotencyStoreCollection))]
 public sealed class SqlServerMessageStorageTests : IDisposable
 {
     private readonly Mock<TimeProvider> _mockTimeProvider;
     private readonly Mock<IJsonSerializer> _mockJsonSerializer;
     private readonly SqlServerStorageOptions _options;
 
-    public SqlServerMessageStorageTests()
+    public SqlServerMessageStorageTests(SqlServerIdempotencyStoreFixture fixture)
     {
         _mockTimeProvider = new Mock<TimeProvider>();
         _mockJsonSerializer = new Mock<IJsonSerializer>();
 
         _options = new SqlServerStorageOptions
         {
-            ConnectionString = "Server=localhost;Database=test",
-            AutoCreateTables = false,
+            ConnectionString = fixture.ConnectionString,
+            AutoCreateTables = true,
             MessagesTableName = "messages",
             Schema = "dbo"
         };
@@ -38,6 +39,10 @@ public sealed class SqlServerMessageStorageTests : IDisposable
         _mockJsonSerializer
             .Setup(x => x.DeserializeFromString<object>(It.IsAny<string>(), It.IsAny<System.Text.Json.JsonSerializerOptions>()))
             .Returns(new object());
+        _mockJsonSerializer
+            .Setup(x => x.DeserializeFromString<IMessage>(It.IsAny<string>(), It.IsAny<System.Text.Json.JsonSerializerOptions>()))
+            .Returns(CreateTestMessage());
+        _mockJsonSerializer.SetReturnsDefault("{}");
     }
 
     [Fact]

@@ -10,13 +10,13 @@ public interface IAuthorizationProvider
     /// <summary>
     /// Authorizes a message operation
     /// </summary>
-    /// <param name="principal">The authenticated principal</param>
+    /// <param name="principal">The authenticated principal, or null for an anonymous caller</param>
     /// <param name="messageType">The type of message being processed</param>
     /// <param name="operation">The operation being performed (Send, Receive, Handle)</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Authorization result</returns>
     Task<AuthorizationResult> AuthorizeAsync(
-        ClaimsPrincipal principal,
+        ClaimsPrincipal? principal,
         string messageType,
         string operation,
         CancellationToken cancellationToken = default);
@@ -24,12 +24,12 @@ public interface IAuthorizationProvider
     /// <summary>
     /// Checks if a principal has a specific permission
     /// </summary>
-    /// <param name="principal">The authenticated principal</param>
+    /// <param name="principal">The authenticated principal, or null for an anonymous caller</param>
     /// <param name="permission">The permission to check</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>True if authorized, false otherwise</returns>
     Task<bool> HasPermissionAsync(
-        ClaimsPrincipal principal,
+        ClaimsPrincipal? principal,
         string permission,
         CancellationToken cancellationToken = default);
 }

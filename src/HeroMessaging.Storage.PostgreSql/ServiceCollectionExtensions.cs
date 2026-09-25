@@ -11,6 +11,7 @@ namespace HeroMessaging.Abstractions.Configuration;
 /// <summary>
 /// Extension methods for PostgreSQL storage registration
 /// </summary>
+// ReSharper disable once CheckNamespace
 public static class ExtensionsToIHeroMessagingBuilderForPostgreSql
 {
     /// <summary>

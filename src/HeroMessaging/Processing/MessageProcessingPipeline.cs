@@ -180,7 +180,8 @@ public class MessageProcessingPipelineBuilder(IServiceProvider serviceProvider)
             }
 
             // Create instance using reflection
-            var decorator = Activator.CreateInstance(openTelemetryDecoratorType, processor);
+            var timeProvider = _serviceProvider.GetService<TimeProvider>() ?? TimeProvider.System;
+            var decorator = Activator.CreateInstance(openTelemetryDecoratorType, processor, timeProvider);
             return (IMessageProcessor)(decorator ?? processor);
         });
         return this;
