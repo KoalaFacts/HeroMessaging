@@ -19,6 +19,7 @@ permissions:
   contents: read
   pull-requests: write
   checks: write
+  id-token: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -117,7 +118,8 @@ jobs:
         with:
           directory: ./test-results
           flags: unit-tests
-          fail_ci_if_error: false
+          use_oidc: true
+          fail_ci_if_error: true
 
   integration-tests:
     uses: ./.github/workflows/run-integration-tests.yml

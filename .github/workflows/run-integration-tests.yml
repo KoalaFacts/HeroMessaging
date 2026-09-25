@@ -8,6 +8,7 @@ permissions:
   contents: read
   pull-requests: write
   checks: write
+  id-token: write
 
 env:
   DOTNET_NOLOGO: true
@@ -179,4 +180,5 @@ jobs:
         with:
           directory: ./test-results
           flags: integration-tests
-          fail_ci_if_error: false
+          use_oidc: true
+          fail_ci_if_error: true
