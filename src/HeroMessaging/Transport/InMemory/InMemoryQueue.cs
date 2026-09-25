@@ -93,7 +93,6 @@ internal class InMemoryQueue : IDisposable, IAsyncDisposable
     {
         _consumers.TryAdd(consumer.ConsumerId, consumer);
         Interlocked.Increment(ref _consumerVersion); // Invalidate cache
-        StartProcessingIfNeeded();
     }
 
     public void RemoveConsumer(InMemoryConsumer consumer)
@@ -102,7 +101,7 @@ internal class InMemoryQueue : IDisposable, IAsyncDisposable
         Interlocked.Increment(ref _consumerVersion); // Invalidate cache
     }
 
-    private void StartProcessingIfNeeded()
+    internal void StartProcessingIfNeeded()
     {
         lock (_processingTaskLock)
         {

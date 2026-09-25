@@ -6,7 +6,7 @@ using Xunit;
 
 namespace HeroMessaging.Storage.PostgreSql.Tests.Unit;
 
-[Trait("Category", "Unit")]
+[Trait("Category", "Integration")]
 [Collection(nameof(PostgreSqlIdempotencyStoreCollection))]
 public sealed class PostgreSqlIdempotencyStoreTests : IDisposable
 {

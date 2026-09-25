@@ -1,21 +1,13 @@
 name: Integration Tests
 
 on:
-  pull_request:
-    branches: [ main, develop ]
-  schedule:
-    # Run nightly on main branch at 3 AM UTC
-    - cron: '0 3 * * *'
+  workflow_call:
   workflow_dispatch:
 
 permissions:
   contents: read
   pull-requests: write
   checks: write
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
 
 env:
   DOTNET_NOLOGO: true
@@ -63,6 +55,16 @@ jobs:
           --health-timeout 5s
           --health-retries 10
           --health-start-period 30s
+
+      rabbitmq:
+        image: rabbitmq:3.13-management-alpine
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
 
     env:
       # PostgreSQL connection string for tests
@@ -142,15 +144,24 @@ jobs:
       - name: Run integration tests
         shell: bash
         run: |
-          dotnet test \
-            --configuration Release \
-            --no-build \
-            --framework ${{ matrix.framework }} \
-            --filter "Category=Integration" \
-            --collect:"XPlat Code Coverage" \
-            --results-directory ./test-results \
-            --logger "trx;LogFileName=integration-test-${{ matrix.framework }}.trx" \
-            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
+          set -euo pipefail
+          for project in tests/*/*.Tests.csproj; do
+            frameworks=$(dotnet msbuild "$project" -getProperty:TargetFrameworks -nologo)
+            if [[ ";$frameworks;" != *";${{ matrix.framework }};"* ]]; then
+              continue
+            fi
+
+            project_name=$(basename "$project" .csproj)
+            dotnet test "$project" \
+              --configuration Release \
+              --no-build \
+              --framework ${{ matrix.framework }} \
+              --filter "Category=Integration" \
+              --collect:"XPlat Code Coverage" \
+              --results-directory "./test-results/$project_name" \
+              --logger "trx;LogFileName=integration-tests-${{ matrix.framework }}-$project_name.trx" \
+              -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
+          done
 
       - name: Upload integration test results
         uses: actions/upload-artifact@v7

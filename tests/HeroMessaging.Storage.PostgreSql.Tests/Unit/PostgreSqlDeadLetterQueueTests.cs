@@ -8,7 +8,7 @@ using Xunit;
 
 namespace HeroMessaging.Storage.PostgreSql.Tests.Unit;
 
-[Trait("Category", "Unit")]
+[Trait("Category", "Integration")]
 public sealed class PostgreSqlDeadLetterQueueTests : IDisposable
 {
     private readonly Mock<TimeProvider> _mockTimeProvider;
@@ -22,7 +22,7 @@ public sealed class PostgreSqlDeadLetterQueueTests : IDisposable
 
         _options = new PostgreSqlStorageOptions
         {
-            ConnectionString = "Host=localhost;Database=test",
+            ConnectionString = Environment.GetEnvironmentVariable("PostgreSql__ConnectionString") ?? "Host=localhost;Database=test",
             AutoCreateTables = true,
             DeadLetterTableName = $"dead_letters_{Guid.NewGuid():N}",
             Schema = "public"

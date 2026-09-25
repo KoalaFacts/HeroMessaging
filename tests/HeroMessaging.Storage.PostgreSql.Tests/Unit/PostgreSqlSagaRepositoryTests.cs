@@ -6,7 +6,7 @@ using Xunit;
 
 namespace HeroMessaging.Storage.PostgreSql.Tests.Unit;
 
-[Trait("Category", "Unit")]
+[Trait("Category", "Integration")]
 public sealed class PostgreSqlSagaRepositoryTests : IDisposable
 {
     private readonly Mock<TimeProvider> _mockTimeProvider;
@@ -20,7 +20,7 @@ public sealed class PostgreSqlSagaRepositoryTests : IDisposable
 
         _options = new PostgreSqlStorageOptions
         {
-            ConnectionString = "Host=localhost;Database=test",
+            ConnectionString = Environment.GetEnvironmentVariable("PostgreSql__ConnectionString") ?? "Host=localhost;Database=test",
             AutoCreateTables = true,
             SagasTableName = $"sagas_{Guid.NewGuid():N}",
             Schema = "public"

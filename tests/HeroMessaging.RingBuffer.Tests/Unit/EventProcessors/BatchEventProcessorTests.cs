@@ -178,14 +178,13 @@ public class BatchEventProcessorTests
 
         // Act
         processor.Start();
-        Thread.Sleep(10);
 
         var seq = ringBuffer.Next();
         var evt = ringBuffer.Get(seq);
         evt.Value = 42;
         ringBuffer.Publish(seq);
 
-        Thread.Sleep(100); // Wait for processing
+        Assert.True(SpinWait.SpinUntil(() => processor.Sequence.Value == seq, TimeSpan.FromSeconds(5)));
 
         processor.Stop();
         processor.Dispose();
@@ -210,7 +209,6 @@ public class BatchEventProcessorTests
 
         // Act
         processor.Start();
-        Thread.Sleep(10);
 
         for (int i = 0; i < 5; i++)
         {
@@ -220,7 +218,7 @@ public class BatchEventProcessorTests
             ringBuffer.Publish(seq);
         }
 
-        Thread.Sleep(100); // Wait for processing
+        Assert.True(SpinWait.SpinUntil(() => processor.Sequence.Value == 4, TimeSpan.FromSeconds(5)));
 
         processor.Stop();
         processor.Dispose();
@@ -247,7 +245,6 @@ public class BatchEventProcessorTests
 
         // Act
         processor.Start();
-        Thread.Sleep(10);
 
         // Publish batch
         var hi = ringBuffer.Next(3);
@@ -258,7 +255,7 @@ public class BatchEventProcessorTests
         }
         ringBuffer.Publish(hi - 2, hi);
 
-        Thread.Sleep(100); // Wait for processing
+        Assert.True(SpinWait.SpinUntil(() => processor.Sequence.Value == hi, TimeSpan.FromSeconds(5)));
 
         processor.Stop();
         processor.Dispose();
@@ -301,7 +298,6 @@ public class BatchEventProcessorTests
 
         // Act
         processor.Start();
-        Thread.Sleep(10);
 
         Assert.Equal(-1, processor.Sequence.Value); // Initial
 
@@ -312,7 +308,7 @@ public class BatchEventProcessorTests
             ringBuffer.Publish(seq);
         }
 
-        Thread.Sleep(100); // Wait for processing
+        Assert.True(SpinWait.SpinUntil(() => processor.Sequence.Value == 4, TimeSpan.FromSeconds(5)));
 
         processor.Stop();
         processor.Dispose();

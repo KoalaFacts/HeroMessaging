@@ -52,13 +52,13 @@ public class InMemoryTopicTests
         await transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var topic = TransportAddress.Topic("test-topic");
-        var receivedMessages = new List<string>();
+        var receivedMessage = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         await transport.SubscribeAsync(topic,
             async (env, ctx, ct) =>
             {
-                receivedMessages.Add(env.MessageType);
                 await ctx.AcknowledgeAsync(ct);
+                receivedMessage.TrySetResult(env.MessageType);
             },
             new ConsumerOptions { StartImmediately = true }, cancellationToken: TestContext.Current.CancellationToken);
 
@@ -66,11 +66,10 @@ public class InMemoryTopicTests
 
         // Act
         await transport.PublishAsync(topic, envelope, cancellationToken: TestContext.Current.CancellationToken);
-        await Task.Delay(100, TestContext.Current.CancellationToken); // Wait for processing
+        var messageType = await receivedMessage.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         // Assert
-        Assert.Single(receivedMessages);
-        Assert.Equal("TestEvent", receivedMessages[0]);
+        Assert.Equal("TestEvent", messageType);
 
         await transport.DisposeAsync();
     }

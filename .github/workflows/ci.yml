@@ -75,16 +75,31 @@ jobs:
       - name: Run unit tests
         shell: bash
         run: |
-          dotnet test \
-            --configuration Release \
-            --no-build \
-            --verbosity minimal \
-            --framework ${{ matrix.framework }} \
-            --filter "Category=Unit" \
-            --collect:"XPlat Code Coverage" \
-            --results-directory ./test-results \
-            --logger "trx;LogFileName=unit-tests-${{ matrix.os }}-${{ matrix.framework }}.trx" \
-            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
+          set -euo pipefail
+          for project in tests/*/*.Tests.csproj; do
+            frameworks=$(dotnet msbuild "$project" -getProperty:TargetFrameworks -nologo)
+            if [[ ";$frameworks;" != *";${{ matrix.framework }};"* ]]; then
+              continue
+            fi
+
+            project_name=$(basename "$project" .csproj)
+            test_args=(
+              --configuration Release
+              --no-build
+              --verbosity minimal
+              --framework ${{ matrix.framework }}
+              --filter "Category!=Integration"
+              --results-directory "./test-results/$project_name"
+              --logger "trx;LogFileName=unit-tests-${{ matrix.os }}-${{ matrix.framework }}-$project_name.trx"
+            )
+
+            if [[ "$project_name" != "HeroMessaging.Architecture.Tests" ]]; then
+              test_args+=(--collect:"XPlat Code Coverage")
+              test_args+=(-- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura)
+            fi
+
+            dotnet test "$project" "${test_args[@]}"
+          done
 
       - name: Upload test results
         uses: actions/upload-artifact@v7
@@ -103,6 +118,9 @@ jobs:
           directory: ./test-results
           flags: unit-tests
           fail_ci_if_error: false
+
+  integration-tests:
+    uses: ./.github/workflows/run-integration-tests.yml
 
   # Performance regression detection
   performance-regression:
@@ -184,7 +202,7 @@ jobs:
   # Quality gates and final validation
   quality-gates:
     name: Quality Gates & Validation
-    needs: [unit-tests]
+    needs: [unit-tests, integration-tests]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -197,7 +215,6 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           path: ./all-test-results
-        continue-on-error: true
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
@@ -208,7 +225,6 @@ jobs:
         run: dotnet tool install --global dotnet-reportgenerator-globaltool
 
       - name: Generate combined coverage report
-        continue-on-error: true
         run: |
           # Check if any coverage files exist
           if find ./all-test-results -name "coverage.cobertura.xml" -type f | grep -q .; then
@@ -227,12 +243,11 @@ jobs:
               -reports:"./all-test-results/**/coverage.cobertura.xml" \
               -targetdir:"./coverage-report" \
               -reporttypes:"Html;Badges;TextSummary" \
-              -classfilters:"-System.*;-Microsoft.*;-*Exception;-*Exception`*" \
+              -classfilters:'-System.*;-Microsoft.*;-*Exception;-*Exception`*' \
               -assemblyfilters:"-*.Tests;-*.Tests.*;-*Benchmarks;-*Benchmarks.*;-*.Examples;-*.Examples.*;-*.Demo;-*.Demo.*"
           else
-            echo "No coverage files found, skipping report generation"
-            mkdir -p ./coverage-report
-            echo "Line coverage: 0%" > ./coverage-report/Summary.txt
+            echo "No coverage files found"
+            exit 1
           fi
 
       - name: Read coverage summary
@@ -260,22 +275,24 @@ jobs:
 
           # Check test results first
           UNIT_TESTS_PASSED="${{ needs.unit-tests.result }}"
+          INTEGRATION_TESTS_PASSED="${{ needs.integration-tests.result }}"
 
           echo "Unit tests: $UNIT_TESTS_PASSED"
-          echo "ℹ️ Integration tests run in separate workflow"
+          echo "Integration tests: $INTEGRATION_TESTS_PASSED"
 
-          if [[ "$UNIT_TESTS_PASSED" != "success" && "$UNIT_TESTS_PASSED" != "skipped" ]]; then
-            echo "❌ Unit tests failed"
+          if [[ "$UNIT_TESTS_PASSED" != "success" || "$INTEGRATION_TESTS_PASSED" != "success" ]]; then
+            echo "❌ Unit or integration tests failed"
             exit 1
           fi
 
           # Coverage threshold check (constitutional requirement: 80% minimum)
           COVERAGE=${{ steps.coverage.outputs.coverage }}
 
-          if [[ "$UNIT_TESTS_PASSED" == "skipped" ]]; then
-            echo "⚠️ No coverage data (no unit tests ran)"
+          if [[ -z "$COVERAGE" ]]; then
+            echo "❌ No coverage data"
+            exit 1
           else
-            echo "📊 Production Code Coverage (Unit Tests): $COVERAGE%"
+            echo "📊 Production Code Coverage (Unit and Integration Tests): $COVERAGE%"
             echo "📋 Threshold: 80% (per CLAUDE.md constitutional requirement)"
             echo "ℹ️  Measuring: src/ assemblies only (excluding tests, benchmarks, examples)"
             echo ""
@@ -285,8 +302,7 @@ jobs:
               echo "❌ Coverage below 80% threshold: $COVERAGE%"
               echo ""
               echo "Constitutional requirement: 80% minimum coverage (100% for public APIs)"
-              echo "Note: This measures unit test coverage of production code only."
-              echo "Integration tests run separately in the 'Integration Tests' workflow."
+              echo "This measures unit and integration test coverage of production code."
               exit 1
             else
               echo "✅ Coverage meets 80% threshold"

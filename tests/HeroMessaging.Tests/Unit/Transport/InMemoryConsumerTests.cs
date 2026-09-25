@@ -343,11 +343,13 @@ public class InMemoryConsumerTests : IDisposable
     [Fact]
     public async Task ProcessMessage_WithDeadLetter_IncrementsDeadLetterCount()
     {
+        var deadLettered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         // Arrange
         var handler = new Func<TransportEnvelope, MessageContext, CancellationToken, Task>(
             async (env, ctx, ct) =>
             {
                 await ctx.DeadLetterAsync("Test reason", ct);
+                deadLettered.TrySetResult();
             });
 
         var consumer = CreateConsumer(handler);
@@ -357,7 +359,7 @@ public class InMemoryConsumerTests : IDisposable
 
         // Act
         await DeliverMessage(consumer, envelope);
-        await Task.Delay(100, TestContext.Current.CancellationToken);
+        await deadLettered.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         // Assert
         var metrics = consumer.GetMetrics();
@@ -389,7 +391,7 @@ public class InMemoryConsumerTests : IDisposable
 
         // Act
         await DeliverMessage(consumer, envelope);
-        await Task.Delay(100, TestContext.Current.CancellationToken);
+        await WaitForAsync(() => consumer.GetMetrics().MessagesFailed > 0);
 
         // Assert
         var metrics = consumer.GetMetrics();
@@ -745,6 +747,17 @@ public class InMemoryConsumerTests : IDisposable
     }
 
     // Helper methods
+    private static async Task WaitForAsync(Func<bool> condition)
+    {
+        var started = System.Diagnostics.Stopwatch.GetTimestamp();
+        while (!condition() && System.Diagnostics.Stopwatch.GetElapsedTime(started) < TimeSpan.FromSeconds(5))
+        {
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+
+        Assert.True(condition(), "Timed out waiting for the consumer state.");
+    }
+
     private InMemoryConsumer CreateConsumer(
         Func<TransportEnvelope, MessageContext, CancellationToken, Task>? handler,
         string? consumerId = null,

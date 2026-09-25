@@ -6,7 +6,7 @@ using Xunit;
 
 namespace HeroMessaging.Storage.SqlServer.Tests.Unit;
 
-[Trait("Category", "Unit")]
+[Trait("Category", "Integration")]
 [Collection(nameof(SqlServerIdempotencyStoreCollection))]
 public sealed class SqlServerIdempotencyStoreTests : IDisposable
 {

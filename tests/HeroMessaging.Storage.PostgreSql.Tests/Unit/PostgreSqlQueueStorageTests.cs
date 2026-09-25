@@ -8,7 +8,7 @@ using Xunit;
 
 namespace HeroMessaging.Storage.PostgreSql.Tests.Unit;
 
-[Trait("Category", "Unit")]
+[Trait("Category", "Integration")]
 public sealed class PostgreSqlQueueStorageTests : IDisposable
 {
     private readonly string _queueName = $"test-queue-{Guid.NewGuid():N}";
@@ -23,7 +23,7 @@ public sealed class PostgreSqlQueueStorageTests : IDisposable
 
         _options = new PostgreSqlStorageOptions
         {
-            ConnectionString = "Host=localhost;Database=test",
+            ConnectionString = Environment.GetEnvironmentVariable("PostgreSql__ConnectionString") ?? "Host=localhost;Database=test",
             AutoCreateTables = true,
             QueueTableName = $"queue_{Guid.NewGuid():N}",
             Schema = "public"
