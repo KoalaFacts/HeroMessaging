@@ -14,6 +14,7 @@ namespace HeroMessaging.Configuration;
 /// <summary>
 /// Extension methods for configuring idempotency support in HeroMessaging.
 /// </summary>
+// ReSharper disable once CheckNamespace
 public static class ExtensionsToIHeroMessagingBuilderForIdempotency
 {
     /// <summary>

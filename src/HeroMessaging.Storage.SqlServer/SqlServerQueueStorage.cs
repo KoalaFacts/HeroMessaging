@@ -132,8 +132,8 @@ public class SqlServerQueueStorage : IQueueStorage
                     MessageType NVARCHAR(500) NOT NULL,
                     Payload NVARCHAR(MAX) NOT NULL,
                     Priority INT NOT NULL DEFAULT 0,
-                    EnqueuedAt DATETIME2 NOT NULL,
-                    VisibleAt DATETIME2 NULL,
+                    EnqueuedAt DATETIMEOFFSET NOT NULL,
+                    VisibleAt DATETIMEOFFSET NULL,
                     DequeueCount INT NOT NULL DEFAULT 0,
                     DelayMinutes INT NULL,
                     Acknowledged BIT NOT NULL DEFAULT 0,
@@ -177,8 +177,8 @@ public class SqlServerQueueStorage : IQueueStorage
             command.Parameters.Add("@MessageType", SqlDbType.NVarChar, 500).Value = message.GetType().FullName ?? "Unknown";
             command.Parameters.Add("@Payload", SqlDbType.NVarChar, -1).Value = _jsonSerializer.SerializeToString(message, _jsonOptions);
             command.Parameters.Add("@Priority", SqlDbType.Int).Value = options?.Priority ?? 0;
-            command.Parameters.Add("@EnqueuedAt", SqlDbType.DateTime2).Value = now;
-            command.Parameters.Add("@VisibleAt", SqlDbType.DateTime2).Value = visibleAt;
+            command.Parameters.Add("@EnqueuedAt", SqlDbType.DateTimeOffset).Value = now;
+            command.Parameters.Add("@VisibleAt", SqlDbType.DateTimeOffset).Value = visibleAt;
             command.Parameters.Add("@DelayMinutes", SqlDbType.Int).Value = (object?)options?.Delay?.TotalMinutes ?? DBNull.Value;
 
             await command.ExecuteNonQueryAsync(cancellationToken);
@@ -229,11 +229,12 @@ public class SqlServerQueueStorage : IQueueStorage
 
                 using var selectCommand = new SqlCommand(selectSql, connection, localTransaction);
                 selectCommand.Parameters.Add("@QueueName", SqlDbType.NVarChar, 200).Value = queueName;
-                selectCommand.Parameters.Add("@Now", SqlDbType.DateTime2).Value = now;
+                selectCommand.Parameters.Add("@Now", SqlDbType.DateTimeOffset).Value = now;
 
                 using var reader = await selectCommand.ExecuteReaderAsync(cancellationToken);
                 if (!await reader.ReadAsync(cancellationToken))
                 {
+                    await reader.CloseAsync();
                     if (transaction == null) localTransaction.Rollback();
                     return null;
                 }
@@ -242,8 +243,8 @@ public class SqlServerQueueStorage : IQueueStorage
                 var messageType = reader.GetString(1);
                 var payload = reader.GetString(2);
                 var priority = reader.GetInt32(3);
-                var enqueuedAt = reader.GetDateTime(4);
-                var visibleAt = reader.IsDBNull(5) ? (DateTimeOffset?)null : reader.GetDateTime(5);
+                var enqueuedAt = reader.GetFieldValue<DateTimeOffset>(4);
+                var visibleAt = reader.IsDBNull(5) ? (DateTimeOffset?)null : reader.GetFieldValue<DateTimeOffset>(5);
                 var dequeueCount = reader.GetInt32(6);
                 var delayMinutes = reader.IsDBNull(7) ? (int?)null : reader.GetInt32(7);
 
@@ -259,7 +260,7 @@ public class SqlServerQueueStorage : IQueueStorage
 
                 using var updateCommand = new SqlCommand(updateSql, connection, localTransaction);
                 updateCommand.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = entryId;
-                updateCommand.Parameters.Add("@Now", SqlDbType.DateTime2).Value = now;
+                updateCommand.Parameters.Add("@Now", SqlDbType.DateTimeOffset).Value = now;
 
                 await updateCommand.ExecuteNonQueryAsync(cancellationToken);
 
@@ -318,7 +319,7 @@ public class SqlServerQueueStorage : IQueueStorage
             using var command = new SqlCommand(sql, connection, transaction);
             command.Parameters.Add("@QueueName", SqlDbType.NVarChar, 200).Value = queueName;
             command.Parameters.Add("@Count", SqlDbType.Int).Value = count;
-            command.Parameters.Add("@Now", SqlDbType.DateTime2).Value = now;
+            command.Parameters.Add("@Now", SqlDbType.DateTimeOffset).Value = now;
 
             var entries = new List<QueueEntry>();
             using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -328,8 +329,8 @@ public class SqlServerQueueStorage : IQueueStorage
                 var messageType = reader.GetString(1);
                 var payload = reader.GetString(2);
                 var priority = reader.GetInt32(3);
-                var enqueuedAt = reader.GetDateTime(4);
-                var visibleAt = reader.IsDBNull(5) ? (DateTimeOffset?)null : reader.GetDateTime(5);
+                var enqueuedAt = reader.GetFieldValue<DateTimeOffset>(4);
+                var visibleAt = reader.IsDBNull(5) ? (DateTimeOffset?)null : reader.GetFieldValue<DateTimeOffset>(5);
                 var dequeueCount = reader.GetInt32(6);
                 var delayMinutes = reader.IsDBNull(7) ? (int?)null : reader.GetInt32(7);
 
@@ -411,7 +412,7 @@ public class SqlServerQueueStorage : IQueueStorage
                 using var command = new SqlCommand(sql, connection, transaction);
                 command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = entryId;
                 command.Parameters.Add("@QueueName", SqlDbType.NVarChar, 200).Value = queueName;
-                command.Parameters.Add("@Now", SqlDbType.DateTime2).Value = _timeProvider.GetUtcNow();
+                command.Parameters.Add("@Now", SqlDbType.DateTimeOffset).Value = _timeProvider.GetUtcNow();
 
                 var rowsAffected = await command.ExecuteNonQueryAsync(cancellationToken);
                 return rowsAffected > 0;
@@ -569,4 +570,3 @@ public class SqlServerQueueStorage : IQueueStorage
         }
     }
 }
-

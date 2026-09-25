@@ -75,11 +75,11 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
                     Reason NVARCHAR(MAX) NOT NULL,
                     Component NVARCHAR(200) NOT NULL,
                     RetryCount INT NOT NULL,
-                    FailureTime DATETIME2 NOT NULL,
+                    FailureTime DATETIMEOFFSET NOT NULL,
                     Status INT NOT NULL DEFAULT 0, -- 0: Active, 1: Retried, 2: Discarded, 3: Expired
-                    CreatedAt DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
-                    RetriedAt DATETIME2 NULL,
-                    DiscardedAt DATETIME2 NULL,
+                    CreatedAt DATETIMEOFFSET NOT NULL DEFAULT TODATETIMEOFFSET(SYSUTCDATETIME(), '+00:00'),
+                    RetriedAt DATETIMEOFFSET NULL,
+                    DiscardedAt DATETIMEOFFSET NULL,
                     ExceptionMessage NVARCHAR(MAX) NULL,
                     Metadata NVARCHAR(MAX) NULL,
                     INDEX IX_DeadLetterQueue_Status (Status),
@@ -125,9 +125,9 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
         command.Parameters.Add("@Reason", SqlDbType.NVarChar, -1).Value = context.Reason;
         command.Parameters.Add("@Component", SqlDbType.NVarChar, 200).Value = context.Component;
         command.Parameters.Add("@RetryCount", SqlDbType.Int).Value = context.RetryCount;
-        command.Parameters.Add("@FailureTime", SqlDbType.DateTime2).Value = context.FailureTime;
+        command.Parameters.Add("@FailureTime", SqlDbType.DateTimeOffset).Value = context.FailureTime;
         command.Parameters.Add("@Status", SqlDbType.Int).Value = (int)DeadLetterStatus.Active;
-        command.Parameters.Add("@CreatedAt", SqlDbType.DateTime2).Value = _timeProvider.GetUtcNow();
+        command.Parameters.Add("@CreatedAt", SqlDbType.DateTimeOffset).Value = _timeProvider.GetUtcNow();
         command.Parameters.Add("@ExceptionMessage", SqlDbType.NVarChar, -1).Value = (object?)context.Exception?.Message ?? DBNull.Value;
         command.Parameters.Add("@Metadata", SqlDbType.NVarChar, -1).Value =
             context.Metadata.Any() ? _jsonSerializer.SerializeToString(context.Metadata, _jsonOptions) : DBNull.Value;
@@ -184,14 +184,14 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
                         Reason = reader.GetString(2),
                         Component = reader.GetString(3),
                         RetryCount = reader.GetInt32(4),
-                        FailureTime = reader.GetDateTime(5),
+                        FailureTime = reader.GetFieldValue<DateTimeOffset>(5),
                         Exception = reader.IsDBNull(10) ? null : new Exception(reader.GetString(10)),
                         Metadata = metadata
                     },
                     Status = (DeadLetterStatus)reader.GetInt32(6),
-                    CreatedAt = reader.GetDateTime(7),
-                    RetriedAt = reader.IsDBNull(8) ? null : reader.GetDateTime(8),
-                    DiscardedAt = reader.IsDBNull(9) ? null : reader.GetDateTime(9)
+                    CreatedAt = reader.GetFieldValue<DateTimeOffset>(7),
+                    RetriedAt = reader.IsDBNull(8) ? null : reader.GetFieldValue<DateTimeOffset>(8),
+                    DiscardedAt = reader.IsDBNull(9) ? null : reader.GetFieldValue<DateTimeOffset>(9)
                 });
             }
         }
@@ -217,7 +217,7 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
 
         using var command = new SqlCommand(sql, connection);
         command.Parameters.Add("@Status", SqlDbType.Int).Value = (int)DeadLetterStatus.Retried;
-        command.Parameters.Add("@RetriedAt", SqlDbType.DateTime2).Value = _timeProvider.GetUtcNow();
+        command.Parameters.Add("@RetriedAt", SqlDbType.DateTimeOffset).Value = _timeProvider.GetUtcNow();
         command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = deadLetterId;
         command.Parameters.Add("@ActiveStatus", SqlDbType.Int).Value = (int)DeadLetterStatus.Active;
 
@@ -242,7 +242,7 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
 
         using var command = new SqlCommand(sql, connection);
         command.Parameters.Add("@Status", SqlDbType.Int).Value = (int)DeadLetterStatus.Discarded;
-        command.Parameters.Add("@DiscardedAt", SqlDbType.DateTime2).Value = _timeProvider.GetUtcNow();
+        command.Parameters.Add("@DiscardedAt", SqlDbType.DateTimeOffset).Value = _timeProvider.GetUtcNow();
         command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = deadLetterId;
         command.Parameters.Add("@ActiveStatus", SqlDbType.Int).Value = (int)DeadLetterStatus.Active;
 
@@ -285,10 +285,10 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
         // Get counts by status
         var statusSql = $"""
             SELECT
-                SUM(CASE WHEN Status = 0 THEN 1 ELSE 0 END) as ActiveCount,
-                SUM(CASE WHEN Status = 1 THEN 1 ELSE 0 END) as RetriedCount,
-                SUM(CASE WHEN Status = 2 THEN 1 ELSE 0 END) as DiscardedCount,
-                COUNT(*) as TotalCount
+                SUM(CONVERT(BIGINT, CASE WHEN Status = 0 THEN 1 ELSE 0 END)) as ActiveCount,
+                SUM(CONVERT(BIGINT, CASE WHEN Status = 1 THEN 1 ELSE 0 END)) as RetriedCount,
+                SUM(CONVERT(BIGINT, CASE WHEN Status = 2 THEN 1 ELSE 0 END)) as DiscardedCount,
+                COUNT_BIG(*) as TotalCount
             FROM {_tableName}
             """;
 
@@ -306,7 +306,7 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
 
         // Get counts by component
         var componentSql = $"""
-            SELECT Component, COUNT(*) as Count
+            SELECT Component, COUNT_BIG(*) as Count
             FROM {_tableName}
             WHERE Status = 0
             GROUP BY Component
@@ -323,11 +323,11 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
 
         // Get counts by reason (top 10)
         var reasonSql = $"""
-            SELECT TOP 10 Reason, COUNT(*) as Count
+            SELECT TOP 10 Reason, COUNT_BIG(*) as Count
             FROM {_tableName}
             WHERE Status = 0
             GROUP BY Reason
-            ORDER BY COUNT(*) DESC
+            ORDER BY COUNT_BIG(*) DESC
             """;
 
         using (var reasonCommand = new SqlCommand(reasonSql, connection))
@@ -353,8 +353,8 @@ public class SqlServerDeadLetterQueue : IDeadLetterQueue
         {
             if (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
-                oldestEntry = reader.IsDBNull(0) ? null : reader.GetDateTime(0);
-                newestEntry = reader.IsDBNull(1) ? null : reader.GetDateTime(1);
+                oldestEntry = reader.IsDBNull(0) ? null : reader.GetFieldValue<DateTimeOffset>(0);
+                newestEntry = reader.IsDBNull(1) ? null : reader.GetFieldValue<DateTimeOffset>(1);
             }
         }
 

@@ -383,8 +383,8 @@ public class RabbitMqTransportTests : IAsyncLifetime
     public async Task StateChanged_RaisesEventWithCorrectArguments()
     {
         // Arrange
-        TransportStateChangedEventArgs? capturedArgs = null;
-        Transport.StateChanged += (sender, args) => capturedArgs = args;
+        var stateChanges = new List<TransportStateChangedEventArgs>();
+        Transport.StateChanged += (sender, args) => stateChanges.Add(args);
 
         // Act
         try
@@ -394,9 +394,9 @@ public class RabbitMqTransportTests : IAsyncLifetime
         catch { /* Expected to fail */ }
 
         // Assert
-        var stateChangedArgs = Assert.IsType<TransportStateChangedEventArgs>(capturedArgs);
-        Assert.Equal(TransportState.Disconnected, stateChangedArgs.PreviousState);
-        Assert.Equal(TransportState.Connecting, stateChangedArgs.CurrentState);
+        Assert.Contains(stateChanges, args =>
+            args.PreviousState == TransportState.Disconnected &&
+            args.CurrentState == TransportState.Connecting);
     }
 
     #endregion

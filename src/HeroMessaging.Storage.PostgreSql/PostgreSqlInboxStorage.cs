@@ -102,8 +102,8 @@ public class PostgreSqlInboxStorage : IInboxStorage
                 payload JSONB NOT NULL,
                 source VARCHAR(200),
                 status VARCHAR(50) NOT NULL DEFAULT 'Pending',
-                received_at TIMESTAMP NOT NULL,
-                processed_at TIMESTAMP,
+                received_at TIMESTAMPTZ NOT NULL,
+                processed_at TIMESTAMPTZ,
                 error TEXT,
                 require_idempotency BOOLEAN NOT NULL DEFAULT true,
                 deduplication_window_minutes INTEGER
@@ -240,8 +240,8 @@ public class PostgreSqlInboxStorage : IInboxStorage
                 var payload = reader.GetString(1);
                 var source = reader.IsDBNull(2) ? null : reader.GetString(2);
                 var status = Enum.Parse<InboxStatus>(reader.GetString(3));
-                var receivedAt = reader.GetDateTime(4);
-                var processedAt = reader.IsDBNull(5) ? (DateTimeOffset?)null : reader.GetDateTime(5);
+                var receivedAt = reader.GetFieldValue<DateTimeOffset>(4);
+                var processedAt = reader.IsDBNull(5) ? (DateTimeOffset?)null : reader.GetFieldValue<DateTimeOffset>(5);
                 var error = reader.IsDBNull(6) ? null : reader.GetString(6);
                 var requireIdempotency = reader.GetBoolean(7);
                 var deduplicationWindowMinutes = reader.IsDBNull(8) ? (int?)null : reader.GetInt32(8);
@@ -361,13 +361,13 @@ public class PostgreSqlInboxStorage : IInboxStorage
             if (query.OlderThan.HasValue)
             {
                 whereClauses.Add("received_at < @older_than");
-                parameters.Add(new NpgsqlParameter("older_than", query.OlderThan.Value));
+                parameters.Add(new NpgsqlParameter("older_than", query.OlderThan.Value.ToUniversalTime()));
             }
 
             if (query.NewerThan.HasValue)
             {
                 whereClauses.Add("received_at > @newer_than");
-                parameters.Add(new NpgsqlParameter("newer_than", query.NewerThan.Value));
+                parameters.Add(new NpgsqlParameter("newer_than", query.NewerThan.Value.ToUniversalTime()));
             }
 
             var whereClause = whereClauses.Count > 0 ? "WHERE " + string.Join(" AND ", whereClauses) : "";
@@ -396,8 +396,8 @@ public class PostgreSqlInboxStorage : IInboxStorage
                 var payload = reader.GetString(2);
                 var source = reader.IsDBNull(3) ? null : reader.GetString(3);
                 var status = Enum.Parse<InboxStatus>(reader.GetString(4));
-                var receivedAt = reader.GetDateTime(5);
-                var processedAt = reader.IsDBNull(6) ? (DateTimeOffset?)null : reader.GetDateTime(6);
+                var receivedAt = reader.GetFieldValue<DateTimeOffset>(5);
+                var processedAt = reader.IsDBNull(6) ? (DateTimeOffset?)null : reader.GetFieldValue<DateTimeOffset>(6);
                 var error = reader.IsDBNull(7) ? null : reader.GetString(7);
                 var requireIdempotency = reader.GetBoolean(8);
                 var deduplicationWindowMinutes = reader.IsDBNull(9) ? (int?)null : reader.GetInt32(9);

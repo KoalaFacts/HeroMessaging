@@ -146,7 +146,7 @@ public sealed class PostgreSqlUnitOfWorkTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task SavepointAsync_WithNullSavepointName_ThrowsArgumentException()
+    public void SavepointAsync_WithNullSavepointName_ThrowsArgumentException()
     {
         // Arrange
         var uow = new PostgreSqlUnitOfWork(ValidConnectionString);
@@ -162,7 +162,7 @@ public sealed class PostgreSqlUnitOfWorkTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task SavepointAsync_WithEmptySavepointName_ThrowsArgumentException()
+    public void SavepointAsync_WithEmptySavepointName_ThrowsArgumentException()
     {
         // Arrange
         var uow = new PostgreSqlUnitOfWork(ValidConnectionString);
@@ -174,7 +174,7 @@ public sealed class PostgreSqlUnitOfWorkTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task SavepointAsync_WithWhitespaceSavepointName_ThrowsArgumentException()
+    public void SavepointAsync_WithWhitespaceSavepointName_ThrowsArgumentException()
     {
         // Arrange
         var uow = new PostgreSqlUnitOfWork(ValidConnectionString);

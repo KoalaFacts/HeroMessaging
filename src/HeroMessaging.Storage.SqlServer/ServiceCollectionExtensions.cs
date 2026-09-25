@@ -11,6 +11,7 @@ namespace HeroMessaging.Abstractions.Configuration;
 /// <summary>
 /// Extension methods for SQL Server storage registration
 /// </summary>
+// ReSharper disable once CheckNamespace
 public static class ExtensionsToIHeroMessagingBuilderForSqlServer
 {
     /// <summary>

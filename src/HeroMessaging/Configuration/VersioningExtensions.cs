@@ -10,6 +10,7 @@ namespace HeroMessaging.Abstractions.Configuration;
 /// <summary>
 /// Extension methods for configuring message versioning in HeroMessaging
 /// </summary>
+// ReSharper disable once CheckNamespace
 public static class ExtensionsToIHeroMessagingBuilderForVersioning
 {
     /// <summary>

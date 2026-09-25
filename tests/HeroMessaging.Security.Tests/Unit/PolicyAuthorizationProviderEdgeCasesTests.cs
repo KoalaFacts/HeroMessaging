@@ -15,7 +15,7 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
         var provider = new PolicyAuthorizationProvider(requireAuthenticatedUser: true);
 
         // Act
-        var result = await provider.AuthorizeAsync(null!, "Message", "Operation", TestContext.Current.CancellationToken);
+        var result = await provider.AuthorizeAsync(null, "Message", "Operation", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(result.Succeeded);
@@ -28,7 +28,7 @@ public sealed class PolicyAuthorizationProviderEdgeCasesTests
         var provider = new PolicyAuthorizationProvider(requireAuthenticatedUser: false);
 
         // Act
-        var result = await provider.AuthorizeAsync(null!, "Message", "Operation", TestContext.Current.CancellationToken);
+        var result = await provider.AuthorizeAsync(null, "Message", "Operation", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Succeeded);

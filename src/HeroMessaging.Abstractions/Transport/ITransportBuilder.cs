@@ -48,6 +48,7 @@ public interface ITransportBuilder<TOptions> : ITransportBuilder
 /// <summary>
 /// Extension methods for transport configuration
 /// </summary>
+// ReSharper disable once CheckNamespace
 public static class ExtensionsToITransportConfigurationForBuilders
 {
     /// <summary>

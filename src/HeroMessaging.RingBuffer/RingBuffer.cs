@@ -30,18 +30,17 @@ public sealed class RingBuffer<T> where T : class
         ProducerType producerType,
         IWaitStrategy waitStrategy)
     {
-        // Validate power of 2
+        if (bufferSize < 0)
+        {
+            throw new ArgumentException(
+                "Buffer size must be positive",
+                nameof(bufferSize));
+        }
+
         if (!IsPowerOf2(bufferSize))
         {
             throw new ArgumentException(
                 "Buffer size must be power of 2 for optimal performance",
-                nameof(bufferSize));
-        }
-
-        if (bufferSize < 1)
-        {
-            throw new ArgumentException(
-                "Buffer size must be positive",
                 nameof(bufferSize));
         }
 
@@ -183,9 +182,14 @@ public sealed class RingBuffer<T> where T : class
     /// </summary>
     public long GetRemainingCapacity()
     {
+        if (!_sequencer.HasGatingSequences)
+        {
+            return BufferSize;
+        }
+
         long consumed = GetMinimumGatingSequence();
         long produced = GetCursor();
-        return BufferSize - (produced - consumed);
+        return Math.Max(0, BufferSize - (produced - consumed));
     }
 
     private static bool IsPowerOf2(int value)
@@ -216,7 +220,7 @@ public sealed class RingBuffer<T> where T : class
             CheckAlert();
 
             // Wait for the sequencer to publish up to this sequence
-            long availableSequence = GetCursorSequence();
+            long availableSequence = GetCursorSequence(sequence);
 
             // Also wait for all dependent sequences
             if (_dependentSequences.Length > 0)
@@ -249,7 +253,7 @@ public sealed class RingBuffer<T> where T : class
                 }
                 spinCount++;
 
-                availableSequence = GetCursorSequence();
+                availableSequence = GetCursorSequence(sequence);
 
                 if (_dependentSequences.Length > 0)
                 {
@@ -282,14 +286,18 @@ public sealed class RingBuffer<T> where T : class
             }
         }
 
-        private long GetCursorSequence()
+        private long GetCursorSequence(long lowerBound)
         {
-            return _sequencer switch
+            var cursor = _sequencer switch
             {
                 SingleProducerSequencer single => single.GetCursor(),
                 MultiProducerSequencer multi => multi.GetCursor(),
                 _ => throw new InvalidOperationException($"Unknown sequencer type: {_sequencer.GetType().Name}")
             };
+
+            return _sequencer is MultiProducerSequencer multiProducer
+                ? multiProducer.GetHighestPublishedSequence(lowerBound, cursor)
+                : cursor;
         }
 
         private long GetMinimumSequence()

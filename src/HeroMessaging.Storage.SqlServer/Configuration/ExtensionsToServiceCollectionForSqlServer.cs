@@ -8,6 +8,7 @@ namespace HeroMessaging.Storage.SqlServer;
 /// <summary>
 /// Extension methods for configuring SQL Server idempotency storage.
 /// </summary>
+// ReSharper disable once CheckNamespace
 public static class ExtensionsToServiceCollectionForSqlServer
 {
     /// <summary>

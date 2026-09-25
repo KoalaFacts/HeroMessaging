@@ -12,6 +12,7 @@ using Xunit;
 
 namespace HeroMessaging.Observability.OpenTelemetry.Tests;
 
+[Collection("OpenTelemetry instrumentation")]
 public class OpenTelemetryIntegrationTests : IDisposable
 {
     private readonly List<Activity> _exportedActivities = [];
@@ -174,8 +175,7 @@ public class OpenTelemetryIntegrationTests : IDisposable
     public async Task ProcessAsync_WithParentSpan_LinksToParent()
     {
         // Arrange
-        using var parentSource = new ActivitySource("ParentTest");
-        using var parentActivity = parentSource.StartActivity("ParentOperation");
+        using var parentActivity = new Activity("ParentOperation").Start();
 
         var pipelineBuilder = new MessageProcessingPipelineBuilder(_serviceProvider);
         var innerProcessor = new TestMessageProcessor();

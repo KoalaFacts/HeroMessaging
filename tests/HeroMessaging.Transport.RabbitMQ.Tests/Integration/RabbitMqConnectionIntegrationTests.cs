@@ -13,7 +13,7 @@ public class RabbitMqConnectionIntegrationTests : RabbitMqIntegrationTestBase
     #region Connection Tests
 
     [Fact]
-    public async Task ConnectAsync_WithValidCredentials_ConnectsSuccessfully()
+    public void ConnectAsync_WithValidCredentials_ConnectsSuccessfully()
     {
         // Assert - connection was established in base class InitializeAsync
         Assert.NotNull(Transport);

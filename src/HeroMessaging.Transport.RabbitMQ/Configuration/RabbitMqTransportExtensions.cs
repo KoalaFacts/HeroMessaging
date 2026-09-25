@@ -2,6 +2,7 @@ using HeroMessaging.Abstractions.Configuration;
 using HeroMessaging.Abstractions.Transport;
 using HeroMessaging.Transport.RabbitMQ;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 
 namespace HeroMessaging.Abstractions.Configuration;
@@ -9,6 +10,7 @@ namespace HeroMessaging.Abstractions.Configuration;
 /// <summary>
 /// Extension methods for configuring RabbitMQ transport
 /// </summary>
+// ReSharper disable once CheckNamespace
 public static class ExtensionsToIHeroMessagingBuilderForRabbitMQ
 {
     /// <summary>
@@ -25,6 +27,8 @@ public static class ExtensionsToIHeroMessagingBuilderForRabbitMQ
         };
 
         configure?.Invoke(options);
+
+        builder.Services.TryAddSingleton(TimeProvider.System);
 
         // Register transport as singleton
         builder.Services.AddSingleton<IMessageTransport>(sp =>

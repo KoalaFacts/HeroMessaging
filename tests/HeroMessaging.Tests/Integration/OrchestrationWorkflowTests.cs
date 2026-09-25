@@ -558,15 +558,27 @@ public class OrchestrationWorkflowTests
 
                     // Step 1: Allocate resource
                     ctx.Compensation.AddCompensation("CompensateStep1",
-                        async ct => compensationLog.Add((DateTimeOffset.UtcNow, "CompensateStep1")));
+                        ct =>
+                        {
+                            compensationLog.Add((DateTimeOffset.UtcNow, "CompensateStep1"));
+                            return Task.CompletedTask;
+                        });
 
                     // Step 2: Reserve capacity
                     ctx.Compensation.AddCompensation("CompensateStep2",
-                        async ct => compensationLog.Add((DateTimeOffset.UtcNow, "CompensateStep2")));
+                        ct =>
+                        {
+                            compensationLog.Add((DateTimeOffset.UtcNow, "CompensateStep2"));
+                            return Task.CompletedTask;
+                        });
 
                     // Step 3: Lock records
                     ctx.Compensation.AddCompensation("CompensateStep3",
-                        async ct => compensationLog.Add((DateTimeOffset.UtcNow, "CompensateStep3")));
+                        ct =>
+                        {
+                            compensationLog.Add((DateTimeOffset.UtcNow, "CompensateStep3"));
+                            return Task.CompletedTask;
+                        });
 
                     // Simulate failure after registering compensations
                     if (ctx.Data.ShouldFail)

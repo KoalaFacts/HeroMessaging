@@ -133,8 +133,8 @@ public class PostgreSqlSagaRepositoryTests : IAsyncLifetime
         // Assert
         var retrieved = await repository.FindAsync(saga.CorrelationId, TestContext.Current.CancellationToken);
         Assert.NotNull(retrieved);
-        Assert.Equal(new DateTime(2025, 10, 27, 10, 0, 0, DateTimeKind.Utc), retrieved.CreatedAt);
-        Assert.Equal(new DateTime(2025, 10, 27, 10, 0, 0, DateTimeKind.Utc), retrieved.UpdatedAt);
+        Assert.Equal(DateTimeOffset.Parse("2025-10-27T10:00:00Z"), retrieved.CreatedAt);
+        Assert.Equal(DateTimeOffset.Parse("2025-10-27T10:00:00Z"), retrieved.UpdatedAt);
     }
 
     [Fact]
@@ -236,8 +236,8 @@ public class PostgreSqlSagaRepositoryTests : IAsyncLifetime
 
         // Assert
         var updated = await repository.FindAsync(saga.CorrelationId, TestContext.Current.CancellationToken);
-        Assert.Equal(new DateTime(2025, 10, 27, 10, 0, 0, DateTimeKind.Utc), updated!.CreatedAt);
-        Assert.Equal(new DateTime(2025, 10, 27, 12, 0, 0, DateTimeKind.Utc), updated.UpdatedAt);
+        Assert.Equal(DateTimeOffset.Parse("2025-10-27T10:00:00Z"), updated!.CreatedAt);
+        Assert.Equal(DateTimeOffset.Parse("2025-10-27T12:00:00Z"), updated.UpdatedAt);
     }
 
     [Fact]

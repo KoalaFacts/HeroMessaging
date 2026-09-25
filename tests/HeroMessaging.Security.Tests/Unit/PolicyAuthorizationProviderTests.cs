@@ -309,7 +309,7 @@ public sealed class PolicyAuthorizationProviderTests
         var provider = new PolicyAuthorizationProvider();
 
         // Act
-        var hasPermission = await provider.HasPermissionAsync(null!, "any-permission", TestContext.Current.CancellationToken);
+        var hasPermission = await provider.HasPermissionAsync(null, "any-permission", TestContext.Current.CancellationToken);
 
         // Assert
         Assert.False(hasPermission);

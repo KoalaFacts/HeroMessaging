@@ -115,7 +115,7 @@ namespace HeroMessaging.Tests.Unit.Plugins
 
             // Act & Assert
             var ex = await Assert.ThrowsAsync<ArgumentNullException>(() =>
-                discovery.DiscoverPluginsAsync(null!, cancellationToken: TestContext.Current.CancellationToken));
+                discovery.DiscoverPluginsAsync((string)null!, cancellationToken: TestContext.Current.CancellationToken));
 
             Assert.Equal("directory", ex.ParamName);
         }

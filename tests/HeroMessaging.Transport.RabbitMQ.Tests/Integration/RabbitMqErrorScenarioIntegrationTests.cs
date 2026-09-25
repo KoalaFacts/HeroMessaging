@@ -1,4 +1,5 @@
 using HeroMessaging.Abstractions.Transport;
+using RabbitMQ.Client.Exceptions;
 using Xunit;
 
 namespace HeroMessaging.Transport.RabbitMQ.Tests.Integration;
@@ -34,12 +35,14 @@ public class RabbitMqErrorScenarioIntegrationTests : RabbitMqIntegrationTestBase
         var nonExistentQueue = "queue-that-does-not-exist";
 
         // Act & Assert
-        await Assert.ThrowsAsync<Exception>(async () =>
+        var exception = await Assert.ThrowsAsync<OperationInterruptedException>(async () =>
         {
             await Transport!.SubscribeAsync(
                 new TransportAddress(nonExistentQueue, TransportAddressType.Queue),
                 async (envelope, context, ct) => await Task.CompletedTask, cancellationToken: TestContext.Current.CancellationToken);
         });
+        Assert.NotNull(exception.ShutdownReason);
+        Assert.Equal((ushort)404, exception.ShutdownReason.ReplyCode);
     }
 
     [Fact]
@@ -170,10 +173,12 @@ public class RabbitMqErrorScenarioIntegrationTests : RabbitMqIntegrationTestBase
         });
 
         // Act & Assert
-        await Assert.ThrowsAsync<Exception>(async () =>
+        var exception = await Assert.ThrowsAsync<OperationInterruptedException>(async () =>
         {
             await Transport.ConfigureTopologyAsync(topology2, TestContext.Current.CancellationToken);
         });
+        Assert.NotNull(exception.ShutdownReason);
+        Assert.Equal((ushort)406, exception.ShutdownReason.ReplyCode);
     }
 
     #endregion

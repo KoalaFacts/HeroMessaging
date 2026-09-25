@@ -139,9 +139,9 @@ public class SqlServerOutboxStorage : IOutboxStorage
                     MessageType NVARCHAR(500) NOT NULL,
                     Status INT NOT NULL DEFAULT 0,
                     RetryCount INT NOT NULL DEFAULT 0,
-                    CreatedAt DATETIME2 NOT NULL,
-                    ProcessedAt DATETIME2 NULL,
-                    NextRetryAt DATETIME2 NULL,
+                    CreatedAt DATETIMEOFFSET NOT NULL,
+                    ProcessedAt DATETIMEOFFSET NULL,
+                    NextRetryAt DATETIMEOFFSET NULL,
                     LastError NVARCHAR(MAX) NULL,
                     INDEX IX_{_options.OutboxTableName}_Status_NextRetry (Status, NextRetryAt),
                     INDEX IX_{_options.OutboxTableName}_ProcessedAt (ProcessedAt)
@@ -193,8 +193,8 @@ public class SqlServerOutboxStorage : IOutboxStorage
             command.Parameters.Add("@MessageType", SqlDbType.NVarChar, 500).Value = message.GetType().FullName ?? "Unknown";
             command.Parameters.Add("@Status", SqlDbType.Int).Value = (int)entry.Status;
             command.Parameters.Add("@RetryCount", SqlDbType.Int).Value = entry.RetryCount;
-            command.Parameters.Add("@CreatedAt", SqlDbType.DateTime2).Value = entry.CreatedAt;
-            command.Parameters.Add("@NextRetryAt", SqlDbType.DateTime2).Value = (object?)entry.NextRetryAt ?? DBNull.Value;
+            command.Parameters.Add("@CreatedAt", SqlDbType.DateTimeOffset).Value = entry.CreatedAt;
+            command.Parameters.Add("@NextRetryAt", SqlDbType.DateTimeOffset).Value = (object?)entry.NextRetryAt ?? DBNull.Value;
 
             await command.ExecuteNonQueryAsync(cancellationToken);
             return entry;
@@ -246,7 +246,7 @@ public class SqlServerOutboxStorage : IOutboxStorage
 
         using var command = new SqlCommand(sql, connection, transaction);
         command.Parameters.AddWithValue("@Limit", query.Limit);
-        command.Parameters.AddWithValue("@Now", _timeProvider.GetUtcNow());
+        command.Parameters.Add("@Now", SqlDbType.DateTimeOffset).Value = _timeProvider.GetUtcNow();
 
         if (query.Status.HasValue)
         {
@@ -303,7 +303,7 @@ public class SqlServerOutboxStorage : IOutboxStorage
             selectCommand.CommandTimeout = _options.CommandTimeout;
             selectCommand.Parameters.Add("@Limit", SqlDbType.Int).Value = limit;
             selectCommand.Parameters.Add("@PendingStatus", SqlDbType.Int).Value = (int)OutboxStatus.Pending;
-            selectCommand.Parameters.Add("@Now", SqlDbType.DateTime2).Value = _timeProvider.GetUtcNow();
+            selectCommand.Parameters.Add("@Now", SqlDbType.DateTimeOffset).Value = _timeProvider.GetUtcNow();
 
             using var reader = await selectCommand.ExecuteReaderAsync(cancellationToken);
             while (await reader.ReadAsync(cancellationToken))
@@ -331,9 +331,9 @@ public class SqlServerOutboxStorage : IOutboxStorage
                         Options = new OutboxOptions(),
                         Status = (OutboxStatus)reader.GetInt32(3),
                         RetryCount = reader.GetInt32(4),
-                        CreatedAt = reader.GetDateTime(5),
-                        ProcessedAt = reader.IsDBNull(6) ? null : reader.GetDateTime(6),
-                        NextRetryAt = reader.IsDBNull(7) ? null : reader.GetDateTime(7),
+                        CreatedAt = reader.GetFieldValue<DateTimeOffset>(5),
+                        ProcessedAt = reader.IsDBNull(6) ? null : reader.GetFieldValue<DateTimeOffset>(6),
+                        NextRetryAt = reader.IsDBNull(7) ? null : reader.GetFieldValue<DateTimeOffset>(7),
                         LastError = reader.IsDBNull(8) ? null : reader.GetString(8)
                     });
                 }
@@ -378,7 +378,7 @@ public class SqlServerOutboxStorage : IOutboxStorage
         using var command = new SqlCommand(sql, connection);
         command.CommandTimeout = _options.CommandTimeout;
         command.Parameters.Add("@Status", SqlDbType.Int).Value = (int)OutboxStatus.Processed;
-        command.Parameters.Add("@ProcessedAt", SqlDbType.DateTime2).Value = _timeProvider.GetUtcNow();
+        command.Parameters.Add("@ProcessedAt", SqlDbType.DateTimeOffset).Value = _timeProvider.GetUtcNow();
         command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = entryId;
 
         var result = await command.ExecuteNonQueryAsync(cancellationToken);
@@ -429,7 +429,7 @@ public class SqlServerOutboxStorage : IOutboxStorage
         command.CommandTimeout = _options.CommandTimeout;
         command.Parameters.Add("@Status", SqlDbType.Int).Value = (int)OutboxStatus.Pending;
         command.Parameters.Add("@RetryCount", SqlDbType.Int).Value = retryCount;
-        command.Parameters.Add("@NextRetry", SqlDbType.DateTime2).Value = (object?)nextRetry ?? DBNull.Value;
+        command.Parameters.Add("@NextRetry", SqlDbType.DateTimeOffset).Value = (object?)nextRetry ?? DBNull.Value;
         command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = entryId;
 
         var result = await command.ExecuteNonQueryAsync(cancellationToken);
@@ -501,9 +501,9 @@ public class SqlServerOutboxStorage : IOutboxStorage
                     Options = new OutboxOptions(),
                     Status = (OutboxStatus)reader.GetInt32(3),
                     RetryCount = reader.GetInt32(4),
-                    CreatedAt = reader.GetDateTime(5),
-                    ProcessedAt = reader.IsDBNull(6) ? null : reader.GetDateTime(6),
-                    NextRetryAt = reader.IsDBNull(7) ? null : reader.GetDateTime(7),
+                    CreatedAt = reader.GetFieldValue<DateTimeOffset>(5),
+                    ProcessedAt = reader.IsDBNull(6) ? null : reader.GetFieldValue<DateTimeOffset>(6),
+                    NextRetryAt = reader.IsDBNull(7) ? null : reader.GetFieldValue<DateTimeOffset>(7),
                     LastError = reader.IsDBNull(8) ? null : reader.GetString(8)
                 });
             }
@@ -531,9 +531,9 @@ public class SqlServerOutboxStorage : IOutboxStorage
             Options = new OutboxOptions(),
             Status = (OutboxStatus)reader.GetInt32(reader.GetOrdinal("Status")),
             RetryCount = reader.GetInt32(reader.GetOrdinal("RetryCount")),
-            CreatedAt = reader.GetDateTime(reader.GetOrdinal("CreatedAt")),
-            ProcessedAt = reader.IsDBNull(reader.GetOrdinal("ProcessedAt")) ? null : reader.GetDateTime(reader.GetOrdinal("ProcessedAt")),
-            NextRetryAt = reader.IsDBNull(reader.GetOrdinal("NextRetryAt")) ? null : reader.GetDateTime(reader.GetOrdinal("NextRetryAt")),
+            CreatedAt = reader.GetFieldValue<DateTimeOffset>(reader.GetOrdinal("CreatedAt")),
+            ProcessedAt = reader.IsDBNull(reader.GetOrdinal("ProcessedAt")) ? null : reader.GetFieldValue<DateTimeOffset>(reader.GetOrdinal("ProcessedAt")),
+            NextRetryAt = reader.IsDBNull(reader.GetOrdinal("NextRetryAt")) ? null : reader.GetFieldValue<DateTimeOffset>(reader.GetOrdinal("NextRetryAt")),
             LastError = reader.IsDBNull(reader.GetOrdinal("LastError")) ? null : reader.GetString(reader.GetOrdinal("LastError"))
         };
     }

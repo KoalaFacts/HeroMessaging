@@ -9,6 +9,7 @@ namespace HeroMessaging.Observability.OpenTelemetry.Tests.Unit;
 /// Unit tests for OpenTelemetryTransportInstrumentation
 /// Testing the wrapper implementation and singleton instance
 /// </summary>
+[Collection("OpenTelemetry instrumentation")]
 public class OpenTelemetryTransportInstrumentationTests : IDisposable
 {
     private readonly ActivityListener _activityListener;

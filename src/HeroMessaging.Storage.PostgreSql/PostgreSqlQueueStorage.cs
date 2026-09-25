@@ -123,8 +123,8 @@ public class PostgreSqlQueueStorage : IQueueStorage
                 message_type VARCHAR(500) NOT NULL,
                 payload JSONB NOT NULL,
                 priority INTEGER NOT NULL DEFAULT 0,
-                enqueued_at TIMESTAMP NOT NULL,
-                visible_at TIMESTAMP,
+                enqueued_at TIMESTAMPTZ NOT NULL,
+                visible_at TIMESTAMPTZ,
                 dequeue_count INTEGER NOT NULL DEFAULT 0,
                 delay_minutes INTEGER,
                 acknowledged BOOLEAN NOT NULL DEFAULT false
@@ -227,6 +227,7 @@ public class PostgreSqlQueueStorage : IQueueStorage
                 using var reader = await selectCommand.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
                 if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
                 {
+                    await reader.CloseAsync().ConfigureAwait(false);
                     if (transaction == null) await localTransaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
                     return null;
                 }
@@ -235,8 +236,8 @@ public class PostgreSqlQueueStorage : IQueueStorage
                 var messageType = reader.GetString(1);
                 var payload = reader.GetString(2);
                 var priority = reader.GetInt32(3);
-                var enqueuedAt = reader.GetDateTime(4);
-                var visibleAt = reader.IsDBNull(5) ? (DateTimeOffset?)null : reader.GetDateTime(5);
+                var enqueuedAt = reader.GetFieldValue<DateTimeOffset>(4);
+                var visibleAt = reader.IsDBNull(5) ? (DateTimeOffset?)null : reader.GetFieldValue<DateTimeOffset>(5);
                 var dequeueCount = reader.GetInt32(6);
                 var delayMinutes = reader.IsDBNull(7) ? (int?)null : reader.GetInt32(7);
 
@@ -322,8 +323,8 @@ public class PostgreSqlQueueStorage : IQueueStorage
                 var messageType = reader.GetString(1);
                 var payload = reader.GetString(2);
                 var priority = reader.GetInt32(3);
-                var enqueuedAt = reader.GetDateTime(4);
-                var visibleAt = reader.IsDBNull(5) ? (DateTimeOffset?)null : reader.GetDateTime(5);
+                var enqueuedAt = reader.GetFieldValue<DateTimeOffset>(4);
+                var visibleAt = reader.IsDBNull(5) ? (DateTimeOffset?)null : reader.GetFieldValue<DateTimeOffset>(5);
                 var dequeueCount = reader.GetInt32(6);
                 var delayMinutes = reader.IsDBNull(7) ? (int?)null : reader.GetInt32(7);
 

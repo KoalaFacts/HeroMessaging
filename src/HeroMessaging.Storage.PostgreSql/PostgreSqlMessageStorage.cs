@@ -144,12 +144,12 @@ public class PostgreSqlMessageStorage : IMessageStorage
                 id VARCHAR(100) PRIMARY KEY,
                 message_type VARCHAR(500) NOT NULL,
                 payload JSONB NOT NULL,
-                timestamp TIMESTAMP NOT NULL,
+                timestamp TIMESTAMPTZ NOT NULL,
                 correlation_id VARCHAR(100),
                 collection VARCHAR(100),
                 metadata JSONB,
-                expires_at TIMESTAMP,
-                created_at TIMESTAMP NOT NULL
+                expires_at TIMESTAMPTZ,
+                created_at TIMESTAMPTZ NOT NULL
             );
 
             CREATE INDEX IF NOT EXISTS idx_{_options.MessagesTableName}_timestamp ON {_tableName}(timestamp DESC);
@@ -189,13 +189,13 @@ public class PostgreSqlMessageStorage : IMessageStorage
             command.Parameters.AddWithValue("id", messageId);
             command.Parameters.AddWithValue("message_type", message.GetType().FullName ?? "Unknown");
             command.Parameters.AddWithValue("payload", _jsonSerializer.SerializeToString(message, _jsonOptions));
-            command.Parameters.AddWithValue("timestamp", message.Timestamp);
+            command.Parameters.AddWithValue("timestamp", message.Timestamp.ToUniversalTime());
             command.Parameters.AddWithValue("correlation_id", (object?)message.CorrelationId ?? DBNull.Value);
             command.Parameters.AddWithValue("collection", (object?)options?.Collection ?? DBNull.Value);
             command.Parameters.AddWithValue("metadata", options?.Metadata != null
                 ? _jsonSerializer.SerializeToString(options.Metadata, _jsonOptions)
                 : DBNull.Value);
-            command.Parameters.AddWithValue("expires_at", (object?)expiresAt ?? DBNull.Value);
+            command.Parameters.AddWithValue("expires_at", (object?)expiresAt?.ToUniversalTime() ?? DBNull.Value);
             command.Parameters.AddWithValue("created_at", _timeProvider.GetUtcNow());
 
             await command.ExecuteNonQueryAsync(cancellationToken);
@@ -319,13 +319,13 @@ public class PostgreSqlMessageStorage : IMessageStorage
             if (query.FromTimestamp.HasValue)
             {
                 whereClauses.Add("timestamp >= @from_timestamp");
-                parameters.Add(new NpgsqlParameter("from_timestamp", query.FromTimestamp.Value));
+                parameters.Add(new NpgsqlParameter("from_timestamp", query.FromTimestamp.Value.ToUniversalTime()));
             }
 
             if (query.ToTimestamp.HasValue)
             {
                 whereClauses.Add("timestamp <= @to_timestamp");
-                parameters.Add(new NpgsqlParameter("to_timestamp", query.ToTimestamp.Value));
+                parameters.Add(new NpgsqlParameter("to_timestamp", query.ToTimestamp.Value.ToUniversalTime()));
             }
 
             var whereClause = string.Join(" AND ", whereClauses);
@@ -394,7 +394,7 @@ public class PostgreSqlMessageStorage : IMessageStorage
             command.Parameters.AddWithValue("id", messageId);
             command.Parameters.AddWithValue("payload", _jsonSerializer.SerializeToString(message, _jsonOptions));
             command.Parameters.AddWithValue("message_type", message.GetType().FullName ?? "Unknown");
-            command.Parameters.AddWithValue("timestamp", message.Timestamp);
+            command.Parameters.AddWithValue("timestamp", message.Timestamp.ToUniversalTime());
             command.Parameters.AddWithValue("correlation_id", (object?)message.CorrelationId ?? DBNull.Value);
 
             var rowsAffected = await command.ExecuteNonQueryAsync(cancellationToken);
@@ -431,13 +431,13 @@ public class PostgreSqlMessageStorage : IMessageStorage
                 if (query.FromTimestamp.HasValue)
                 {
                     whereClauses.Add("timestamp >= @from_timestamp");
-                    parameters.Add(new NpgsqlParameter("from_timestamp", query.FromTimestamp.Value));
+                    parameters.Add(new NpgsqlParameter("from_timestamp", query.FromTimestamp.Value.ToUniversalTime()));
                 }
 
                 if (query.ToTimestamp.HasValue)
                 {
                     whereClauses.Add("timestamp <= @to_timestamp");
-                    parameters.Add(new NpgsqlParameter("to_timestamp", query.ToTimestamp.Value));
+                    parameters.Add(new NpgsqlParameter("to_timestamp", query.ToTimestamp.Value.ToUniversalTime()));
                 }
             }
 
@@ -488,6 +488,8 @@ public class PostgreSqlMessageStorage : IMessageStorage
     // New interface methods for compatibility with test infrastructure
     public async Task StoreAsync(IMessage message, IStorageTransaction? transaction = null, CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+
         NpgsqlConnection? connection = null;
         NpgsqlTransaction? npgsqlTransaction = null;
 
@@ -516,7 +518,7 @@ public class PostgreSqlMessageStorage : IMessageStorage
             var messageType = message.GetType();
             command.Parameters.AddWithValue("message_type", messageType.AssemblyQualifiedName ?? "Unknown");
             command.Parameters.AddWithValue("payload", _jsonSerializer.SerializeToString(message, messageType, _jsonOptions));
-            command.Parameters.AddWithValue("timestamp", message.Timestamp);
+            command.Parameters.AddWithValue("timestamp", message.Timestamp.ToUniversalTime());
             command.Parameters.AddWithValue("correlation_id", (object?)message.CorrelationId ?? DBNull.Value);
             command.Parameters.AddWithValue("created_at", _timeProvider.GetUtcNow());
 
@@ -536,6 +538,8 @@ public class PostgreSqlMessageStorage : IMessageStorage
 
     public async Task<IMessage?> RetrieveAsync(Guid messageId, IStorageTransaction? transaction = null, CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+
         NpgsqlConnection? connection = null;
         NpgsqlTransaction? npgsqlTransaction = null;
 
@@ -590,6 +594,8 @@ public class PostgreSqlMessageStorage : IMessageStorage
 
     public async Task<List<IMessage>> QueryAsync(MessageQuery query, CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+
         using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
 
@@ -605,18 +611,18 @@ public class PostgreSqlMessageStorage : IMessageStorage
         if (query.FromTimestamp.HasValue)
         {
             whereClauses.Add("timestamp >= @from_timestamp");
-            parameters.Add(new NpgsqlParameter("from_timestamp", query.FromTimestamp.Value));
+            parameters.Add(new NpgsqlParameter("from_timestamp", query.FromTimestamp.Value.ToUniversalTime()));
         }
 
         if (query.ToTimestamp.HasValue)
         {
             whereClauses.Add("timestamp <= @to_timestamp");
-            parameters.Add(new NpgsqlParameter("to_timestamp", query.ToTimestamp.Value));
+            parameters.Add(new NpgsqlParameter("to_timestamp", query.ToTimestamp.Value.ToUniversalTime()));
         }
 
         if (!string.IsNullOrEmpty(query.ContentContains))
         {
-            whereClauses.Add("payload::text ILIKE @content_contains");
+            whereClauses.Add("COALESCE(payload ->> 'Content', payload ->> 'content', '') ILIKE @content_contains");
             parameters.Add(new NpgsqlParameter("content_contains", $"%{query.ContentContains}%"));
         }
 
@@ -666,6 +672,8 @@ public class PostgreSqlMessageStorage : IMessageStorage
 
     public async Task DeleteAsync(Guid messageId, CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+
         using var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
 
@@ -682,6 +690,8 @@ public class PostgreSqlMessageStorage : IMessageStorage
 
     public async Task<IStorageTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
     {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+
         var connection = new NpgsqlConnection(_connectionString);
         await connection.OpenAsync(cancellationToken);
         var transaction = await connection.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken);

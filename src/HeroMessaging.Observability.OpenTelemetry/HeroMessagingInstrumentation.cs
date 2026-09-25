@@ -115,6 +115,14 @@ public static class HeroMessagingInstrumentation
             activity.SetTag("messaging.processor", processor);
             activity.SetTag("messaging.message_id", message.MessageId.ToString());
             activity.SetTag("messaging.message_type", message.GetType().Name);
+
+            if (message.Metadata != null)
+            {
+                foreach (var (key, value) in message.Metadata)
+                {
+                    activity.SetTag($"messaging.metadata.{key}", value?.ToString());
+                }
+            }
         }
 
         return activity;

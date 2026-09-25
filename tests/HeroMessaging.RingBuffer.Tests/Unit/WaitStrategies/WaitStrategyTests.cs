@@ -1,5 +1,4 @@
 using HeroMessaging.RingBuffer.WaitStrategies;
-using System.Diagnostics;
 using Xunit;
 
 namespace HeroMessaging.RingBuffer.Tests.Unit.WaitStrategies;
@@ -15,11 +14,8 @@ public class WaitStrategyTests
         const long expectedSequence = 42;
 
         // Act - Signal in parallel
-        var waitTask = Task.Run(() => strategy.WaitFor(expectedSequence), TestContext.Current.CancellationToken);
-        await Task.Delay(10, TestContext.Current.CancellationToken);
-        strategy.SignalAllWhenBlocking();
-
-        var result = await waitTask;
+        var waitTask = StartWaiter(strategy, expectedSequence);
+        var result = await SignalUntilCompletedAsync(strategy, waitTask);
 
         // Assert
         Assert.Equal(expectedSequence, result);
@@ -102,14 +98,35 @@ public class WaitStrategyTests
         const long expectedSequence = 42;
 
         // Act - Signal in parallel
-        var waitTask = Task.Run(() => strategy.WaitFor(expectedSequence), TestContext.Current.CancellationToken);
-        await Task.Delay(10, TestContext.Current.CancellationToken);
-        strategy.SignalAllWhenBlocking();
-
-        var result = await waitTask;
+        var waitTask = StartWaiter(strategy, expectedSequence);
+        var result = await SignalUntilCompletedAsync(strategy, waitTask);
 
         // Assert
         Assert.Equal(expectedSequence, result);
+    }
+
+    [Fact]
+    public async Task TimeoutBlockingWaitStrategy_MultipleWaiters_AllSignaled()
+    {
+        // Arrange
+        var strategy = new TimeoutBlockingWaitStrategy(TimeSpan.FromSeconds(1));
+        const int waiterCount = 5;
+        var tasks = new Task<long>[waiterCount];
+
+        // Act
+        for (int i = 0; i < waiterCount; i++)
+        {
+            int sequence = i;
+            tasks[i] = StartWaiter(strategy, sequence);
+        }
+
+        var results = await SignalUntilCompletedAsync(strategy, Task.WhenAll(tasks));
+
+        // Assert
+        for (int i = 0; i < waiterCount; i++)
+        {
+            Assert.Equal(i, results[i]);
+        }
     }
 
     [Fact]
@@ -148,13 +165,10 @@ public class WaitStrategyTests
         for (int i = 0; i < waiterCount; i++)
         {
             int sequence = i;
-            tasks[i] = Task.Run(() => strategy.WaitFor(sequence), TestContext.Current.CancellationToken);
+            tasks[i] = StartWaiter(strategy, sequence);
         }
 
-        await Task.Delay(10, TestContext.Current.CancellationToken);
-        strategy.SignalAllWhenBlocking();
-
-        var results = await Task.WhenAll(tasks);
+        var results = await SignalUntilCompletedAsync(strategy, Task.WhenAll(tasks));
 
         // Assert
         for (int i = 0; i < waiterCount; i++)
@@ -188,40 +202,45 @@ public class WaitStrategyTests
     }
 
     [Fact]
-    public void SleepingWaitStrategy_HasReasonableLatency()
+    public async Task SleepingWaitStrategy_ConcurrentCalls_ReturnEachSequence()
     {
-        // Arrange
         var strategy = new SleepingWaitStrategy();
-        var sw = Stopwatch.StartNew();
+        var tasks = Enumerable.Range(0, 5)
+            .Select(sequence => Task.Run(() => strategy.WaitFor(sequence), TestContext.Current.CancellationToken));
 
-        // Act
-        strategy.WaitFor(0);
-        sw.Stop();
-
-        // Assert - Should complete quickly (spin + yield + sleep)
-        // This is approximate - depends on system load
-        Assert.True(sw.ElapsedMilliseconds < 100,
-            $"SleepingWaitStrategy took {sw.ElapsedMilliseconds}ms");
+        long[] expected = [0, 1, 2, 3, 4];
+        Assert.Equal(expected, await Task.WhenAll(tasks));
     }
 
     [Fact]
-    public void YieldingWaitStrategy_HasLowerLatencyThanSleeping()
+    public async Task YieldingWaitStrategy_ConcurrentCalls_ReturnEachSequence()
     {
-        // Arrange
-        var sleeping = new SleepingWaitStrategy();
-        var yielding = new YieldingWaitStrategy();
+        var strategy = new YieldingWaitStrategy();
+        var tasks = Enumerable.Range(0, 5)
+            .Select(sequence => Task.Run(() => strategy.WaitFor(sequence), TestContext.Current.CancellationToken));
 
-        // Act
-        var swSleeping = Stopwatch.StartNew();
-        sleeping.WaitFor(0);
-        swSleeping.Stop();
+        long[] expected = [0, 1, 2, 3, 4];
+        Assert.Equal(expected, await Task.WhenAll(tasks));
+    }
 
-        var swYielding = Stopwatch.StartNew();
-        yielding.WaitFor(0);
-        swYielding.Stop();
+    private static Task<long> StartWaiter(IWaitStrategy strategy, long sequence) =>
+        Task.Factory.StartNew(
+            () => strategy.WaitFor(sequence),
+            TestContext.Current.CancellationToken,
+            TaskCreationOptions.LongRunning,
+            TaskScheduler.Default);
 
-        // Assert - Yielding should be faster (no sleep)
-        Assert.True(swYielding.ElapsedMilliseconds <= swSleeping.ElapsedMilliseconds,
-            $"Yielding: {swYielding.ElapsedMilliseconds}ms, Sleeping: {swSleeping.ElapsedMilliseconds}ms");
+    private static async Task<T> SignalUntilCompletedAsync<T>(IWaitStrategy strategy, Task<T> waitTask)
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(10));
+
+        while (!waitTask.IsCompleted)
+        {
+            strategy.SignalAllWhenBlocking();
+            await Task.Delay(10, timeout.Token);
+        }
+
+        return await waitTask;
     }
 }

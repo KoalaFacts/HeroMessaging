@@ -37,7 +37,11 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
                 var mockChannel = new Mock<IChannel>();
                 mockChannel.Setup(ch => ch.IsOpen).Returns(true);
                 mockChannel.Setup(ch => ch.ChannelNumber).Returns(++channelNumber);
-                mockChannel.Setup(ch => ch.CloseAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+                mockChannel.Setup(ch => ch.CloseAsync(
+                    It.IsAny<ushort>(),
+                    It.IsAny<string>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
                 _mockChannels.Add(mockChannel);
                 return mockChannel.Object;
             });
@@ -103,6 +107,25 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
         MockConnection.Verify(c => c.CreateChannelAsync(It.IsAny<CreateChannelOptions>(), It.IsAny<CancellationToken>()), Times.Once);
         var (total, _) = ChannelPool.GetStatistics();
         Assert.Equal(1, total);
+    }
+
+    [Fact]
+    public async Task AcquireChannelAsync_WithPublisherConfirms_EnablesConfirmTracking()
+    {
+        await using var pool = new RabbitMqChannelPool(
+            MockConnection.Object,
+            5,
+            TimeSpan.FromMinutes(5),
+            MockLogger.Object,
+            TimeProvider.System,
+            publisherConfirmsEnabled: true);
+
+        await pool.AcquireChannelAsync(TestContext.Current.CancellationToken);
+
+        MockConnection.Verify(connection => connection.CreateChannelAsync(
+            It.Is<CreateChannelOptions>(options =>
+                options.PublisherConfirmationsEnabled && options.PublisherConfirmationTrackingEnabled),
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -252,11 +275,11 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
         var executed = false;
 
         // Act
-        var result = await ChannelPool.ExecuteAsync(async channel =>
+        var result = await ChannelPool.ExecuteAsync(channel =>
         {
             executed = true;
             Assert.NotNull(channel);
-            return 42;
+            return Task.FromResult(42);
         }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
@@ -273,11 +296,11 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
         var executed = false;
 
         // Act
-        await ChannelPool.ExecuteAsync(async channel =>
+        await ChannelPool.ExecuteAsync(channel =>
         {
             executed = true;
             Assert.NotNull(channel);
-            await Task.CompletedTask;
+            return Task.CompletedTask;
         }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
@@ -290,10 +313,10 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
     public async Task ExecuteAsync_WhenOperationThrows_StillReleasesChannel()
     {
         // Act & Assert
-        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await ChannelPool.ExecuteAsync<int>(async channel =>
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            ChannelPool.ExecuteAsync<int>(channel =>
             {
-                throw new InvalidOperationException("Test exception");
+                return Task.FromException<int>(new InvalidOperationException("Test exception"));
             }, cancellationToken: TestContext.Current.CancellationToken));
 
         // Channel should still be released

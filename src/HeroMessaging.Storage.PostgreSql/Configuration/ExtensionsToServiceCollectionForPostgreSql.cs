@@ -8,6 +8,7 @@ namespace HeroMessaging.Storage.PostgreSql;
 /// <summary>
 /// Extension methods for configuring PostgreSQL idempotency storage.
 /// </summary>
+// ReSharper disable once CheckNamespace
 public static class ExtensionsToServiceCollectionForPostgreSql
 #pragma warning restore IDE0130
 {

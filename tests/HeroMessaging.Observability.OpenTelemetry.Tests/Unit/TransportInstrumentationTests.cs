@@ -6,6 +6,7 @@ using Xunit;
 
 namespace HeroMessaging.Observability.OpenTelemetry.Tests;
 
+[Collection("OpenTelemetry instrumentation")]
 public class TransportInstrumentationTests : IDisposable
 {
     private readonly ActivityListener _activityListener;

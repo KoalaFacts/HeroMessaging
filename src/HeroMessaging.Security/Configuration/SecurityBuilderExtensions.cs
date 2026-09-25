@@ -10,6 +10,7 @@ namespace Microsoft.Extensions.DependencyInjection;
 /// <summary>
 /// Extension methods for configuring message security
 /// </summary>
+// ReSharper disable once CheckNamespace
 public static class ExtensionsToIServiceCollectionForSecurity
 {
     /// <summary>

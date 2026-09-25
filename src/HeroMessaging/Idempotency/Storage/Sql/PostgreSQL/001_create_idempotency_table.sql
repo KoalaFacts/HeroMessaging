@@ -20,8 +20,8 @@ CREATE TABLE IF NOT EXISTS idempotency_responses (
     failure_stack_trace TEXT NULL,
 
     -- Timestamps: For TTL and cleanup
-    stored_at TIMESTAMP NOT NULL,
-    expires_at TIMESTAMP NOT NULL,
+    stored_at TIMESTAMPTZ NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
 
     CONSTRAINT pk_idempotency_responses PRIMARY KEY (idempotency_key)
 );

@@ -7,21 +7,22 @@ using Xunit;
 namespace HeroMessaging.Storage.SqlServer.Tests.Unit;
 
 [Trait("Category", "Unit")]
+[Collection(nameof(SqlServerIdempotencyStoreCollection))]
 public sealed class SqlServerSagaRepositoryTests : IDisposable
 {
     private readonly Mock<TimeProvider> _mockTimeProvider;
     private readonly Mock<IJsonSerializer> _mockJsonSerializer;
     private readonly SqlServerStorageOptions _options;
 
-    public SqlServerSagaRepositoryTests()
+    public SqlServerSagaRepositoryTests(SqlServerIdempotencyStoreFixture fixture)
     {
         _mockTimeProvider = new Mock<TimeProvider>();
         _mockJsonSerializer = new Mock<IJsonSerializer>();
 
         _options = new SqlServerStorageOptions
         {
-            ConnectionString = "Server=localhost;Database=test",
-            AutoCreateTables = false,
+            ConnectionString = fixture.ConnectionString,
+            AutoCreateTables = true,
             SagasTableName = "sagas",
             Schema = "dbo"
         };
@@ -37,6 +38,7 @@ public sealed class SqlServerSagaRepositoryTests : IDisposable
         _mockJsonSerializer
             .Setup(x => x.DeserializeFromString<TestSaga>(It.IsAny<string>(), It.IsAny<JsonSerializerOptions>()))
             .Returns(new TestSaga());
+        _mockJsonSerializer.SetReturnsDefault("{}");
     }
 
     [Fact]
@@ -95,7 +97,7 @@ public sealed class SqlServerSagaRepositoryTests : IDisposable
     public async Task FindByStateAsync_WithValidState_ReturnsEmptyCollection()
     {
         var repository = CreateRepository();
-        var state = "InitialState";
+        var state = $"NoSagas-{Guid.NewGuid():N}";
 
         var result = await repository.FindByStateAsync(state, TestContext.Current.CancellationToken);
         Assert.NotNull(result);

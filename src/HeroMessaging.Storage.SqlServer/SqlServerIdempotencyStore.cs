@@ -132,8 +132,8 @@ public sealed class SqlServerIdempotencyStore : IIdempotencyStore
                     FailureType NVARCHAR(500) NULL,
                     FailureMessage NVARCHAR(MAX) NULL,
                     FailureStackTrace NVARCHAR(MAX) NULL,
-                    StoredAt DATETIME2 NOT NULL,
-                    ExpiresAt DATETIME2 NOT NULL,
+                    StoredAt DATETIMEOFFSET NOT NULL,
+                    ExpiresAt DATETIMEOFFSET NOT NULL,
                     INDEX IX_IdempotencyResponses_ExpiresAt NONCLUSTERED (ExpiresAt ASC)
                 )
             END
@@ -176,7 +176,7 @@ public sealed class SqlServerIdempotencyStore : IIdempotencyStore
 
             using var command = new SqlCommand(sql, connection);
             command.Parameters.Add("@IdempotencyKey", SqlDbType.NVarChar, 450).Value = idempotencyKey;
-            command.Parameters.Add("@Now", SqlDbType.DateTime2).Value = _timeProvider.GetUtcNow().UtcDateTime;
+            command.Parameters.Add("@Now", SqlDbType.DateTimeOffset).Value = _timeProvider.GetUtcNow();
 
             using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
 
@@ -193,8 +193,8 @@ public sealed class SqlServerIdempotencyStore : IIdempotencyStore
                 FailureType = reader.IsDBNull(3) ? null : reader.GetString(3),
                 FailureMessage = reader.IsDBNull(4) ? null : reader.GetString(4),
                 FailureStackTrace = reader.IsDBNull(5) ? null : reader.GetString(5),
-                StoredAt = reader.GetDateTime(6),
-                ExpiresAt = reader.GetDateTime(7)
+                StoredAt = reader.GetFieldValue<DateTimeOffset>(6),
+                ExpiresAt = reader.GetFieldValue<DateTimeOffset>(7)
             };
         }
         catch (SqlException ex)
@@ -219,7 +219,7 @@ public sealed class SqlServerIdempotencyStore : IIdempotencyStore
 
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
 
-        var now = _timeProvider.GetUtcNow().UtcDateTime;
+        var now = _timeProvider.GetUtcNow();
         var expiresAt = now.Add(ttl);
         var serializedResult = SerializeResult(result);
 
@@ -249,8 +249,8 @@ public sealed class SqlServerIdempotencyStore : IIdempotencyStore
             command.Parameters.Add("@IdempotencyKey", SqlDbType.NVarChar, 450).Value = idempotencyKey;
             command.Parameters.Add("@Status", SqlDbType.TinyInt).Value = (byte)IdempotencyStatus.Success;
             command.Parameters.Add("@SuccessResult", SqlDbType.NVarChar).Value = (object?)serializedResult ?? DBNull.Value;
-            command.Parameters.Add("@StoredAt", SqlDbType.DateTime2).Value = now;
-            command.Parameters.Add("@ExpiresAt", SqlDbType.DateTime2).Value = expiresAt;
+            command.Parameters.Add("@StoredAt", SqlDbType.DateTimeOffset).Value = now;
+            command.Parameters.Add("@ExpiresAt", SqlDbType.DateTimeOffset).Value = expiresAt;
 
             await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
@@ -278,7 +278,7 @@ public sealed class SqlServerIdempotencyStore : IIdempotencyStore
 
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
 
-        var now = _timeProvider.GetUtcNow().UtcDateTime;
+        var now = _timeProvider.GetUtcNow();
         var expiresAt = now.Add(ttl);
 
         var sql = $@"
@@ -309,8 +309,8 @@ public sealed class SqlServerIdempotencyStore : IIdempotencyStore
             command.Parameters.Add("@FailureType", SqlDbType.NVarChar, 500).Value = (object?)exception.GetType().FullName ?? DBNull.Value;
             command.Parameters.Add("@FailureMessage", SqlDbType.NVarChar).Value = (object?)exception.Message ?? DBNull.Value;
             command.Parameters.Add("@FailureStackTrace", SqlDbType.NVarChar).Value = (object?)exception.StackTrace ?? DBNull.Value;
-            command.Parameters.Add("@StoredAt", SqlDbType.DateTime2).Value = now;
-            command.Parameters.Add("@ExpiresAt", SqlDbType.DateTime2).Value = expiresAt;
+            command.Parameters.Add("@StoredAt", SqlDbType.DateTimeOffset).Value = now;
+            command.Parameters.Add("@ExpiresAt", SqlDbType.DateTimeOffset).Value = expiresAt;
 
             await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
@@ -347,7 +347,7 @@ public sealed class SqlServerIdempotencyStore : IIdempotencyStore
 
             using var command = new SqlCommand(sql, connection);
             command.Parameters.Add("@IdempotencyKey", SqlDbType.NVarChar, 450).Value = idempotencyKey;
-            command.Parameters.Add("@Now", SqlDbType.DateTime2).Value = _timeProvider.GetUtcNow().UtcDateTime;
+            command.Parameters.Add("@Now", SqlDbType.DateTimeOffset).Value = _timeProvider.GetUtcNow();
 
             var count = (int)await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
             return count > 0;
@@ -376,7 +376,7 @@ public sealed class SqlServerIdempotencyStore : IIdempotencyStore
             await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
             using var command = new SqlCommand(sql, connection);
-            command.Parameters.Add("@Now", SqlDbType.DateTime2).Value = _timeProvider.GetUtcNow().UtcDateTime;
+            command.Parameters.Add("@Now", SqlDbType.DateTimeOffset).Value = _timeProvider.GetUtcNow();
 
             var rowCount = (int)await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
             return rowCount;

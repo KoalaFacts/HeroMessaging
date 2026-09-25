@@ -260,7 +260,7 @@ namespace HeroMessaging.Tests.Unit.Orchestration
         #region StateTransition Tests (via StateMachineBuilder)
 
         [Fact]
-        public async Task StateTransition_ViaBuilder_ExecutesAction()
+        public void StateTransition_ViaBuilder_ExecutesAction()
         {
             // Arrange
             var builder = new StateMachineBuilder<TestSaga>();

@@ -22,8 +22,8 @@ public sealed class PostgreSqlMessageStorageTests : IDisposable
         _options = new PostgreSqlStorageOptions
         {
             ConnectionString = "Host=localhost;Database=test",
-            AutoCreateTables = false,
-            MessagesTableName = "messages",
+            AutoCreateTables = true,
+            MessagesTableName = $"messages_{Guid.NewGuid():N}",
             Schema = "public"
         };
 
@@ -32,12 +32,15 @@ public sealed class PostgreSqlMessageStorageTests : IDisposable
             .Returns(DateTimeOffset.UtcNow);
 
         _mockJsonSerializer
-            .Setup(x => x.SerializeToString(It.IsAny<object>(), It.IsAny<System.Text.Json.JsonSerializerOptions>()))
+            .Setup(x => x.SerializeToString(It.IsAny<IMessage>(), It.IsAny<System.Text.Json.JsonSerializerOptions>()))
             .Returns("{}");
 
         _mockJsonSerializer
             .Setup(x => x.DeserializeFromString<object>(It.IsAny<string>(), It.IsAny<System.Text.Json.JsonSerializerOptions>()))
             .Returns(new object());
+        _mockJsonSerializer
+            .Setup(x => x.DeserializeFromString<IMessage>(It.IsAny<string>(), It.IsAny<System.Text.Json.JsonSerializerOptions>()))
+            .Returns(CreateTestMessage());
     }
 
     [Fact]
@@ -399,7 +402,7 @@ public sealed class PostgreSqlMessageStorageTests : IDisposable
         cts.Cancel();
 
         // Act & Assert
-        await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
             await storage.StoreAsync(message, (MessageStorageOptions?)null, cts.Token));
     }
 
