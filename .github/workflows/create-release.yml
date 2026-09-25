@@ -48,7 +48,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.event.inputs.commit_sha || 'main' }}
           fetch-depth: 0
@@ -94,7 +94,7 @@ jobs:
 
       - name: Find successful workflow run
         id: find-workflow
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           CI_WORKFLOW: ${{ env.CI_WORKFLOW_NAME }}
         with:
@@ -270,7 +270,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.validate-and-prepare.outputs.commit_sha }}
           fetch-depth: 0
@@ -329,7 +329,7 @@ jobs:
           fi
 
       - name: Create GitHub Release
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const fs = require('fs');

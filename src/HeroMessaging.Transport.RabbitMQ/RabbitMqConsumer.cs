@@ -210,7 +210,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
                 MessageId = messageId,
                 CorrelationId = ea.BasicProperties.CorrelationId,
                 ContentType = ea.BasicProperties.ContentType ?? "application/octet-stream",
-                Body = ea.Body,
+                Body = ea.Body.ToArray(),
                 MessageType = ea.BasicProperties.Type ?? "Unknown",
                 Headers = headers
             };
