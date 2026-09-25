@@ -201,6 +201,7 @@ public readonly record struct TransportEnvelope
 /// <summary>
 /// Extension methods for TransportEnvelope
 /// </summary>
+// ReSharper disable once CheckNamespace
 public static class ExtensionsToReadOnlyMemoryForTransportEnvelope
 {
     /// <summary>

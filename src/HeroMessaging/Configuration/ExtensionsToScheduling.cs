@@ -8,6 +8,7 @@ namespace HeroMessaging.Abstractions.Configuration;
 /// <summary>
 /// Extension methods for configuring message scheduling.
 /// </summary>
+// ReSharper disable once CheckNamespace
 public static class ExtensionsToScheduling
 {
     /// <summary>

@@ -31,6 +31,30 @@ public class PostgreSqlStorageIntegrationTests : PostgreSqlIntegrationTestBase
     }
 
     [Fact]
+    public async Task PostgreSqlStorage_NonUtcTimestamp_PreservesTheSameInstant()
+    {
+        // Arrange
+        var storage = CreateMessageStorage();
+        var timestamp = new DateTimeOffset(2025, 10, 27, 23, 0, 0, TimeSpan.FromHours(13));
+        var message = CreateMessageWithTimestamp("Offset timestamp", timestamp);
+
+        // Act
+        await storage.StoreAsync(message, (IStorageTransaction?)null, cancellationToken: TestContext.Current.CancellationToken);
+        var retrieved = await storage.RetrieveAsync(message.MessageId, null, TestContext.Current.CancellationToken);
+        var queryResult = await storage.QueryAsync(new MessageQuery
+        {
+            FromTimestamp = timestamp.AddMinutes(-1),
+            ToTimestamp = timestamp.AddMinutes(1),
+            MaxResults = 10
+        }, cancellationToken: TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.NotNull(retrieved);
+        Assert.Equal(timestamp, retrieved.Timestamp);
+        Assert.Contains(queryResult, result => result.MessageId == message.MessageId);
+    }
+
+    [Fact]
     public async Task PostgreSqlStorage_WithTransactionCommit_CommitsCorrectly()
     {
         // Arrange

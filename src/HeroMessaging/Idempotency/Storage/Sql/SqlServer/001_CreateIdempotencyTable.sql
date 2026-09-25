@@ -22,8 +22,8 @@ BEGIN
         [FailureStackTrace] NVARCHAR(MAX) NULL,
 
         -- Timestamps: For TTL and cleanup
-        [StoredAt] DATETIME2(7) NOT NULL,
-        [ExpiresAt] DATETIME2(7) NOT NULL,
+        [StoredAt] DATETIMEOFFSET(7) NOT NULL,
+        [ExpiresAt] DATETIMEOFFSET(7) NOT NULL,
 
         CONSTRAINT [PK_IdempotencyResponses] PRIMARY KEY CLUSTERED ([IdempotencyKey] ASC)
             WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF,

@@ -217,7 +217,7 @@ public sealed class RetryDecoratorTests
         _retryPolicyMock.Setup(p => p.ShouldRetry(It.IsAny<Exception>(), It.IsAny<int>())).Returns(true);
         _retryPolicyMock.Setup(p => p.GetRetryDelay(It.IsAny<int>())).Returns(TimeSpan.FromMilliseconds(50));
 
-        var decorator = CreateDecorator(_retryPolicyMock.Object);
+        var decorator = CreateDecorator(_retryPolicyMock.Object, TimeProvider.System);
         var message = new TestMessage();
         var context = new ProcessingContext();
 
@@ -369,7 +369,7 @@ public sealed class RetryDecoratorTests
     public async Task ProcessAsync_WithoutRetryPolicy_UsesDefaultExponentialBackoff()
     {
         // Arrange
-        var decorator = CreateDecorator(); // No policy provided, should use default
+        var decorator = CreateDecorator(timeProvider: TimeProvider.System); // No policy provided, should use default
         var message = new TestMessage();
         var context = new ProcessingContext();
         var attemptCount = 0;

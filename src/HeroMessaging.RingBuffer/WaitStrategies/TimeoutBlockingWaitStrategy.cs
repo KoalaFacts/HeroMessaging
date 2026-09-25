@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace HeroMessaging.RingBuffer.WaitStrategies;
 
 /// <summary>
@@ -10,7 +12,7 @@ public sealed class TimeoutBlockingWaitStrategy : IWaitStrategy
 {
     private readonly TimeSpan _timeout;
     private readonly object _lock = new();
-    private volatile bool _signalled;
+    private long _signalVersion;
 
     /// <summary>
     /// Creates a new timeout blocking wait strategy
@@ -29,15 +31,17 @@ public sealed class TimeoutBlockingWaitStrategy : IWaitStrategy
     {
         lock (_lock)
         {
-            if (!_signalled)
+            var observedVersion = _signalVersion;
+            var startedAt = Stopwatch.GetTimestamp();
+            while (_signalVersion == observedVersion)
             {
-                if (!Monitor.Wait(_lock, _timeout))
+                var remaining = _timeout - Stopwatch.GetElapsedTime(startedAt);
+                if (remaining <= TimeSpan.Zero || !Monitor.Wait(_lock, remaining))
                 {
                     throw new TimeoutException(
                         $"Timeout waiting for sequence {sequence} after {_timeout}");
                 }
             }
-            _signalled = false;
         }
         return sequence;
     }
@@ -49,7 +53,7 @@ public sealed class TimeoutBlockingWaitStrategy : IWaitStrategy
     {
         lock (_lock)
         {
-            _signalled = true;
+            _signalVersion++;
             Monitor.PulseAll(_lock);
         }
     }

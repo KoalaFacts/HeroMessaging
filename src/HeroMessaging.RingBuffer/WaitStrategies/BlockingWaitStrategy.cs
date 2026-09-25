@@ -8,7 +8,7 @@ namespace HeroMessaging.RingBuffer.WaitStrategies;
 public sealed class BlockingWaitStrategy : IWaitStrategy
 {
     private readonly object _lock = new();
-    private volatile bool _signalled;
+    private long _signalVersion;
 
     /// <summary>
     /// Wait for the sequence using Monitor.Wait (OS-level blocking).
@@ -18,11 +18,11 @@ public sealed class BlockingWaitStrategy : IWaitStrategy
     {
         lock (_lock)
         {
-            while (!_signalled)
+            var observedVersion = _signalVersion;
+            while (_signalVersion == observedVersion)
             {
                 Monitor.Wait(_lock);
             }
-            _signalled = false;
         }
         return sequence;
     }
@@ -34,7 +34,7 @@ public sealed class BlockingWaitStrategy : IWaitStrategy
     {
         lock (_lock)
         {
-            _signalled = true;
+            _signalVersion++;
             Monitor.PulseAll(_lock);
         }
     }

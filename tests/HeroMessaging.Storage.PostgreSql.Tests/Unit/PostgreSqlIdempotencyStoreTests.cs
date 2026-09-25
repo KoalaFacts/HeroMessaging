@@ -7,14 +7,17 @@ using Xunit;
 namespace HeroMessaging.Storage.PostgreSql.Tests.Unit;
 
 [Trait("Category", "Unit")]
+[Collection(nameof(PostgreSqlIdempotencyStoreCollection))]
 public sealed class PostgreSqlIdempotencyStoreTests : IDisposable
 {
     private readonly Mock<TimeProvider> _mockTimeProvider;
     private readonly Mock<IJsonSerializer> _mockJsonSerializer;
-    private readonly string _connectionString = "Host=localhost;Database=test";
+    private readonly string _connectionString;
+    private readonly string _idempotencyKey = $"idempotency:{Guid.NewGuid():N}";
 
-    public PostgreSqlIdempotencyStoreTests()
+    public PostgreSqlIdempotencyStoreTests(PostgreSqlIdempotencyStoreFixture fixture)
     {
+        _connectionString = fixture.ConnectionString;
         _mockTimeProvider = new Mock<TimeProvider>();
         _mockJsonSerializer = new Mock<IJsonSerializer>();
 
@@ -25,6 +28,7 @@ public sealed class PostgreSqlIdempotencyStoreTests : IDisposable
         _mockJsonSerializer
             .Setup(x => x.SerializeToString(It.IsAny<object>(), It.IsAny<JsonSerializerOptions>()))
             .Returns("{}");
+        _mockJsonSerializer.SetReturnsDefault("{}");
 
         _mockJsonSerializer
             .Setup(x => x.DeserializeFromString<object>(It.IsAny<string>(), It.IsAny<JsonSerializerOptions>()))
@@ -122,7 +126,7 @@ public sealed class PostgreSqlIdempotencyStoreTests : IDisposable
     {
         // Arrange
         var store = CreateStore();
-        var idempotencyKey = "idempotency:test-key";
+        var idempotencyKey = _idempotencyKey;
 
         // Act
         var result = await store.GetAsync(idempotencyKey, TestContext.Current.CancellationToken);
@@ -158,7 +162,7 @@ public sealed class PostgreSqlIdempotencyStoreTests : IDisposable
     {
         // Arrange
         var store = CreateStore();
-        var idempotencyKey = "idempotency:test-key";
+        var idempotencyKey = _idempotencyKey;
         var result = new { Message = "Success" };
         var ttl = TimeSpan.FromHours(24);
 
@@ -198,7 +202,7 @@ public sealed class PostgreSqlIdempotencyStoreTests : IDisposable
     {
         // Arrange
         var store = CreateStore();
-        var idempotencyKey = "idempotency:test-key";
+        var idempotencyKey = _idempotencyKey;
         var ttl = TimeSpan.FromHours(24);
 
         // Act
@@ -213,7 +217,7 @@ public sealed class PostgreSqlIdempotencyStoreTests : IDisposable
     {
         // Arrange
         var store = CreateStore();
-        var idempotencyKey = "idempotency:test-key";
+        var idempotencyKey = _idempotencyKey;
         var ttl = TimeSpan.Zero;
 
         // Act
@@ -228,7 +232,7 @@ public sealed class PostgreSqlIdempotencyStoreTests : IDisposable
     {
         // Arrange
         var store = CreateStore();
-        var idempotencyKey = "idempotency:test-key";
+        var idempotencyKey = _idempotencyKey;
         var exception = new InvalidOperationException("Test error");
         var ttl = TimeSpan.FromHours(1);
 
@@ -270,7 +274,7 @@ public sealed class PostgreSqlIdempotencyStoreTests : IDisposable
     {
         // Arrange
         var store = CreateStore();
-        var idempotencyKey = "idempotency:test-key";
+        var idempotencyKey = _idempotencyKey;
         var ttl = TimeSpan.FromHours(1);
 
         // Act & Assert
@@ -283,7 +287,7 @@ public sealed class PostgreSqlIdempotencyStoreTests : IDisposable
     {
         // Arrange
         var store = CreateStore();
-        var idempotencyKey = "idempotency:test-key";
+        var idempotencyKey = _idempotencyKey;
 
         // Act
         var result = await store.ExistsAsync(idempotencyKey, TestContext.Current.CancellationToken);
@@ -337,7 +341,7 @@ public sealed class PostgreSqlIdempotencyStoreTests : IDisposable
         cts.Cancel();
 
         // Act & Assert
-        await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
             await store.CleanupExpiredAsync(cts.Token));
     }
 
@@ -346,7 +350,7 @@ public sealed class PostgreSqlIdempotencyStoreTests : IDisposable
     {
         // Arrange
         var store = CreateStore();
-        var idempotencyKey = "idempotency:test-key";
+        var idempotencyKey = _idempotencyKey;
         var ttl = TimeSpan.FromDays(365);
 
         // Act
@@ -361,7 +365,7 @@ public sealed class PostgreSqlIdempotencyStoreTests : IDisposable
     {
         // Arrange
         var store = CreateStore();
-        var idempotencyKey = "idempotency:test-key";
+        var idempotencyKey = _idempotencyKey;
         var innerException = new ArgumentNullException("inner");
         var exception = new InvalidOperationException("outer", innerException);
         var ttl = TimeSpan.FromHours(1);

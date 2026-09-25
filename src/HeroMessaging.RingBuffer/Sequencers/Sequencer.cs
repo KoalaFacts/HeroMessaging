@@ -37,6 +37,8 @@ public abstract class Sequencer
         _waitStrategy = waitStrategy ?? throw new ArgumentNullException(nameof(waitStrategy));
     }
 
+    internal bool HasGatingSequences => Volatile.Read(ref _gatingSequencesArray).Length > 0;
+
     /// <summary>
     /// Gets the current cursor position (highest published sequence)
     /// </summary>

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text;
 using HeroMessaging.Abstractions.Transport;
 
 namespace HeroMessaging.Observability.OpenTelemetry;
@@ -75,7 +76,7 @@ public static class TraceContextPropagator
             return default;
         }
 
-        var traceParent = envelope.GetHeader<string>(TraceParentHeaderName);
+        var traceParent = ReadTextHeader(envelope, TraceParentHeaderName);
         if (string.IsNullOrEmpty(traceParent))
         {
             return default;
@@ -86,7 +87,7 @@ public static class TraceContextPropagator
             return default;
         }
 
-        var traceState = envelope.GetHeader<string>(TraceStateHeaderName);
+        var traceState = ReadTextHeader(envelope, TraceStateHeaderName);
 
         return new ActivityContext(
             traceId,
@@ -106,6 +107,21 @@ public static class TraceContextPropagator
     {
         context = Extract(envelope);
         return context != default;
+    }
+
+    private static string? ReadTextHeader(TransportEnvelope envelope, string name)
+    {
+        if (!envelope.Headers.TryGetValue(name, out var value))
+        {
+            return null;
+        }
+
+        return value switch
+        {
+            string text => text,
+            byte[] bytes => Encoding.UTF8.GetString(bytes),
+            _ => null
+        };
     }
 
     private static bool TryParseTraceParent(

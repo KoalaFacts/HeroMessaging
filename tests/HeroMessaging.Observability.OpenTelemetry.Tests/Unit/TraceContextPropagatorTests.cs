@@ -154,6 +154,26 @@ public class TraceContextPropagatorTests
 
     [Fact]
     [Trait("Category", "Unit")]
+    public void Extract_WithAmqpByteHeaders_RestoresTraceContext()
+    {
+        var traceId = ActivityTraceId.CreateRandom();
+        var spanId = ActivitySpanId.CreateRandom();
+        var traceParent = $"00-{traceId}-{spanId}-01";
+        const string traceState = "vendor=value";
+        var envelope = new TransportEnvelope("TestMessage", new byte[] { 1 })
+            .WithHeader(TraceContextPropagator.TraceParentHeaderName, System.Text.Encoding.UTF8.GetBytes(traceParent))
+            .WithHeader(TraceContextPropagator.TraceStateHeaderName, System.Text.Encoding.UTF8.GetBytes(traceState));
+
+        var context = TraceContextPropagator.Extract(envelope);
+
+        Assert.Equal(traceId, context.TraceId);
+        Assert.Equal(spanId, context.SpanId);
+        Assert.Equal(traceState, context.TraceState);
+        Assert.True(context.IsRemote);
+    }
+
+    [Fact]
+    [Trait("Category", "Unit")]
     public void Extract_WithNoTraceParent_ReturnsDefaultContext()
     {
         // Arrange

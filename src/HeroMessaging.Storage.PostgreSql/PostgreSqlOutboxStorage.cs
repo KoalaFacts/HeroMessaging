@@ -104,9 +104,9 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
                 status VARCHAR(50) NOT NULL DEFAULT 'Pending',
                 retry_count INTEGER NOT NULL DEFAULT 0,
                 max_retries INTEGER NOT NULL DEFAULT 3,
-                created_at TIMESTAMP NOT NULL,
-                processed_at TIMESTAMP,
-                next_retry_at TIMESTAMP,
+                created_at TIMESTAMPTZ NOT NULL,
+                processed_at TIMESTAMPTZ,
+                next_retry_at TIMESTAMPTZ,
                 last_error TEXT
             );
 
@@ -189,13 +189,13 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
             if (query.OlderThan.HasValue)
             {
                 whereClauses.Add("created_at < @older_than");
-                parameters.Add(new NpgsqlParameter("older_than", query.OlderThan.Value));
+                parameters.Add(new NpgsqlParameter("older_than", query.OlderThan.Value.ToUniversalTime()));
             }
 
             if (query.NewerThan.HasValue)
             {
                 whereClauses.Add("created_at > @newer_than");
-                parameters.Add(new NpgsqlParameter("newer_than", query.NewerThan.Value));
+                parameters.Add(new NpgsqlParameter("newer_than", query.NewerThan.Value.ToUniversalTime()));
             }
 
             var whereClause = whereClauses.Count > 0 ? "WHERE " + string.Join(" AND ", whereClauses) : "";
@@ -226,9 +226,9 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
                 var status = Enum.Parse<OutboxStatus>(reader.GetString(4));
                 var retryCount = reader.GetInt32(5);
                 var maxRetries = reader.GetInt32(6);
-                var createdAt = reader.GetDateTime(7);
-                var processedAt = reader.IsDBNull(8) ? (DateTimeOffset?)null : reader.GetDateTime(8);
-                var nextRetryAt = reader.IsDBNull(9) ? (DateTimeOffset?)null : reader.GetDateTime(9);
+                var createdAt = reader.GetFieldValue<DateTimeOffset>(7);
+                var processedAt = reader.IsDBNull(8) ? (DateTimeOffset?)null : reader.GetFieldValue<DateTimeOffset>(8);
+                var nextRetryAt = reader.IsDBNull(9) ? (DateTimeOffset?)null : reader.GetFieldValue<DateTimeOffset>(9);
                 var lastError = reader.IsDBNull(10) ? null : reader.GetString(10);
 
                 var message = _jsonSerializer.DeserializeFromString<IMessage>(payload, _jsonOptionsProvider.GetOptions());
@@ -356,7 +356,7 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
             using var command = new NpgsqlCommand(sql, connection, transaction);
             command.Parameters.AddWithValue("id", entryId);
             command.Parameters.AddWithValue("retry_count", retryCount);
-            command.Parameters.AddWithValue("next_retry_at", (object?)nextRetry ?? DBNull.Value);
+            command.Parameters.AddWithValue("next_retry_at", (object?)nextRetry?.ToUniversalTime() ?? DBNull.Value);
 
             var rowsAffected = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             return rowsAffected > 0;

@@ -12,6 +12,7 @@ namespace HeroMessaging.Abstractions.Configuration;
 /// <summary>
 /// Extension methods for configuring connection resilience in HeroMessaging
 /// </summary>
+// ReSharper disable once CheckNamespace
 public static class ExtensionsToIHeroMessagingBuilderForResilience
 {
     /// <summary>

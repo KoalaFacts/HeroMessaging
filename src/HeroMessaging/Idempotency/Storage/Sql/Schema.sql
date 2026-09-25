@@ -18,8 +18,8 @@ CREATE TABLE IdempotencyResponses (
     FailureStackTrace NVARCHAR(MAX) NULL,
 
     -- Timestamp Information
-    StoredAt DATETIME2 NOT NULL,
-    ExpiresAt DATETIME2 NOT NULL,
+    StoredAt DATETIMEOFFSET NOT NULL,
+    ExpiresAt DATETIMEOFFSET NOT NULL,
 
     -- Indexes for performance
     INDEX IX_IdempotencyResponses_ExpiresAt NONCLUSTERED (ExpiresAt ASC)
@@ -43,8 +43,8 @@ CREATE TABLE idempotency_responses (
     failure_stack_trace TEXT NULL,
 
     -- Timestamp Information
-    stored_at TIMESTAMP NOT NULL,
-    expires_at TIMESTAMP NOT NULL
+    stored_at TIMESTAMPTZ NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL
 );
 
 -- Index for cleanup operations

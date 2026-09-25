@@ -8,6 +8,7 @@ using Xunit;
 
 namespace HeroMessaging.Observability.OpenTelemetry.Tests;
 
+[Collection("OpenTelemetry instrumentation")]
 public class OpenTelemetryDecoratorTests : IDisposable
 {
     private readonly Mock<IMessageProcessor> _innerProcessor;
@@ -157,7 +158,7 @@ public class OpenTelemetryDecoratorTests : IDisposable
     public async Task ProcessAsync_WithParentActivity_CreatesChildActivity()
     {
         // Arrange
-        using var parentActivity = new ActivitySource("TestSource").StartActivity("ParentOperation");
+        using var parentActivity = new Activity("ParentOperation").Start();
         var message = new TestMessage { MessageId = Guid.NewGuid() };
         var context = new ProcessingContext("TestComponent");
         var expectedResult = ProcessingResult.Successful();
@@ -179,7 +180,7 @@ public class OpenTelemetryDecoratorTests : IDisposable
 
     [Fact]
     [Trait("Category", "Unit")]
-    public async Task ProcessAsync_NullInnerProcessor_ThrowsArgumentNullException()
+    public void ProcessAsync_NullInnerProcessor_ThrowsArgumentNullException()
     {
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => new OpenTelemetryDecorator(null!, _fakeTimeProvider));

@@ -55,19 +55,22 @@ public sealed class EventBusTests : IDisposable
     {
         // Arrange
         var handlerMock = new Mock<IEventHandler<TestEvent>>();
+        var handlerInvoked = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         _services.AddSingleton(handlerMock.Object);
-        var eventBus = CreateEventBus();
+        await using var eventBus = CreateEventBus();
         var testEvent = new TestEvent();
 
         handlerMock
             .Setup(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+            .Returns(() =>
+            {
+                handlerInvoked.TrySetResult(true);
+                return Task.CompletedTask;
+            });
 
         // Act
         await eventBus.PublishAsync(testEvent, cancellationToken: TestContext.Current.CancellationToken);
-
-        // Wait for async processing
-        await Task.Delay(100, TestContext.Current.CancellationToken);
+        await handlerInvoked.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
 
         // Assert
         handlerMock.Verify(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>()), Times.Once);
@@ -91,23 +94,40 @@ public sealed class EventBusTests : IDisposable
         var handler1Mock = new Mock<IEventHandler<TestEvent>>();
         var handler2Mock = new Mock<IEventHandler<TestEvent>>();
         var handler3Mock = new Mock<IEventHandler<TestEvent>>();
+        var handlersInvoked = new[]
+        {
+            new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously),
+            new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously),
+            new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously)
+        };
 
         _services.AddSingleton(handler1Mock.Object);
         _services.AddSingleton(handler2Mock.Object);
         _services.AddSingleton(handler3Mock.Object);
 
-        var eventBus = CreateEventBus();
+        await using var eventBus = CreateEventBus();
         var testEvent = new TestEvent();
 
-        handler1Mock.Setup(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
-        handler2Mock.Setup(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
-        handler3Mock.Setup(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        handler1Mock.Setup(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>())).Returns(() =>
+        {
+            handlersInvoked[0].TrySetResult(true);
+            return Task.CompletedTask;
+        });
+        handler2Mock.Setup(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>())).Returns(() =>
+        {
+            handlersInvoked[1].TrySetResult(true);
+            return Task.CompletedTask;
+        });
+        handler3Mock.Setup(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>())).Returns(() =>
+        {
+            handlersInvoked[2].TrySetResult(true);
+            return Task.CompletedTask;
+        });
 
         // Act
         await eventBus.PublishAsync(testEvent, cancellationToken: TestContext.Current.CancellationToken);
-
-        // Wait for async processing
-        await Task.Delay(200, TestContext.Current.CancellationToken);
+        await Task.WhenAll(handlersInvoked.Select(signal => signal.Task))
+            .WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
 
         // Assert
         handler1Mock.Verify(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>()), Times.Once);
@@ -406,8 +426,10 @@ public sealed class EventBusTests : IDisposable
     public async Task Publish_WithMultipleHandlers_ProcessesInParallel()
     {
         // Arrange
-        var handler1Complete = new TaskCompletionSource<bool>();
-        var handler2Started = new TaskCompletionSource<bool>();
+        var handler1Started = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseHandler1 = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var handler1Complete = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var handler2Started = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         var handler1Mock = new Mock<IEventHandler<TestEvent>>();
         var handler2Mock = new Mock<IEventHandler<TestEvent>>();
@@ -415,34 +437,40 @@ public sealed class EventBusTests : IDisposable
         _services.AddSingleton(handler1Mock.Object);
         _services.AddSingleton(handler2Mock.Object);
 
-        var eventBus = CreateEventBus();
+        await using var eventBus = CreateEventBus();
         var testEvent = new TestEvent();
 
         handler1Mock
             .Setup(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>()))
             .Returns(async () =>
             {
-                await Task.Delay(50);
-                handler1Complete.SetResult(true);
+                handler1Started.TrySetResult(true);
+                await releaseHandler1.Task;
+                handler1Complete.TrySetResult(true);
             });
 
         handler2Mock
             .Setup(h => h.HandleAsync(testEvent, It.IsAny<CancellationToken>()))
-            .Returns(async () =>
+            .Returns(() =>
             {
-                handler2Started.SetResult(true);
-                await Task.Delay(50);
+                handler2Started.TrySetResult(true);
+                return Task.CompletedTask;
             });
 
         // Act
         await eventBus.PublishAsync(testEvent, cancellationToken: TestContext.Current.CancellationToken);
+        try
+        {
+            await Task.WhenAll(handler1Started.Task, handler2Started.Task)
+                .WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+            Assert.False(handler1Complete.Task.IsCompleted);
+        }
+        finally
+        {
+            releaseHandler1.TrySetResult(true);
+        }
 
-        // Wait a bit for parallel execution to start
-        await Task.Delay(30, TestContext.Current.CancellationToken);
-
-        // Assert - Handler 2 should start before Handler 1 completes (parallel execution)
-        Assert.True(handler2Started.Task.IsCompleted);
-        Assert.False(handler1Complete.Task.IsCompleted);
+        await handler1Complete.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
     }
 
     #endregion

@@ -7,14 +7,17 @@ using Xunit;
 namespace HeroMessaging.Storage.SqlServer.Tests.Unit;
 
 [Trait("Category", "Unit")]
+[Collection(nameof(SqlServerIdempotencyStoreCollection))]
 public sealed class SqlServerIdempotencyStoreTests : IDisposable
 {
     private readonly Mock<TimeProvider> _mockTimeProvider;
     private readonly Mock<IJsonSerializer> _mockJsonSerializer;
-    private readonly string _connectionString = "Server=localhost;Database=test";
+    private readonly string _connectionString;
+    private readonly string _idempotencyKey = $"idempotency:{Guid.NewGuid():N}";
 
-    public SqlServerIdempotencyStoreTests()
+    public SqlServerIdempotencyStoreTests(SqlServerIdempotencyStoreFixture fixture)
     {
+        _connectionString = fixture.ConnectionString;
         _mockTimeProvider = new Mock<TimeProvider>();
         _mockJsonSerializer = new Mock<IJsonSerializer>();
 
@@ -25,6 +28,7 @@ public sealed class SqlServerIdempotencyStoreTests : IDisposable
         _mockJsonSerializer
             .Setup(x => x.SerializeToString(It.IsAny<object>(), It.IsAny<JsonSerializerOptions>()))
             .Returns("{}");
+        _mockJsonSerializer.SetReturnsDefault("{}");
 
         _mockJsonSerializer
             .Setup(x => x.DeserializeFromString<object>(It.IsAny<string>(), It.IsAny<JsonSerializerOptions>()))
@@ -75,7 +79,7 @@ public sealed class SqlServerIdempotencyStoreTests : IDisposable
     public async ValueTask GetAsync_WithValidKey_ReturnsNull()
     {
         var store = CreateStore();
-        var idempotencyKey = "idempotency:test-key";
+        var idempotencyKey = _idempotencyKey;
 
         var result = await store.GetAsync(idempotencyKey, TestContext.Current.CancellationToken);
         Assert.Null(result);
@@ -103,7 +107,7 @@ public sealed class SqlServerIdempotencyStoreTests : IDisposable
     public async ValueTask StoreSuccessAsync_WithValidKeyAndResult_Succeeds()
     {
         var store = CreateStore();
-        var idempotencyKey = "idempotency:test-key";
+        var idempotencyKey = _idempotencyKey;
         var result = new { Message = "Success" };
         var ttl = TimeSpan.FromHours(24);
 
@@ -125,7 +129,7 @@ public sealed class SqlServerIdempotencyStoreTests : IDisposable
     public async ValueTask StoreSuccessAsync_WithNullResult_Succeeds()
     {
         var store = CreateStore();
-        var idempotencyKey = "idempotency:test-key";
+        var idempotencyKey = _idempotencyKey;
         var ttl = TimeSpan.FromHours(24);
 
         await store.StoreSuccessAsync(idempotencyKey, null, ttl, TestContext.Current.CancellationToken);
@@ -136,7 +140,7 @@ public sealed class SqlServerIdempotencyStoreTests : IDisposable
     public async ValueTask StoreFailureAsync_WithValidKeyAndException_Succeeds()
     {
         var store = CreateStore();
-        var idempotencyKey = "idempotency:test-key";
+        var idempotencyKey = _idempotencyKey;
         var exception = new InvalidOperationException("Test error");
         var ttl = TimeSpan.FromHours(1);
 
@@ -159,7 +163,7 @@ public sealed class SqlServerIdempotencyStoreTests : IDisposable
     public async ValueTask StoreFailureAsync_WithNullException_ThrowsArgumentNullException()
     {
         var store = CreateStore();
-        var idempotencyKey = "idempotency:test-key";
+        var idempotencyKey = _idempotencyKey;
         var ttl = TimeSpan.FromHours(1);
 
         await Assert.ThrowsAsync<ArgumentNullException>(async () =>
@@ -170,7 +174,7 @@ public sealed class SqlServerIdempotencyStoreTests : IDisposable
     public async ValueTask ExistsAsync_WithValidKey_ReturnsFalse()
     {
         var store = CreateStore();
-        var idempotencyKey = "idempotency:test-key";
+        var idempotencyKey = _idempotencyKey;
 
         var result = await store.ExistsAsync(idempotencyKey, TestContext.Current.CancellationToken);
         Assert.False(result);
@@ -202,7 +206,7 @@ public sealed class SqlServerIdempotencyStoreTests : IDisposable
         var cts = new CancellationTokenSource();
         cts.Cancel();
 
-        await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
             await store.CleanupExpiredAsync(cts.Token));
     }
 

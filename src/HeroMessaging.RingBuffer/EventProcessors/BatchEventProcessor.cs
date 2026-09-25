@@ -56,7 +56,7 @@ public sealed class BatchEventProcessor<T> : IEventProcessor, IAsyncDisposable w
             return; // Already running
         }
 
-        _processingTask = Task.Run(ProcessEvents, _cts.Token);
+        _processingTask = Task.Run(ProcessEvents);
     }
 
     /// <summary>

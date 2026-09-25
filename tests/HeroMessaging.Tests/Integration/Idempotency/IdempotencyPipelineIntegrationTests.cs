@@ -279,7 +279,7 @@ public sealed class IdempotencyPipelineIntegrationTests
     }
 
     [Fact]
-    public async Task EndToEnd_WithCustomStore_UsesCustomStorage()
+    public void EndToEnd_WithCustomStore_UsesCustomStorage()
     {
         // Arrange
         var services = new ServiceCollection();

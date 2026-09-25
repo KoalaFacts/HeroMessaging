@@ -288,19 +288,22 @@ public class SecurityContextTests
         // Arrange
         var principal = new ClaimsPrincipal(new ClaimsIdentity("TestAuth"));
         var timestamp = DateTimeOffset.UtcNow;
+        var metadata = new Dictionary<string, object>();
 
         var context1 = new SecurityContext(TimeProvider.System)
         {
             Principal = principal,
             MessageId = "msg-123",
-            Timestamp = timestamp
+            Timestamp = timestamp,
+            Metadata = metadata
         };
 
         var context2 = new SecurityContext(TimeProvider.System)
         {
             Principal = principal,
             MessageId = "msg-123",
-            Timestamp = timestamp
+            Timestamp = timestamp,
+            Metadata = metadata
         };
 
         // Act & Assert

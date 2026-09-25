@@ -73,10 +73,16 @@ public readonly record struct ProcessingContext
     /// </summary>
     public DateTimeOffset? FirstFailureTime { get; init; }
 
+    private readonly ImmutableDictionary<string, object>? _metadata;
+
     /// <summary>
-    /// Gets the immutable metadata dictionary for the processing context.
+    /// Gets the immutable metadata dictionary, including for a default-initialized context.
     /// </summary>
-    public ImmutableDictionary<string, object> Metadata { get; init; } = ImmutableDictionary<string, object>.Empty;
+    public ImmutableDictionary<string, object> Metadata
+    {
+        get => _metadata ?? ImmutableDictionary<string, object>.Empty;
+        init => _metadata = value;
+    }
 
     /// <summary>
     /// Creates a new context with the specified metadata added.
@@ -86,7 +92,7 @@ public readonly record struct ProcessingContext
     /// <returns>A new context with the metadata added</returns>
     public ProcessingContext WithMetadata(string key, object value)
     {
-        return this with { Metadata = Metadata.SetItem(key, value) };
+        return this with { Metadata = (_metadata ?? ImmutableDictionary<string, object>.Empty).SetItem(key, value) };
     }
 
     /// <summary>

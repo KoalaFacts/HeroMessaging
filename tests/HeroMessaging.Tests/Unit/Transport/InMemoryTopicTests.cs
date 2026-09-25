@@ -301,19 +301,29 @@ public class InMemoryTopicTests
         await transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var topic = TransportAddress.Topic("test-topic");
-        var deliveryTimes = new System.Collections.Concurrent.ConcurrentBag<DateTimeOffset>();
-        var startTime = DateTimeOffset.UtcNow;
+        var allConsumersStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var allConsumersCompleted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var startedCount = 0;
+        var completedCount = 0;
 
-        // Create consumers with delays to test parallelism
+        // Each consumer waits for the others, so sequential delivery cannot complete the test.
         for (int i = 0; i < 3; i++)
         {
             var consumerId = $"consumer{i}";
             await transport.SubscribeAsync(topic,
                 async (env, ctx, ct) =>
                 {
-                    await Task.Delay(50, ct); // Simulate work
-                    deliveryTimes.Add(DateTimeOffset.UtcNow);
+                    if (Interlocked.Increment(ref startedCount) == 3)
+                    {
+                        allConsumersStarted.SetResult();
+                    }
+
+                    await allConsumersStarted.Task.WaitAsync(TimeSpan.FromSeconds(10), ct);
                     await ctx.AcknowledgeAsync(ct);
+                    if (Interlocked.Increment(ref completedCount) == 3)
+                    {
+                        allConsumersCompleted.SetResult();
+                    }
                 },
                 new ConsumerOptions { StartImmediately = true, ConsumerId = consumerId }, cancellationToken: TestContext.Current.CancellationToken);
         }
@@ -322,11 +332,10 @@ public class InMemoryTopicTests
 
         // Act
         await transport.PublishAsync(topic, envelope, cancellationToken: TestContext.Current.CancellationToken);
-        var endTime = DateTimeOffset.UtcNow;
+        await allConsumersCompleted.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
 
-        // Assert - If parallel, total time should be ~50ms, not 150ms (3 * 50ms)
-        var totalTime = (endTime - startTime).TotalMilliseconds;
-        Assert.True(totalTime < 120, $"Expected parallel execution (~50ms), but took {totalTime}ms");
+        Assert.Equal(3, startedCount);
+        Assert.Equal(3, completedCount);
 
         await transport.DisposeAsync();
     }

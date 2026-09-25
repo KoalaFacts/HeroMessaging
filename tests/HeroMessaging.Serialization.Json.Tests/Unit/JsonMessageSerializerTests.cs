@@ -276,7 +276,7 @@ public class JsonMessageSerializerTests
         var buffer = new byte[5];
 
         // Act & Assert
-        Assert.Throws<Exception>(() => serializer.Serialize(message, buffer));
+        Assert.Throws<ArgumentException>(() => serializer.Serialize(message, buffer));
     }
 
     [Fact]

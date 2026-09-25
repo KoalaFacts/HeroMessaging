@@ -9,6 +9,7 @@ namespace Microsoft.Extensions.DependencyInjection;
 /// <summary>
 /// Extension methods for IServiceCollection to configure HeroMessaging
 /// </summary>
+// ReSharper disable once CheckNamespace
 public static class ExtensionsToIServiceCollectionForHeroMessaging
 {
     /// <summary>
@@ -107,6 +108,7 @@ public static class ExtensionsToIServiceCollectionForHeroMessaging
 /// <summary>
 /// Extension methods for IHostBuilder to configure HeroMessaging
 /// </summary>
+// ReSharper disable once CheckNamespace
 public static class ExtensionsToIHostBuilderForHeroMessaging
 {
     /// <summary>

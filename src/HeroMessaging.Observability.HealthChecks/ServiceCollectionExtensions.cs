@@ -9,6 +9,7 @@ namespace Microsoft.Extensions.Diagnostics.HealthChecks;
 /// Represents the extensions to ihealth checks builder for hero messaging type.
 /// </summary>
 
+// ReSharper disable once CheckNamespace
 public static class ExtensionsToIHealthChecksBuilderForHeroMessaging
 {
     /// <summary>

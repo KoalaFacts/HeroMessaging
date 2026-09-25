@@ -142,7 +142,8 @@ public class RabbitMqMessageFlowIntegrationTests : RabbitMqIntegrationTestBase
         // Assert
         Assert.NotEqual(default, receivedEnvelope);
         Assert.True(receivedEnvelope.Headers.ContainsKey("CustomHeader"));
-        Assert.Equal("CustomValue", receivedEnvelope.Headers["CustomHeader"].ToString());
+        Assert.Equal("CustomValue", System.Text.Encoding.UTF8.GetString(
+            Assert.IsType<byte[]>(receivedEnvelope.Headers["CustomHeader"])));
 
         // Cleanup
         await consumer.DisposeAsync();

@@ -9,21 +9,22 @@ using Xunit;
 namespace HeroMessaging.Storage.SqlServer.Tests.Unit;
 
 [Trait("Category", "Unit")]
+[Collection(nameof(SqlServerIdempotencyStoreCollection))]
 public sealed class SqlServerDeadLetterQueueTests : IDisposable
 {
     private readonly Mock<TimeProvider> _mockTimeProvider;
     private readonly Mock<IJsonSerializer> _mockJsonSerializer;
     private readonly SqlServerStorageOptions _options;
 
-    public SqlServerDeadLetterQueueTests()
+    public SqlServerDeadLetterQueueTests(SqlServerIdempotencyStoreFixture fixture)
     {
         _mockTimeProvider = new Mock<TimeProvider>();
         _mockJsonSerializer = new Mock<IJsonSerializer>();
 
         _options = new SqlServerStorageOptions
         {
-            ConnectionString = "Server=localhost;Database=test",
-            AutoCreateTables = false,
+            ConnectionString = fixture.ConnectionString,
+            AutoCreateTables = true,
             DeadLetterTableName = "dead_letters",
             Schema = "dbo"
         };
@@ -39,6 +40,7 @@ public sealed class SqlServerDeadLetterQueueTests : IDisposable
         _mockJsonSerializer
             .Setup(x => x.DeserializeFromString<Dictionary<string, object>>(It.IsAny<string>(), It.IsAny<JsonSerializerOptions>()))
             .Returns([]);
+        _mockJsonSerializer.SetReturnsDefault("{}");
     }
 
     [Fact]
@@ -221,7 +223,7 @@ public sealed class SqlServerDeadLetterQueueTests : IDisposable
         var cts = new CancellationTokenSource();
         cts.Cancel();
 
-        await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
             await queue.SendToDeadLetterAsync(message, context, cts.Token));
     }
 

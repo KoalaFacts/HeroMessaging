@@ -22,6 +22,7 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
     private readonly Dictionary<string, List<Measurement<long>>> _longMeasurements;
     private readonly Dictionary<string, List<Measurement<double>>> _doubleMeasurements;
     private readonly ITransportInstrumentation _instrumentation;
+    private readonly TaskCompletionSource _receiveOperationRecorded = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     public RabbitMqTransportInstrumentationIntegrationTests()
     {
@@ -60,6 +61,17 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
                 _longMeasurements[instrument.Name] = [];
             }
             _longMeasurements[instrument.Name].Add(new Measurement<long>(measurement, tags));
+            if (instrument.Name == "heromessaging_transport_operations_total")
+            {
+                foreach (var tag in tags)
+                {
+                    if (tag.Key == "operation" && Equals(tag.Value, "receive"))
+                    {
+                        _receiveOperationRecorded.TrySetResult();
+                        break;
+                    }
+                }
+            }
         });
 
         _meterListener.SetMeasurementEventCallback<double>((instrument, measurement, tags, state) =>
@@ -99,6 +111,8 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
             Name = "test-transport",
             Host = "localhost",
             Port = 5672,
+            UserName = "guest",
+            Password = "guest",
             UsePublisherConfirms = false
         };
 
@@ -153,6 +167,7 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
             Assert.True(received, "Message should be received");
             Assert.NotNull(receivedEnvelope);
             Assert.NotNull(receivedContext);
+            await _receiveOperationRecorded.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
             // Verify activities were created
             Assert.Contains(_activities, a => a.OperationName == "HeroMessaging.Transport.Send");
@@ -206,6 +221,8 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
             Name = "test-transport",
             Host = "localhost",
             Port = 5672,
+            UserName = "guest",
+            Password = "guest",
             UsePublisherConfirms = true,
             PublisherConfirmTimeout = TimeSpan.FromSeconds(5)
         };
@@ -257,6 +274,8 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
             Name = "test-transport",
             Host = "localhost",
             Port = 5672,
+            UserName = "guest",
+            Password = "guest",
             UsePublisherConfirms = false
         };
 
@@ -317,6 +336,8 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
             Name = "test-transport",
             Host = "localhost",
             Port = 5672,
+            UserName = "guest",
+            Password = "guest",
             UsePublisherConfirms = false
         };
 
@@ -351,6 +372,8 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
             Name = "test-transport",
             Host = "localhost",
             Port = 5672,
+            UserName = "guest",
+            Password = "guest",
             UsePublisherConfirms = false
         };
 
@@ -440,6 +463,8 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
             Name = "test-transport",
             Host = "localhost",
             Port = 5672,
+            UserName = "guest",
+            Password = "guest",
             UsePublisherConfirms = false
         };
 

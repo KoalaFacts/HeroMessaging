@@ -200,7 +200,7 @@ internal class RingBufferQueue : IDisposable, IAsyncDisposable
         };
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         _cts.Cancel();
 
@@ -220,6 +220,8 @@ internal class RingBufferQueue : IDisposable, IAsyncDisposable
         }
 
         _cts.Dispose();
+
+        return ValueTask.CompletedTask;
     }
 
     public void Dispose()

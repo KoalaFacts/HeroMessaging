@@ -440,8 +440,16 @@ public class InMemoryConsumerTests : IDisposable
     public async Task ProcessMessage_AfterMaxRetries_DeadLettersMessage()
     {
         // Arrange
+        var attempts = 0;
+        var finalAttemptStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var handler = new Func<TransportEnvelope, MessageContext, CancellationToken, Task>(
-            (env, ctx, ct) => throw new InvalidOperationException("Test error"));
+            (env, ctx, ct) =>
+            {
+                if (Interlocked.Increment(ref attempts) == 3)
+                    finalAttemptStarted.TrySetResult(true);
+
+                return Task.FromException(new InvalidOperationException("Test error"));
+            });
 
         var options = new ConsumerOptions
         {
@@ -452,18 +460,21 @@ public class InMemoryConsumerTests : IDisposable
             MessageRetryPolicy = RetryPolicy.Linear(2, TimeSpan.FromMilliseconds(10))
         };
 
-        var consumer = CreateConsumer(handler, options: options);
+        var consumer = CreateConsumer(handler, options: options, timeProvider: TimeProvider.System);
         await consumer.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var envelope = CreateTestEnvelope();
 
         // Act
         await DeliverMessage(consumer, envelope);
-        await Task.Delay(200, TestContext.Current.CancellationToken);
+        await finalAttemptStarted.Task.WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
+        for (var attempt = 0; attempt < 50 && consumer.GetMetrics().MessagesDeadLettered == 0; attempt++)
+            await Task.Delay(10, TestContext.Current.CancellationToken);
 
         // Assert
         var metrics = consumer.GetMetrics();
-        Assert.True(metrics.MessagesDeadLettered > 0);
+        Assert.Equal(3, attempts);
+        Assert.Equal(1, metrics.MessagesDeadLettered);
 
         await consumer.DisposeAsync();
     }

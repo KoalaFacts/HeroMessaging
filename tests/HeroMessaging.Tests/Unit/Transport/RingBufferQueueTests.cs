@@ -227,7 +227,7 @@ public class RingBufferQueueTests
     }
 
     [Fact]
-    public async Task EnqueueAsync_WithCancelledToken_CompletesImmediately()
+    public async Task EnqueueAsync_WithCancelledToken_ReturnsCanceledValueTask()
     {
         // Arrange
         var options = CreateDefaultOptions();
@@ -237,12 +237,10 @@ public class RingBufferQueueTests
         cts.Cancel();
 
         // Act
-        // RingBufferQueue doesn't check cancellation token during enqueue
-        // as it's a fast, lock-free operation. This test verifies it doesn't hang.
-        var result = await queue.EnqueueAsync(envelope, cts.Token);
+        var result = queue.EnqueueAsync(envelope, cts.Token);
 
-        // Assert - Should complete (even with cancelled token)
-        Assert.True(result || !result); // Just verify it completes
+        // Assert - The already-cancelled token is observed synchronously.
+        Assert.True(result.IsCanceled);
 
         await queue.DisposeAsync();
     }

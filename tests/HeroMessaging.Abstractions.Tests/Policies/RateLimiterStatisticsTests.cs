@@ -286,7 +286,7 @@ public class RateLimiterStatisticsTests
         var rate = stats.ThrottleRate;
 
         // Assert
-        Assert.Equal(0.001, rate, precision: 10);
+        Assert.Equal(1_000_000d / 1_001_000_000d, rate, precision: 10);
     }
 
     [Fact]
@@ -306,7 +306,7 @@ public class RateLimiterStatisticsTests
         // Assert
         Assert.Equal(9500, stats.AvailablePermits);
         Assert.Equal(10_000, stats.Capacity);
-        Assert.Equal(0.005, stats.ThrottleRate);
+        Assert.Equal(50_000d / 10_050_000d, stats.ThrottleRate);
     }
 
     [Fact]

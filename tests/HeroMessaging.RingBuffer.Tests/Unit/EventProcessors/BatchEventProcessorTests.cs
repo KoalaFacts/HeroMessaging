@@ -280,11 +280,9 @@ public class BatchEventProcessorTests
         var processor = new BatchEventProcessor<TestEvent>(ringBuffer, barrier, handler);
 
         processor.Start();
-        Thread.Sleep(10);
 
         // Act
         processor.Dispose();
-        Thread.Sleep(50);
 
         // Assert
         Assert.True(handler.ShutdownCalled);

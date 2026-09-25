@@ -365,18 +365,14 @@ namespace HeroMessaging.Tests.Unit.Orchestration
                 DefaultTimeout = TimeSpan.FromHours(24)
             };
 
-            var handler = new SagaTimeoutHandler<TestSaga>(services, options, _loggerMock.Object, _fakeTimeProvider);
+            var handler = new SagaTimeoutHandler<TestSaga>(services, options, _loggerMock.Object, TimeProvider.System);
             var cts = new CancellationTokenSource();
 
             // Act
             await handler.StartAsync(cts.Token);
 
-            // Advance time to trigger multiple checks
-            _fakeTimeProvider.Advance(TimeSpan.FromMilliseconds(100));
-
             // Wait for at least 2 calls
-            var completedTask = await Task.WhenAny(secondCallComplete.Task, Task.Delay(1000, TestContext.Current.CancellationToken));
-            Assert.Same(secondCallComplete.Task, completedTask);
+            await secondCallComplete.Task.WaitAsync(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
 
             await cts.CancelAsync();
             await handler.StopAsync(CancellationToken.None);
