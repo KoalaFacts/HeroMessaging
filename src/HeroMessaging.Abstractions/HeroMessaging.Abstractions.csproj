@@ -5,6 +5,10 @@
 		<PackageTags>messaging;abstractions;interfaces;contracts;saga;cqrs</PackageTags>
 	</PropertyGroup>
 
+	<ItemGroup>
+		<None Include="..\..\README.md" Pack="true" PackagePath="\" />
+	</ItemGroup>
+
 	<ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
 		<PackageReference Include="System.Threading.Tasks.Extensions" Version="4.6.3" />
 		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.5" />

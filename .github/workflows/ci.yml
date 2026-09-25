@@ -340,10 +340,12 @@ jobs:
       - name: Generate build number
         id: build-number
         run: |
-          # Extract base version from project file with fallback
-          BASE_VERSION=$(grep -oP '<Version>\K[^<]+' src/HeroMessaging/HeroMessaging.csproj 2>/dev/null || \
-                        grep '<Version>' src/HeroMessaging/HeroMessaging.csproj 2>/dev/null | sed -n 's/.*<Version>\(.*\)<\/Version>.*/\1/p' || \
-                        echo "0.0.0")
+          # Read the evaluated property, including values inherited from Directory.Build.props.
+          BASE_VERSION=$(dotnet msbuild src/HeroMessaging/HeroMessaging.csproj -getProperty:Version -nologo)
+          if [[ -z "$BASE_VERSION" ]]; then
+            echo "Project Version is empty" >&2
+            exit 1
+          fi
 
           # Extract and sanitize branch name (replace / with -)
           BRANCH_NAME="${GITHUB_REF#refs/heads/}"
