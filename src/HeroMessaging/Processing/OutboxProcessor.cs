@@ -41,6 +41,9 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxEntry>, IOutbo
     {
         options ??= new OutboxOptions();
 
+        if (!string.IsNullOrEmpty(options.Destination))
+            throw new NotSupportedException("External outbox destinations are not supported. The message was not stored or delivered.");
+
         var entry = await _outboxStorage.AddAsync(message, options, cancellationToken);
 
         // Trigger immediate processing for high priority messages
@@ -106,10 +109,9 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxEntry>, IOutbo
             // Mark as processing to prevent duplicate processing
             entry.Status = OutboxStatus.Processing;
 
-            // Simulate sending to external system based on destination
             if (!string.IsNullOrEmpty(entry.Options.Destination))
             {
-                await SendToExternalSystem(entry);
+                throw new NotSupportedException("External outbox destinations are not supported. The message was not delivered.");
             }
             else
             {
@@ -143,23 +145,6 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxEntry>, IOutbo
                 Logger.LogWarning("Outbox entry {EntryId} will be retried at {NextRetry} (attempt {RetryCount}/{MaxRetries})",
                     entry.Id, nextRetry, entry.RetryCount, entry.Options.MaxRetries);
             }
-        }
-    }
-
-    private async Task SendToExternalSystem(OutboxEntry entry)
-    {
-        // This is where you would implement actual external system integration
-        // For now, we'll simulate it
-        Logger.LogInformation("Sending message {MessageId} to external system: {Destination}",
-            entry.Message.MessageId, entry.Options.Destination);
-
-        // Simulate network call
-        await Task.Delay(TimeSpan.FromMilliseconds(100), _timeProvider, CancellationToken.None);
-
-        // Simulate occasional failures for testing
-        if (RandomHelper.Instance.Next(10) == 0)
-        {
-            throw new InvalidOperationException($"Failed to send to {entry.Options.Destination}");
         }
     }
 }

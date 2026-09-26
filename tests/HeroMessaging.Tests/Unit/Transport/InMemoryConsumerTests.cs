@@ -142,6 +142,58 @@ public class InMemoryConsumerTests : IDisposable
     }
 
     [Fact]
+    public async Task StopAsync_DrainsMessagesAlreadyDeliveredToConsumer()
+    {
+        var started = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var processed = new List<string>();
+        var consumer = CreateConsumer(async (envelope, _, ct) =>
+        {
+            if (envelope.MessageType == "first")
+            {
+                started.TrySetResult(true);
+                await release.Task.WaitAsync(ct);
+            }
+
+            processed.Add(envelope.MessageType);
+        });
+        await consumer.StartAsync(TestContext.Current.CancellationToken);
+        await DeliverMessage(consumer, CreateTestEnvelope("first"));
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        await DeliverMessage(consumer, CreateTestEnvelope("second"));
+
+        var stopping = consumer.StopAsync(TestContext.Current.CancellationToken);
+        Assert.False(stopping.IsCompleted);
+        release.TrySetResult(true);
+        await stopping;
+
+        Assert.Equal(["first", "second"], processed);
+        await consumer.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task DeliverMessageAsync_BlocksWhenPrefetchBufferIsFull()
+    {
+        var started = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var consumer = CreateConsumer(async (_, _, ct) =>
+        {
+            started.TrySetResult(true);
+            await release.Task.WaitAsync(ct);
+        }, options: _options with { PrefetchCount = 1 });
+        await consumer.StartAsync(TestContext.Current.CancellationToken);
+        await DeliverMessage(consumer, CreateTestEnvelope("first"));
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        await DeliverMessage(consumer, CreateTestEnvelope("second"));
+
+        var thirdDelivery = DeliverMessage(consumer, CreateTestEnvelope("third"));
+        Assert.False(thirdDelivery.IsCompleted);
+        release.TrySetResult(true);
+        await thirdDelivery.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        await consumer.DisposeAsync();
+    }
+
+    [Fact]
     public async Task StopAsync_WhenNotActive_DoesNothing()
     {
         // Arrange
@@ -183,7 +235,7 @@ public class InMemoryConsumerTests : IDisposable
     }
 
     [Fact]
-    public async Task DeliverMessageAsync_WhenNotActive_DoesNotProcessMessage()
+    public async Task DeliverMessageAsync_WhenNotActive_RejectsDelivery()
     {
         // Arrange
         var messageReceived = false;
@@ -198,8 +250,7 @@ public class InMemoryConsumerTests : IDisposable
         var envelope = CreateTestEnvelope();
 
         // Act
-        await DeliverMessage(consumer, envelope);
-        await Task.Delay(50, TestContext.Current.CancellationToken);
+        await Assert.ThrowsAsync<System.Threading.Channels.ChannelClosedException>(() => DeliverMessage(consumer, envelope));
 
         // Assert
         Assert.False(messageReceived);

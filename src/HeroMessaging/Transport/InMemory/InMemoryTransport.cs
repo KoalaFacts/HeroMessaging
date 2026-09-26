@@ -291,7 +291,24 @@ public class InMemoryTransport(
 
     internal void RemoveConsumer(string consumerId)
     {
-        _consumers.TryRemove(consumerId, out _);
+        if (_consumers.TryRemove(consumerId, out var consumer))
+            NotifyConsumerStopped(consumer);
+    }
+
+    internal void NotifyConsumerStopped(InMemoryConsumer consumer)
+    {
+        _consumers.TryRemove(consumer.ConsumerId, out _);
+
+        if (consumer.Source.Type == TransportAddressType.Queue &&
+            _queues.TryGetValue(consumer.Source.Name, out var queue))
+        {
+            queue.RemoveConsumer(consumer);
+        }
+        else if (consumer.Source.Type == TransportAddressType.Topic &&
+            _topics.TryGetValue(consumer.Source.Name, out var topic))
+        {
+            topic.RemoveSubscription(consumer);
+        }
     }
 
     internal void NotifyConsumerStarted(InMemoryConsumer consumer)
@@ -301,6 +318,7 @@ public class InMemoryTransport(
             _queues.TryGetValue(consumer.Source.Name, out var queue))
         {
             queue.StartProcessingIfNeeded();
+            queue.NotifyConsumerStarted();
         }
     }
 

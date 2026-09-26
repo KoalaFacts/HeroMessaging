@@ -72,12 +72,16 @@ See [orchestration-pattern.md](orchestration-pattern.md) for complete guide.
 Event-driven coordination without a central orchestrator:
 
 ```csharp
-public class OrderCreatedHandler : IMessageHandler<OrderCreatedEvent>
+public class OrderCreatedHandler : IEventHandler<OrderCreatedEvent>
 {
-    public async Task HandleAsync(OrderCreatedEvent evt, CancellationToken ct)
+    private readonly IHeroMessaging _messaging;
+
+    public OrderCreatedHandler(IHeroMessaging messaging) => _messaging = messaging;
+
+    public async Task HandleAsync(OrderCreatedEvent evt, CancellationToken ct = default)
     {
         // Process order, publish more events
-        await _messageBus.PublishAsync(new PaymentRequested(evt.OrderId));
+        await _messaging.PublishAsync(new PaymentRequested(evt.OrderId), ct);
     }
 }
 ```

@@ -55,13 +55,14 @@ internal class InMemoryConsumer : ITransportConsumer
 
         _concurrencyLimiter = new SemaphoreSlim(options.ConcurrentMessageLimit, options.ConcurrentMessageLimit);
 
-        // Create internal channel for message delivery
-        var channelOptions = new UnboundedChannelOptions
+        // Bound prefetched messages so the queue can apply backpressure.
+        var channelOptions = new BoundedChannelOptions(Math.Max(1, (int)options.PrefetchCount))
         {
+            FullMode = BoundedChannelFullMode.Wait,
             SingleReader = false,
             SingleWriter = false
         };
-        _messageChannel = Channel.CreateUnbounded<TransportEnvelope>(channelOptions);
+        _messageChannel = Channel.CreateBounded<TransportEnvelope>(channelOptions);
     }
 
     public Task StartAsync(CancellationToken cancellationToken = default)
@@ -70,6 +71,9 @@ internal class InMemoryConsumer : ITransportConsumer
 
         if (IsActive)
             return Task.CompletedTask;
+
+        if (_messageChannel.Reader.Completion.IsCompleted)
+            throw new InvalidOperationException("A stopped consumer cannot be restarted");
 
         IsActive = true;
         _processingTask = ProcessMessagesAsync(_cts.Token);
@@ -85,15 +89,24 @@ internal class InMemoryConsumer : ITransportConsumer
             return;
 
         IsActive = false;
-        _messageChannel.Writer.Complete();
-        _cts.Cancel();
+        _transport.NotifyConsumerStopped(this);
+        _messageChannel.Writer.TryComplete();
 
-        // Wait for the main processing loop to exit
-        // This ensures all messages are processed sequentially before stopping
         if (_processingTask != null)
         {
-            await _processingTask;
+            try
+            {
+                await _processingTask.WaitAsync(cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                _cts.Cancel();
+                await _processingTask;
+                throw;
+            }
         }
+
+        _cts.Cancel();
     }
 
     /// <inheritdoc/>
@@ -111,7 +124,7 @@ internal class InMemoryConsumer : ITransportConsumer
     internal async Task DeliverMessageAsync(TransportEnvelope envelope, CancellationToken cancellationToken = default)
     {
         if (!IsActive)
-            return;
+            throw new ChannelClosedException();
 
         await _messageChannel.Writer.WriteAsync(envelope, cancellationToken);
     }
@@ -120,20 +133,12 @@ internal class InMemoryConsumer : ITransportConsumer
     {
         var reader = _messageChannel.Reader;
 
-        while (!cancellationToken.IsCancellationRequested)
+        while (await reader.WaitToReadAsync(cancellationToken))
         {
             try
             {
-                // Wait for messages
-                if (!await reader.WaitToReadAsync(cancellationToken))
-                    break;
-
-                // Process messages sequentially (FIFO order)
-                // The semaphore controls concurrency, but we AWAIT each message processing
                 while (reader.TryRead(out var envelope))
                 {
-                    // Process this message and WAIT for it to complete before getting the next one
-                    // This ensures FIFO processing order
                     await ProcessMessageAsync(envelope, cancellationToken);
                 }
             }

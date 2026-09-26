@@ -187,6 +187,18 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
     private async Task OnMessageReceivedAsync(object sender, BasicDeliverEventArgs ea)
     {
         var messageId = ea.BasicProperties.MessageId ?? string.Empty;
+        var dispositionStarted = 0;
+
+        async Task SettleAsync(bool? requeue, CancellationToken cancellationToken)
+        {
+            if (Interlocked.CompareExchange(ref dispositionStarted, 1, 0) != 0)
+                throw new InvalidOperationException($"Message {messageId} has already been settled");
+
+            if (requeue is bool shouldRequeue)
+                await _channel.BasicNackAsync(ea.DeliveryTag, multiple: false, shouldRequeue, cancellationToken).ConfigureAwait(false);
+            else
+                await _channel.BasicAckAsync(ea.DeliveryTag, multiple: false, cancellationToken).ConfigureAwait(false);
+        }
 
         _logger.LogTrace("Received message {MessageId} from {Queue}", messageId, Source.Name);
 
@@ -245,22 +257,22 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
                 }.ToImmutableDictionary(),
                 Acknowledge = async (ct) =>
                 {
-                    await _channel.BasicAckAsync(ea.DeliveryTag, multiple: false, ct).ConfigureAwait(false);
+                    await SettleAsync(null, ct).ConfigureAwait(false);
                     _instrumentation.AddEvent(activity, "acknowledge");
                 },
                 Reject = async (requeue, ct) =>
                 {
-                    await _channel.BasicNackAsync(ea.DeliveryTag, multiple: false, requeue, ct).ConfigureAwait(false);
+                    await SettleAsync(requeue, ct).ConfigureAwait(false);
                     _instrumentation.AddEvent(activity, requeue ? "reject.requeue" : "reject.drop");
                 },
                 Defer = async (delay, ct) =>
                 {
-                    await _channel.BasicNackAsync(ea.DeliveryTag, multiple: false, requeue: true, ct).ConfigureAwait(false);
+                    await SettleAsync(true, ct).ConfigureAwait(false);
                     _instrumentation.AddEvent(activity, "defer");
                 },
                 DeadLetter = async (reason, ct) =>
                 {
-                    await _channel.BasicNackAsync(ea.DeliveryTag, multiple: false, requeue: false, ct).ConfigureAwait(false);
+                    await SettleAsync(false, ct).ConfigureAwait(false);
                     _instrumentation.AddEvent(activity, "deadletter",
                     [
                         new KeyValuePair<string, object?>("reason", reason ?? "unknown")
@@ -276,8 +288,8 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
 
             _instrumentation.AddEvent(activity, "handler.complete");
 
-            // Acknowledge successful processing
-            await _channel.BasicAckAsync(ea.DeliveryTag, multiple: false).ConfigureAwait(false);
+            if (_options.AutoAcknowledge && Volatile.Read(ref dispositionStarted) == 0)
+                await SettleAsync(null, CancellationToken.None).ConfigureAwait(false);
 
             Interlocked.Increment(ref _messagesProcessed);
 
@@ -298,9 +310,8 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
 
             _logger.LogError(ex, "Error processing message {MessageId} from {Queue}", messageId, Source.Name);
 
-            // Nack with requeue for transient failures
-            // In production, you'd want to check error type and potentially dead-letter permanent failures
-            await _channel.BasicNackAsync(ea.DeliveryTag, multiple: false, requeue: true).ConfigureAwait(false);
+            if (Volatile.Read(ref dispositionStarted) == 0)
+                await SettleAsync(_options.RequeueOnFailure, CancellationToken.None).ConfigureAwait(false);
         }
         finally
         {
