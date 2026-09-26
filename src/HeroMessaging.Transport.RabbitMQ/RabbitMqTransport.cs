@@ -27,6 +27,7 @@ public sealed class RabbitMqTransport : IMessageTransport, IRabbitMqConsumerHost
     private readonly object _stateLock = new();
 #endif
     private readonly SemaphoreSlim _connectLock = new(1, 1);
+    private Task? _disconnectTask;
     private readonly TimeProvider _timeProvider;
 
     /// <inheritdoc/>
@@ -102,36 +103,57 @@ public sealed class RabbitMqTransport : IMessageTransport, IRabbitMqConsumerHost
     }
 
     /// <inheritdoc/>
-    public async Task DisconnectAsync(CancellationToken cancellationToken = default)
+    public Task DisconnectAsync(CancellationToken cancellationToken = default)
     {
-        ChangeState(TransportState.Disconnecting, "Disconnecting from RabbitMQ");
-
-        _logger.LogInformation("Disconnecting from RabbitMQ");
-
-        // Stop all consumers
-        foreach (var consumer in _consumers.Values)
+        var calledFromHandler = _consumers.Values.Any(static consumer => consumer.IsInCurrentDelivery);
+        Task disconnectTask;
+        TaskCompletionSource? completion = null;
+        lock (_stateLock)
         {
-            await consumer.StopAsync(cancellationToken).ConfigureAwait(false);
-        }
-        _consumers.Clear();
-
-        // Dispose channel pools
-        foreach (var channelPool in _channelPools.Values)
-        {
-            await channelPool.DisposeAsync().ConfigureAwait(false);
-        }
-        _channelPools.Clear();
-
-        // Dispose connection pool
-        if (_connectionPool != null)
-        {
-            await _connectionPool.DisposeAsync().ConfigureAwait(false);
-            _connectionPool = null;
+            if (_disconnectTask is null || _disconnectTask.IsCompleted)
+            {
+                completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                _disconnectTask = completion.Task;
+            }
+            disconnectTask = _disconnectTask;
         }
 
-        ChangeState(TransportState.Disconnected, "Disconnected from RabbitMQ");
+        if (completion is not null)
+            _ = DisconnectCoreAsync(completion);
 
-        _logger.LogInformation("Disconnected from RabbitMQ");
+        return calledFromHandler ? Task.CompletedTask : disconnectTask.WaitAsync(cancellationToken);
+    }
+
+    private async Task DisconnectCoreAsync(TaskCompletionSource completion)
+    {
+        try
+        {
+            ChangeState(TransportState.Disconnecting, "Disconnecting from RabbitMQ");
+            _logger.LogInformation("Disconnecting from RabbitMQ");
+
+            var stopTasks = _consumers.Values.Select(static consumer => consumer.StopAndDrainAsync()).ToArray();
+            await Task.WhenAll(stopTasks).ConfigureAwait(false);
+            _consumers.Clear();
+
+            foreach (var channelPool in _channelPools.Values)
+                await channelPool.DisposeAsync().ConfigureAwait(false);
+            _channelPools.Clear();
+
+            if (_connectionPool != null)
+            {
+                await _connectionPool.DisposeAsync().ConfigureAwait(false);
+                _connectionPool = null;
+            }
+
+            ChangeState(TransportState.Disconnected, "Disconnected from RabbitMQ");
+            _logger.LogInformation("Disconnected from RabbitMQ");
+            completion.SetResult();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error disconnecting from RabbitMQ");
+            completion.SetException(ex);
+        }
     }
 
     /// <inheritdoc/>
