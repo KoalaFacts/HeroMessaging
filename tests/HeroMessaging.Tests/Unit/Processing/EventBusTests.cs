@@ -140,20 +140,26 @@ public sealed class EventBusTests : IDisposable
     {
         // Arrange
         var handlerMock = new Mock<IEventHandler<TestEvent>>();
+        var allHandled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var handledCount = 0;
         _services.AddSingleton(handlerMock.Object);
         var eventBus = CreateEventBus();
 
         handlerMock
             .Setup(h => h.HandleAsync(It.IsAny<TestEvent>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+            .Returns(() =>
+            {
+                if (Interlocked.Increment(ref handledCount) == 3)
+                    allHandled.TrySetResult(true);
+                return Task.CompletedTask;
+            });
 
         // Act
         await eventBus.PublishAsync(new TestEvent(), cancellationToken: TestContext.Current.CancellationToken);
         await eventBus.PublishAsync(new TestEvent(), cancellationToken: TestContext.Current.CancellationToken);
         await eventBus.PublishAsync(new TestEvent(), cancellationToken: TestContext.Current.CancellationToken);
 
-        // Wait for async processing
-        await Task.Delay(200, TestContext.Current.CancellationToken);
+        await allHandled.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         // Assert
         handlerMock.Verify(h => h.HandleAsync(It.IsAny<TestEvent>(), It.IsAny<CancellationToken>()), Times.Exactly(3));

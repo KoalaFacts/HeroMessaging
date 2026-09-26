@@ -85,12 +85,16 @@ public class InMemoryTopicTests
         var consumer1Messages = new List<string>();
         var consumer2Messages = new List<string>();
         var consumer3Messages = new List<string>();
+        var consumer1Received = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var consumer2Received = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var consumer3Received = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         await transport.SubscribeAsync(topic,
             async (env, ctx, ct) =>
             {
                 consumer1Messages.Add(env.MessageType);
                 await ctx.AcknowledgeAsync(ct);
+                consumer1Received.TrySetResult(true);
             },
             new ConsumerOptions { StartImmediately = true, ConsumerId = "consumer1" }, cancellationToken: TestContext.Current.CancellationToken);
 
@@ -99,6 +103,7 @@ public class InMemoryTopicTests
             {
                 consumer2Messages.Add(env.MessageType);
                 await ctx.AcknowledgeAsync(ct);
+                consumer2Received.TrySetResult(true);
             },
             new ConsumerOptions { StartImmediately = true, ConsumerId = "consumer2" }, cancellationToken: TestContext.Current.CancellationToken);
 
@@ -107,6 +112,7 @@ public class InMemoryTopicTests
             {
                 consumer3Messages.Add(env.MessageType);
                 await ctx.AcknowledgeAsync(ct);
+                consumer3Received.TrySetResult(true);
             },
             new ConsumerOptions { StartImmediately = true, ConsumerId = "consumer3" }, cancellationToken: TestContext.Current.CancellationToken);
 
@@ -114,7 +120,8 @@ public class InMemoryTopicTests
 
         // Act
         await transport.PublishAsync(topic, envelope, cancellationToken: TestContext.Current.CancellationToken);
-        await Task.Delay(100, TestContext.Current.CancellationToken); // Wait for processing
+        await Task.WhenAll(consumer1Received.Task, consumer2Received.Task, consumer3Received.Task)
+            .WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         // Assert - All consumers should receive the message
         Assert.Single(consumer1Messages);

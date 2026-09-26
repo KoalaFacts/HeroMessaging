@@ -35,7 +35,7 @@ public class InMemoryConsumerTests : IDisposable
         {
             ConsumerId = "test-consumer",
             AutoAcknowledge = true,
-            ConcurrentMessageLimit = 10,
+            ConcurrentMessageLimit = 1,
             StartImmediately = false
         };
     }
@@ -704,11 +704,12 @@ public class InMemoryConsumerTests : IDisposable
     [Fact]
     public async Task ConcurrentMessageProcessing_RespectsLimit()
     {
-        // Arrange
         var concurrentCount = 0;
         var maxConcurrent = 0;
+        var processedCount = 0;
         var lockObj = new object();
-        var tcs = new TaskCompletionSource<bool>();
+        var twoStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         var handler = new Func<TransportEnvelope, MessageContext, CancellationToken, Task>(
             async (env, ctx, ct) =>
@@ -718,9 +719,11 @@ public class InMemoryConsumerTests : IDisposable
                     concurrentCount++;
                     if (concurrentCount > maxConcurrent)
                         maxConcurrent = concurrentCount;
+                    if (concurrentCount == 2)
+                        twoStarted.TrySetResult(true);
                 }
 
-                await Task.Delay(50);
+                await release.Task.WaitAsync(ct);
 
                 lock (lockObj)
                 {
@@ -728,6 +731,7 @@ public class InMemoryConsumerTests : IDisposable
                 }
 
                 await ctx.AcknowledgeAsync(ct);
+                Interlocked.Increment(ref processedCount);
             });
 
         var options = new ConsumerOptions
@@ -741,18 +745,29 @@ public class InMemoryConsumerTests : IDisposable
         var consumer = CreateConsumer(handler, options: options);
         await consumer.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
 
-        // Act
-        for (int i = 0; i < 5; i++)
+        try
         {
-            await DeliverMessage(consumer, CreateTestEnvelope());
+            for (int i = 0; i < 5; i++)
+                await DeliverMessage(consumer, CreateTestEnvelope());
+
+            await twoStarted.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+            Assert.Equal(2, consumer.GetMetrics().CurrentlyProcessing);
+            var stopping = consumer.StopAsync(TestContext.Current.CancellationToken);
+            Assert.False(stopping.IsCompleted);
+            release.TrySetResult(true);
+            await stopping.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+            Assert.Equal(2, maxConcurrent);
+            Assert.Equal(5, Volatile.Read(ref processedCount));
+            Assert.Equal(5, consumer.GetMetrics().MessagesAcknowledged);
+            Assert.Equal(5, consumer.GetMetrics().MessagesProcessed);
+            Assert.Equal(0, consumer.GetMetrics().CurrentlyProcessing);
         }
-
-        await Task.Delay(500, TestContext.Current.CancellationToken);
-
-        // Assert
-        Assert.True(maxConcurrent <= 2);
-
-        await consumer.DisposeAsync();
+        finally
+        {
+            release.TrySetResult(true);
+            await consumer.DisposeAsync();
+        }
     }
 
     [Fact]
@@ -813,7 +828,7 @@ public class InMemoryConsumerTests : IDisposable
 
         // Act
         await DeliverMessage(consumer, envelope);
-        await Task.Delay(100, TestContext.Current.CancellationToken);
+        await consumer.StopAsync(TestContext.Current.CancellationToken);
 
         // Assert
         _instrumentationMock.Verify(x => x.RecordError(
