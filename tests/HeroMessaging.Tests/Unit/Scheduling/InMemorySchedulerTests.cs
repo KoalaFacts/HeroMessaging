@@ -89,13 +89,8 @@ public class InMemorySchedulerTests : IAsyncLifetime
         // Act
         var result = await _scheduler!.ScheduleAsync(message, delay, cancellationToken: TestContext.Current.CancellationToken);
 
-        // Wait for async delivery with polling (more reliable on slow CI platforms)
-        var timeout = TimeSpan.FromSeconds(3);
-        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        while (_deliveryHandler!.DeliveredMessages.Count == 0 && stopwatch.Elapsed < timeout)
-        {
-            await Task.Delay(50, TestContext.Current.CancellationToken); // Poll every 50ms
-        }
+        await _deliveryHandler!.FirstDelivery.WaitAsync(
+            TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(result.Success);
@@ -453,13 +448,16 @@ public class TestMessageDeliveryHandler : IMessageDeliveryHandler
 {
     private readonly System.Collections.Concurrent.ConcurrentBag<IMessage> _deliveredMessages = [];
     private readonly System.Collections.Concurrent.ConcurrentBag<(Guid ScheduleId, Exception Exception)> _failedDeliveries = [];
+    private readonly TaskCompletionSource<IMessage> _firstDelivery = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     public List<IMessage> DeliveredMessages => [.. _deliveredMessages];
     public List<(Guid ScheduleId, Exception Exception)> FailedDeliveries => [.. _failedDeliveries];
+    public Task<IMessage> FirstDelivery => _firstDelivery.Task;
 
     public Task DeliverAsync(ScheduledMessage scheduledMessage, CancellationToken cancellationToken = default)
     {
         _deliveredMessages.Add(scheduledMessage.Message);
+        _firstDelivery.TrySetResult(scheduledMessage.Message);
         return Task.CompletedTask;
     }
 
