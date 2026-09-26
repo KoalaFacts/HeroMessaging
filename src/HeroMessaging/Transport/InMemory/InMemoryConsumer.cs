@@ -139,7 +139,9 @@ internal class InMemoryConsumer : ITransportConsumer
             {
                 while (reader.TryRead(out var envelope))
                 {
-                    await ProcessMessageAsync(envelope, cancellationToken);
+                    TransportEnvelope? pending = envelope;
+                    while (pending is { } retry)
+                        pending = await ProcessMessageAsync(retry, cancellationToken);
                 }
             }
             catch (OperationCanceledException)
@@ -154,7 +156,7 @@ internal class InMemoryConsumer : ITransportConsumer
         }
     }
 
-    private async Task ProcessMessageAsync(TransportEnvelope envelope, CancellationToken cancellationToken)
+    private async Task<TransportEnvelope?> ProcessMessageAsync(TransportEnvelope envelope, CancellationToken cancellationToken)
     {
         await _concurrencyLimiter.WaitAsync(cancellationToken);
         _metrics.CurrentlyProcessing++;
@@ -167,6 +169,7 @@ internal class InMemoryConsumer : ITransportConsumer
 
         // Track whether user manually handled message lifecycle
         bool messageHandled = false;
+        TransportEnvelope? requeueEnvelope = null;
 
         try
         {
@@ -193,15 +196,15 @@ internal class InMemoryConsumer : ITransportConsumer
                     _instrumentation.AddEvent(activity, "acknowledge");
                     await Task.CompletedTask;
                 },
-                Reject = async (requeue, ct) =>
+                Reject = (requeue, ct) =>
                 {
                     messageHandled = true;
                     _metrics.MessagesRejected++;
                     _instrumentation.AddEvent(activity, requeue ? "reject.requeue" : "reject.drop");
                     if (requeue)
-                    {
-                        await DeliverMessageAsync(envelope, ct);
-                    }
+                        requeueEnvelope = envelope;
+
+                    return Task.CompletedTask;
                 },
                 Defer = async (delay, ct) =>
                 {
@@ -254,7 +257,7 @@ internal class InMemoryConsumer : ITransportConsumer
 
             // Retry logic - schedule retry asynchronously to avoid blocking other messages
             var retryCount = envelope.DeliveryCount;
-            if (retryCount < _options.MessageRetryPolicy.MaxAttempts)
+            if (!messageHandled && retryCount < _options.MessageRetryPolicy.MaxAttempts)
             {
                 var delay = _options.MessageRetryPolicy.CalculateDelay(retryCount + 1);
                 var retryEnvelope = envelope with { DeliveryCount = retryCount + 1 };
@@ -277,7 +280,7 @@ internal class InMemoryConsumer : ITransportConsumer
                     }
                 }, cancellationToken);
             }
-            else
+            else if (!messageHandled)
             {
                 // Dead letter after max retries
                 _metrics.MessagesDeadLettered++;
@@ -289,6 +292,8 @@ internal class InMemoryConsumer : ITransportConsumer
             _metrics.CurrentlyProcessing--;
             _concurrencyLimiter.Release();
         }
+
+        return requeueEnvelope;
     }
 
     private void UpdateAverageProcessingDuration(TimeSpan duration)

@@ -15,6 +15,8 @@ public class RabbitMqConsumerDispositionTests
     [InlineData("none", false, false, false, true)]
     [InlineData("ack", true, true, false, true)]
     [InlineData("ack-twice", true, true, false, true)]
+    [InlineData("cancelled-ack", true, false, true, true)]
+    [InlineData("ack-fails", true, true, false, true)]
     [InlineData("reject", true, false, true, false)]
     [InlineData("defer", true, false, true, true)]
     [InlineData("deadletter", true, false, true, false)]
@@ -40,6 +42,9 @@ public class RabbitMqConsumerDispositionTests
             .ReturnsAsync("test-tag");
         channel.Setup(ch => ch.BasicAckAsync(It.IsAny<ulong>(), false, It.IsAny<CancellationToken>()))
             .Returns(ValueTask.CompletedTask);
+        if (action == "ack-fails")
+            channel.Setup(ch => ch.BasicAckAsync(It.IsAny<ulong>(), false, It.IsAny<CancellationToken>()))
+                .Throws(new InvalidOperationException("broker failed"));
         channel.Setup(ch => ch.BasicNackAsync(It.IsAny<ulong>(), false, It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .Callback<ulong, bool, bool, CancellationToken>((_, _, requeue, _) => actualRequeue = requeue)
             .Returns(ValueTask.CompletedTask);
@@ -59,7 +64,15 @@ public class RabbitMqConsumerDispositionTests
                 {
                     case "ack":
                     case "ack-then-throw":
+                    case "ack-fails":
                         await context.AcknowledgeAsync(ct);
+                        break;
+                    case "cancelled-ack":
+                        using (var cancelled = new CancellationTokenSource())
+                        {
+                            cancelled.Cancel();
+                            await context.AcknowledgeAsync(cancelled.Token);
+                        }
                         break;
                     case "ack-twice":
                         await context.AcknowledgeAsync(ct);
@@ -93,5 +106,8 @@ public class RabbitMqConsumerDispositionTests
             expectedNack ? Times.Once : Times.Never);
         if (expectedNack)
             Assert.Equal(expectedRequeue, actualRequeue);
+        if (action == "ack-fails")
+            channel.Verify(ch => ch.CloseAsync(It.IsAny<ushort>(), It.IsAny<string>(),
+                It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 }

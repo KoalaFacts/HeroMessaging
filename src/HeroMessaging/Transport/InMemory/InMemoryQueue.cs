@@ -102,7 +102,11 @@ internal class InMemoryQueue : IDisposable, IAsyncDisposable
         Interlocked.Increment(ref _consumerVersion); // Invalidate cache
     }
 
-    internal void NotifyConsumerStarted() => _consumerAvailable.Release();
+    internal void NotifyConsumerStarted()
+    {
+        Interlocked.Increment(ref _consumerVersion);
+        _consumerAvailable.Release();
+    }
 
     internal void StartProcessingIfNeeded()
     {
@@ -126,12 +130,28 @@ internal class InMemoryQueue : IDisposable, IAsyncDisposable
                 if (!await reader.WaitToReadAsync(cancellationToken))
                     break;
 
-                // Keep a dequeued message until it reaches an active consumer.
-                while (reader.TryRead(out var envelope))
+                while (!cancellationToken.IsCancellationRequested)
                 {
+                    var currentVersion = _consumerVersion;
+                    if (currentVersion != cachedVersion || cachedConsumers.Length == 0)
+                    {
+                        cachedConsumers = [.. _consumers.Values.Where(static consumer => consumer.IsActive)];
+                        _consumerCache = cachedConsumers;
+                        cachedVersion = currentVersion;
+                    }
+
+                    if (cachedConsumers.Length == 0)
+                    {
+                        await _consumerAvailable.WaitAsync(cancellationToken);
+                        continue;
+                    }
+
+                    if (!reader.TryRead(out var envelope))
+                        break;
+
                     while (!cancellationToken.IsCancellationRequested)
                     {
-                        var currentVersion = _consumerVersion;
+                        currentVersion = _consumerVersion;
                         if (currentVersion != cachedVersion || cachedConsumers.Length == 0)
                         {
                             cachedConsumers = [.. _consumers.Values.Where(static consumer => consumer.IsActive)];

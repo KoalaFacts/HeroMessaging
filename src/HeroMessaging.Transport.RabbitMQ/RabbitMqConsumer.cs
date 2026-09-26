@@ -191,13 +191,36 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
 
         async Task SettleAsync(bool? requeue, CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             if (Interlocked.CompareExchange(ref dispositionStarted, 1, 0) != 0)
                 throw new InvalidOperationException($"Message {messageId} has already been settled");
 
-            if (requeue is bool shouldRequeue)
-                await _channel.BasicNackAsync(ea.DeliveryTag, multiple: false, shouldRequeue, cancellationToken).ConfigureAwait(false);
-            else
-                await _channel.BasicAckAsync(ea.DeliveryTag, multiple: false, cancellationToken).ConfigureAwait(false);
+            try
+            {
+                // Once started, disposition must not be canceled midway through an uncertain broker write.
+                if (requeue is bool shouldRequeue)
+                    await _channel.BasicNackAsync(ea.DeliveryTag, multiple: false, shouldRequeue).ConfigureAwait(false);
+                else
+                    await _channel.BasicAckAsync(ea.DeliveryTag, multiple: false).ConfigureAwait(false);
+            }
+            catch
+            {
+                // Closing the channel releases any unsettled delivery without risking a duplicate ack.
+                if (_channel.IsOpen)
+                {
+                    try
+                    {
+                        await _channel.CloseAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception closeError)
+                    {
+                        _logger.LogWarning(closeError, "Could not close channel after disposition failure for {MessageId}", messageId);
+                    }
+                }
+
+                throw;
+            }
         }
 
         _logger.LogTrace("Received message {MessageId} from {Queue}", messageId, Source.Name);

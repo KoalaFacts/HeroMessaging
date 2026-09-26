@@ -64,6 +64,23 @@ public class InMemoryQueueTests
     }
 
     [Fact]
+    public async Task Queue_AfterConsumerStops_KeepsConfiguredCapacity()
+    {
+        var options = new InMemoryTransportOptions { Name = "TestTransport", MaxQueueLength = 1 };
+        await using var transport = new InMemoryTransport(options, TimeProvider.System);
+        await transport.ConnectAsync(TestContext.Current.CancellationToken);
+        var queue = TransportAddress.Queue("stopped-capacity");
+        var consumer = await transport.SubscribeAsync(queue, (_, _, _) => Task.CompletedTask,
+            cancellationToken: TestContext.Current.CancellationToken);
+        await consumer.StopAsync(TestContext.Current.CancellationToken);
+
+        await transport.SendAsync(queue, CreateTestEnvelope("first"), TestContext.Current.CancellationToken);
+        using var timeout = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            transport.SendAsync(queue, CreateTestEnvelope("second"), timeout.Token));
+    }
+
+    [Fact]
     public async Task Queue_EnqueueAndDequeue_ProcessesMessagesInFIFOOrder()
     {
         // Arrange

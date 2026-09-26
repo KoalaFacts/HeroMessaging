@@ -377,7 +377,7 @@ public sealed class OutboxProcessorTests : IDisposable
         {
             Id = "external-entry",
             Message = new TestMessage(),
-            Options = new OutboxOptions { Destination = "external-system", MaxRetries = 1 }
+            Options = new OutboxOptions { Destination = "external-system", MaxRetries = 3 }
         };
         var failed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         _storageMock.Setup(s => s.GetPendingAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
@@ -398,6 +398,7 @@ public sealed class OutboxProcessorTests : IDisposable
         }
 
         _storageMock.Verify(s => s.MarkProcessedAsync(entry.Id, It.IsAny<CancellationToken>()), Times.Never);
+        _storageMock.Verify(s => s.MarkFailedAsync(entry.Id, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
     }
 
     #endregion

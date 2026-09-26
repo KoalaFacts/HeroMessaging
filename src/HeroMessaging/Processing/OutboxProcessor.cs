@@ -104,20 +104,19 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxEntry>, IOutbo
 
     protected override async Task ProcessWorkItemAsync(OutboxEntry entry)
     {
+        if (!string.IsNullOrEmpty(entry.Options.Destination))
+        {
+            await _outboxStorage.MarkFailedAsync(entry.Id, "External outbox destinations are not supported.");
+            Logger.LogError("Outbox entry {EntryId} has an unsupported external destination", entry.Id);
+            return;
+        }
+
         try
         {
             // Mark as processing to prevent duplicate processing
             entry.Status = OutboxStatus.Processing;
 
-            if (!string.IsNullOrEmpty(entry.Options.Destination))
-            {
-                throw new NotSupportedException("External outbox destinations are not supported. The message was not delivered.");
-            }
-            else
-            {
-                // Process internally
-                await ScopedMessagingExecutor.DispatchAsync(_serviceProvider, entry.Message, Logger, "outbox");
-            }
+            await ScopedMessagingExecutor.DispatchAsync(_serviceProvider, entry.Message, Logger, "outbox");
 
             await _outboxStorage.MarkProcessedAsync(entry.Id);
 

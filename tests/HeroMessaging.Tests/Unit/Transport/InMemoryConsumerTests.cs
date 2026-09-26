@@ -194,6 +194,37 @@ public class InMemoryConsumerTests : IDisposable
     }
 
     [Fact]
+    public async Task RejectAsync_RequeuesWithoutBlockingOnFullPrefetchBuffer()
+    {
+        var started = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var processed = new List<string>();
+        var firstAttempts = 0;
+        var consumer = CreateConsumer(async (envelope, context, ct) =>
+        {
+            if (envelope.MessageType == "first" && Interlocked.Increment(ref firstAttempts) == 1)
+            {
+                started.TrySetResult(true);
+                await release.Task.WaitAsync(ct);
+                await context.RejectAsync(true, ct);
+            }
+
+            processed.Add(envelope.MessageType);
+        }, options: _options with { PrefetchCount = 1 });
+        await consumer.StartAsync(TestContext.Current.CancellationToken);
+        await DeliverMessage(consumer, CreateTestEnvelope("first"));
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        await DeliverMessage(consumer, CreateTestEnvelope("second"));
+
+        var stopping = consumer.StopAsync(TestContext.Current.CancellationToken);
+        release.TrySetResult(true);
+        await stopping.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        Assert.Equal(["first", "first", "second"], processed);
+        await consumer.DisposeAsync();
+    }
+
+    [Fact]
     public async Task StopAsync_WhenNotActive_DoesNothing()
     {
         // Arrange
