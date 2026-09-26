@@ -37,13 +37,13 @@ Extension methods for registering OpenTelemetry providers with dependency inject
 **Features:**
 - Configures TracerProvider with HeroMessaging ActivitySource
 - Configures MeterProvider with HeroMessaging Meter
-- Allows custom configuration via OpenTelemetryOptions
+- Allows custom configuration via OpenTelemetryInstrumentationOptions
 - Supports adding exporters (Console, OTLP, etc.)
 
 **Usage:**
 ```csharp
 var builder = new HeroMessagingBuilder(services);
-builder.AddOpenTelemetry(options =>
+builder.AddOpenTelemetryInstrumentation(options =>
 {
     options.ServiceName = "MyService";
     options.ServiceNamespace = "MyNamespace";
@@ -161,7 +161,7 @@ The following metrics are recorded:
 
 ```csharp
 services.AddHeroMessaging()
-    .AddOpenTelemetry()
+    .AddOpenTelemetryInstrumentation()
     .WithEventBus();
 ```
 
@@ -169,7 +169,7 @@ services.AddHeroMessaging()
 
 ```csharp
 services.AddHeroMessaging()
-    .AddOpenTelemetry(options =>
+    .AddOpenTelemetryInstrumentation(options =>
     {
         options.ServiceName = "OrderService";
         options.ServiceNamespace = "Ecommerce";
