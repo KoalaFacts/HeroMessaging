@@ -23,7 +23,11 @@ internal class InMemoryConsumer : ITransportConsumer
     private readonly TimeProvider _timeProvider;
 
     private readonly ConsumerMetrics _metrics = new();
-    private readonly SemaphoreSlim _concurrencyLimiter;
+#if NET9_0_OR_GREATER
+    private readonly Lock _metricsLock = new();
+#else
+    private readonly object _metricsLock = new();
+#endif
 
     /// <inheritdoc/>
     public string ConsumerId { get; }
@@ -53,7 +57,8 @@ internal class InMemoryConsumer : ITransportConsumer
         _instrumentation = instrumentation ?? NoOpTransportInstrumentation.Instance;
         _logger = logger;
 
-        _concurrencyLimiter = new SemaphoreSlim(options.ConcurrentMessageLimit, options.ConcurrentMessageLimit);
+        if (options.ConcurrentMessageLimit < 1)
+            throw new ArgumentOutOfRangeException(nameof(options), "ConcurrentMessageLimit must be positive");
 
         // Bound prefetched messages so the queue can apply backpressure.
         var channelOptions = new BoundedChannelOptions(Math.Max(1, (int)options.PrefetchCount))
@@ -76,7 +81,8 @@ internal class InMemoryConsumer : ITransportConsumer
             throw new InvalidOperationException("A stopped consumer cannot be restarted");
 
         IsActive = true;
-        _processingTask = ProcessMessagesAsync(_cts.Token);
+        _processingTask = Task.WhenAll(Enumerable.Range(0, _options.ConcurrentMessageLimit)
+            .Select(_ => ProcessMessagesAsync(_cts.Token)));
         _transport.NotifyConsumerStarted(this);
 
         return Task.CompletedTask;
@@ -117,7 +123,6 @@ internal class InMemoryConsumer : ITransportConsumer
     {
         await StopAsync();
         _cts.Dispose();
-        _concurrencyLimiter.Dispose();
         _transport.RemoveConsumer(ConsumerId);
     }
 
@@ -133,37 +138,43 @@ internal class InMemoryConsumer : ITransportConsumer
     {
         var reader = _messageChannel.Reader;
 
-        while (await reader.WaitToReadAsync(cancellationToken))
+        try
         {
-            try
+            while (await reader.WaitToReadAsync(cancellationToken))
             {
-                while (reader.TryRead(out var envelope))
+                try
                 {
-                    TransportEnvelope? pending = envelope;
-                    while (pending is { } retry)
-                        pending = await ProcessMessageAsync(retry, cancellationToken);
+                    while (reader.TryRead(out var envelope))
+                    {
+                        TransportEnvelope? pending = envelope;
+                        while (pending is { } retry)
+                            pending = await ProcessMessageAsync(retry, cancellationToken);
+                    }
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex, "Error in message processing loop for consumer {ConsumerId}", ConsumerId);
                 }
             }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                // Continue processing on error
-                _logger?.LogWarning(ex, "Error in message processing loop for consumer {ConsumerId}", ConsumerId);
-            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
         }
     }
 
     private async Task<TransportEnvelope?> ProcessMessageAsync(TransportEnvelope envelope, CancellationToken cancellationToken)
     {
-        await _concurrencyLimiter.WaitAsync(cancellationToken);
-        _metrics.CurrentlyProcessing++;
-
         var startTime = _timeProvider.GetTimestamp();
-        _metrics.MessagesReceived++;
-        _metrics.LastMessageReceived = _timeProvider.GetUtcNow();
+        lock (_metricsLock)
+        {
+            _metrics.CurrentlyProcessing++;
+            _metrics.MessagesReceived++;
+            _metrics.LastMessageReceived = _timeProvider.GetUtcNow();
+        }
 
         Activity? activity = null;
 
@@ -192,14 +203,16 @@ internal class InMemoryConsumer : ITransportConsumer
                 Acknowledge = async (ct) =>
                 {
                     messageHandled = true;
-                    _metrics.MessagesAcknowledged++;
+                    lock (_metricsLock)
+                        _metrics.MessagesAcknowledged++;
                     _instrumentation.AddEvent(activity, "acknowledge");
                     await Task.CompletedTask;
                 },
                 Reject = (requeue, ct) =>
                 {
                     messageHandled = true;
-                    _metrics.MessagesRejected++;
+                    lock (_metricsLock)
+                        _metrics.MessagesRejected++;
                     _instrumentation.AddEvent(activity, requeue ? "reject.requeue" : "reject.drop");
                     if (requeue)
                         requeueEnvelope = envelope;
@@ -215,7 +228,8 @@ internal class InMemoryConsumer : ITransportConsumer
                 DeadLetter = async (reason, ct) =>
                 {
                     messageHandled = true;
-                    _metrics.MessagesDeadLettered++;
+                    lock (_metricsLock)
+                        _metrics.MessagesDeadLettered++;
                     _instrumentation.AddEvent(activity, "deadletter",
                     [
                         new KeyValuePair<string, object?>("reason", reason ?? "unknown")
@@ -235,21 +249,22 @@ internal class InMemoryConsumer : ITransportConsumer
                 await context.AcknowledgeAsync(cancellationToken);
             }
 
-            _metrics.RecordSuccess();
-            _metrics.LastMessageProcessed = _timeProvider.GetUtcNow();
+            var duration = _timeProvider.GetElapsedTime(startTime);
+            lock (_metricsLock)
+            {
+                _metrics.RecordSuccess();
+                _metrics.LastMessageProcessed = _timeProvider.GetUtcNow();
+                UpdateAverageProcessingDuration(duration);
+            }
 
-            // Record successful operation
-            var durationMs = _timeProvider.GetElapsedTime(startTime).TotalMilliseconds;
+            var durationMs = duration.TotalMilliseconds;
             _instrumentation.RecordReceiveDuration(_transport.Name, Source.Name, envelope.MessageType, durationMs);
             _instrumentation.RecordOperation(_transport.Name, "receive", "success");
-
-            // Update average processing duration
-            var duration = _timeProvider.GetUtcNow() - _metrics.LastMessageReceived;
-            UpdateAverageProcessingDuration(duration ?? TimeSpan.Zero);
         }
         catch (Exception ex)
         {
-            _metrics.RecordFailure(ex.Message);
+            lock (_metricsLock)
+                _metrics.RecordFailure(ex.Message, _timeProvider);
 
             // Record error
             _instrumentation.RecordError(activity, ex);
@@ -283,14 +298,15 @@ internal class InMemoryConsumer : ITransportConsumer
             else if (!messageHandled)
             {
                 // Dead letter after max retries
-                _metrics.MessagesDeadLettered++;
+                lock (_metricsLock)
+                    _metrics.MessagesDeadLettered++;
             }
         }
         finally
         {
             activity?.Dispose();
-            _metrics.CurrentlyProcessing--;
-            _concurrencyLimiter.Release();
+            lock (_metricsLock)
+                _metrics.CurrentlyProcessing--;
         }
 
         return requeueEnvelope;
