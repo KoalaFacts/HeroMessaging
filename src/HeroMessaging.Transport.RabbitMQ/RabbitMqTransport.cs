@@ -132,17 +132,22 @@ public sealed class RabbitMqTransport : IMessageTransport, IRabbitMqConsumerHost
             _logger.LogInformation("Disconnecting from RabbitMQ");
 
             var stopTasks = _consumers.Values.Select(static consumer => consumer.StopAndDrainAsync()).ToArray();
-            await Task.WhenAll(stopTasks).ConfigureAwait(false);
-            _consumers.Clear();
-
-            foreach (var channelPool in _channelPools.Values)
-                await channelPool.DisposeAsync().ConfigureAwait(false);
-            _channelPools.Clear();
-
-            if (_connectionPool != null)
+            try
             {
-                await _connectionPool.DisposeAsync().ConfigureAwait(false);
-                _connectionPool = null;
+                await Task.WhenAll(stopTasks).ConfigureAwait(false);
+            }
+            finally
+            {
+                _consumers.Clear();
+                foreach (var channelPool in _channelPools.Values)
+                    await channelPool.DisposeAsync().ConfigureAwait(false);
+                _channelPools.Clear();
+
+                if (_connectionPool != null)
+                {
+                    await _connectionPool.DisposeAsync().ConfigureAwait(false);
+                    _connectionPool = null;
+                }
             }
 
             ChangeState(TransportState.Disconnected, "Disconnected from RabbitMQ");

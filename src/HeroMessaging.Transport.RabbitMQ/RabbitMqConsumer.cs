@@ -178,19 +178,12 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
 
             if (!string.IsNullOrEmpty(_consumerTag) && _channel.IsOpen)
             {
-                try
-                {
-                    await _channel.BasicCancelAsync(_consumerTag).ConfigureAwait(false);
-                    Task? unregistered;
-                    lock (_stateLock)
-                        unregistered = _consumerUnregistered?.Task;
-                    if (unregistered is not null)
-                        await unregistered.ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Error cancelling consumer {ConsumerId}", ConsumerId);
-                }
+                await _channel.BasicCancelAsync(_consumerTag).ConfigureAwait(false);
+                Task? unregistered;
+                lock (_stateLock)
+                    unregistered = _consumerUnregistered?.Task;
+                if (unregistered is not null)
+                    await unregistered.ConfigureAwait(false);
             }
 
             Task? deliveriesDrained;
@@ -215,6 +208,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Error stopping consumer {ConsumerId}", ConsumerId);
             completion.SetException(ex);
         }
     }
@@ -258,20 +252,25 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
     {
         try
         {
-            await BeginStop().ConfigureAwait(false);
-
             try
             {
-                if (_channel.IsOpen)
-                    await _channel.CloseAsync().ConfigureAwait(false);
-                _channel.Dispose();
+                await BeginStop().ConfigureAwait(false);
             }
-            catch (Exception ex)
+            finally
             {
-                _logger.LogWarning(ex, "Error disposing channel for consumer {ConsumerId}", ConsumerId);
-            }
+                try
+                {
+                    if (_channel.IsOpen)
+                        await _channel.CloseAsync().ConfigureAwait(false);
+                    _channel.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Error disposing channel for consumer {ConsumerId}", ConsumerId);
+                }
 
-            _transport.RemoveConsumer(ConsumerId);
+                _transport.RemoveConsumer(ConsumerId);
+            }
 
             _logger.LogDebug("Consumer {ConsumerId} disposed", ConsumerId);
             completion.SetResult();

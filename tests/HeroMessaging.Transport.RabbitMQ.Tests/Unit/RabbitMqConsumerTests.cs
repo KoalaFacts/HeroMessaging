@@ -273,25 +273,27 @@ public class RabbitMqConsumerTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task StopAsync_WhenBasicCancelThrows_LogsWarningButDoesNotThrow()
+    public async Task StopAsync_WhenBasicCancelThrows_ReportsFailureAndDisposeClosesChannel()
     {
         // Arrange
         await _consumer!.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
         _mockChannel!.Setup(ch => ch.BasicCancelAsync(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .Throws(new InvalidOperationException("Test exception"));
 
-        // Act & Assert - should not throw
-        await _consumer.StopAsync(TestContext.Current.CancellationToken);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _consumer.StopAsync(TestContext.Current.CancellationToken));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _consumer.DisposeAsync().AsTask());
 
-        // Verify warning was logged
         _mockLogger!.Verify(
             x => x.Log(
-                LogLevel.Warning,
+                LogLevel.Error,
                 It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("Error cancelling consumer")),
+                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("Error stopping consumer")),
                 It.IsAny<Exception>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);
+        _mockChannel!.Verify(ch => ch.CloseAsync(
+            It.IsAny<ushort>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Once);
+        _consumer = null;
     }
 
     #endregion
