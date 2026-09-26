@@ -25,6 +25,62 @@ public class InMemoryQueueTests
     }
 
     [Fact]
+    public async Task Queue_MessageSentBeforeSubscription_IsDeliveredLater()
+    {
+        await using var transport = new InMemoryTransport(_options, TimeProvider.System);
+        await transport.ConnectAsync(TestContext.Current.CancellationToken);
+        var queue = TransportAddress.Queue("late-subscriber");
+        await transport.SendAsync(queue, CreateTestEnvelope("waiting"), TestContext.Current.CancellationToken);
+
+        var received = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        await transport.SubscribeAsync(queue, (envelope, _, _) =>
+        {
+            received.TrySetResult(envelope.MessageType);
+            return Task.CompletedTask;
+        }, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal("waiting", await received.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task Queue_MessageSentAfterConsumerStops_WaitsForReplacement()
+    {
+        await using var transport = new InMemoryTransport(_options, TimeProvider.System);
+        await transport.ConnectAsync(TestContext.Current.CancellationToken);
+        var queue = TransportAddress.Queue("replacement-subscriber");
+        var first = await transport.SubscribeAsync(queue, (_, _, _) => Task.CompletedTask,
+            new ConsumerOptions { ConsumerId = "first" }, TestContext.Current.CancellationToken);
+        await first.StopAsync(TestContext.Current.CancellationToken);
+
+        await transport.SendAsync(queue, CreateTestEnvelope("waiting"), TestContext.Current.CancellationToken);
+        var received = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        await transport.SubscribeAsync(queue, (envelope, _, _) =>
+        {
+            received.TrySetResult(envelope.MessageType);
+            return Task.CompletedTask;
+        }, new ConsumerOptions { ConsumerId = "second" }, TestContext.Current.CancellationToken);
+
+        Assert.Equal("waiting", await received.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task Queue_AfterConsumerStops_KeepsConfiguredCapacity()
+    {
+        var options = new InMemoryTransportOptions { Name = "TestTransport", MaxQueueLength = 1 };
+        await using var transport = new InMemoryTransport(options, TimeProvider.System);
+        await transport.ConnectAsync(TestContext.Current.CancellationToken);
+        var queue = TransportAddress.Queue("stopped-capacity");
+        var consumer = await transport.SubscribeAsync(queue, (_, _, _) => Task.CompletedTask,
+            cancellationToken: TestContext.Current.CancellationToken);
+        await consumer.StopAsync(TestContext.Current.CancellationToken);
+
+        await transport.SendAsync(queue, CreateTestEnvelope("first"), TestContext.Current.CancellationToken);
+        using var timeout = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            transport.SendAsync(queue, CreateTestEnvelope("second"), timeout.Token));
+    }
+
+    [Fact]
     public async Task Queue_EnqueueAndDequeue_ProcessesMessagesInFIFOOrder()
     {
         // Arrange

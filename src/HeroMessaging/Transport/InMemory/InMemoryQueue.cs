@@ -15,6 +15,7 @@ internal class InMemoryQueue : IDisposable, IAsyncDisposable
     private readonly Channel<TransportEnvelope> _channel;
     private readonly ConcurrentDictionary<string, InMemoryConsumer> _consumers = new();
     private readonly CancellationTokenSource _cts = new();
+    private readonly SemaphoreSlim _consumerAvailable = new(0);
     private readonly ILogger<InMemoryQueue>? _logger;
     private readonly string _queueName;
     private Task? _processingTask;
@@ -101,6 +102,12 @@ internal class InMemoryQueue : IDisposable, IAsyncDisposable
         Interlocked.Increment(ref _consumerVersion); // Invalidate cache
     }
 
+    internal void NotifyConsumerStarted()
+    {
+        Interlocked.Increment(ref _consumerVersion);
+        _consumerAvailable.Release();
+    }
+
     internal void StartProcessingIfNeeded()
     {
         lock (_processingTaskLock)
@@ -123,36 +130,54 @@ internal class InMemoryQueue : IDisposable, IAsyncDisposable
                 if (!await reader.WaitToReadAsync(cancellationToken))
                     break;
 
-                // Read all available messages
-                while (reader.TryRead(out var envelope))
+                while (!cancellationToken.IsCancellationRequested)
                 {
-                    Interlocked.Decrement(ref _depth);
-
-                    // Check if consumer list changed - refresh cache if needed
                     var currentVersion = _consumerVersion;
                     if (currentVersion != cachedVersion || cachedConsumers.Length == 0)
                     {
-                        cachedConsumers = [.. _consumers.Values];
-                        _consumerCache = cachedConsumers; // Update shared cache
+                        cachedConsumers = [.. _consumers.Values.Where(static consumer => consumer.IsActive)];
+                        _consumerCache = cachedConsumers;
                         cachedVersion = currentVersion;
                     }
 
-                    // Deliver to next consumer in round-robin fashion
-                    if (cachedConsumers.Length > 0)
+                    if (cachedConsumers.Length == 0)
                     {
-                        // Use unchecked to allow natural overflow wrap-around
-                        // This is faster than Math.Abs and handles negative values correctly
+                        await _consumerAvailable.WaitAsync(cancellationToken);
+                        continue;
+                    }
+
+                    if (!reader.TryRead(out var envelope))
+                        break;
+
+                    while (!cancellationToken.IsCancellationRequested)
+                    {
+                        currentVersion = _consumerVersion;
+                        if (currentVersion != cachedVersion || cachedConsumers.Length == 0)
+                        {
+                            cachedConsumers = [.. _consumers.Values.Where(static consumer => consumer.IsActive)];
+                            _consumerCache = cachedConsumers;
+                            cachedVersion = currentVersion;
+                        }
+
+                        if (cachedConsumers.Length == 0)
+                        {
+                            await _consumerAvailable.WaitAsync(cancellationToken);
+                            continue;
+                        }
+
                         var index = unchecked((uint)Interlocked.Increment(ref _consumerIndex));
                         var consumer = cachedConsumers[index % (uint)cachedConsumers.Length];
 
                         try
                         {
                             await consumer.DeliverMessageAsync(envelope, cancellationToken);
+                            Interlocked.Decrement(ref _depth);
+                            break;
                         }
-                        catch (Exception ex)
+                        catch (ChannelClosedException)
                         {
-                            // Consumer delivery failed, but don't stop processing other messages
-                            _logger?.LogWarning(ex, "Failed to deliver message to consumer {ConsumerId} on queue {QueueName}", consumer.ConsumerId, _queueName);
+                            // A consumer stopped between selection and delivery; retry elsewhere.
+                            cachedConsumers = [];
                         }
                     }
                 }
@@ -188,6 +213,7 @@ internal class InMemoryQueue : IDisposable, IAsyncDisposable
         }
 
         _cts.Dispose();
+        _consumerAvailable.Dispose();
     }
 
     public void Dispose()

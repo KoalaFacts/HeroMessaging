@@ -10,17 +10,17 @@ HeroMessaging is a modern, extensible messaging framework for .NET that provides
 
 ## Features
 
-- **High Performance**: <1ms p99 latency, >100K messages/second throughput
+- **Performance Benchmarks**: BenchmarkDotNet microbenchmarks for core processing paths
 - **Saga Orchestration**: Built-in state machine-based saga support with compensation
 - **CQRS & Event Sourcing**: First-class support for command/query separation and events
 - **Pluggable Architecture**: Extensible serialization, storage, and transport layers
-- **Multi-Framework Support**: netstandard2.0, .NET 6, 7, 8, 9
-- **Production-Ready**: Comprehensive testing (80%+ coverage), performance benchmarks, cross-platform CI
+- **Multi-Framework Support**: .NET 8, 9, and 10
+- **Tested Core**: Automated tests, coverage gate, and cross-platform CI
 
 ### Core Capabilities
 
 - **Message Processing**: In-memory message bus with async/await support
-- **Inbox/Outbox Pattern**: Transactional message processing with at-least-once delivery
+- **Inbox/Outbox Pattern**: Storage-backed in-process processing; external outbox destinations are not yet supported
 - **Saga Orchestration**: State machine-based long-running process coordination
 - **Compensation Framework**: Automatic rollback support for distributed transactions
 - **Timeout Handling**: Background monitoring for saga timeouts
@@ -185,30 +185,37 @@ dotnet add package HeroMessaging.Observability.HealthChecks
 #### 1. Configure Services
 
 ```csharp
-using HeroMessaging;
+using HeroMessaging.Abstractions;
+using HeroMessaging.Abstractions.Events;
+using HeroMessaging.Abstractions.Handlers;
 using Microsoft.Extensions.DependencyInjection;
 
 var services = new ServiceCollection();
 
-services.AddHeroMessaging(builder =>
-{
-    builder.UseInMemoryMessageBus();
-    builder.UseInMemoryInbox();
-    builder.UseInMemoryOutbox();
-});
+services.AddHeroMessaging(builder => builder.Development());
+services.AddTransient<IEventHandler<OrderCreatedEvent>, OrderCreatedHandler>();
 ```
 
 #### 2. Define Messages and Handlers
 
 ```csharp
-public record OrderCreatedEvent(Guid OrderId, decimal Amount);
-
-public class OrderCreatedHandler : IMessageHandler<OrderCreatedEvent>
+public sealed record OrderCreatedEvent : IEvent
 {
-    public async Task HandleAsync(OrderCreatedEvent message, CancellationToken cancellationToken)
+    public Guid MessageId { get; init; } = Guid.NewGuid();
+    public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
+    public string? CorrelationId { get; init; }
+    public string? CausationId { get; init; }
+    public Dictionary<string, object>? Metadata { get; init; }
+    public Guid OrderId { get; init; }
+    public decimal Amount { get; init; }
+}
+
+public sealed class OrderCreatedHandler : IEventHandler<OrderCreatedEvent>
+{
+    public Task HandleAsync(OrderCreatedEvent message, CancellationToken cancellationToken = default)
     {
         Console.WriteLine($"Processing order {message.OrderId} for ${message.Amount}");
-        // Process the order...
+        return Task.CompletedTask;
     }
 }
 ```
@@ -216,10 +223,10 @@ public class OrderCreatedHandler : IMessageHandler<OrderCreatedEvent>
 #### 3. Send and Process Messages
 
 ```csharp
-var serviceProvider = services.BuildServiceProvider();
-var messageBus = serviceProvider.GetRequiredService<IMessageBus>();
+await using var serviceProvider = services.BuildServiceProvider();
+var messaging = serviceProvider.GetRequiredService<IHeroMessaging>();
 
-await messageBus.PublishAsync(new OrderCreatedEvent(Guid.NewGuid(), 99.99m));
+await messaging.PublishAsync(new OrderCreatedEvent { OrderId = Guid.NewGuid(), Amount = 99.99m });
 ```
 
 ### Saga Orchestration Example
@@ -333,16 +340,11 @@ var pipeline = new MessageProcessingPipelineBuilder(serviceProvider)
 
 ## Performance
 
-HeroMessaging is designed for high-throughput, low-latency scenarios:
-
-- **Latency**: <1ms p99 for message processing overhead
-- **Throughput**: >100K messages/second (single-threaded)
-- **Memory**: <1KB allocation per message in steady state
-- **Benchmarks**: Full BenchmarkDotNet suite in `tests/HeroMessaging.Benchmarks`
+The BenchmarkDotNet suite in `tests/HeroMessaging.Benchmarks` measures in-process components. It does not establish end-to-end broker p99 latency or sustained throughput guarantees. Run it on a stable machine and compare like-for-like results before setting performance budgets.
 
 Run benchmarks:
 ```bash
-dotnet run --project tests/HeroMessaging.Benchmarks --configuration Release
+dotnet run --project tests/HeroMessaging.Benchmarks --configuration Release --framework net10.0
 ```
 
 ## Documentation
@@ -357,7 +359,7 @@ dotnet run --project tests/HeroMessaging.Benchmarks --configuration Release
 
 ### Prerequisites
 
-- .NET 6.0 SDK or higher
+- .NET 10 SDK (to build every target framework)
 - Docker (for integration tests)
 
 ### Building
@@ -385,7 +387,7 @@ HeroMessaging maintains high standards:
 - **Test Coverage**: 80%+ (100% for public APIs)
 - **Performance Regression Detection**: <10% tolerance
 - **Cross-Platform CI**: Windows, Linux, macOS
-- **Multi-Framework**: netstandard2.0, net6.0, net7.0, net8.0, net9.0
+- **Multi-Framework**: net8.0, net9.0, net10.0
 
 ## Contributing
 

@@ -357,29 +357,48 @@ public sealed class OutboxProcessorTests : IDisposable
     #region External System Integration
 
     [Fact]
-    public async Task ProcessWorkItem_WithDestination_SendsToExternalSystem()
+    public async Task PublishToOutbox_WithDestination_FailsBeforeStorage()
     {
         // Arrange
         var processor = CreateProcessor();
         var message = new TestMessage();
         var options = new OutboxOptions { Destination = "external-system" };
+        await Assert.ThrowsAsync<NotSupportedException>(() =>
+            processor.PublishToOutboxAsync(message, options, TestContext.Current.CancellationToken));
+
+        _storageMock.Verify(s => s.AddAsync(
+            It.IsAny<IMessage>(), It.IsAny<OutboxOptions>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ProcessWorkItem_WithPersistedExternalDestination_DoesNotMarkProcessed()
+    {
         var entry = new OutboxEntry
         {
-            Id = "entry-1",
-            Message = message,
-            Options = options,
-            Status = OutboxStatus.Pending
+            Id = "external-entry",
+            Message = new TestMessage(),
+            Options = new OutboxOptions { Destination = "external-system", MaxRetries = 3 }
         };
+        var failed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _storageMock.Setup(s => s.GetPendingAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([entry]);
+        _storageMock.Setup(s => s.MarkFailedAsync(entry.Id, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Callback<string, string, CancellationToken>((_, _, _) => failed.TrySetResult(true))
+            .ReturnsAsync(true);
 
-        _storageMock
-            .Setup(s => s.AddAsync(message, options, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(entry);
+        var processor = CreateProcessor();
+        await processor.StartAsync(TestContext.Current.CancellationToken);
+        try
+        {
+            await failed.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        }
+        finally
+        {
+            await processor.StopAsync(TestContext.Current.CancellationToken);
+        }
 
-        // Act
-        await processor.PublishToOutboxAsync(message, options, cancellationToken: TestContext.Current.CancellationToken);
-
-        // Assert
-        _storageMock.Verify(s => s.AddAsync(message, options, It.IsAny<CancellationToken>()), Times.Once);
+        _storageMock.Verify(s => s.MarkProcessedAsync(entry.Id, It.IsAny<CancellationToken>()), Times.Never);
+        _storageMock.Verify(s => s.MarkFailedAsync(entry.Id, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeastOnce);
     }
 
     #endregion
