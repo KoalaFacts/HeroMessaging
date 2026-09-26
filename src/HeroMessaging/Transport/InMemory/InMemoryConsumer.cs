@@ -204,11 +204,13 @@ internal class InMemoryConsumer : ITransportConsumer
                     while (reader.TryRead(out var envelope))
                     {
                         var retryScheduled = false;
+                        var manualRequeueUsed = false;
                         try
                         {
                             TransportEnvelope? pending = envelope;
                             while (pending is { } retry)
-                                (pending, retryScheduled) = await ProcessMessageAsync(retry, cancellationToken);
+                                (pending, retryScheduled, manualRequeueUsed) = await ProcessMessageAsync(
+                                    retry, manualRequeueUsed, cancellationToken);
                         }
                         finally
                         {
@@ -232,8 +234,8 @@ internal class InMemoryConsumer : ITransportConsumer
         }
     }
 
-    private async Task<(TransportEnvelope? RequeueEnvelope, bool RetryScheduled)> ProcessMessageAsync(
-        TransportEnvelope envelope, CancellationToken cancellationToken)
+    private async Task<(TransportEnvelope? RequeueEnvelope, bool RetryScheduled, bool ManualRequeueUsed)> ProcessMessageAsync(
+        TransportEnvelope envelope, bool manualRequeueUsed, CancellationToken cancellationToken)
     {
         var startTime = _timeProvider.GetTimestamp();
         lock (_metricsLock)
@@ -295,7 +297,20 @@ internal class InMemoryConsumer : ITransportConsumer
                         _metrics.MessagesRejected++;
                     _instrumentation.AddEvent(activity, requeue ? "reject.requeue" : "reject.drop");
                     if (requeue)
+                    {
+                        bool stopping;
+                        lock (_stateLock)
+                            stopping = _stopTask is not null;
+
+                        if (stopping && manualRequeueUsed)
+                        {
+                            lock (_metricsLock)
+                                _metrics.MessagesDeadLettered++;
+                            throw new InvalidOperationException("Cannot requeue a message while the consumer is stopping");
+                        }
+
                         requeueEnvelope = envelope;
+                    }
 
                     return Task.CompletedTask;
                 },
@@ -399,7 +414,7 @@ internal class InMemoryConsumer : ITransportConsumer
                 _metrics.CurrentlyProcessing--;
         }
 
-        return (requeueEnvelope, retryScheduled);
+        return (requeueEnvelope, retryScheduled, manualRequeueUsed || requeueEnvelope is not null);
     }
 
     private async Task ScheduleRetryAsync(TransportEnvelope envelope, TimeSpan delay)
