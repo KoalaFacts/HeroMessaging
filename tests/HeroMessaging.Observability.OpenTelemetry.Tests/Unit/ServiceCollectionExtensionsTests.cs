@@ -17,7 +17,7 @@ public class ServiceCollectionExtensionsTests
 {
     [Fact]
     [Trait("Category", "Unit")]
-    public void AddOpenTelemetry_WithDefaultOptions_RegistersTransportInstrumentation()
+    public void AddOpenTelemetryInstrumentation_WithDefaultOptions_RegistersTransportInstrumentation()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -25,7 +25,7 @@ public class ServiceCollectionExtensionsTests
         mockBuilder.Setup(b => b.Build()).Returns(services);
 
         // Act
-        mockBuilder.Object.AddOpenTelemetry((Action<OpenTelemetryInstrumentationOptions>?)null);
+        mockBuilder.Object.AddOpenTelemetryInstrumentation();
 
         // Assert
         var serviceProvider = services.BuildServiceProvider();
@@ -36,7 +36,7 @@ public class ServiceCollectionExtensionsTests
 
     [Fact]
     [Trait("Category", "Unit")]
-    public void AddOpenTelemetry_WithNullConfigure_UsesDefaultOptions()
+    public void AddOpenTelemetryInstrumentation_WithNullConfigure_UsesDefaultOptions()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -44,7 +44,7 @@ public class ServiceCollectionExtensionsTests
         mockBuilder.Setup(b => b.Build()).Returns(services);
 
         // Act
-        var result = mockBuilder.Object.AddOpenTelemetry(configure: (Action<OpenTelemetryInstrumentationOptions>?)null);
+        var result = mockBuilder.Object.AddOpenTelemetryInstrumentation(configure: null);
 
         // Assert
         Assert.NotNull(result);
@@ -55,7 +55,7 @@ public class ServiceCollectionExtensionsTests
 
     [Fact]
     [Trait("Category", "Unit")]
-    public void AddOpenTelemetry_WithCustomServiceName_ConfiguresOptions()
+    public void AddOpenTelemetryInstrumentation_WithCustomServiceName_ConfiguresOptions()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -64,10 +64,10 @@ public class ServiceCollectionExtensionsTests
         var customServiceName = "CustomService";
 
         // Act
-        mockBuilder.Object.AddOpenTelemetry((Action<OpenTelemetryInstrumentationOptions>?)(options =>
+        mockBuilder.Object.AddOpenTelemetryInstrumentation(options =>
         {
             options.ServiceName = customServiceName;
-        }));
+        });
 
         // Assert - Options are applied during configuration
         // We verify the registration completed successfully
@@ -77,7 +77,7 @@ public class ServiceCollectionExtensionsTests
 
     [Fact]
     [Trait("Category", "Unit")]
-    public void AddOpenTelemetry_WithTracingDisabled_DoesNotThrow()
+    public void AddOpenTelemetryInstrumentation_WithTracingDisabled_DoesNotThrow()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -86,10 +86,10 @@ public class ServiceCollectionExtensionsTests
 
         // Act
         var exception = Record.Exception(() =>
-            mockBuilder.Object.AddOpenTelemetry((Action<OpenTelemetryInstrumentationOptions>?)(options =>
+            mockBuilder.Object.AddOpenTelemetryInstrumentation(options =>
             {
                 options.EnableTracing = false;
-            })));
+            }));
 
         // Assert
         Assert.Null(exception);
@@ -97,7 +97,7 @@ public class ServiceCollectionExtensionsTests
 
     [Fact]
     [Trait("Category", "Unit")]
-    public void AddOpenTelemetry_WithMetricsDisabled_DoesNotThrow()
+    public void AddOpenTelemetryInstrumentation_WithMetricsDisabled_DoesNotThrow()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -106,10 +106,10 @@ public class ServiceCollectionExtensionsTests
 
         // Act
         var exception = Record.Exception(() =>
-            mockBuilder.Object.AddOpenTelemetry((Action<OpenTelemetryInstrumentationOptions>?)(options =>
+            mockBuilder.Object.AddOpenTelemetryInstrumentation(options =>
             {
                 options.EnableMetrics = false;
-            })));
+            }));
 
         // Assert
         Assert.Null(exception);
@@ -117,7 +117,7 @@ public class ServiceCollectionExtensionsTests
 
     [Fact]
     [Trait("Category", "Unit")]
-    public void AddOpenTelemetry_WithBothTracingAndMetricsDisabled_RegistersTransportInstrumentation()
+    public void AddOpenTelemetryInstrumentation_WithBothTracingAndMetricsDisabled_RegistersTransportInstrumentation()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -125,11 +125,11 @@ public class ServiceCollectionExtensionsTests
         mockBuilder.Setup(b => b.Build()).Returns(services);
 
         // Act
-        mockBuilder.Object.AddOpenTelemetry((Action<OpenTelemetryInstrumentationOptions>?)(options =>
+        mockBuilder.Object.AddOpenTelemetryInstrumentation(options =>
         {
             options.EnableTracing = false;
             options.EnableMetrics = false;
-        }));
+        });
 
         // Assert - Transport instrumentation should still be registered
         var serviceProvider = services.BuildServiceProvider();
@@ -139,7 +139,7 @@ public class ServiceCollectionExtensionsTests
 
     [Fact]
     [Trait("Category", "Unit")]
-    public void AddOpenTelemetry_ReturnsOriginalBuilder()
+    public void AddOpenTelemetryInstrumentation_ReturnsOriginalBuilder()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -147,7 +147,7 @@ public class ServiceCollectionExtensionsTests
         mockBuilder.Setup(b => b.Build()).Returns(services);
 
         // Act
-        var result = mockBuilder.Object.AddOpenTelemetry((Action<OpenTelemetryInstrumentationOptions>?)null);
+        var result = mockBuilder.Object.AddOpenTelemetryInstrumentation();
 
         // Assert
         Assert.Same(mockBuilder.Object, result);
@@ -289,7 +289,7 @@ public class ServiceCollectionExtensionsTests
 
     [Fact]
     [Trait("Category", "Unit")]
-    public void AddOpenTelemetry_WithServiceNamespace_ConfiguresOptions()
+    public void AddOpenTelemetryInstrumentation_WithServiceNamespace_ConfiguresOptions()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -297,7 +297,7 @@ public class ServiceCollectionExtensionsTests
         mockBuilder.Setup(b => b.Build()).Returns(services);
 
         // Act
-        mockBuilder.Object.AddOpenTelemetry(options =>
+        mockBuilder.Object.AddOpenTelemetryInstrumentation(options =>
         {
             options.ServiceName = "TestService";
             options.ServiceNamespace = "TestNamespace";
@@ -311,7 +311,7 @@ public class ServiceCollectionExtensionsTests
 
     [Fact]
     [Trait("Category", "Unit")]
-    public void AddOpenTelemetry_RegistersSingleton()
+    public void AddOpenTelemetryInstrumentation_RegistersSingleton()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -319,7 +319,7 @@ public class ServiceCollectionExtensionsTests
         mockBuilder.Setup(b => b.Build()).Returns(services);
 
         // Act
-        mockBuilder.Object.AddOpenTelemetry((Action<OpenTelemetryInstrumentationOptions>?)null);
+        mockBuilder.Object.AddOpenTelemetryInstrumentation();
 
         // Assert
         var serviceProvider = services.BuildServiceProvider();
@@ -333,7 +333,7 @@ public class ServiceCollectionExtensionsTests
 
     [Fact]
     [Trait("Category", "Unit")]
-    public void AddOpenTelemetry_MultipleCallsOnSameBuilder_DoesNotDuplicateRegistration()
+    public void AddOpenTelemetryInstrumentation_MultipleCallsOnSameBuilder_DoesNotDuplicateRegistration()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -341,8 +341,8 @@ public class ServiceCollectionExtensionsTests
         mockBuilder.Setup(b => b.Build()).Returns(services);
 
         // Act
-        mockBuilder.Object.AddOpenTelemetry((Action<OpenTelemetryInstrumentationOptions>?)null);
-        mockBuilder.Object.AddOpenTelemetry((Action<OpenTelemetryInstrumentationOptions>?)null); // Second call
+        mockBuilder.Object.AddOpenTelemetryInstrumentation();
+        mockBuilder.Object.AddOpenTelemetryInstrumentation(); // Second call
 
         // Assert
         var serviceProvider = services.BuildServiceProvider();
