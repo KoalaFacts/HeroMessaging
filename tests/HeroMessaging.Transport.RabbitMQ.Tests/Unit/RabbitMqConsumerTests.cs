@@ -16,6 +16,7 @@ namespace HeroMessaging.Transport.RabbitMQ.Tests.Unit;
 public class RabbitMqConsumerTests : IAsyncLifetime
 {
     private Mock<IChannel>? _mockChannel;
+    private IAsyncBasicConsumer? _basicConsumer;
     private Mock<IRabbitMqConsumerHost>? _mockTransport;
     private Mock<ILogger<RabbitMqConsumer>>? _mockLogger;
     private Func<TransportEnvelope, MessageContext, CancellationToken, Task>? _handler;
@@ -29,6 +30,7 @@ public class RabbitMqConsumerTests : IAsyncLifetime
         _mockChannel = new Mock<IChannel>();
         _mockLogger = new Mock<ILogger<RabbitMqConsumer>>();
         _handledMessages = [];
+        _basicConsumer = null;
         _mockChannel.Setup(ch => ch.IsOpen).Returns(true);
         _mockChannel.Setup(ch => ch.CloseAsync(
             It.IsAny<ushort>(),
@@ -44,13 +46,15 @@ public class RabbitMqConsumerTests : IAsyncLifetime
             It.IsAny<IDictionary<string, object?>>(),
             It.IsAny<IAsyncBasicConsumer>(),
             It.IsAny<CancellationToken>()
-        )).ReturnsAsync("consumer-tag-123");
+        )).Callback<string, bool, string, bool, bool, IDictionary<string, object?>, IAsyncBasicConsumer, CancellationToken>(
+            (_, _, _, _, _, _, consumer, _) => _basicConsumer = consumer)
+            .ReturnsAsync("consumer-tag-123");
 
         _mockChannel.Setup(ch => ch.BasicCancelAsync(
             It.IsAny<string>(),
             It.IsAny<bool>(),
             It.IsAny<CancellationToken>()
-        )).Returns(Task.CompletedTask);
+        )).Returns(() => _basicConsumer!.HandleBasicCancelOkAsync("consumer-tag-123"));
 
         _mockChannel.Setup(ch => ch.BasicQosAsync(
             It.IsAny<uint>(),
@@ -967,7 +971,7 @@ public class RabbitMqConsumerTests : IAsyncLifetime
             It.IsAny<IAsyncBasicConsumer>(),
             It.IsAny<CancellationToken>()))
             .Callback<string, bool, string, bool, bool, IDictionary<string, object?>, IAsyncBasicConsumer, CancellationToken>(
-                (_, _, _, _, _, _, consumer, _) => rabbitMqConsumer = consumer)
+                (_, _, _, _, _, _, consumer, _) => _basicConsumer = rabbitMqConsumer = consumer)
             .ReturnsAsync("consumer-tag-123");
 
         await _consumer!.StartAsync(TestContext.Current.CancellationToken);

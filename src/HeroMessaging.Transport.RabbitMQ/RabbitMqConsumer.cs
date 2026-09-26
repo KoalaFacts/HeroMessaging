@@ -32,6 +32,11 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
     private string? _consumerTag;
     private long _messagesProcessed;
     private long _messagesFailed;
+    private int _inFlightDeliveries;
+    private TaskCompletionSource? _deliveriesDrained;
+    private TaskCompletionSource? _consumerUnregistered;
+    private TaskCompletionSource? _startCompleted;
+    private Task? _stopTask;
 #if NET9_0_OR_GREATER
     private readonly Lock _stateLock = new();
 #else
@@ -85,67 +90,113 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
                 _logger.LogWarning("Consumer {ConsumerId} is already active", ConsumerId);
                 return;
             }
+            if (_stopTask is { IsCompleted: false })
+                throw new InvalidOperationException($"Consumer {ConsumerId} is still stopping");
 
             _logger.LogInformation("Starting consumer {ConsumerId} for {Source}", ConsumerId, Source.Name);
+            _stopTask = null;
+            _consumerUnregistered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            _startCompleted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             IsActive = true;
         }
 
-        // Create async consumer outside the lock
-        _consumer = new AsyncEventingBasicConsumer(_channel);
-        _consumer.ReceivedAsync += OnMessageReceivedAsync;
-        _consumer.ShutdownAsync += OnConsumerShutdownAsync;
+        try
+        {
+            _consumer = new AsyncEventingBasicConsumer(_channel);
+            _consumer.ReceivedAsync += OnMessageReceivedAsync;
+            _consumer.UnregisteredAsync += OnConsumerUnregisteredAsync;
+            _consumer.ShutdownAsync += OnConsumerShutdownAsync;
 
-        await _channel.BasicQosAsync(
-            prefetchSize: 0,
-            prefetchCount: _options.PrefetchCount,
-            global: false,
-            cancellationToken).ConfigureAwait(false);
+            await _channel.BasicQosAsync(
+                prefetchSize: 0,
+                prefetchCount: _options.PrefetchCount,
+                global: false,
+                cancellationToken).ConfigureAwait(false);
 
-        // Start consuming
-        _consumerTag = await _channel.BasicConsumeAsync(
-            queue: Source.Name,
-            autoAck: false, // Manual acknowledgment for reliability
-            consumer: _consumer,
-            cancellationToken: cancellationToken).ConfigureAwait(false);
+            _consumerTag = await _channel.BasicConsumeAsync(
+                queue: Source.Name,
+                autoAck: false, // Manual acknowledgment for reliability
+                consumer: _consumer,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
 
-        _logger.LogInformation("Consumer {ConsumerId} started with tag {ConsumerTag}", ConsumerId, _consumerTag);
+            _logger.LogInformation("Consumer {ConsumerId} started with tag {ConsumerTag}", ConsumerId, _consumerTag);
+        }
+        finally
+        {
+            _startCompleted.TrySetResult();
+        }
     }
 
     /// <inheritdoc/>
-    public async Task StopAsync(CancellationToken cancellationToken = default)
+    public Task StopAsync(CancellationToken cancellationToken = default)
     {
+        Task stopTask;
+        TaskCompletionSource? completion = null;
         lock (_stateLock)
         {
-            if (!IsActive)
+            if (_stopTask is null)
             {
-                return;
+                if (!IsActive && _consumer is null)
+                    return Task.CompletedTask;
+
+                IsActive = false;
+                completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                _stopTask = completion.Task;
+            }
+            stopTask = _stopTask;
+        }
+
+        if (completion is not null)
+            _ = StopCoreAsync(completion);
+
+        return stopTask.WaitAsync(cancellationToken);
+    }
+
+    private async Task StopCoreAsync(TaskCompletionSource completion)
+    {
+        try
+        {
+            _logger.LogInformation("Stopping consumer {ConsumerId}", ConsumerId);
+            if (_startCompleted is not null)
+                await _startCompleted.Task.ConfigureAwait(false);
+
+            if (!string.IsNullOrEmpty(_consumerTag) && _channel.IsOpen)
+            {
+                try
+                {
+                    await _channel.BasicCancelAsync(_consumerTag).ConfigureAwait(false);
+                    if (_consumerUnregistered is not null)
+                        await _consumerUnregistered.Task.ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Error cancelling consumer {ConsumerId}", ConsumerId);
+                }
             }
 
-            _logger.LogInformation("Stopping consumer {ConsumerId}", ConsumerId);
+            Task? deliveriesDrained;
+            lock (_stateLock)
+                deliveriesDrained = _deliveriesDrained?.Task;
+            if (deliveriesDrained is not null)
+                await deliveriesDrained.ConfigureAwait(false);
 
-            if (_consumer != null)
+            if (_consumer is not null)
             {
                 _consumer.ReceivedAsync -= OnMessageReceivedAsync;
+                _consumer.UnregisteredAsync -= OnConsumerUnregisteredAsync;
                 _consumer.ShutdownAsync -= OnConsumerShutdownAsync;
+                _consumer = null;
             }
+            _consumerTag = null;
 
-            IsActive = false;
+            _logger.LogInformation("Consumer {ConsumerId} stopped. Processed: {Processed}, Failed: {Failed}",
+                ConsumerId, _messagesProcessed, _messagesFailed);
+            completion.SetResult();
         }
-
-        if (!string.IsNullOrEmpty(_consumerTag) && _channel.IsOpen)
+        catch (Exception ex)
         {
-            try
-            {
-                await _channel.BasicCancelAsync(_consumerTag).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Error cancelling consumer {ConsumerId}", ConsumerId);
-            }
+            completion.SetException(ex);
         }
-
-        _logger.LogInformation("Consumer {ConsumerId} stopped. Processed: {Processed}, Failed: {Failed}",
-            ConsumerId, _messagesProcessed, _messagesFailed);
     }
 
     /// <inheritdoc/>
@@ -185,6 +236,31 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
     }
 
     private async Task OnMessageReceivedAsync(object sender, BasicDeliverEventArgs ea)
+    {
+        lock (_stateLock)
+        {
+            if (_inFlightDeliveries++ == 0)
+                _deliveriesDrained = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+
+        try
+        {
+            await ProcessMessageAsync(ea).ConfigureAwait(false);
+        }
+        finally
+        {
+            lock (_stateLock)
+            {
+                if (--_inFlightDeliveries == 0)
+                {
+                    _deliveriesDrained!.SetResult();
+                    _deliveriesDrained = null;
+                }
+            }
+        }
+    }
+
+    private async Task ProcessMessageAsync(BasicDeliverEventArgs ea)
     {
         var messageId = ea.BasicProperties.MessageId ?? string.Empty;
         var dispositionStarted = 0;
@@ -349,7 +425,15 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
             "Consumer {ConsumerId} shutdown: ReplyCode: {ReplyCode}, ReplyText: {ReplyText}",
             ConsumerId, e.ReplyCode, e.ReplyText);
 
-        IsActive = false;
+        lock (_stateLock)
+            IsActive = false;
+        _consumerUnregistered?.TrySetResult();
+        return Task.CompletedTask;
+    }
+
+    private Task OnConsumerUnregisteredAsync(object? sender, ConsumerEventArgs e)
+    {
+        _consumerUnregistered?.TrySetResult();
         return Task.CompletedTask;
     }
 }
