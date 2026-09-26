@@ -398,6 +398,7 @@ jobs:
 
           # Install Microsoft SBOM tool
           dotnet tool install --global Microsoft.Sbom.DotNetTool || dotnet tool update --global Microsoft.Sbom.DotNetTool
+          mkdir -p ./release-packages/sbom ./release-packages/sbom-abstractions
 
           # Generate SBOM for the main project
           sbom-tool generate \
