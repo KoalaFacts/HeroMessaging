@@ -367,6 +367,7 @@ internal class InMemoryConsumer : ITransportConsumer
 
     private async Task ScheduleRetryAsync(TransportEnvelope envelope, TimeSpan delay)
     {
+        var enqueued = false;
         try
         {
             try
@@ -379,13 +380,28 @@ internal class InMemoryConsumer : ITransportConsumer
             }
 
             await _messageChannel.Writer.WriteAsync(envelope, _cts.Token);
+            enqueued = true;
         }
-        catch (Exception ex)
+        catch (ChannelClosedException ex)
         {
-            lock (_metricsLock)
-                _metrics.MessagesDeadLettered++;
-            CompleteDelivery();
             _logger?.LogWarning(ex, "Failed to schedule retry for consumer {ConsumerId}", ConsumerId);
+        }
+        catch (OperationCanceledException ex) when (_cts.IsCancellationRequested)
+        {
+            _logger?.LogWarning(ex, "Failed to schedule retry for consumer {ConsumerId}", ConsumerId);
+        }
+        catch (ArgumentOutOfRangeException ex)
+        {
+            _logger?.LogWarning(ex, "Failed to schedule retry for consumer {ConsumerId}", ConsumerId);
+        }
+        finally
+        {
+            if (!enqueued)
+            {
+                lock (_metricsLock)
+                    _metrics.MessagesDeadLettered++;
+                CompleteDelivery();
+            }
         }
     }
 
