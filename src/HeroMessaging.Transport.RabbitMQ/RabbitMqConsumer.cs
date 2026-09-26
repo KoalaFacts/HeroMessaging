@@ -196,6 +196,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
             if (Interlocked.CompareExchange(ref dispositionStarted, 1, 0) != 0)
                 throw new InvalidOperationException($"Message {messageId} has already been settled");
 
+            var settled = false;
             try
             {
                 // Once started, disposition must not be canceled midway through an uncertain broker write.
@@ -203,11 +204,13 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
                     await _channel.BasicNackAsync(ea.DeliveryTag, multiple: false, shouldRequeue).ConfigureAwait(false);
                 else
                     await _channel.BasicAckAsync(ea.DeliveryTag, multiple: false).ConfigureAwait(false);
+
+                settled = true;
             }
-            catch
+            finally
             {
                 // Closing the channel releases any unsettled delivery without risking a duplicate ack.
-                if (_channel.IsOpen)
+                if (!settled && _channel.IsOpen)
                 {
                     try
                     {
@@ -218,8 +221,6 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
                         _logger.LogWarning(closeError, "Could not close channel after disposition failure for {MessageId}", messageId);
                     }
                 }
-
-                throw;
             }
         }
 
