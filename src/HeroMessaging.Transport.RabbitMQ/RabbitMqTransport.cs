@@ -27,6 +27,7 @@ public sealed class RabbitMqTransport : IMessageTransport, IRabbitMqConsumerHost
     private readonly object _stateLock = new();
 #endif
     private readonly SemaphoreSlim _connectLock = new(1, 1);
+    private Task? _disconnectTask;
     private readonly TimeProvider _timeProvider;
 
     /// <inheritdoc/>
@@ -102,35 +103,47 @@ public sealed class RabbitMqTransport : IMessageTransport, IRabbitMqConsumerHost
     }
 
     /// <inheritdoc/>
-    public async Task DisconnectAsync(CancellationToken cancellationToken = default)
+    public Task DisconnectAsync(CancellationToken cancellationToken = default)
+    {
+        var calledFromHandler = _consumers.Values.Any(static consumer => consumer.IsInCurrentDelivery);
+        Task disconnectTask;
+        lock (_stateLock)
+        {
+            if (_disconnectTask is null || _disconnectTask.IsCompleted)
+            {
+                var stopTasks = _consumers.Values.Select(static consumer => consumer.StopAndDrainAsync()).ToArray();
+                _disconnectTask = Task.Run(() => DisconnectCoreAsync(stopTasks));
+            }
+            disconnectTask = _disconnectTask;
+        }
+
+        return calledFromHandler ? Task.CompletedTask : disconnectTask.WaitAsync(cancellationToken);
+    }
+
+    private async Task DisconnectCoreAsync(Task[] stopTasks)
     {
         ChangeState(TransportState.Disconnecting, "Disconnecting from RabbitMQ");
-
         _logger.LogInformation("Disconnecting from RabbitMQ");
 
-        // Stop all consumers
-        foreach (var consumer in _consumers.Values)
+        try
         {
-            await consumer.StopAsync(cancellationToken).ConfigureAwait(false);
+            await Task.WhenAll(stopTasks).ConfigureAwait(false);
         }
-        _consumers.Clear();
-
-        // Dispose channel pools
-        foreach (var channelPool in _channelPools.Values)
+        finally
         {
-            await channelPool.DisposeAsync().ConfigureAwait(false);
-        }
-        _channelPools.Clear();
+            _consumers.Clear();
+            foreach (var channelPool in _channelPools.Values)
+                await channelPool.DisposeAsync().ConfigureAwait(false);
+            _channelPools.Clear();
 
-        // Dispose connection pool
-        if (_connectionPool != null)
-        {
-            await _connectionPool.DisposeAsync().ConfigureAwait(false);
-            _connectionPool = null;
+            if (_connectionPool != null)
+            {
+                await _connectionPool.DisposeAsync().ConfigureAwait(false);
+                _connectionPool = null;
+            }
         }
 
         ChangeState(TransportState.Disconnected, "Disconnected from RabbitMQ");
-
         _logger.LogInformation("Disconnected from RabbitMQ");
     }
 

@@ -49,7 +49,7 @@ public class RabbitMqConsumerDispositionTests
             .Callback<ulong, bool, bool, CancellationToken>((_, _, requeue, _) => actualRequeue = requeue)
             .Returns(ValueTask.CompletedTask);
         channel.Setup(ch => ch.BasicCancelAsync(It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+            .Returns(() => basicConsumer!.HandleBasicCancelOkAsync("test-tag"));
         channel.Setup(ch => ch.CloseAsync(It.IsAny<ushort>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 

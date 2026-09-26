@@ -745,16 +745,14 @@ public class RabbitMqTransportTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task DisconnectAsync_WithCancelledToken_HandlesGracefully()
+    public async Task DisconnectAsync_WithCancelledToken_ContinuesCleanup()
     {
-        // Arrange
-        var cts = new CancellationTokenSource();
+        using var cts = new CancellationTokenSource();
         cts.Cancel();
 
-        // Act
-        await _transport!.DisconnectAsync(cts.Token);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => _transport!.DisconnectAsync(cts.Token));
+        await _transport!.DisconnectAsync(TestContext.Current.CancellationToken);
 
-        // Assert
         Assert.Equal(TransportState.Disconnected, _transport.State);
     }
 
