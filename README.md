@@ -42,6 +42,8 @@ HeroMessaging is a modern, extensible messaging framework for .NET that provides
 **Transport:**
 - `HeroMessaging.Transport.RabbitMQ` - RabbitMQ integration for distributed messaging
 
+RabbitMQ `DeferAsync(delay)` holds the delivery unacknowledged until the delay expires, then requeues it. This best-effort delay occupies a consumer prefetch slot and is not durable scheduling: stopping the consumer or losing its channel can cause earlier redelivery. Use a broker-backed scheduler when the delay must survive restarts.
+
 **Observability:**
 - `HeroMessaging.Observability.OpenTelemetry` - Distributed tracing and metrics
 - `HeroMessaging.Observability.HealthChecks` - ASP.NET Core health monitoring
