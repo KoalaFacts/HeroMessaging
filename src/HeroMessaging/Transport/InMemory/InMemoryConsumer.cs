@@ -249,6 +249,8 @@ internal class InMemoryConsumer : ITransportConsumer
         bool messageHandled = false;
         TransportEnvelope? requeueEnvelope = null;
         var retryScheduled = false;
+        var deferRequested = false;
+        var deferDelay = TimeSpan.Zero;
 
         try
         {
@@ -287,11 +289,17 @@ internal class InMemoryConsumer : ITransportConsumer
 
                     return Task.CompletedTask;
                 },
-                Defer = async (delay, ct) =>
+                Defer = (delay, ct) =>
                 {
+                    ct.ThrowIfCancellationRequested();
+                    if (delay is { } requestedDelay && requestedDelay < TimeSpan.Zero)
+                        throw new ArgumentOutOfRangeException(nameof(delay));
+
                     messageHandled = true;
+                    deferRequested = true;
+                    deferDelay = delay ?? _options.MessageRetryPolicy.CalculateDelay(envelope.DeliveryCount + 1);
                     _instrumentation.AddEvent(activity, "defer");
-                    await Task.CompletedTask;
+                    return Task.CompletedTask;
                 },
                 DeadLetter = async (reason, ct) =>
                 {
@@ -357,6 +365,12 @@ internal class InMemoryConsumer : ITransportConsumer
         }
         finally
         {
+            if (deferRequested)
+            {
+                _ = ScheduleRetryAsync(envelope with { DeliveryCount = envelope.DeliveryCount + 1 }, deferDelay);
+                retryScheduled = true;
+            }
+
             activity?.Dispose();
             lock (_metricsLock)
                 _metrics.CurrentlyProcessing--;
