@@ -107,58 +107,44 @@ public sealed class RabbitMqTransport : IMessageTransport, IRabbitMqConsumerHost
     {
         var calledFromHandler = _consumers.Values.Any(static consumer => consumer.IsInCurrentDelivery);
         Task disconnectTask;
-        TaskCompletionSource? completion = null;
         lock (_stateLock)
         {
             if (_disconnectTask is null || _disconnectTask.IsCompleted)
             {
-                completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-                _disconnectTask = completion.Task;
+                var stopTasks = _consumers.Values.Select(static consumer => consumer.StopAndDrainAsync()).ToArray();
+                _disconnectTask = Task.Run(() => DisconnectCoreAsync(stopTasks));
             }
             disconnectTask = _disconnectTask;
         }
 
-        if (completion is not null)
-            _ = DisconnectCoreAsync(completion);
-
         return calledFromHandler ? Task.CompletedTask : disconnectTask.WaitAsync(cancellationToken);
     }
 
-    private async Task DisconnectCoreAsync(TaskCompletionSource completion)
+    private async Task DisconnectCoreAsync(Task[] stopTasks)
     {
+        ChangeState(TransportState.Disconnecting, "Disconnecting from RabbitMQ");
+        _logger.LogInformation("Disconnecting from RabbitMQ");
+
         try
         {
-            ChangeState(TransportState.Disconnecting, "Disconnecting from RabbitMQ");
-            _logger.LogInformation("Disconnecting from RabbitMQ");
-
-            var stopTasks = _consumers.Values.Select(static consumer => consumer.StopAndDrainAsync()).ToArray();
-            try
-            {
-                await Task.WhenAll(stopTasks).ConfigureAwait(false);
-            }
-            finally
-            {
-                _consumers.Clear();
-                foreach (var channelPool in _channelPools.Values)
-                    await channelPool.DisposeAsync().ConfigureAwait(false);
-                _channelPools.Clear();
-
-                if (_connectionPool != null)
-                {
-                    await _connectionPool.DisposeAsync().ConfigureAwait(false);
-                    _connectionPool = null;
-                }
-            }
-
-            ChangeState(TransportState.Disconnected, "Disconnected from RabbitMQ");
-            _logger.LogInformation("Disconnected from RabbitMQ");
-            completion.SetResult();
+            await Task.WhenAll(stopTasks).ConfigureAwait(false);
         }
-        catch (Exception ex)
+        finally
         {
-            _logger.LogError(ex, "Error disconnecting from RabbitMQ");
-            completion.SetException(ex);
+            _consumers.Clear();
+            foreach (var channelPool in _channelPools.Values)
+                await channelPool.DisposeAsync().ConfigureAwait(false);
+            _channelPools.Clear();
+
+            if (_connectionPool != null)
+            {
+                await _connectionPool.DisposeAsync().ConfigureAwait(false);
+                _connectionPool = null;
+            }
         }
+
+        ChangeState(TransportState.Disconnected, "Disconnected from RabbitMQ");
+        _logger.LogInformation("Disconnected from RabbitMQ");
     }
 
     /// <inheritdoc/>

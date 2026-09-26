@@ -3,6 +3,7 @@ using HeroMessaging.Abstractions.Transport;
 using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using RabbitMQ.Client.Exceptions;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Threading;
@@ -146,8 +147,6 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
 
     private Task BeginStop()
     {
-        Task stopTask;
-        TaskCompletionSource? completion = null;
         lock (_stateLock)
         {
             if (_stopTask is null)
@@ -156,61 +155,46 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
                     return Task.CompletedTask;
 
                 IsActive = false;
-                completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-                _stopTask = completion.Task;
+                _stopTask = Task.Run(StopCoreAsync);
             }
-            stopTask = _stopTask;
+            return _stopTask;
         }
-
-        if (completion is not null)
-            _ = StopCoreAsync(completion);
-
-        return stopTask;
     }
 
-    private async Task StopCoreAsync(TaskCompletionSource completion)
+    private async Task StopCoreAsync()
     {
-        try
+        _logger.LogInformation("Stopping consumer {ConsumerId}", ConsumerId);
+        if (_startCompleted is not null)
+            await _startCompleted.Task.ConfigureAwait(false);
+
+        if (!string.IsNullOrEmpty(_consumerTag) && _channel.IsOpen)
         {
-            _logger.LogInformation("Stopping consumer {ConsumerId}", ConsumerId);
-            if (_startCompleted is not null)
-                await _startCompleted.Task.ConfigureAwait(false);
-
-            if (!string.IsNullOrEmpty(_consumerTag) && _channel.IsOpen)
-            {
-                await _channel.BasicCancelAsync(_consumerTag).ConfigureAwait(false);
-                Task? unregistered;
-                lock (_stateLock)
-                    unregistered = _consumerUnregistered?.Task;
-                if (unregistered is not null)
-                    await unregistered.ConfigureAwait(false);
-            }
-
-            Task? deliveriesDrained;
+            await _channel.BasicCancelAsync(_consumerTag).ConfigureAwait(false);
+            Task? unregistered;
             lock (_stateLock)
-                deliveriesDrained = _deliveriesDrained?.Task;
-            if (deliveriesDrained is not null)
-                await deliveriesDrained.ConfigureAwait(false);
-
-            if (_consumer is not null)
-            {
-                _consumer.ReceivedAsync -= OnMessageReceivedAsync;
-                _consumer.RegisteredAsync -= OnConsumerRegisteredAsync;
-                _consumer.UnregisteredAsync -= OnConsumerUnregisteredAsync;
-                _consumer.ShutdownAsync -= OnConsumerShutdownAsync;
-                _consumer = null;
-            }
-            _consumerTag = null;
-
-            _logger.LogInformation("Consumer {ConsumerId} stopped. Processed: {Processed}, Failed: {Failed}",
-                ConsumerId, _messagesProcessed, _messagesFailed);
-            completion.SetResult();
+                unregistered = _consumerUnregistered?.Task;
+            if (unregistered is not null)
+                await unregistered.ConfigureAwait(false);
         }
-        catch (Exception ex)
+
+        Task? deliveriesDrained;
+        lock (_stateLock)
+            deliveriesDrained = _deliveriesDrained?.Task;
+        if (deliveriesDrained is not null)
+            await deliveriesDrained.ConfigureAwait(false);
+
+        if (_consumer is not null)
         {
-            _logger.LogError(ex, "Error stopping consumer {ConsumerId}", ConsumerId);
-            completion.SetException(ex);
+            _consumer.ReceivedAsync -= OnMessageReceivedAsync;
+            _consumer.RegisteredAsync -= OnConsumerRegisteredAsync;
+            _consumer.UnregisteredAsync -= OnConsumerUnregisteredAsync;
+            _consumer.ShutdownAsync -= OnConsumerShutdownAsync;
+            _consumer = null;
         }
+        _consumerTag = null;
+
+        _logger.LogInformation("Consumer {ConsumerId} stopped. Processed: {Processed}, Failed: {Failed}",
+            ConsumerId, _messagesProcessed, _messagesFailed);
     }
 
     /// <inheritdoc/>
@@ -228,19 +212,11 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
     public ValueTask DisposeAsync()
     {
         Task disposeTask;
-        TaskCompletionSource? completion = null;
         lock (_stateLock)
         {
-            if (_disposeTask is null)
-            {
-                completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-                _disposeTask = completion.Task;
-            }
+            _disposeTask ??= Task.Run(DisposeCoreAsync);
             disposeTask = _disposeTask;
         }
-
-        if (completion is not null)
-            _ = DisposeCoreAsync(completion);
 
         // Defer closing the channel until this callback has settled its delivery.
         return IsInCurrentDelivery
@@ -248,38 +224,41 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
             : new ValueTask(disposeTask);
     }
 
-    private async Task DisposeCoreAsync(TaskCompletionSource completion)
+    private async Task DisposeCoreAsync()
     {
         try
         {
+            await BeginStop().ConfigureAwait(false);
+        }
+        finally
+        {
             try
             {
-                await BeginStop().ConfigureAwait(false);
+                if (_channel.IsOpen)
+                    await _channel.CloseAsync().ConfigureAwait(false);
+            }
+            catch (ObjectDisposedException ex)
+            {
+                _logger.LogWarning(ex, "Error disposing channel for consumer {ConsumerId}", ConsumerId);
+            }
+            catch (AlreadyClosedException ex)
+            {
+                _logger.LogWarning(ex, "Error disposing channel for consumer {ConsumerId}", ConsumerId);
             }
             finally
             {
                 try
                 {
-                    if (_channel.IsOpen)
-                        await _channel.CloseAsync().ConfigureAwait(false);
                     _channel.Dispose();
                 }
-                catch (Exception ex)
+                finally
                 {
-                    _logger.LogWarning(ex, "Error disposing channel for consumer {ConsumerId}", ConsumerId);
+                    _transport.RemoveConsumer(ConsumerId);
                 }
-
-                _transport.RemoveConsumer(ConsumerId);
             }
+        }
 
-            _logger.LogDebug("Consumer {ConsumerId} disposed", ConsumerId);
-            completion.SetResult();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error disposing consumer {ConsumerId}", ConsumerId);
-            completion.SetException(ex);
-        }
+        _logger.LogDebug("Consumer {ConsumerId} disposed", ConsumerId);
     }
 
     private async Task OnMessageReceivedAsync(object sender, BasicDeliverEventArgs ea)
