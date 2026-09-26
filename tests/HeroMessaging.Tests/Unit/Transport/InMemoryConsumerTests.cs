@@ -257,7 +257,7 @@ public class InMemoryConsumerTests : IDisposable
 
         // Act
         await DeliverMessage(consumer, envelope);
-        await Task.Delay(100, TestContext.Current.CancellationToken); // Give time for processing
+        await consumer.StopAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(messageReceived);
@@ -313,7 +313,7 @@ public class InMemoryConsumerTests : IDisposable
 
         // Act
         await DeliverMessage(consumer, envelope);
-        await Task.Delay(100, TestContext.Current.CancellationToken);
+        await consumer.StopAsync(TestContext.Current.CancellationToken);
 
         // Assert
         var metrics = consumer.GetMetrics();
@@ -350,7 +350,7 @@ public class InMemoryConsumerTests : IDisposable
 
         // Act
         await DeliverMessage(consumer, envelope);
-        await Task.Delay(100, TestContext.Current.CancellationToken);
+        await consumer.StopAsync(TestContext.Current.CancellationToken);
 
         // Assert
         Assert.True(manuallyAcknowledged);
@@ -377,7 +377,7 @@ public class InMemoryConsumerTests : IDisposable
 
         // Act
         await DeliverMessage(consumer, envelope);
-        await Task.Delay(100, TestContext.Current.CancellationToken);
+        await consumer.StopAsync(TestContext.Current.CancellationToken);
 
         // Assert
         var metrics = consumer.GetMetrics();
@@ -412,12 +412,12 @@ public class InMemoryConsumerTests : IDisposable
 
         // Act
         await DeliverMessage(consumer, envelope);
-        await Task.Delay(200, TestContext.Current.CancellationToken); // Give time for requeue and reprocessing
+        await consumer.StopAsync(TestContext.Current.CancellationToken);
 
         // Assert
-        Assert.True(processCount >= 1);
+        Assert.Equal(2, processCount);
         var metrics = consumer.GetMetrics();
-        Assert.True(metrics.MessagesRejected > 0);
+        Assert.Equal(1, metrics.MessagesRejected);
 
         await consumer.DisposeAsync();
     }
@@ -510,12 +510,13 @@ public class InMemoryConsumerTests : IDisposable
 
         // Act
         await DeliverMessage(consumer, envelope);
-        await Task.Delay(300, TestContext.Current.CancellationToken);
+        await consumer.StopAsync(TestContext.Current.CancellationToken);
 
         // Assert
-        Assert.True(attemptCount >= 1);
+        Assert.Equal(4, attemptCount);
         var metrics = consumer.GetMetrics();
-        Assert.True(metrics.MessagesFailed > 0);
+        Assert.Equal(4, metrics.MessagesFailed);
+        Assert.Equal(1, metrics.MessagesDeadLettered);
 
         await consumer.DisposeAsync();
     }
@@ -580,7 +581,7 @@ public class InMemoryConsumerTests : IDisposable
 
         // Act
         await DeliverMessage(consumer, envelope);
-        await Task.Delay(100, TestContext.Current.CancellationToken);
+        await consumer.StopAsync(TestContext.Current.CancellationToken);
 
         // Assert
         var metrics = consumer.GetMetrics();
@@ -597,11 +598,13 @@ public class InMemoryConsumerTests : IDisposable
     public async Task GetMetrics_TracksCurrentlyProcessing()
     {
         // Arrange
-        var tcs = new TaskCompletionSource<bool>();
+        var started = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var handler = new Func<TransportEnvelope, MessageContext, CancellationToken, Task>(
             async (env, ctx, ct) =>
             {
-                await tcs.Task;
+                started.TrySetResult(true);
+                await release.Task.WaitAsync(ct);
                 await ctx.AcknowledgeAsync(ct);
             });
 
@@ -612,17 +615,17 @@ public class InMemoryConsumerTests : IDisposable
 
         // Act
         await DeliverMessage(consumer, envelope);
-        await Task.Delay(50, TestContext.Current.CancellationToken);
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
-        var metricsWhileProcessing = consumer.GetMetrics();
+        var processingCount = consumer.GetMetrics().CurrentlyProcessing;
 
-        tcs.SetResult(true);
-        await Task.Delay(50, TestContext.Current.CancellationToken);
+        release.TrySetResult(true);
+        await consumer.StopAsync(TestContext.Current.CancellationToken);
 
         var metricsAfterProcessing = consumer.GetMetrics();
 
         // Assert
-        Assert.True(metricsWhileProcessing.CurrentlyProcessing >= 0);
+        Assert.Equal(1, processingCount);
         Assert.Equal(0, metricsAfterProcessing.CurrentlyProcessing);
 
         await consumer.DisposeAsync();
@@ -635,22 +638,22 @@ public class InMemoryConsumerTests : IDisposable
         var handler = new Func<TransportEnvelope, MessageContext, CancellationToken, Task>(
             async (env, ctx, ct) =>
             {
-                await Task.Delay(50);
+                await Task.Delay(50, ct);
                 await ctx.AcknowledgeAsync(ct);
             });
 
-        var consumer = CreateConsumer(handler);
+        var consumer = CreateConsumer(handler, timeProvider: TimeProvider.System);
         await consumer.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var envelope = CreateTestEnvelope();
 
         // Act
         await DeliverMessage(consumer, envelope);
-        await Task.Delay(150, TestContext.Current.CancellationToken);
+        await consumer.StopAsync(TestContext.Current.CancellationToken);
 
         // Assert
         var metrics = consumer.GetMetrics();
-        Assert.True(metrics.AverageProcessingDuration >= TimeSpan.Zero);
+        Assert.True(metrics.AverageProcessingDuration > TimeSpan.Zero);
 
         await consumer.DisposeAsync();
     }
@@ -787,7 +790,7 @@ public class InMemoryConsumerTests : IDisposable
 
         // Act
         await DeliverMessage(consumer, envelope);
-        await Task.Delay(100, TestContext.Current.CancellationToken);
+        await consumer.StopAsync(TestContext.Current.CancellationToken);
 
         // Assert
         _instrumentationMock.Verify(x => x.StartReceiveActivity(

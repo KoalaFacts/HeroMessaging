@@ -483,11 +483,13 @@ public class RingBufferQueueTests
 
         // Wait for processing
         await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
-        var depthAfter = queue.Depth;
+        var started = System.Diagnostics.Stopwatch.GetTimestamp();
+        while (queue.Depth != 0 && System.Diagnostics.Stopwatch.GetElapsedTime(started) < TimeSpan.FromSeconds(5))
+            await Task.Delay(10, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(1, depthBefore);
-        Assert.Equal(0, depthAfter);
+        Assert.Equal(0, queue.Depth);
 
         await queue.DisposeAsync();
         await consumer.DisposeAsync();

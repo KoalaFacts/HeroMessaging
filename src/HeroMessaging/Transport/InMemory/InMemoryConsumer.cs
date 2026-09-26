@@ -19,8 +19,17 @@ internal class InMemoryConsumer : ITransportConsumer
     private readonly ILogger<InMemoryConsumer>? _logger;
     private readonly Channel<TransportEnvelope> _messageChannel;
     private readonly CancellationTokenSource _cts = new();
+    private readonly CancellationTokenSource _retryDelayCts = new();
     private Task? _processingTask;
+    private Task? _stopTask;
     private readonly TimeProvider _timeProvider;
+    private TaskCompletionSource<bool>? _drained;
+    private int _outstandingDeliveries;
+#if NET9_0_OR_GREATER
+    private readonly Lock _stateLock = new();
+#else
+    private readonly object _stateLock = new();
+#endif
 
     private readonly ConsumerMetrics _metrics = new();
 #if NET9_0_OR_GREATER
@@ -74,45 +83,43 @@ internal class InMemoryConsumer : ITransportConsumer
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (IsActive)
-            return Task.CompletedTask;
+        lock (_stateLock)
+        {
+            if (IsActive)
+                return Task.CompletedTask;
 
-        if (_messageChannel.Reader.Completion.IsCompleted)
-            throw new InvalidOperationException("A stopped consumer cannot be restarted");
+            if (_stopTask is not null || _messageChannel.Reader.Completion.IsCompleted)
+                throw new InvalidOperationException("A stopped consumer cannot be restarted");
 
-        IsActive = true;
-        _processingTask = Task.WhenAll(Enumerable.Range(0, _options.ConcurrentMessageLimit)
-            .Select(_ => ProcessMessagesAsync(_cts.Token)));
+            IsActive = true;
+            _processingTask = Task.WhenAll(Enumerable.Range(0, _options.ConcurrentMessageLimit)
+                .Select(_ => ProcessMessagesAsync(_cts.Token)));
+        }
         _transport.NotifyConsumerStarted(this);
 
         return Task.CompletedTask;
     }
 
     /// <inheritdoc/>
-    public async Task StopAsync(CancellationToken cancellationToken = default)
+    public Task StopAsync(CancellationToken cancellationToken = default)
     {
-        if (!IsActive)
-            return;
-
-        IsActive = false;
-        _transport.NotifyConsumerStopped(this);
-        _messageChannel.Writer.TryComplete();
-
-        if (_processingTask != null)
+        Task stopTask;
+        lock (_stateLock)
         {
-            try
+            if (_stopTask is null && !IsActive)
+                return Task.CompletedTask;
+
+            if (_stopTask is null)
             {
-                await _processingTask.WaitAsync(cancellationToken);
+                IsActive = false;
+                var drained = _drained?.Task ?? Task.CompletedTask;
+                _stopTask = Task.Run(() => StopCoreAsync(drained));
             }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                _cts.Cancel();
-                await _processingTask;
-                throw;
-            }
+
+            stopTask = _stopTask;
         }
 
-        _cts.Cancel();
+        return stopTask.WaitAsync(cancellationToken);
     }
 
     /// <inheritdoc/>
@@ -123,15 +130,65 @@ internal class InMemoryConsumer : ITransportConsumer
     {
         await StopAsync();
         _cts.Dispose();
+        _retryDelayCts.Dispose();
         _transport.RemoveConsumer(ConsumerId);
     }
 
     internal async Task DeliverMessageAsync(TransportEnvelope envelope, CancellationToken cancellationToken = default)
     {
-        if (!IsActive)
-            throw new ChannelClosedException();
+        lock (_stateLock)
+        {
+            if (!IsActive)
+                throw new ChannelClosedException();
 
-        await _messageChannel.Writer.WriteAsync(envelope, cancellationToken);
+            if (_outstandingDeliveries++ == 0)
+                _drained = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+
+        try
+        {
+            await _messageChannel.Writer.WriteAsync(envelope, cancellationToken);
+        }
+        catch
+        {
+            CompleteDelivery();
+            throw;
+        }
+    }
+
+    private async Task StopCoreAsync(Task drained)
+    {
+        try
+        {
+            _transport.NotifyConsumerStopped(this);
+            _retryDelayCts.Cancel();
+            // A delayed retry still owns its original delivery until its final attempt completes.
+            await drained;
+            _messageChannel.Writer.TryComplete();
+
+            if (_processingTask is not null)
+                await _processingTask;
+        }
+        finally
+        {
+            _messageChannel.Writer.TryComplete();
+            _cts.Cancel();
+        }
+    }
+
+    private void CompleteDelivery()
+    {
+        TaskCompletionSource<bool>? drained = null;
+        lock (_stateLock)
+        {
+            if (--_outstandingDeliveries == 0)
+            {
+                drained = _drained;
+                _drained = null;
+            }
+        }
+
+        drained?.TrySetResult(true);
     }
 
     private async Task ProcessMessagesAsync(CancellationToken cancellationToken)
@@ -146,9 +203,18 @@ internal class InMemoryConsumer : ITransportConsumer
                 {
                     while (reader.TryRead(out var envelope))
                     {
-                        TransportEnvelope? pending = envelope;
-                        while (pending is { } retry)
-                            pending = await ProcessMessageAsync(retry, cancellationToken);
+                        var retryScheduled = false;
+                        try
+                        {
+                            TransportEnvelope? pending = envelope;
+                            while (pending is { } retry)
+                                (pending, retryScheduled) = await ProcessMessageAsync(retry, cancellationToken);
+                        }
+                        finally
+                        {
+                            if (!retryScheduled)
+                                CompleteDelivery();
+                        }
                     }
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -166,7 +232,8 @@ internal class InMemoryConsumer : ITransportConsumer
         }
     }
 
-    private async Task<TransportEnvelope?> ProcessMessageAsync(TransportEnvelope envelope, CancellationToken cancellationToken)
+    private async Task<(TransportEnvelope? RequeueEnvelope, bool RetryScheduled)> ProcessMessageAsync(
+        TransportEnvelope envelope, CancellationToken cancellationToken)
     {
         var startTime = _timeProvider.GetTimestamp();
         lock (_metricsLock)
@@ -181,6 +248,7 @@ internal class InMemoryConsumer : ITransportConsumer
         // Track whether user manually handled message lifecycle
         bool messageHandled = false;
         TransportEnvelope? requeueEnvelope = null;
+        var retryScheduled = false;
 
         try
         {
@@ -277,23 +345,8 @@ internal class InMemoryConsumer : ITransportConsumer
                 var delay = _options.MessageRetryPolicy.CalculateDelay(retryCount + 1);
                 var retryEnvelope = envelope with { DeliveryCount = retryCount + 1 };
 
-                // Schedule retry asynchronously without blocking the processing loop
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        await Task.Delay(delay, _timeProvider, cancellationToken);
-                        await DeliverMessageAsync(retryEnvelope, cancellationToken);
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        // Expected during shutdown
-                    }
-                    catch (Exception retryEx)
-                    {
-                        _logger?.LogDebug(retryEx, "Failed to schedule retry for consumer {ConsumerId}", ConsumerId);
-                    }
-                }, cancellationToken);
+                _ = ScheduleRetryAsync(retryEnvelope, delay);
+                retryScheduled = true;
             }
             else if (!messageHandled)
             {
@@ -309,7 +362,47 @@ internal class InMemoryConsumer : ITransportConsumer
                 _metrics.CurrentlyProcessing--;
         }
 
-        return requeueEnvelope;
+        return (requeueEnvelope, retryScheduled);
+    }
+
+    private async Task ScheduleRetryAsync(TransportEnvelope envelope, TimeSpan delay)
+    {
+        var enqueued = false;
+        try
+        {
+            try
+            {
+                await Task.Delay(delay, _timeProvider, _retryDelayCts.Token);
+            }
+            catch (OperationCanceledException) when (_retryDelayCts.IsCancellationRequested)
+            {
+                // A graceful stop skips the delay, not the retry.
+            }
+
+            await _messageChannel.Writer.WriteAsync(envelope, _cts.Token);
+            enqueued = true;
+        }
+        catch (ChannelClosedException ex)
+        {
+            _logger?.LogWarning(ex, "Failed to schedule retry for consumer {ConsumerId}", ConsumerId);
+        }
+        catch (OperationCanceledException ex) when (_cts.IsCancellationRequested)
+        {
+            _logger?.LogWarning(ex, "Failed to schedule retry for consumer {ConsumerId}", ConsumerId);
+        }
+        catch (ArgumentOutOfRangeException ex)
+        {
+            _logger?.LogWarning(ex, "Failed to schedule retry for consumer {ConsumerId}", ConsumerId);
+        }
+        finally
+        {
+            if (!enqueued)
+            {
+                lock (_metricsLock)
+                    _metrics.MessagesDeadLettered++;
+                CompleteDelivery();
+            }
+        }
     }
 
     private void UpdateAverageProcessingDuration(TimeSpan duration)
