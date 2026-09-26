@@ -247,8 +247,18 @@ internal class InMemoryConsumer : ITransportConsumer
 
         // Track whether user manually handled message lifecycle
         bool messageHandled = false;
+        var dispositionStarted = 0;
         TransportEnvelope? requeueEnvelope = null;
         var retryScheduled = false;
+        var deferRequested = false;
+        var deferDelay = TimeSpan.Zero;
+
+        void BeginDisposition(CancellationToken token)
+        {
+            token.ThrowIfCancellationRequested();
+            if (Interlocked.CompareExchange(ref dispositionStarted, 1, 0) != 0)
+                throw new InvalidOperationException("Message has already been settled");
+        }
 
         try
         {
@@ -270,6 +280,7 @@ internal class InMemoryConsumer : ITransportConsumer
             {
                 Acknowledge = async (ct) =>
                 {
+                    BeginDisposition(ct);
                     messageHandled = true;
                     lock (_metricsLock)
                         _metrics.MessagesAcknowledged++;
@@ -278,6 +289,7 @@ internal class InMemoryConsumer : ITransportConsumer
                 },
                 Reject = (requeue, ct) =>
                 {
+                    BeginDisposition(ct);
                     messageHandled = true;
                     lock (_metricsLock)
                         _metrics.MessagesRejected++;
@@ -287,14 +299,33 @@ internal class InMemoryConsumer : ITransportConsumer
 
                     return Task.CompletedTask;
                 },
-                Defer = async (delay, ct) =>
+                Defer = (delay, ct) =>
                 {
+                    var requestedDelay = delay ?? _options.MessageRetryPolicy.CalculateDelay(envelope.DeliveryCount + 1);
+                    if (requestedDelay < TimeSpan.Zero)
+                        throw new ArgumentOutOfRangeException(nameof(delay));
+
+                    BeginDisposition(ct);
                     messageHandled = true;
+                    bool stopping;
+                    lock (_stateLock)
+                        stopping = _stopTask is not null;
+
+                    if (stopping)
+                    {
+                        lock (_metricsLock)
+                            _metrics.MessagesDeadLettered++;
+                        throw new InvalidOperationException("Cannot defer a message while the consumer is stopping");
+                    }
+
+                    deferRequested = true;
+                    deferDelay = requestedDelay;
                     _instrumentation.AddEvent(activity, "defer");
-                    await Task.CompletedTask;
+                    return Task.CompletedTask;
                 },
                 DeadLetter = async (reason, ct) =>
                 {
+                    BeginDisposition(ct);
                     messageHandled = true;
                     lock (_metricsLock)
                         _metrics.MessagesDeadLettered++;
@@ -357,6 +388,12 @@ internal class InMemoryConsumer : ITransportConsumer
         }
         finally
         {
+            if (deferRequested)
+            {
+                _ = ScheduleRetryAsync(envelope with { DeliveryCount = envelope.DeliveryCount + 1 }, deferDelay);
+                retryScheduled = true;
+            }
+
             activity?.Dispose();
             lock (_metricsLock)
                 _metrics.CurrentlyProcessing--;
@@ -372,7 +409,16 @@ internal class InMemoryConsumer : ITransportConsumer
         {
             try
             {
-                await Task.Delay(delay, _timeProvider, _retryDelayCts.Token);
+                if (delay < TimeSpan.Zero)
+                    throw new ArgumentOutOfRangeException(nameof(delay));
+
+                var remaining = delay;
+                while (remaining > TimeSpan.Zero)
+                {
+                    var segment = remaining > TimeSpan.FromDays(1) ? TimeSpan.FromDays(1) : remaining;
+                    await Task.Delay(segment, _timeProvider, _retryDelayCts.Token);
+                    remaining -= segment;
+                }
             }
             catch (OperationCanceledException) when (_retryDelayCts.IsCancellationRequested)
             {

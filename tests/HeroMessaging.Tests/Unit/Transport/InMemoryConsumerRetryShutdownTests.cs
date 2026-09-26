@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using HeroMessaging.Abstractions.Transport;
 using HeroMessaging.Transport.InMemory;
 using Xunit;
@@ -7,6 +8,209 @@ namespace HeroMessaging.Tests.Unit.Transport;
 [Trait("Category", "Unit")]
 public sealed class InMemoryConsumerRetryShutdownTests
 {
+    [Theory]
+    [InlineData(TransportAddressType.Queue, true)]
+    [InlineData(TransportAddressType.Queue, false)]
+    [InlineData(TransportAddressType.Topic, true)]
+    [InlineData(TransportAddressType.Topic, false)]
+    public async Task DeferAsync_RedeliversAfterRequestedOrDefaultDelay(
+        TransportAddressType addressType, bool explicitDelay)
+    {
+        await using var transport = new InMemoryTransport(new InMemoryTransportOptions(), TimeProvider.System);
+        await transport.ConnectAsync(TestContext.Current.CancellationToken);
+
+        var source = addressType == TransportAddressType.Queue
+            ? TransportAddress.Queue("deferred-delivery")
+            : TransportAddress.Topic("deferred-delivery");
+        var redelivered = new TaskCompletionSource<(int DeliveryCount, TimeSpan Elapsed)>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var attempts = 0;
+        var firstDeliveryStarted = 0L;
+        var consumer = await transport.SubscribeAsync(source, async (envelope, context, ct) =>
+        {
+            if (Interlocked.Increment(ref attempts) == 1)
+            {
+                firstDeliveryStarted = Stopwatch.GetTimestamp();
+                await context.DeferAsync(explicitDelay ? TimeSpan.FromMilliseconds(200) : null, ct);
+                return;
+            }
+
+            redelivered.TrySetResult((envelope.DeliveryCount, Stopwatch.GetElapsedTime(firstDeliveryStarted)));
+        }, new ConsumerOptions
+        {
+            MessageRetryPolicy = RetryPolicy.Linear(1, TimeSpan.FromMilliseconds(200))
+        }, TestContext.Current.CancellationToken);
+
+        var envelope = new TransportEnvelope("DeferredTest", ReadOnlyMemory<byte>.Empty);
+        if (addressType == TransportAddressType.Queue)
+            await transport.SendAsync(source, envelope, TestContext.Current.CancellationToken);
+        else
+            await transport.PublishAsync(source, envelope, TestContext.Current.CancellationToken);
+
+        var (deliveryCount, elapsed) = await redelivered.Task.WaitAsync(
+            TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        await consumer.StopAsync(TestContext.Current.CancellationToken);
+
+        Assert.True(elapsed >= TimeSpan.FromMilliseconds(150));
+        Assert.Equal(1, deliveryCount);
+        Assert.Equal(2, Volatile.Read(ref attempts));
+        await consumer.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task StopAsync_CompletesDeferredDeliveryBeforeReturning()
+    {
+        await using var transport = new InMemoryTransport(new InMemoryTransportOptions(), TimeProvider.System);
+        await transport.ConnectAsync(TestContext.Current.CancellationToken);
+
+        var source = TransportAddress.Queue("defer-shutdown");
+        var deferred = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var attempts = 0;
+        var consumer = await transport.SubscribeAsync(source, async (_, context, ct) =>
+        {
+            if (Interlocked.Increment(ref attempts) == 1)
+            {
+                await context.DeferAsync(TimeSpan.FromMinutes(1), ct);
+                deferred.TrySetResult();
+            }
+        }, new ConsumerOptions(), TestContext.Current.CancellationToken);
+
+        await transport.SendAsync(source,
+            new TransportEnvelope("DeferredTest", ReadOnlyMemory<byte>.Empty), TestContext.Current.CancellationToken);
+        await deferred.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        await consumer.StopAsync(TestContext.Current.CancellationToken)
+            .WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, Volatile.Read(ref attempts));
+        await consumer.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task DeferAsync_HandlerThrowsAfterDeferring_StillRedelivers()
+    {
+        await using var transport = new InMemoryTransport(new InMemoryTransportOptions(), TimeProvider.System);
+        await transport.ConnectAsync(TestContext.Current.CancellationToken);
+
+        var source = TransportAddress.Queue("defer-then-throw");
+        var firstAttempt = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var attempts = 0;
+        var consumer = await transport.SubscribeAsync(source, async (_, context, ct) =>
+        {
+            if (Interlocked.Increment(ref attempts) == 1)
+            {
+                await context.DeferAsync(TimeSpan.FromMinutes(1), ct);
+                firstAttempt.TrySetResult();
+                throw new InvalidOperationException("Failure after deferring");
+            }
+        }, new ConsumerOptions(), TestContext.Current.CancellationToken);
+
+        await transport.SendAsync(source,
+            new TransportEnvelope("DeferredTest", ReadOnlyMemory<byte>.Empty), TestContext.Current.CancellationToken);
+        await firstAttempt.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        await consumer.StopAsync(TestContext.Current.CancellationToken)
+            .WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, Volatile.Read(ref attempts));
+        Assert.Equal(1, consumer.GetMetrics().MessagesFailed);
+        await consumer.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task DeferAsync_RejectAfterDeferral_DoesNotCreateSecondRedelivery()
+    {
+        await using var transport = new InMemoryTransport(new InMemoryTransportOptions(), TimeProvider.System);
+        await transport.ConnectAsync(TestContext.Current.CancellationToken);
+
+        var source = TransportAddress.Queue("defer-then-reject");
+        var firstAttempt = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Exception? dispositionError = null;
+        var attempts = 0;
+        var consumer = await transport.SubscribeAsync(source, async (_, context, ct) =>
+        {
+            if (Interlocked.Increment(ref attempts) == 1)
+            {
+                await context.DeferAsync(TimeSpan.FromMinutes(1), ct);
+                dispositionError = await Record.ExceptionAsync(() => context.RejectAsync(true, ct));
+                firstAttempt.TrySetResult();
+            }
+        }, new ConsumerOptions(), TestContext.Current.CancellationToken);
+
+        await transport.SendAsync(source,
+            new TransportEnvelope("DeferredTest", ReadOnlyMemory<byte>.Empty), TestContext.Current.CancellationToken);
+        await firstAttempt.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        await consumer.StopAsync(TestContext.Current.CancellationToken)
+            .WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        Assert.IsType<InvalidOperationException>(dispositionError);
+        Assert.Equal(2, Volatile.Read(ref attempts));
+        await consumer.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task DeferAsync_LongDelay_RemainsAcceptedUntilShutdown()
+    {
+        await using var transport = new InMemoryTransport(new InMemoryTransportOptions(), TimeProvider.System);
+        await transport.ConnectAsync(TestContext.Current.CancellationToken);
+
+        var source = TransportAddress.Queue("long-defer");
+        var firstAttempt = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var attempts = 0;
+        var consumer = await transport.SubscribeAsync(source, async (_, context, ct) =>
+        {
+            if (Interlocked.Increment(ref attempts) == 1)
+            {
+                await context.DeferAsync(TimeSpan.FromDays(50), ct);
+                firstAttempt.TrySetResult();
+            }
+        }, new ConsumerOptions(), TestContext.Current.CancellationToken);
+
+        await transport.SendAsync(source,
+            new TransportEnvelope("DeferredTest", ReadOnlyMemory<byte>.Empty), TestContext.Current.CancellationToken);
+        await firstAttempt.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        await Task.Delay(TimeSpan.FromMilliseconds(100), TestContext.Current.CancellationToken);
+        await consumer.StopAsync(TestContext.Current.CancellationToken)
+            .WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, Volatile.Read(ref attempts));
+        Assert.Equal(0, consumer.GetMetrics().MessagesDeadLettered);
+        await consumer.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task StopAsync_RepeatedDeferral_DoesNotLoopForever()
+    {
+        await using var transport = new InMemoryTransport(new InMemoryTransportOptions(), TimeProvider.System);
+        await transport.ConnectAsync(TestContext.Current.CancellationToken);
+
+        var source = TransportAddress.Queue("repeated-defer-shutdown");
+        var firstAttempt = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Exception? shutdownDeferralError = null;
+        var attempts = 0;
+        var consumer = await transport.SubscribeAsync(source, async (_, context, ct) =>
+        {
+            if (Interlocked.Increment(ref attempts) == 1)
+            {
+                await context.DeferAsync(TimeSpan.FromMinutes(1), ct);
+                firstAttempt.TrySetResult();
+            }
+            else if (Volatile.Read(ref attempts) == 2)
+            {
+                shutdownDeferralError = await Record.ExceptionAsync(() => context.DeferAsync(TimeSpan.FromMinutes(1), ct));
+            }
+        }, new ConsumerOptions(), TestContext.Current.CancellationToken);
+
+        await transport.SendAsync(source,
+            new TransportEnvelope("DeferredTest", ReadOnlyMemory<byte>.Empty), TestContext.Current.CancellationToken);
+        await firstAttempt.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        await consumer.StopAsync(TestContext.Current.CancellationToken)
+            .WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        Assert.IsType<InvalidOperationException>(shutdownDeferralError);
+        Assert.Equal(2, Volatile.Read(ref attempts));
+        Assert.Equal(1, consumer.GetMetrics().MessagesDeadLettered);
+        await consumer.DisposeAsync();
+    }
+
     [Theory]
     [InlineData(TransportAddressType.Queue)]
     [InlineData(TransportAddressType.Topic)]

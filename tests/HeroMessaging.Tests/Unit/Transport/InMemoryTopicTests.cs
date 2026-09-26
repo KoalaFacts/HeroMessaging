@@ -402,17 +402,13 @@ public class InMemoryTopicTests
             },
             new ConsumerOptions { StartImmediately = true }, cancellationToken: TestContext.Current.CancellationToken);
 
-        await Task.Delay(100, TestContext.Current.CancellationToken);
-
         // Publish after subscribing
         await transport.PublishAsync(topic, CreateTestEnvelope("LateEvent"), cancellationToken: TestContext.Current.CancellationToken);
-        await Task.Delay(100, TestContext.Current.CancellationToken);
+        await transport.DisposeAsync();
 
         // Assert - Should only receive messages after subscription
         Assert.Single(lateSubscriberMessages);
         Assert.Equal("LateEvent", lateSubscriberMessages[0]);
-
-        await transport.DisposeAsync();
     }
 
     [Fact]
