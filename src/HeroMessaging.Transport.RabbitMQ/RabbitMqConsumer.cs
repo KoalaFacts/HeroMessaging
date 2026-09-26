@@ -37,6 +37,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
     private TaskCompletionSource? _deliveriesDrained;
     private TaskCompletionSource? _consumerUnregistered;
     private TaskCompletionSource? _startCompleted;
+    private TaskCompletionSource _stopRequested = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private Task? _stopTask;
     private Task? _disposeTask;
     private readonly AsyncLocal<DeliveryScope?> _currentDelivery = new();
@@ -100,6 +101,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
             _stopTask = null;
             _consumerUnregistered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             _startCompleted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            _stopRequested = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             IsActive = true;
         }
 
@@ -167,14 +169,21 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
         if (_startCompleted is not null)
             await _startCompleted.Task.ConfigureAwait(false);
 
-        if (!string.IsNullOrEmpty(_consumerTag) && _channel.IsOpen)
+        try
         {
-            await _channel.BasicCancelAsync(_consumerTag).ConfigureAwait(false);
-            Task? unregistered;
-            lock (_stateLock)
-                unregistered = _consumerUnregistered?.Task;
-            if (unregistered is not null)
-                await unregistered.ConfigureAwait(false);
+            if (!string.IsNullOrEmpty(_consumerTag) && _channel.IsOpen)
+            {
+                await _channel.BasicCancelAsync(_consumerTag).ConfigureAwait(false);
+                Task? unregistered;
+                lock (_stateLock)
+                    unregistered = _consumerUnregistered?.Task;
+                if (unregistered is not null)
+                    await unregistered.ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            _stopRequested.TrySetResult();
         }
 
         Task? deliveriesDrained;
@@ -296,9 +305,11 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
         var messageId = ea.BasicProperties.MessageId ?? string.Empty;
         var dispositionStarted = 0;
 
-        async Task SettleAsync(bool? requeue, CancellationToken cancellationToken)
+        async Task SettleAsync(bool? requeue, CancellationToken cancellationToken, TimeSpan? delay = null)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            if (delay < TimeSpan.Zero)
+                throw new ArgumentOutOfRangeException(nameof(delay));
 
             if (Interlocked.CompareExchange(ref dispositionStarted, 1, 0) != 0)
                 throw new InvalidOperationException($"Message {messageId} has already been settled");
@@ -306,6 +317,9 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
             var settled = false;
             try
             {
+                if (delay is { } deferDelay && deferDelay > TimeSpan.Zero)
+                    await WaitForDeferDelayAsync(deferDelay, _stopRequested.Task).ConfigureAwait(false);
+
                 // Once started, disposition must not be canceled midway through an uncertain broker write.
                 if (requeue is bool shouldRequeue)
                     await _channel.BasicNackAsync(ea.DeliveryTag, multiple: false, shouldRequeue).ConfigureAwait(false);
@@ -398,7 +412,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
                 },
                 Defer = async (delay, ct) =>
                 {
-                    await SettleAsync(true, ct).ConfigureAwait(false);
+                    await SettleAsync(true, ct, delay).ConfigureAwait(false);
                     _instrumentation.AddEvent(activity, "defer");
                 },
                 DeadLetter = async (reason, ct) =>
@@ -450,6 +464,25 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
         }
     }
 
+    private async Task WaitForDeferDelayAsync(TimeSpan delay, Task stopRequested)
+    {
+        var remaining = delay;
+        while (remaining > TimeSpan.Zero && !stopRequested.IsCompleted)
+        {
+            var segment = remaining > TimeSpan.FromDays(1) ? TimeSpan.FromDays(1) : remaining;
+            using var timerCancellation = new CancellationTokenSource();
+            var timer = Task.Delay(segment, _timeProvider, timerCancellation.Token);
+            if (await Task.WhenAny(timer, stopRequested).ConfigureAwait(false) == stopRequested)
+            {
+                await timerCancellation.CancelAsync().ConfigureAwait(false);
+                return;
+            }
+
+            await timer.ConfigureAwait(false);
+            remaining -= segment;
+        }
+    }
+
     private Task OnConsumerShutdownAsync(object? sender, ShutdownEventArgs e)
     {
         _logger.LogWarning(
@@ -460,6 +493,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
         {
             IsActive = false;
             _consumerUnregistered?.TrySetResult();
+            _stopRequested.TrySetResult();
         }
         return Task.CompletedTask;
     }
@@ -470,6 +504,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
         {
             IsActive = false;
             _consumerUnregistered?.TrySetResult();
+            _stopRequested.TrySetResult();
         }
         return Task.CompletedTask;
     }
