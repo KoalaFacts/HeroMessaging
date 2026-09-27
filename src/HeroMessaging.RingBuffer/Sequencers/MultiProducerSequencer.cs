@@ -49,7 +49,7 @@ public sealed class MultiProducerSequencer : Sequencer
             if (wrapPoint > cachedGatingSequence)
             {
                 // Wait for consumers to catch up
-                _waitStrategy.WaitFor(cachedGatingSequence);
+                WaitForCapacity(wrapPoint, cachedGatingSequence, next);
                 continue;
             }
         }
@@ -82,7 +82,7 @@ public sealed class MultiProducerSequencer : Sequencer
 
             if (wrapPoint > cachedGatingSequence)
             {
-                _waitStrategy.WaitFor(cachedGatingSequence);
+                WaitForCapacity(wrapPoint, cachedGatingSequence, next);
                 continue;
             }
         }

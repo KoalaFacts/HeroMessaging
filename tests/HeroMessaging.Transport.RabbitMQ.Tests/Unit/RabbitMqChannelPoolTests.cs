@@ -248,6 +248,9 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
 
         // Assert
         _mockChannels[0].Verify(ch => ch.Dispose(), Times.Once);
+        var (total, available) = ChannelPool.GetStatistics();
+        Assert.Equal(0, total);
+        Assert.Equal(0, available);
     }
 
     [Fact]

@@ -91,9 +91,14 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
     /// </summary>
     public void ReleaseChannel(IChannel channel)
     {
-        if (_disposed || channel == null || !channel.IsOpen)
+        if (channel == null)
+            return;
+
+        if (_disposed || !channel.IsOpen)
         {
-            channel?.Dispose();
+            if (!_disposed)
+                Interlocked.Decrement(ref _channelCount);
+            channel.Dispose();
             return;
         }
 

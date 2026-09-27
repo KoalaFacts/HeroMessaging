@@ -44,7 +44,7 @@ public sealed class SingleProducerSequencer : Sequencer
             // Still not enough space? Wait for consumers to catch up
             while (wrapPoint > minSequence)
             {
-                _waitStrategy.WaitFor(minSequence);
+                WaitForCapacity(wrapPoint, minSequence, nextSequence);
                 minSequence = GetMinimumGatingSequence(nextSequence);
                 _cachedGatingSequence.Value = minSequence;
             }
@@ -76,7 +76,7 @@ public sealed class SingleProducerSequencer : Sequencer
 
             while (wrapPoint > minSequence)
             {
-                _waitStrategy.WaitFor(minSequence);
+                WaitForCapacity(wrapPoint, minSequence, nextSequence);
                 minSequence = GetMinimumGatingSequence(nextSequence);
                 _cachedGatingSequence.Value = minSequence;
             }

@@ -154,6 +154,32 @@ public class PostgreSqlStorageIntegrationTests : PostgreSqlIntegrationTestBase
     }
 
     [Fact]
+    public async Task PostgreSqlStorage_QueryMessages_SearchesNestedMetadata()
+    {
+        var storage = CreateMessageStorage();
+        var searchText = $"nested-{Guid.NewGuid():N}";
+        var message = new TestMessage(
+            messageId: Guid.NewGuid(),
+            timestamp: DateTimeOffset.UtcNow,
+            correlationId: null,
+            causationId: null,
+            content: "unrelated",
+            metadata: new Dictionary<string, object>
+            {
+                ["Details"] = new Dictionary<string, object> { ["Text"] = searchText }
+            });
+
+        await storage.StoreAsync(message, (IStorageTransaction?)null, cancellationToken: TestContext.Current.CancellationToken);
+        var matches = await storage.QueryAsync(new MessageQuery
+        {
+            ContentContains = searchText,
+            MaxResults = 10
+        }, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Contains(matches, match => match.MessageId == message.MessageId);
+    }
+
+    [Fact]
     public async Task PostgreSqlStorage_DeleteMessage_RemovesFromStorage()
     {
         // Arrange

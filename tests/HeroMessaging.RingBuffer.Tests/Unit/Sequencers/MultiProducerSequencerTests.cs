@@ -1,4 +1,5 @@
 using HeroMessaging.RingBuffer.Sequencers;
+using HeroMessaging.RingBuffer.Sequences;
 using HeroMessaging.RingBuffer.WaitStrategies;
 using Xunit;
 
@@ -7,6 +8,29 @@ namespace HeroMessaging.RingBuffer.Tests.Unit.Sequencers;
 [Trait("Category", "Unit")]
 public class MultiProducerSequencerTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Next_WhenFull_ResumesAfterConsumerAdvancesWithoutPublish(bool batch)
+    {
+        var sequencer = new MultiProducerSequencer(2, new BlockingWaitStrategy());
+        var gate = new Sequence(-1);
+        sequencer.AddGatingSequence(gate);
+        sequencer.Publish(0, sequencer.Next(2));
+
+        var claim = Task.Factory.StartNew(
+            () => batch ? sequencer.Next(2) : sequencer.Next(),
+            TestContext.Current.CancellationToken,
+            TaskCreationOptions.LongRunning,
+            TaskScheduler.Default);
+
+        await Task.Delay(50, TestContext.Current.CancellationToken);
+        Assert.False(claim.IsCompleted);
+        gate.Value = batch ? 1 : 0;
+
+        Assert.Equal(batch ? 3 : 2, await claim.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+    }
+
     [Fact]
     public void Next_StartsAtZero()
     {

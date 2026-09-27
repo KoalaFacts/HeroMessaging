@@ -622,7 +622,7 @@ public class PostgreSqlMessageStorage : IMessageStorage
 
         if (!string.IsNullOrEmpty(query.ContentContains))
         {
-            whereClauses.Add("COALESCE(payload ->> 'Content', payload ->> 'content', '') ILIKE @content_contains");
+            whereClauses.Add("payload::text ILIKE @content_contains");
             parameters.Add(new NpgsqlParameter("content_contains", $"%{query.ContentContains}%"));
         }
 
