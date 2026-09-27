@@ -274,33 +274,68 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
     {
         var previousDelivery = _currentDelivery.Value;
         var delivery = new DeliveryScope();
+        var deferStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Task stopRequested;
         _currentDelivery.Value = delivery;
         lock (_stateLock)
         {
+            stopRequested = _stopRequested.Task;
             if (_inFlightDeliveries++ == 0)
                 _deliveriesDrained = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         }
 
+        var detached = false;
         try
         {
-            await ProcessMessageAsync(ea).ConfigureAwait(false);
+            var processing = ProcessMessageAsync(ea, stopRequested, deferStarted);
+            if (await Task.WhenAny(processing, deferStarted.Task).ConfigureAwait(false) == deferStarted.Task
+                && !processing.IsCompleted)
+            {
+                _ = CompleteDeferredDeliveryAsync(processing, delivery);
+                detached = true;
+                return;
+            }
+
+            await processing.ConfigureAwait(false);
         }
         finally
         {
-            Volatile.Write(ref delivery.Active, false);
             _currentDelivery.Value = previousDelivery;
-            lock (_stateLock)
+            if (!detached)
+                CompleteDelivery(delivery);
+        }
+    }
+
+    private async Task CompleteDeferredDeliveryAsync(Task processing, DeliveryScope delivery)
+    {
+        try
+        {
+            await processing.ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Deferred delivery failed for consumer {ConsumerId}", ConsumerId);
+        }
+        finally
+        {
+            CompleteDelivery(delivery);
+        }
+    }
+
+    private void CompleteDelivery(DeliveryScope delivery)
+    {
+        Volatile.Write(ref delivery.Active, false);
+        lock (_stateLock)
+        {
+            if (--_inFlightDeliveries == 0)
             {
-                if (--_inFlightDeliveries == 0)
-                {
-                    _deliveriesDrained!.SetResult();
-                    _deliveriesDrained = null;
-                }
+                _deliveriesDrained!.SetResult();
+                _deliveriesDrained = null;
             }
         }
     }
 
-    private async Task ProcessMessageAsync(BasicDeliverEventArgs ea)
+    private async Task ProcessMessageAsync(BasicDeliverEventArgs ea, Task stopRequested, TaskCompletionSource deferStarted)
     {
         var messageId = ea.BasicProperties.MessageId ?? string.Empty;
         var dispositionStarted = 0;
@@ -318,7 +353,10 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
             try
             {
                 if (delay is { } deferDelay && deferDelay > TimeSpan.Zero)
-                    await WaitForDeferDelayAsync(deferDelay, _stopRequested.Task).ConfigureAwait(false);
+                {
+                    deferStarted.TrySetResult();
+                    await WaitForDeferDelayAsync(deferDelay, stopRequested, cancellationToken).ConfigureAwait(false);
+                }
 
                 // Once started, disposition must not be canceled midway through an uncertain broker write.
                 if (requeue is bool shouldRequeue)
@@ -327,6 +365,8 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
                     await _channel.BasicAckAsync(ea.DeliveryTag, multiple: false).ConfigureAwait(false);
 
                 settled = true;
+                if (delay > TimeSpan.Zero)
+                    cancellationToken.ThrowIfCancellationRequested();
             }
             finally
             {
@@ -464,13 +504,13 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
         }
     }
 
-    private async Task WaitForDeferDelayAsync(TimeSpan delay, Task stopRequested)
+    private async Task WaitForDeferDelayAsync(TimeSpan delay, Task stopRequested, CancellationToken cancellationToken)
     {
         var remaining = delay;
         while (remaining > TimeSpan.Zero && !stopRequested.IsCompleted)
         {
             var segment = remaining > TimeSpan.FromDays(1) ? TimeSpan.FromDays(1) : remaining;
-            using var timerCancellation = new CancellationTokenSource();
+            using var timerCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             var timer = Task.Delay(segment, _timeProvider, timerCancellation.Token);
             if (await Task.WhenAny(timer, stopRequested).ConfigureAwait(false) == stopRequested)
             {
@@ -478,7 +518,14 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
                 return;
             }
 
-            await timer.ConfigureAwait(false);
+            try
+            {
+                await timer.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
             remaining -= segment;
         }
     }
@@ -516,7 +563,11 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
             if (_consumerUnregistered?.Task.IsCompleted == true)
                 _consumerUnregistered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             if (_stopTask is null)
+            {
+                if (_stopRequested.Task.IsCompleted)
+                    _stopRequested = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
                 IsActive = true;
+            }
         }
         return Task.CompletedTask;
     }
