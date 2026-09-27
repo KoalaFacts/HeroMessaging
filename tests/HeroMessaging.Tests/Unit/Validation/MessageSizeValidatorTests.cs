@@ -229,7 +229,7 @@ public sealed class MessageSizeValidatorTests
             .Returns(10);
 
         // Act
-        var result = await validator.ValidateAsync(message!, cancellationToken: TestContext.Current.CancellationToken);
+        await validator.ValidateAsync(message!, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
         _jsonSerializerMock.Verify(s => s.GetJsonByteCount(It.IsAny<IMessage>(), It.IsAny<JsonSerializerOptions>()), Times.Once);

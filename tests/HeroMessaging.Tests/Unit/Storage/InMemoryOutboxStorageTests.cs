@@ -709,7 +709,7 @@ public sealed class InMemoryOutboxStorageTests
         var storage = new InMemoryOutboxStorage(timeProvider);
 
         var entry1 = await storage.AddAsync(new TestMessage(), new OutboxOptions(), cancellationToken: TestContext.Current.CancellationToken);
-        var entry2 = await storage.AddAsync(new TestMessage(), new OutboxOptions(), cancellationToken: TestContext.Current.CancellationToken);
+        await storage.AddAsync(new TestMessage(), new OutboxOptions(), cancellationToken: TestContext.Current.CancellationToken);
         var entry3 = await storage.AddAsync(new TestMessage(), new OutboxOptions(), cancellationToken: TestContext.Current.CancellationToken);
 
         await storage.MarkFailedAsync(entry1.Id, "Error 1", cancellationToken: TestContext.Current.CancellationToken);
