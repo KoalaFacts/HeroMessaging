@@ -194,13 +194,8 @@ public sealed class RabbitMqTransport : IMessageTransport, IRabbitMqConsumerHost
                 _instrumentation.AddEvent(activity, "publish.start");
 
                 // Send to default exchange with queue name as routing key (direct routing)
-                await channel.BasicPublishAsync(
-                    exchange: "",
-                    routingKey: destination.Name,
-                    mandatory: false,
-                    basicProperties: properties,
-                    body: envelope.Body,
-                    cancellationToken: cancellationToken).ConfigureAwait(false);
+                await PublishMessageAsync(channel, "", destination.Name, properties, envelope.Body, cancellationToken)
+                    .ConfigureAwait(false);
 
                 if (_options.UsePublisherConfirms)
                 {
@@ -278,13 +273,8 @@ public sealed class RabbitMqTransport : IMessageTransport, IRabbitMqConsumerHost
                 // Try to get routing key from headers, default to "#" (broadcast)
                 var routingKey = envelope.Headers.TryGetValue("RoutingKey", out var rk) ? rk?.ToString() ?? "#" : "#";
 
-                await channel.BasicPublishAsync(
-                    exchange: topic.Name,
-                    routingKey: routingKey,
-                    mandatory: false,
-                    basicProperties: properties,
-                    body: envelope.Body,
-                    cancellationToken: cancellationToken).ConfigureAwait(false);
+                await PublishMessageAsync(channel, topic.Name, routingKey, properties, envelope.Body, cancellationToken)
+                    .ConfigureAwait(false);
 
                 if (_options.UsePublisherConfirms)
                 {
@@ -505,6 +495,40 @@ public sealed class RabbitMqTransport : IMessageTransport, IRabbitMqConsumerHost
     private static Dictionary<string, object?> ToNullableArguments(IEnumerable<KeyValuePair<string, object>> arguments)
     {
         return arguments.ToDictionary(static kvp => kvp.Key, static kvp => (object?)kvp.Value);
+    }
+
+    internal async Task PublishMessageAsync(
+        IChannel channel,
+        string exchange,
+        string routingKey,
+        BasicProperties properties,
+        ReadOnlyMemory<byte> body,
+        CancellationToken cancellationToken)
+    {
+        if (!_options.UsePublisherConfirms)
+        {
+            await channel.BasicPublishAsync(exchange, routingKey, false, properties, body, cancellationToken)
+                .ConfigureAwait(false);
+            return;
+        }
+
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(_options.PublisherConfirmTimeout);
+        try
+        {
+            await channel.BasicPublishAsync(exchange, routingKey, false, properties, body, timeout.Token)
+                .ConfigureAwait(false);
+        }
+        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested && timeout.IsCancellationRequested)
+        {
+            channel.Dispose();
+            throw new TimeoutException($"Publisher confirmation timed out after {_options.PublisherConfirmTimeout}", ex);
+        }
+        catch (OperationCanceledException)
+        {
+            channel.Dispose();
+            throw;
+        }
     }
 
     private static Dictionary<string, object?> ToNullableArguments(IDictionary<string, object>? arguments)

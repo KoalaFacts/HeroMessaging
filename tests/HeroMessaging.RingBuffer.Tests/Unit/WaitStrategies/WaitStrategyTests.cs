@@ -144,6 +144,25 @@ public class WaitStrategyTests
     }
 
     [Fact]
+    public async Task TimeoutBlockingWaitStrategy_InfiniteTimeout_WaitsForSignal()
+    {
+        var strategy = new TimeoutBlockingWaitStrategy(Timeout.InfiniteTimeSpan);
+        var waitTask = StartWaiter(strategy, 42);
+
+        try
+        {
+            await Task.Delay(100, TestContext.Current.CancellationToken);
+            Assert.False(waitTask.IsCompleted);
+        }
+        finally
+        {
+            strategy.SignalAllWhenBlocking();
+        }
+
+        Assert.Equal(42, await waitTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
     public void TimeoutBlockingWaitStrategy_SignalWithoutWaiter_DoesNotThrow()
     {
         // Arrange

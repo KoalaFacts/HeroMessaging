@@ -139,4 +139,13 @@ public abstract class Sequencer
         }
         return min;
     }
+
+    /// <summary>Wait until consumers free the requested slot.</summary>
+    protected void WaitForCapacity(long wrapPoint, long observedSequence, long nextSequence)
+    {
+        if (_waitStrategy is IBackpressureWaitStrategy blocking)
+            blocking.WaitForCapacity(() => GetMinimumGatingSequence(nextSequence) >= wrapPoint);
+        else
+            _waitStrategy.WaitFor(observedSequence);
+    }
 }

@@ -5,8 +5,9 @@ namespace HeroMessaging.RingBuffer.WaitStrategies;
 /// Provides the lowest CPU usage at the cost of higher latency (~1-5ms).
 /// Best for scenarios where CPU efficiency is more important than latency.
 /// </summary>
-public sealed class BlockingWaitStrategy : IWaitStrategy
+public sealed class BlockingWaitStrategy : IWaitStrategy, IBackpressureWaitStrategy
 {
+    private static readonly TimeSpan CapacityCheckInterval = TimeSpan.FromMilliseconds(10);
     private readonly object _lock = new();
     private long _signalVersion;
 
@@ -25,6 +26,18 @@ public sealed class BlockingWaitStrategy : IWaitStrategy
             }
         }
         return sequence;
+    }
+
+    void IBackpressureWaitStrategy.WaitForCapacity(Func<bool> hasCapacity)
+    {
+        lock (_lock)
+        {
+            while (!hasCapacity())
+            {
+                // Consumer sequences can advance without signalling this monitor.
+                Monitor.Wait(_lock, CapacityCheckInterval);
+            }
+        }
     }
 
     /// <summary>
