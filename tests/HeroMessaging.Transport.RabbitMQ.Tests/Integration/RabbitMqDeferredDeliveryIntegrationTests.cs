@@ -8,6 +8,54 @@ namespace HeroMessaging.Transport.RabbitMQ.Tests.Integration;
 public sealed class RabbitMqDeferredDeliveryIntegrationTests : RabbitMqIntegrationTestBase
 {
     [Fact]
+    public async Task DeferAsync_RespectsSingleMessageConcurrencyLimit()
+    {
+        var queueName = CreateQueueName();
+        var topology = new TransportTopology();
+        topology.AddQueue(new QueueDefinition { Name = queueName, Durable = true });
+        await Transport!.ConfigureTopologyAsync(topology, cancellationToken: TestContext.Current.CancellationToken);
+
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(20));
+        var first = CreateTestEnvelope();
+        var second = CreateTestEnvelope();
+        var firstDeferred = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var secondReceived = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var consumer = await Transport.SubscribeAsync(
+            TransportAddress.Queue(queueName),
+            async (envelope, context, ct) =>
+            {
+                if (envelope.MessageId == first.MessageId
+                    && !Assert.IsType<bool>(context.Properties["Redelivered"]))
+                {
+                    firstDeferred.TrySetResult();
+                    await context.DeferAsync(TimeSpan.FromSeconds(2), ct);
+                    return;
+                }
+
+                await context.AcknowledgeAsync(ct);
+                if (envelope.MessageId == second.MessageId)
+                    secondReceived.TrySetResult();
+            },
+            new ConsumerOptions { ConcurrentMessageLimit = 1, PrefetchCount = 10 }, timeout.Token);
+
+        try
+        {
+            await Transport.SendAsync(TransportAddress.Queue(queueName), first, cancellationToken: timeout.Token);
+            await firstDeferred.Task.WaitAsync(timeout.Token);
+            await Transport.SendAsync(TransportAddress.Queue(queueName), second, cancellationToken: timeout.Token);
+
+            await Task.Delay(TimeSpan.FromMilliseconds(300), timeout.Token);
+            Assert.False(secondReceived.Task.IsCompleted);
+            await secondReceived.Task.WaitAsync(timeout.Token);
+        }
+        finally
+        {
+            await consumer.DisposeAsync();
+        }
+    }
+
+    [Fact]
     public async Task StopAsync_DuringDefer_RequeuesWithoutWaitingForDelay()
     {
         var queueName = CreateQueueName();

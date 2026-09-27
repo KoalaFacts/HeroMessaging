@@ -113,9 +113,12 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
             _consumer.UnregisteredAsync += OnConsumerUnregisteredAsync;
             _consumer.ShutdownAsync += OnConsumerShutdownAsync;
 
+            var configuredPrefetch = _options.PrefetchCount == 0 ? ushort.MaxValue : _options.PrefetchCount;
+            var prefetchCount = (ushort)Math.Min(configuredPrefetch,
+                Math.Clamp(_options.ConcurrentMessageLimit, 1, ushort.MaxValue));
             await _channel.BasicQosAsync(
                 prefetchSize: 0,
-                prefetchCount: _options.PrefetchCount,
+                prefetchCount: prefetchCount,
                 global: false,
                 cancellationToken).ConfigureAwait(false);
 
@@ -308,13 +311,11 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
 
     private async Task CompleteDeferredDeliveryAsync(Task processing, DeliveryScope delivery)
     {
+        var completed = await Task.WhenAny(processing).ConfigureAwait(false);
         try
         {
-            await processing.ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Deferred delivery failed for consumer {ConsumerId}", ConsumerId);
+            if (completed.Exception is { } error)
+                _logger.LogError(error, "Deferred delivery failed for consumer {ConsumerId}", ConsumerId);
         }
         finally
         {

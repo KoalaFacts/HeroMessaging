@@ -11,6 +11,29 @@ namespace HeroMessaging.Transport.RabbitMQ.Tests.Unit;
 [Trait("Category", "Unit")]
 public sealed class RabbitMqConsumerDeferredDeliveryTests
 {
+    [Theory]
+    [InlineData(1, 10, 1)]
+    [InlineData(3, 10, 3)]
+    [InlineData(10, 2, 2)]
+    [InlineData(1, 0, 1)]
+    public async Task StartAsync_LimitsPrefetchToConcurrentMessageLimit(
+        int concurrentMessageLimit, ushort configuredPrefetch, ushort expectedPrefetch)
+    {
+        var fixture = new ConsumerFixture(
+            static (_, _, _) => Task.CompletedTask,
+            options: new ConsumerOptions
+            {
+                ConcurrentMessageLimit = concurrentMessageLimit,
+                PrefetchCount = configuredPrefetch
+            });
+        await using var consumer = fixture.Consumer;
+
+        await consumer.StartAsync(TestContext.Current.CancellationToken);
+
+        fixture.Channel.Verify(ch => ch.BasicQosAsync(
+            0, expectedPrefetch, false, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
     [Fact]
     public async Task DeferAsync_WithDelay_WaitsBeforeRequeueing()
     {
@@ -178,7 +201,8 @@ public sealed class RabbitMqConsumerDeferredDeliveryTests
         internal ConsumerFixture(
             Func<TransportEnvelope, MessageContext, CancellationToken, Task> handler,
             TaskCompletionSource? cancelStarted = null,
-            Task? cancelRelease = null)
+            Task? cancelRelease = null,
+            ConsumerOptions? options = null)
         {
             Channel.Setup(ch => ch.IsOpen).Returns(true);
             Channel.Setup(ch => ch.BasicQosAsync(
@@ -209,7 +233,7 @@ public sealed class RabbitMqConsumerDeferredDeliveryTests
             var host = new Mock<IRabbitMqConsumerHost>();
             host.SetupGet(h => h.Name).Returns("RabbitMQ");
             Consumer = new RabbitMqConsumer("test-consumer", TransportAddress.Queue("test-queue"),
-                Channel.Object, handler, new ConsumerOptions(), host.Object,
+                Channel.Object, handler, options ?? new ConsumerOptions(), host.Object,
                 Mock.Of<ILogger<RabbitMqConsumer>>(), TimeProvider.System);
         }
 
