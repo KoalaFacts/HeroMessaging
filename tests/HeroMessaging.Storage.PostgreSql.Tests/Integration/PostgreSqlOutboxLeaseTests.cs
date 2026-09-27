@@ -41,13 +41,15 @@ public class PostgreSqlOutboxLeaseTests : PostgreSqlIntegrationTestBase
     [Fact]
     public async Task ClaimExternalAsync_ExpiredLeaseCanBeRecoveredButOldOwnerCannotComplete()
     {
-        await WithStorageAsync(async (storage, _, time) =>
+        await WithStorageAsync(async (storage, options, time) =>
         {
             await storage.AddAsync(TestMessageBuilder.CreateValidMessage(),
                 new OutboxOptions { Destination = "orders" }, TestContext.Current.CancellationToken);
 
             var first = Assert.Single(await storage.ClaimExternalAsync(1, TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
-            time.Advance(TimeSpan.FromSeconds(6));
+            time.Advance(TimeSpan.FromDays(1));
+            Assert.Empty(await storage.ClaimExternalAsync(1, TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+            await MakeDueAsync(options, first.Entry.Id, lease: true);
             var second = Assert.Single(await storage.ClaimExternalAsync(1, TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
 
             Assert.Equal(first.Entry.Id, second.Entry.Id);
@@ -60,17 +62,19 @@ public class PostgreSqlOutboxLeaseTests : PostgreSqlIntegrationTestBase
     [Fact]
     public async Task RetryExternalAsync_WaitsUntilRetryIsDue()
     {
-        await WithStorageAsync(async (storage, _, time) =>
+        await WithStorageAsync(async (storage, options, time) =>
         {
             await storage.AddAsync(TestMessageBuilder.CreateValidMessage(),
                 new OutboxOptions { Destination = "orders" }, TestContext.Current.CancellationToken);
             var first = Assert.Single(await storage.ClaimExternalAsync(1, TimeSpan.FromMinutes(1), TestContext.Current.CancellationToken));
-            var retryAt = time.GetUtcNow().AddMinutes(2);
+            var retryAt = DateTimeOffset.UtcNow.AddMinutes(2);
 
             Assert.True(await storage.RetryExternalAsync(first.Entry.Id, first.Token, 1, retryAt, "temporary", TestContext.Current.CancellationToken));
             Assert.Empty(await storage.ClaimExternalAsync(1, TimeSpan.FromMinutes(1), TestContext.Current.CancellationToken));
 
             time.Advance(TimeSpan.FromMinutes(2));
+            Assert.Empty(await storage.ClaimExternalAsync(1, TimeSpan.FromMinutes(1), TestContext.Current.CancellationToken));
+            await MakeDueAsync(options, first.Entry.Id, lease: false);
             var second = Assert.Single(await storage.ClaimExternalAsync(1, TimeSpan.FromMinutes(1), TestContext.Current.CancellationToken));
             Assert.Equal(1, second.Entry.RetryCount);
             Assert.True(await storage.FailExternalAsync(second.Entry.Id, second.Token, 2, "exhausted", TestContext.Current.CancellationToken));
@@ -105,4 +109,16 @@ public class PostgreSqlOutboxLeaseTests : PostgreSqlIntegrationTestBase
 
     private static PostgreSqlOutboxStorage CreateStorage(PostgreSqlStorageOptions options, TimeProvider time)
         => new(options, time, new DefaultJsonSerializer(new DefaultBufferPoolManager()));
+
+    private static async Task MakeDueAsync(PostgreSqlStorageOptions options, string entryId, bool lease)
+    {
+        var column = lease ? "lease_expires_at" : "next_retry_at";
+        await using var connection = new NpgsqlConnection(options.ConnectionString);
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var command = new NpgsqlCommand(
+            $"UPDATE {options.GetFullTableName(options.OutboxTableName)} SET {column} = CURRENT_TIMESTAMP - INTERVAL '1 second' WHERE id = @id",
+            connection);
+        command.Parameters.AddWithValue("id", entryId);
+        await command.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+    }
 }

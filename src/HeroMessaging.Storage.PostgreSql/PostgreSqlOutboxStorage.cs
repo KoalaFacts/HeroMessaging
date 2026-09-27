@@ -317,20 +317,19 @@ public class PostgreSqlOutboxStorage : IExternalOutboxStorage
             throw new InvalidOperationException("External outbox claims require a standalone connection.");
 
         await using var connection = await _connectionProvider.GetConnectionAsync(cancellationToken).ConfigureAwait(false);
-        var now = _timeProvider.GetUtcNow();
         var token = Guid.NewGuid();
         var sql = $"""
             WITH candidates AS (
                 SELECT id FROM {_tableName}
                 WHERE destination IS NOT NULL
-                  AND ((status = 'Pending' AND (next_retry_at IS NULL OR next_retry_at <= @now))
-                       OR (status = 'Processing' AND lease_expires_at <= @now))
+                  AND ((status = 'Pending' AND (next_retry_at IS NULL OR next_retry_at <= CURRENT_TIMESTAMP))
+                       OR (status = 'Processing' AND lease_expires_at <= CURRENT_TIMESTAMP))
                 ORDER BY created_at ASC
                 LIMIT @limit
                 FOR UPDATE SKIP LOCKED
             )
             UPDATE {_tableName} AS entry
-            SET status = 'Processing', lease_token = @token, lease_expires_at = @lease_expires_at,
+            SET status = 'Processing', lease_token = @token, lease_expires_at = CURRENT_TIMESTAMP + @lease_duration,
                 next_retry_at = NULL
             FROM candidates
             WHERE entry.id = candidates.id
@@ -340,10 +339,9 @@ public class PostgreSqlOutboxStorage : IExternalOutboxStorage
             """;
 
         await using var command = new NpgsqlCommand(sql, connection);
-        command.Parameters.AddWithValue("now", now);
         command.Parameters.AddWithValue("limit", limit);
         command.Parameters.AddWithValue("token", token);
-        command.Parameters.AddWithValue("lease_expires_at", now.Add(leaseDuration));
+        command.Parameters.Add(new NpgsqlParameter("lease_duration", NpgsqlDbType.Interval) { Value = leaseDuration });
 
         var claims = new List<OutboxLease>();
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
@@ -363,18 +361,16 @@ public class PostgreSqlOutboxStorage : IExternalOutboxStorage
             throw new InvalidOperationException("External outbox leases require a standalone connection.");
 
         await using var connection = await _connectionProvider.GetConnectionAsync(cancellationToken).ConfigureAwait(false);
-        var now = _timeProvider.GetUtcNow();
         var sql = $"""
             UPDATE {_tableName}
-            SET lease_expires_at = @lease_expires_at
-            WHERE id = @id AND lease_token = @token AND lease_expires_at > @now
+            SET lease_expires_at = CURRENT_TIMESTAMP + @lease_duration
+            WHERE id = @id AND lease_token = @token AND lease_expires_at > CURRENT_TIMESTAMP
               AND status = 'Processing' AND destination IS NOT NULL
             """;
         await using var command = new NpgsqlCommand(sql, connection);
         command.Parameters.AddWithValue("id", entryId);
         command.Parameters.AddWithValue("token", token);
-        command.Parameters.AddWithValue("now", now);
-        command.Parameters.AddWithValue("lease_expires_at", now.Add(leaseDuration));
+        command.Parameters.Add(new NpgsqlParameter("lease_duration", NpgsqlDbType.Interval) { Value = leaseDuration });
         return await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) == 1;
     }
 
@@ -399,27 +395,23 @@ public class PostgreSqlOutboxStorage : IExternalOutboxStorage
             throw new InvalidOperationException("External outbox leases require a standalone connection.");
 
         await using var connection = await _connectionProvider.GetConnectionAsync(cancellationToken).ConfigureAwait(false);
-        var now = _timeProvider.GetUtcNow();
         var sql = $"""
             UPDATE {_tableName}
             SET status = @status, retry_count = COALESCE(@retry_count, retry_count),
                 next_retry_at = @next_retry_at, last_error = @last_error,
-                processed_at = @processed_at, lease_token = NULL, lease_expires_at = NULL
-            WHERE id = @id AND lease_token = @token AND lease_expires_at > @now
+                processed_at = CASE WHEN @final THEN CURRENT_TIMESTAMP ELSE NULL END,
+                lease_token = NULL, lease_expires_at = NULL
+            WHERE id = @id AND lease_token = @token AND lease_expires_at > CURRENT_TIMESTAMP
               AND status = 'Processing' AND destination IS NOT NULL
             """;
         await using var command = new NpgsqlCommand(sql, connection);
         command.Parameters.AddWithValue("id", entryId);
         command.Parameters.AddWithValue("token", token);
-        command.Parameters.AddWithValue("now", now);
         command.Parameters.AddWithValue("status", status.ToString());
         command.Parameters.Add(new NpgsqlParameter("retry_count", NpgsqlDbType.Integer) { Value = retryCount is null ? DBNull.Value : retryCount.Value });
         command.Parameters.Add(new NpgsqlParameter("next_retry_at", NpgsqlDbType.TimestampTz) { Value = nextRetry is null ? DBNull.Value : nextRetry.Value.ToUniversalTime() });
         command.Parameters.Add(new NpgsqlParameter("last_error", NpgsqlDbType.Text) { Value = (object?)error ?? DBNull.Value });
-        command.Parameters.Add(new NpgsqlParameter("processed_at", NpgsqlDbType.TimestampTz)
-        {
-            Value = status is OutboxStatus.Processed or OutboxStatus.Failed ? now : DBNull.Value
-        });
+        command.Parameters.AddWithValue("final", status is OutboxStatus.Processed or OutboxStatus.Failed);
         return await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) == 1;
     }
     /// <summary>

@@ -1,5 +1,5 @@
-using System.Text;
-using HeroMessaging.Abstractions;
+using HeroMessaging.Abstractions.Messages;
+using HeroMessaging.Abstractions.Serialization;
 using HeroMessaging.Abstractions.Storage;
 using HeroMessaging.Abstractions.Transport;
 using HeroMessaging.Utilities;
@@ -10,7 +10,7 @@ namespace HeroMessaging.Processing;
 internal sealed class ExternalOutboxDelivery(
     IExternalOutboxStorage storage,
     IConfirmedQueueTransport transport,
-    IJsonSerializer jsonSerializer,
+    IMessageSerializer messageSerializer,
     TimeProvider timeProvider,
     ILogger logger)
 {
@@ -37,8 +37,8 @@ internal sealed class ExternalOutboxDelivery(
                 CorrelationId = message.CorrelationId,
                 CausationId = message.CausationId,
                 Timestamp = message.Timestamp,
-                ContentType = "application/json",
-                Body = Encoding.UTF8.GetBytes(jsonSerializer.SerializeToString((object)message))
+                ContentType = messageSerializer.ContentType,
+                Body = await SerializeConcreteAsync(message, delivery.Token).ConfigureAwait(false)
             };
 
             if (transport.State != TransportState.Connected)
@@ -71,6 +71,9 @@ internal sealed class ExternalOutboxDelivery(
         }
     }
 
+    private ValueTask<byte[]> SerializeConcreteAsync(IMessage message, CancellationToken cancellationToken)
+        => messageSerializer.SerializeAsync((dynamic)message, cancellationToken);
+
     private async Task RenewLeaseAsync(string entryId, Guid token, CancellationTokenSource delivery)
     {
         try
@@ -88,6 +91,7 @@ internal sealed class ExternalOutboxDelivery(
         }
         catch (OperationCanceledException) when (delivery.IsCancellationRequested)
         {
+            return;
         }
         catch (Exception ex)
         {

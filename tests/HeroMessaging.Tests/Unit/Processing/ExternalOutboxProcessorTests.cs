@@ -1,9 +1,9 @@
 using HeroMessaging.Abstractions;
+using HeroMessaging.Abstractions.Serialization;
 using HeroMessaging.Abstractions.Storage;
 using HeroMessaging.Abstractions.Transport;
 using HeroMessaging.Processing;
 using HeroMessaging.Tests.TestUtilities;
-using HeroMessaging.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
@@ -114,9 +114,13 @@ public sealed class ExternalOutboxProcessorTests
         transport.SetupGet(t => t.State).Returns(TransportState.Connected);
         transport.Setup(t => t.SendConfirmedAsync(It.IsAny<TransportAddress>(), It.IsAny<TransportEnvelope>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
+        var serializer = new Mock<IMessageSerializer>();
+        serializer.SetupGet(s => s.ContentType).Returns("application/custom");
+        serializer.Setup(s => s.SerializeAsync(It.IsAny<TestMessage>(), It.IsAny<CancellationToken>()))
+            .Returns(new ValueTask<byte[]>("custom-wire"u8.ToArray()));
 
         using var services = new ServiceCollection().BuildServiceProvider();
-        await using var processor = CreateProcessor(storage.Object, transport.Object, services);
+        await using var processor = CreateProcessor(storage.Object, transport.Object, services, serializer.Object);
         await processor.StartAsync(TestContext.Current.CancellationToken);
         await completed.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
         await processor.StopAsync(TestContext.Current.CancellationToken);
@@ -124,7 +128,10 @@ public sealed class ExternalOutboxProcessorTests
         transport.Verify(t => t.SendConfirmedAsync(
             It.Is<TransportAddress>(address => address.Name == "orders" && address.Type == TransportAddressType.Queue),
             It.Is<TransportEnvelope>(envelope => envelope.MessageId == message.MessageId.ToString()
-                && envelope.ContentType == "application/json" && envelope.MessageType.Contains(nameof(TestMessage))),
+                && envelope.ContentType == "application/custom" && envelope.MessageType.Contains(nameof(TestMessage))
+                && System.Text.Encoding.UTF8.GetString(envelope.Body.ToArray()) == "custom-wire"),
+            It.IsAny<CancellationToken>()), Times.Once);
+        serializer.Verify(s => s.SerializeAsync(It.Is<TestMessage>(value => ReferenceEquals(value, message)),
             It.IsAny<CancellationToken>()), Times.Once);
         storage.Verify(s => s.CompleteExternalAsync(entry.Id, token, It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -202,7 +209,15 @@ public sealed class ExternalOutboxProcessorTests
         storage.Verify(s => s.CompleteExternalAsync(It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
-    private static OutboxProcessor CreateProcessor(IExternalOutboxStorage storage, IConfirmedQueueTransport transport, IServiceProvider services)
-        => new(storage, services, NullLogger<OutboxProcessor>.Instance, new FakeTimeProvider(DateTimeOffset.UtcNow),
-            transport, new DefaultJsonSerializer(new DefaultBufferPoolManager()));
+    private static OutboxProcessor CreateProcessor(
+        IExternalOutboxStorage storage, IConfirmedQueueTransport transport, IServiceProvider services,
+        IMessageSerializer? configuredSerializer = null)
+    {
+        var serializer = new Mock<IMessageSerializer>();
+        serializer.SetupGet(s => s.ContentType).Returns("application/json");
+        serializer.Setup(s => s.SerializeAsync(It.IsAny<TestMessage>(), It.IsAny<CancellationToken>()))
+            .Returns(new ValueTask<byte[]>("{}"u8.ToArray()));
+        return new OutboxProcessor(storage, services, NullLogger<OutboxProcessor>.Instance,
+            new FakeTimeProvider(DateTimeOffset.UtcNow), transport, configuredSerializer ?? serializer.Object);
+    }
 }

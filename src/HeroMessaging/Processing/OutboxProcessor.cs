@@ -1,6 +1,7 @@
 using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Processing;
+using HeroMessaging.Abstractions.Serialization;
 using HeroMessaging.Abstractions.Storage;
 using HeroMessaging.Abstractions.Transport;
 using HeroMessaging.Utilities;
@@ -33,13 +34,13 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOu
         ILogger<OutboxProcessor> logger,
         TimeProvider timeProvider,
         IMessageTransport? transport = null,
-        IJsonSerializer? jsonSerializer = null)
+        IMessageSerializer? messageSerializer = null)
         : base(logger, timeProvider, maxDegreeOfParallelism: Environment.ProcessorCount, boundedCapacity: 100)
     {
         _outboxStorage = outboxStorage;
         _externalStorage = outboxStorage as IExternalOutboxStorage;
-        if (_externalStorage?.SupportsExternalClaims == true && transport is IConfirmedQueueTransport confirmedTransport && jsonSerializer is not null)
-            _externalDelivery = new ExternalOutboxDelivery(_externalStorage, confirmedTransport, jsonSerializer, timeProvider, logger);
+        if (_externalStorage?.SupportsExternalClaims == true && transport is IConfirmedQueueTransport confirmedTransport && messageSerializer is not null)
+            _externalDelivery = new ExternalOutboxDelivery(_externalStorage, confirmedTransport, messageSerializer, timeProvider, logger);
         _serviceProvider = serviceProvider;
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
@@ -56,7 +57,7 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOu
             if (string.IsNullOrWhiteSpace(options.Destination))
                 throw new ArgumentException("External outbox destination must name a queue.", nameof(options));
             if (_externalDelivery is null)
-                throw new NotSupportedException("External outbox delivery requires leased storage, a confirmed queue transport, and JSON serialization.");
+                throw new NotSupportedException("External outbox delivery requires leased storage, a confirmed queue transport, and a message serializer.");
         }
 
         var entry = await _outboxStorage.AddAsync(message, options, cancellationToken);

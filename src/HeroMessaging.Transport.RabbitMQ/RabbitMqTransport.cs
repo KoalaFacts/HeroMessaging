@@ -95,6 +95,10 @@ public sealed class RabbitMqTransport : IConfirmedQueueTransport, IRabbitMqConsu
         {
             ChangeState(TransportState.Faulted, $"Failed to connect to RabbitMQ: {ex.Message}");
             OnError(ex, "Connection failed");
+            var failedPool = _connectionPool;
+            _connectionPool = null;
+            if (failedPool is not null)
+                await failedPool.DisposeAsync().ConfigureAwait(false);
             throw;
         }
         finally
@@ -195,6 +199,7 @@ public sealed class RabbitMqTransport : IConfirmedQueueTransport, IRabbitMqConsu
                 {
                     Persistent = true, // Durable messages
                     MessageId = envelope.MessageId,
+                    Type = envelope.MessageType,
                     CorrelationId = envelope.CorrelationId,
                     ContentType = envelope.ContentType ?? "application/octet-stream",
                     Timestamp = new AmqpTimestamp(_timeProvider.GetUtcNow().ToUnixTimeSeconds())
@@ -271,6 +276,7 @@ public sealed class RabbitMqTransport : IConfirmedQueueTransport, IRabbitMqConsu
                 {
                     Persistent = true,
                     MessageId = envelope.MessageId,
+                    Type = envelope.MessageType,
                     CorrelationId = envelope.CorrelationId,
                     ContentType = envelope.ContentType ?? "application/octet-stream",
                     Timestamp = new AmqpTimestamp(_timeProvider.GetUtcNow().ToUnixTimeSeconds())
