@@ -149,8 +149,9 @@ public class SqlServerInboxStorage : IInboxStorage
 
             using var command = new SqlCommand(sql, connection, transaction);
             command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = messageId;
-            command.Parameters.Add("@MessageType", SqlDbType.NVarChar, 500).Value = message.GetType().FullName ?? "Unknown";
-            command.Parameters.Add("@Payload", SqlDbType.NVarChar, -1).Value = _jsonSerializer.SerializeToString(message, _jsonOptionsProvider.GetOptions());
+            var messageType = message.GetType();
+            command.Parameters.Add("@MessageType", SqlDbType.NVarChar, 500).Value = messageType.AssemblyQualifiedName ?? throw new InvalidOperationException("Message type cannot be resolved.");
+            command.Parameters.Add("@Payload", SqlDbType.NVarChar, -1).Value = _jsonSerializer.SerializeToString(message, messageType, _jsonOptionsProvider.GetOptions());
             command.Parameters.Add("@Source", SqlDbType.NVarChar, 200).Value = (object?)options.Source ?? DBNull.Value;
             command.Parameters.Add("@Status", SqlDbType.NVarChar, 50).Value = "Pending";
             command.Parameters.Add("@ReceivedAt", SqlDbType.DateTimeOffset).Value = now;
@@ -170,6 +171,8 @@ public class SqlServerInboxStorage : IInboxStorage
         }
         finally
         {
+            if (!_connectionProvider.IsSharedConnection)
+                await connection.DisposeAsync().ConfigureAwait(false);
         }
     }
     /// <summary>
@@ -203,6 +206,8 @@ public class SqlServerInboxStorage : IInboxStorage
         }
         finally
         {
+            if (!_connectionProvider.IsSharedConnection)
+                await connection.DisposeAsync().ConfigureAwait(false);
         }
     }
     /// <summary>
@@ -240,13 +245,12 @@ public class SqlServerInboxStorage : IInboxStorage
                 var requireIdempotency = reader.GetBoolean(7);
                 var deduplicationWindowMinutes = reader.IsDBNull(8) ? (int?)null : reader.GetInt32(8);
 
-                // Deserialize message (simplified - in production would need type resolution)
-                var message = _jsonSerializer.DeserializeFromString<IMessage>(payload, _jsonOptionsProvider.GetOptions());
+                var message = DeserializeMessage(messageType, payload);
 
                 return new InboxEntry
                 {
                     Id = messageId,
-                    Message = message!,
+                    Message = message,
                     Options = new InboxOptions
                     {
                         Source = source,
@@ -266,6 +270,8 @@ public class SqlServerInboxStorage : IInboxStorage
         }
         finally
         {
+            if (!_connectionProvider.IsSharedConnection)
+                await connection.DisposeAsync().ConfigureAwait(false);
         }
     }
     /// <summary>
@@ -297,6 +303,8 @@ public class SqlServerInboxStorage : IInboxStorage
         }
         finally
         {
+            if (!_connectionProvider.IsSharedConnection)
+                await connection.DisposeAsync().ConfigureAwait(false);
         }
     }
     /// <summary>
@@ -329,6 +337,8 @@ public class SqlServerInboxStorage : IInboxStorage
         }
         finally
         {
+            if (!_connectionProvider.IsSharedConnection)
+                await connection.DisposeAsync().ConfigureAwait(false);
         }
     }
     /// <summary>
@@ -398,12 +408,12 @@ public class SqlServerInboxStorage : IInboxStorage
                 var requireIdempotency = reader.GetBoolean(8);
                 var deduplicationWindowMinutes = reader.IsDBNull(9) ? (int?)null : reader.GetInt32(9);
 
-                var message = _jsonSerializer.DeserializeFromString<IMessage>(payload, _jsonOptionsProvider.GetOptions());
+                var message = DeserializeMessage(messageType, payload);
 
                 entries.Add(new InboxEntry
                 {
                     Id = messageId,
-                    Message = message!,
+                    Message = message,
                     Options = new InboxOptions
                     {
                         Source = source,
@@ -423,6 +433,8 @@ public class SqlServerInboxStorage : IInboxStorage
         }
         finally
         {
+            if (!_connectionProvider.IsSharedConnection)
+                await connection.DisposeAsync().ConfigureAwait(false);
         }
     }
     /// <summary>
@@ -460,6 +472,8 @@ public class SqlServerInboxStorage : IInboxStorage
         }
         finally
         {
+            if (!_connectionProvider.IsSharedConnection)
+                await connection.DisposeAsync().ConfigureAwait(false);
         }
     }
     /// <summary>
@@ -490,6 +504,16 @@ public class SqlServerInboxStorage : IInboxStorage
         }
         finally
         {
+            if (!_connectionProvider.IsSharedConnection)
+                await connection.DisposeAsync().ConfigureAwait(false);
         }
+    }
+
+    private IMessage DeserializeMessage(string messageTypeName, string payload)
+    {
+        var messageType = Type.GetType(messageTypeName)
+            ?? throw new InvalidOperationException($"Unable to resolve inbox message type: {messageTypeName}");
+        return _jsonSerializer.DeserializeFromString(payload, messageType, _jsonOptionsProvider.GetOptions()) as IMessage
+            ?? throw new InvalidOperationException($"Unable to deserialize inbox message type: {messageTypeName}");
     }
 }
