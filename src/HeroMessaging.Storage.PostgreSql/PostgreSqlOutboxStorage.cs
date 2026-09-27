@@ -4,6 +4,7 @@ using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Storage;
 using HeroMessaging.Utilities;
 using Npgsql;
+using NpgsqlTypes;
 
 namespace HeroMessaging.Storage.PostgreSql;
 
@@ -11,8 +12,11 @@ namespace HeroMessaging.Storage.PostgreSql;
 /// PostgreSQL implementation of outbox storage using pure ADO.NET
 /// Provides transactional outbox pattern for reliable message delivery
 /// </summary>
-public class PostgreSqlOutboxStorage : IOutboxStorage
+public class PostgreSqlOutboxStorage : IExternalOutboxStorage
 {
+    /// <inheritdoc />
+    public bool SupportsExternalClaims => !_connectionProvider.IsSharedConnection;
+
     private readonly PostgreSqlStorageOptions _options;
     private readonly IDbConnectionProvider<NpgsqlConnection, NpgsqlTransaction> _connectionProvider;
     private readonly IDbSchemaInitializer _schemaInitializer;
@@ -104,15 +108,23 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
                 status VARCHAR(50) NOT NULL DEFAULT 'Pending',
                 retry_count INTEGER NOT NULL DEFAULT 0,
                 max_retries INTEGER NOT NULL DEFAULT 3,
+                retry_delay_ms BIGINT,
                 created_at TIMESTAMPTZ NOT NULL,
                 processed_at TIMESTAMPTZ,
                 next_retry_at TIMESTAMPTZ,
+                lease_token UUID,
+                lease_expires_at TIMESTAMPTZ,
                 last_error TEXT
             );
+
+            ALTER TABLE {_tableName} ADD COLUMN IF NOT EXISTS retry_delay_ms BIGINT;
+            ALTER TABLE {_tableName} ADD COLUMN IF NOT EXISTS lease_token UUID;
+            ALTER TABLE {_tableName} ADD COLUMN IF NOT EXISTS lease_expires_at TIMESTAMPTZ;
 
             CREATE INDEX IF NOT EXISTS idx_{_options.OutboxTableName}_status ON {_tableName}(status);
             CREATE INDEX IF NOT EXISTS idx_{_options.OutboxTableName}_next_retry ON {_tableName}(next_retry_at) WHERE status = 'Pending';
             CREATE INDEX IF NOT EXISTS idx_{_options.OutboxTableName}_created_at ON {_tableName}(created_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_{_options.OutboxTableName}_lease ON {_tableName}(lease_expires_at) WHERE status = 'Processing' AND destination IS NOT NULL;
             """;
 
         await _schemaInitializer.ExecuteSchemaScriptAsync(createTableSql).ConfigureAwait(false);
@@ -134,18 +146,23 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
             var now = _timeProvider.GetUtcNow();
 
             var sql = $"""
-                INSERT INTO {_tableName} (id, message_type, payload, destination, status, retry_count, max_retries, created_at)
-                VALUES (@id, @message_type, @payload::jsonb, @destination, @status, @retry_count, @max_retries, @created_at)
+                INSERT INTO {_tableName} (id, message_type, payload, destination, status, retry_count, max_retries, retry_delay_ms, created_at)
+                VALUES (@id, @message_type, @payload::jsonb, @destination, @status, @retry_count, @max_retries, @retry_delay_ms, @created_at)
                 """;
 
             using var command = new NpgsqlCommand(sql, connection, transaction);
             command.Parameters.AddWithValue("id", entryId);
-            command.Parameters.AddWithValue("message_type", message.GetType().FullName ?? "Unknown");
-            command.Parameters.AddWithValue("payload", _jsonSerializer.SerializeToString(message, _jsonOptionsProvider.GetOptions()));
+            var messageType = message.GetType();
+            command.Parameters.AddWithValue("message_type", messageType.AssemblyQualifiedName ?? throw new InvalidOperationException("Message type cannot be resolved."));
+            command.Parameters.AddWithValue("payload", _jsonSerializer.SerializeToString(message, messageType, _jsonOptionsProvider.GetOptions()));
             command.Parameters.AddWithValue("destination", (object?)options.Destination ?? DBNull.Value);
             command.Parameters.AddWithValue("status", "Pending");
             command.Parameters.AddWithValue("retry_count", 0);
             command.Parameters.AddWithValue("max_retries", options.MaxRetries);
+            command.Parameters.Add(new NpgsqlParameter("retry_delay_ms", NpgsqlDbType.Bigint)
+            {
+                Value = options.RetryDelay is null ? DBNull.Value : (long)options.RetryDelay.Value.TotalMilliseconds
+            });
             command.Parameters.AddWithValue("created_at", now);
 
             await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
@@ -162,13 +179,22 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
         }
         finally
         {
+            if (!_connectionProvider.IsSharedConnection)
+                await connection.DisposeAsync().ConfigureAwait(false);
         }
     }
     /// <summary>
     /// Executes get pending async.
     /// </summary>
 
-    public async Task<IEnumerable<OutboxEntry>> GetPendingAsync(OutboxQuery query, CancellationToken cancellationToken = default)
+    public Task<IEnumerable<OutboxEntry>> GetPendingAsync(OutboxQuery query, CancellationToken cancellationToken = default)
+        => QueryAsync(query, localOnly: false, cancellationToken);
+
+    /// <inheritdoc />
+    public Task<IEnumerable<OutboxEntry>> GetLocalPendingAsync(int limit, CancellationToken cancellationToken = default)
+        => QueryAsync(new OutboxQuery { Status = OutboxStatus.Pending, Limit = limit }, localOnly: true, cancellationToken);
+
+    private async Task<IEnumerable<OutboxEntry>> QueryAsync(OutboxQuery query, bool localOnly, CancellationToken cancellationToken)
     {
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         var connection = await _connectionProvider.GetConnectionAsync(cancellationToken).ConfigureAwait(false);
@@ -198,10 +224,17 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
                 parameters.Add(new NpgsqlParameter("newer_than", query.NewerThan.Value.ToUniversalTime()));
             }
 
+            if (localOnly)
+            {
+                whereClauses.Add("destination IS NULL");
+                whereClauses.Add("(next_retry_at IS NULL OR next_retry_at <= @now)");
+                parameters.Add(new NpgsqlParameter("now", _timeProvider.GetUtcNow()));
+            }
+
             var whereClause = whereClauses.Count > 0 ? "WHERE " + string.Join(" AND ", whereClauses) : "";
 
             var sql = $"""
-                SELECT id, message_type, payload, destination, status, retry_count, max_retries, created_at, processed_at, next_retry_at, last_error
+                SELECT id, message_type, payload, destination, status, retry_count, max_retries, created_at, processed_at, next_retry_at, last_error, retry_delay_ms
                 FROM {_tableName}
                 {whereClause}
                 ORDER BY created_at ASC
@@ -219,43 +252,43 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
             using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
             while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
-                var entryId = reader.GetString(0);
-                var messageType = reader.GetString(1);
-                var payload = reader.GetString(2);
-                var destination = reader.IsDBNull(3) ? null : reader.GetString(3);
-                var status = Enum.Parse<OutboxStatus>(reader.GetString(4));
-                var retryCount = reader.GetInt32(5);
-                var maxRetries = reader.GetInt32(6);
-                var createdAt = reader.GetFieldValue<DateTimeOffset>(7);
-                var processedAt = reader.IsDBNull(8) ? (DateTimeOffset?)null : reader.GetFieldValue<DateTimeOffset>(8);
-                var nextRetryAt = reader.IsDBNull(9) ? (DateTimeOffset?)null : reader.GetFieldValue<DateTimeOffset>(9);
-                var lastError = reader.IsDBNull(10) ? null : reader.GetString(10);
-
-                var message = _jsonSerializer.DeserializeFromString<IMessage>(payload, _jsonOptionsProvider.GetOptions());
-
-                entries.Add(new OutboxEntry
-                {
-                    Id = entryId,
-                    Message = message!,
-                    Options = new OutboxOptions
-                    {
-                        Destination = destination,
-                        MaxRetries = maxRetries
-                    },
-                    Status = status,
-                    RetryCount = retryCount,
-                    CreatedAt = createdAt,
-                    ProcessedAt = processedAt,
-                    NextRetryAt = nextRetryAt,
-                    LastError = lastError
-                });
+                entries.Add(ReadEntry(reader));
             }
 
             return entries;
         }
         finally
         {
+            if (!_connectionProvider.IsSharedConnection)
+                await connection.DisposeAsync().ConfigureAwait(false);
         }
+    }
+
+    private OutboxEntry ReadEntry(NpgsqlDataReader reader)
+    {
+        var messageTypeName = reader.GetString(1);
+        var messageType = Type.GetType(messageTypeName)
+            ?? throw new InvalidOperationException($"Unable to resolve outbox message type: {messageTypeName}");
+        var message = _jsonSerializer.DeserializeFromString(reader.GetString(2), messageType, _jsonOptionsProvider.GetOptions()) as IMessage
+            ?? throw new InvalidOperationException($"Unable to deserialize outbox message type: {messageTypeName}");
+
+        return new OutboxEntry
+        {
+            Id = reader.GetString(0),
+            Message = message,
+            Options = new OutboxOptions
+            {
+                Destination = reader.IsDBNull(3) ? null : reader.GetString(3),
+                MaxRetries = reader.GetInt32(6),
+                RetryDelay = reader.IsDBNull(11) ? null : TimeSpan.FromMilliseconds(reader.GetInt64(11))
+            },
+            Status = Enum.Parse<OutboxStatus>(reader.GetString(4)),
+            RetryCount = reader.GetInt32(5),
+            CreatedAt = reader.GetFieldValue<DateTimeOffset>(7),
+            ProcessedAt = reader.IsDBNull(8) ? null : reader.GetFieldValue<DateTimeOffset>(8),
+            NextRetryAt = reader.IsDBNull(9) ? null : reader.GetFieldValue<DateTimeOffset>(9),
+            LastError = reader.IsDBNull(10) ? null : reader.GetString(10)
+        };
     }
     /// <summary>
     /// Executes get pending async.
@@ -270,6 +303,116 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
         };
 
         return await GetPendingAsync(query, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<OutboxLease>> ClaimExternalAsync(int limit, TimeSpan leaseDuration, CancellationToken cancellationToken = default)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(limit);
+        if (leaseDuration <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(leaseDuration));
+
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+        if (_connectionProvider.IsSharedConnection)
+            throw new InvalidOperationException("External outbox claims require a standalone connection.");
+
+        await using var connection = await _connectionProvider.GetConnectionAsync(cancellationToken).ConfigureAwait(false);
+        var token = Guid.NewGuid();
+        var sql = $"""
+            WITH candidates AS (
+                SELECT id FROM {_tableName}
+                WHERE destination IS NOT NULL
+                  AND ((status = 'Pending' AND (next_retry_at IS NULL OR next_retry_at <= CURRENT_TIMESTAMP))
+                       OR (status = 'Processing' AND lease_expires_at <= CURRENT_TIMESTAMP))
+                ORDER BY created_at ASC
+                LIMIT @limit
+                FOR UPDATE SKIP LOCKED
+            )
+            UPDATE {_tableName} AS entry
+            SET status = 'Processing', lease_token = @token, lease_expires_at = CURRENT_TIMESTAMP + @lease_duration,
+                next_retry_at = NULL
+            FROM candidates
+            WHERE entry.id = candidates.id
+            RETURNING entry.id, entry.message_type, entry.payload, entry.destination, entry.status,
+                      entry.retry_count, entry.max_retries, entry.created_at, entry.processed_at,
+                      entry.next_retry_at, entry.last_error, entry.retry_delay_ms
+            """;
+
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("limit", limit);
+        command.Parameters.AddWithValue("token", token);
+        command.Parameters.Add(new NpgsqlParameter("lease_duration", NpgsqlDbType.Interval) { Value = leaseDuration });
+
+        var claims = new List<OutboxLease>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            claims.Add(new OutboxLease(ReadEntry(reader), token));
+        return claims;
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> RenewExternalAsync(string entryId, Guid token, TimeSpan leaseDuration, CancellationToken cancellationToken = default)
+    {
+        if (leaseDuration <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(leaseDuration));
+
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+        if (_connectionProvider.IsSharedConnection)
+            throw new InvalidOperationException("External outbox leases require a standalone connection.");
+
+        await using var connection = await _connectionProvider.GetConnectionAsync(cancellationToken).ConfigureAwait(false);
+        var sql = $"""
+            UPDATE {_tableName}
+            SET lease_expires_at = CURRENT_TIMESTAMP + @lease_duration
+            WHERE id = @id AND lease_token = @token AND lease_expires_at > CURRENT_TIMESTAMP
+              AND status = 'Processing' AND destination IS NOT NULL
+            """;
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("id", entryId);
+        command.Parameters.AddWithValue("token", token);
+        command.Parameters.Add(new NpgsqlParameter("lease_duration", NpgsqlDbType.Interval) { Value = leaseDuration });
+        return await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) == 1;
+    }
+
+    /// <inheritdoc />
+    public Task<bool> CompleteExternalAsync(string entryId, Guid token, CancellationToken cancellationToken = default)
+        => UpdateExternalAsync(entryId, token, OutboxStatus.Processed, null, null, null, cancellationToken);
+
+    /// <inheritdoc />
+    public Task<bool> RetryExternalAsync(string entryId, Guid token, int retryCount, DateTimeOffset nextRetry, string error, CancellationToken cancellationToken = default)
+        => UpdateExternalAsync(entryId, token, OutboxStatus.Pending, retryCount, nextRetry, error, cancellationToken);
+
+    /// <inheritdoc />
+    public Task<bool> FailExternalAsync(string entryId, Guid token, int retryCount, string error, CancellationToken cancellationToken = default)
+        => UpdateExternalAsync(entryId, token, OutboxStatus.Failed, retryCount, null, error, cancellationToken);
+
+    private async Task<bool> UpdateExternalAsync(
+        string entryId, Guid token, OutboxStatus status, int? retryCount,
+        DateTimeOffset? nextRetry, string? error, CancellationToken cancellationToken)
+    {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+        if (_connectionProvider.IsSharedConnection)
+            throw new InvalidOperationException("External outbox leases require a standalone connection.");
+
+        await using var connection = await _connectionProvider.GetConnectionAsync(cancellationToken).ConfigureAwait(false);
+        var sql = $"""
+            UPDATE {_tableName}
+            SET status = @status, retry_count = COALESCE(@retry_count, retry_count),
+                next_retry_at = @next_retry_at, last_error = @last_error,
+                processed_at = CASE WHEN @final THEN CURRENT_TIMESTAMP ELSE NULL END,
+                lease_token = NULL, lease_expires_at = NULL
+            WHERE id = @id AND lease_token = @token AND lease_expires_at > CURRENT_TIMESTAMP
+              AND status = 'Processing' AND destination IS NOT NULL
+            """;
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("id", entryId);
+        command.Parameters.AddWithValue("token", token);
+        command.Parameters.AddWithValue("status", status.ToString());
+        command.Parameters.Add(new NpgsqlParameter("retry_count", NpgsqlDbType.Integer) { Value = retryCount is null ? DBNull.Value : retryCount.Value });
+        command.Parameters.Add(new NpgsqlParameter("next_retry_at", NpgsqlDbType.TimestampTz) { Value = nextRetry is null ? DBNull.Value : nextRetry.Value.ToUniversalTime() });
+        command.Parameters.Add(new NpgsqlParameter("last_error", NpgsqlDbType.Text) { Value = (object?)error ?? DBNull.Value });
+        command.Parameters.AddWithValue("final", status is OutboxStatus.Processed or OutboxStatus.Failed);
+        return await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) == 1;
     }
     /// <summary>
     /// Executes mark processed async.
@@ -300,6 +443,8 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
         }
         finally
         {
+            if (!_connectionProvider.IsSharedConnection)
+                await connection.DisposeAsync().ConfigureAwait(false);
         }
     }
     /// <summary>
@@ -332,6 +477,8 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
         }
         finally
         {
+            if (!_connectionProvider.IsSharedConnection)
+                await connection.DisposeAsync().ConfigureAwait(false);
         }
     }
     /// <summary>
@@ -363,6 +510,8 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
         }
         finally
         {
+            if (!_connectionProvider.IsSharedConnection)
+                await connection.DisposeAsync().ConfigureAwait(false);
         }
     }
     /// <summary>
@@ -386,6 +535,8 @@ public class PostgreSqlOutboxStorage : IOutboxStorage
         }
         finally
         {
+            if (!_connectionProvider.IsSharedConnection)
+                await connection.DisposeAsync().ConfigureAwait(false);
         }
     }
     /// <summary>

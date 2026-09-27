@@ -1,7 +1,9 @@
 using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Processing;
+using HeroMessaging.Abstractions.Serialization;
 using HeroMessaging.Abstractions.Storage;
+using HeroMessaging.Abstractions.Transport;
 using HeroMessaging.Utilities;
 using Microsoft.Extensions.Logging;
 
@@ -10,9 +12,13 @@ namespace HeroMessaging.Processing;
 /// Represents the outbox processor type.
 /// </summary>
 
-public class OutboxProcessor : PollingBackgroundServiceBase<OutboxEntry>, IOutboxProcessor
+public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOutboxProcessor
 {
+    private static readonly TimeSpan ExternalLeaseDuration = TimeSpan.FromMinutes(1);
     private readonly IOutboxStorage _outboxStorage;
+    private readonly IExternalOutboxStorage? _externalStorage;
+    private readonly ExternalOutboxDelivery? _externalDelivery;
+    private int _externalClaimInFlight;
     /// <summary>
     /// Represents service provider.
     /// </summary>
@@ -26,10 +32,15 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxEntry>, IOutbo
         IOutboxStorage outboxStorage,
         IServiceProvider serviceProvider,
         ILogger<OutboxProcessor> logger,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        IMessageTransport? transport = null,
+        IMessageSerializer? messageSerializer = null)
         : base(logger, timeProvider, maxDegreeOfParallelism: Environment.ProcessorCount, boundedCapacity: 100)
     {
         _outboxStorage = outboxStorage;
+        _externalStorage = outboxStorage as IExternalOutboxStorage;
+        if (_externalStorage?.SupportsExternalClaims == true && transport is IConfirmedQueueTransport confirmedTransport && messageSerializer is not null)
+            _externalDelivery = new ExternalOutboxDelivery(_externalStorage, confirmedTransport, messageSerializer, timeProvider, logger);
         _serviceProvider = serviceProvider;
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
@@ -41,15 +52,20 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxEntry>, IOutbo
     {
         options ??= new OutboxOptions();
 
-        if (!string.IsNullOrEmpty(options.Destination))
-            throw new NotSupportedException("External outbox destinations are not supported. The message was not stored or delivered.");
+        if (options.Destination is not null)
+        {
+            if (string.IsNullOrWhiteSpace(options.Destination))
+                throw new ArgumentException("External outbox destination must name a queue.", nameof(options));
+            if (_externalDelivery is null)
+                throw new NotSupportedException("External outbox delivery requires leased storage, a confirmed queue transport, and a message serializer.");
+        }
 
         var entry = await _outboxStorage.AddAsync(message, options, cancellationToken);
 
         // Trigger immediate processing for high priority messages
-        if (options.Priority > 5)
+        if (options.Destination is null && options.Priority > 5)
         {
-            await SubmitWorkItemAsync(entry, cancellationToken);
+            await SubmitWorkItemAsync(new OutboxWorkItem(entry), cancellationToken);
         }
     }
     /// <summary>
@@ -94,16 +110,61 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxEntry>, IOutbo
     /// Executes poll for work items async.
     /// </summary>
 
-    protected override async Task<IEnumerable<OutboxEntry>> PollForWorkItemsAsync(CancellationToken cancellationToken)
+    protected override async Task<IEnumerable<OutboxWorkItem>> PollForWorkItemsAsync(CancellationToken cancellationToken)
     {
-        return await _outboxStorage.GetPendingAsync(100, cancellationToken);
+        if (_externalStorage is null)
+        {
+            var pending = await _outboxStorage.GetPendingAsync(100, cancellationToken);
+            return pending.Select(static entry => new OutboxWorkItem(entry));
+        }
+
+        var local = await _externalStorage.GetLocalPendingAsync(100, cancellationToken);
+        var work = local.Select(static entry => new OutboxWorkItem(entry)).ToList();
+        if (!_externalStorage.SupportsExternalClaims || _externalDelivery is null)
+            return work;
+
+        if (Interlocked.CompareExchange(ref _externalClaimInFlight, 1, 0) != 0)
+            return work;
+
+        try
+        {
+            var claims = await _externalStorage.ClaimExternalAsync(1, ExternalLeaseDuration, cancellationToken);
+            if (claims.Count == 0)
+                Volatile.Write(ref _externalClaimInFlight, 0);
+            else
+                work.Insert(0, new OutboxWorkItem(claims[0].Entry, claims[0].Token));
+            return work;
+        }
+        catch
+        {
+            Volatile.Write(ref _externalClaimInFlight, 0);
+            throw;
+        }
     }
     /// <summary>
     /// Executes process work item async.
     /// </summary>
 
-    protected override async Task ProcessWorkItemAsync(OutboxEntry entry)
+    protected override async Task ProcessWorkItemAsync(OutboxWorkItem work)
     {
+        var entry = work.Entry;
+        if (work.LeaseToken is Guid token)
+        {
+            try
+            {
+                await _externalDelivery!.DeliverAsync(entry, token);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "External outbox state could not be updated for {EntryId}; its lease will expire for retry", entry.Id);
+            }
+            finally
+            {
+                Volatile.Write(ref _externalClaimInFlight, 0);
+            }
+            return;
+        }
+
         if (!string.IsNullOrEmpty(entry.Options.Destination))
         {
             await _outboxStorage.MarkFailedAsync(entry.Id, "External outbox destinations are not supported.");

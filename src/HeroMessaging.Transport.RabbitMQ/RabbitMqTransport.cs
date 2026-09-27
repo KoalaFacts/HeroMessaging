@@ -3,6 +3,7 @@ using HeroMessaging.Abstractions.Transport;
 using HeroMessaging.Transport.RabbitMQ.Connection;
 using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
+using RabbitMQ.Client.Exceptions;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Threading;
@@ -12,7 +13,7 @@ namespace HeroMessaging.Transport.RabbitMQ;
 /// <summary>
 /// RabbitMQ implementation of IMessageTransport
 /// </summary>
-public sealed class RabbitMqTransport : IMessageTransport, IRabbitMqConsumerHost
+public sealed class RabbitMqTransport : IConfirmedQueueTransport, IRabbitMqConsumerHost
 {
     private readonly RabbitMqTransportOptions _options;
     private readonly ILogger<RabbitMqTransport> _logger;
@@ -94,6 +95,10 @@ public sealed class RabbitMqTransport : IMessageTransport, IRabbitMqConsumerHost
         {
             ChangeState(TransportState.Faulted, $"Failed to connect to RabbitMQ: {ex.Message}");
             OnError(ex, "Connection failed");
+            var failedPool = _connectionPool;
+            _connectionPool = null;
+            if (failedPool is not null)
+                await failedPool.DisposeAsync().ConfigureAwait(false);
             throw;
         }
         finally
@@ -148,10 +153,29 @@ public sealed class RabbitMqTransport : IMessageTransport, IRabbitMqConsumerHost
     }
 
     /// <inheritdoc/>
-    public async Task SendAsync(
+    public Task SendAsync(
         TransportAddress destination,
         TransportEnvelope envelope,
         CancellationToken cancellationToken = default)
+        => SendCoreAsync(destination, envelope, requireRoute: false, cancellationToken);
+
+    /// <inheritdoc/>
+    public Task SendConfirmedAsync(
+        TransportAddress destination,
+        TransportEnvelope envelope,
+        CancellationToken cancellationToken = default)
+    {
+        if (!_options.UsePublisherConfirms)
+            throw new InvalidOperationException("Confirmed queue delivery requires RabbitMQ publisher confirms.");
+
+        return SendCoreAsync(destination, envelope, requireRoute: true, cancellationToken);
+    }
+
+    private async Task SendCoreAsync(
+        TransportAddress destination,
+        TransportEnvelope envelope,
+        bool requireRoute,
+        CancellationToken cancellationToken)
     {
         EnsureConnected();
 
@@ -175,6 +199,7 @@ public sealed class RabbitMqTransport : IMessageTransport, IRabbitMqConsumerHost
                 {
                     Persistent = true, // Durable messages
                     MessageId = envelope.MessageId,
+                    Type = envelope.MessageType,
                     CorrelationId = envelope.CorrelationId,
                     ContentType = envelope.ContentType ?? "application/octet-stream",
                     Timestamp = new AmqpTimestamp(_timeProvider.GetUtcNow().ToUnixTimeSeconds())
@@ -194,7 +219,7 @@ public sealed class RabbitMqTransport : IMessageTransport, IRabbitMqConsumerHost
                 _instrumentation.AddEvent(activity, "publish.start");
 
                 // Send to default exchange with queue name as routing key (direct routing)
-                await PublishMessageAsync(channel, "", destination.Name, properties, envelope.Body, cancellationToken)
+                await PublishMessageAsync(channel, "", destination.Name, properties, envelope.Body, cancellationToken, requireRoute)
                     .ConfigureAwait(false);
 
                 if (_options.UsePublisherConfirms)
@@ -251,6 +276,7 @@ public sealed class RabbitMqTransport : IMessageTransport, IRabbitMqConsumerHost
                 {
                     Persistent = true,
                     MessageId = envelope.MessageId,
+                    Type = envelope.MessageType,
                     CorrelationId = envelope.CorrelationId,
                     ContentType = envelope.ContentType ?? "application/octet-stream",
                     Timestamp = new AmqpTimestamp(_timeProvider.GetUtcNow().ToUnixTimeSeconds())
@@ -503,8 +529,12 @@ public sealed class RabbitMqTransport : IMessageTransport, IRabbitMqConsumerHost
         string routingKey,
         BasicProperties properties,
         ReadOnlyMemory<byte> body,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool requireRoute = false)
     {
+        if (requireRoute && !_options.UsePublisherConfirms)
+            throw new InvalidOperationException("Confirmed queue delivery requires RabbitMQ publisher confirms.");
+
         if (!_options.UsePublisherConfirms)
         {
             await channel.BasicPublishAsync(exchange, routingKey, false, properties, body, cancellationToken)
@@ -516,8 +546,12 @@ public sealed class RabbitMqTransport : IMessageTransport, IRabbitMqConsumerHost
         timeout.CancelAfter(_options.PublisherConfirmTimeout);
         try
         {
-            await channel.BasicPublishAsync(exchange, routingKey, false, properties, body, timeout.Token)
+            await channel.BasicPublishAsync(exchange, routingKey, requireRoute, properties, body, timeout.Token)
                 .ConfigureAwait(false);
+        }
+        catch (PublishReturnException ex) when (requireRoute)
+        {
+            throw new QueueDeliveryException(routingKey, ex);
         }
         catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested && timeout.IsCancellationRequested)
         {

@@ -10,6 +10,17 @@ namespace HeroMessaging.Transport.RabbitMQ.Tests.Unit;
 public class RabbitMqPublisherConfirmTests
 {
     [Fact]
+    public async Task SendConfirmed_WithoutPublisherConfirms_RejectsBeforeConnecting()
+    {
+        var options = new RabbitMqTransportOptions { UsePublisherConfirms = false };
+        var transport = new RabbitMqTransport(options, NullLoggerFactory.Instance, TimeProvider.System);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => transport.SendConfirmedAsync(
+            TransportAddress.Queue("orders"), new TransportEnvelope { MessageId = Guid.NewGuid().ToString() },
+            TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
     public async Task Publish_WhenConfirmed_KeepsChannelReusable()
     {
         var options = new RabbitMqTransportOptions { UsePublisherConfirms = true };
