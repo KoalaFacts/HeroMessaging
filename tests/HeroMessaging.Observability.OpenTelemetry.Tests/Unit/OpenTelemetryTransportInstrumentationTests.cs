@@ -81,7 +81,7 @@ public class OpenTelemetryTransportInstrumentationTests : IDisposable
         var instrumentation = OpenTelemetryTransportInstrumentation.Instance;
 
         // Act
-        var activity = instrumentation.StartSendActivity(envelope, destination, transportName);
+        using var activity = instrumentation.StartSendActivity(envelope, destination, transportName);
 
         // Assert
         Assert.NotNull(activity);
@@ -89,8 +89,6 @@ public class OpenTelemetryTransportInstrumentationTests : IDisposable
         Assert.Equal(ActivityKind.Producer, activity.Kind);
         Assert.Equal(transportName, activity.GetTagItem("messaging.transport"));
         Assert.Equal(destination, activity.GetTagItem("messaging.destination"));
-
-        activity?.Dispose();
     }
 
     [Fact]
@@ -127,7 +125,7 @@ public class OpenTelemetryTransportInstrumentationTests : IDisposable
         var instrumentation = OpenTelemetryTransportInstrumentation.Instance;
 
         // Act
-        var activity = instrumentation.StartPublishActivity(envelope, destination, transportName);
+        using var activity = instrumentation.StartPublishActivity(envelope, destination, transportName);
 
         // Assert
         Assert.NotNull(activity);
@@ -135,8 +133,6 @@ public class OpenTelemetryTransportInstrumentationTests : IDisposable
         Assert.Equal(ActivityKind.Producer, activity.Kind);
         Assert.Equal(transportName, activity.GetTagItem("messaging.transport"));
         Assert.Equal(destination, activity.GetTagItem("messaging.destination"));
-
-        activity?.Dispose();
     }
 
     #endregion
@@ -158,7 +154,7 @@ public class OpenTelemetryTransportInstrumentationTests : IDisposable
         var instrumentation = OpenTelemetryTransportInstrumentation.Instance;
 
         // Act
-        var activity = instrumentation.StartReceiveActivity(
+        using var activity = instrumentation.StartReceiveActivity(
             envelope, source, transportName, consumerId);
 
         // Assert
@@ -168,8 +164,6 @@ public class OpenTelemetryTransportInstrumentationTests : IDisposable
         Assert.Equal(transportName, activity.GetTagItem("messaging.transport"));
         Assert.Equal(source, activity.GetTagItem("messaging.source"));
         Assert.Equal(consumerId, activity.GetTagItem("messaging.consumer_id"));
-
-        activity?.Dispose();
     }
 
     [Fact]
@@ -188,15 +182,13 @@ public class OpenTelemetryTransportInstrumentationTests : IDisposable
         var instrumentation = OpenTelemetryTransportInstrumentation.Instance;
 
         // Act
-        var activity = instrumentation.StartReceiveActivity(
+        using var activity = instrumentation.StartReceiveActivity(
             envelope, "queue", "transport", "consumer-1", parentContext);
 
         // Assert
         Assert.NotNull(activity);
         Assert.Equal(parentContext.TraceId, activity.TraceId);
         Assert.Equal(parentContext.SpanId, activity.ParentSpanId);
-
-        activity?.Dispose();
     }
 
     #endregion
