@@ -18,6 +18,7 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOu
     private readonly IOutboxStorage _outboxStorage;
     private readonly IExternalOutboxStorage? _externalStorage;
     private readonly ExternalOutboxDelivery? _externalDelivery;
+    private readonly CancellationTokenSource _externalShutdown = new();
     private int _externalClaimInFlight;
     /// <summary>
     /// Represents service provider.
@@ -73,6 +74,15 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOu
     /// </summary>
 
     public new bool IsRunning => base.IsRunning;
+
+    /// <summary>
+    /// Stops polling and waits for in-flight deliveries until the host's shutdown deadline.
+    /// </summary>
+    public new async Task StopAsync(CancellationToken cancellationToken = default)
+    {
+        using var registration = cancellationToken.Register(static state => ((CancellationTokenSource)state!).Cancel(), _externalShutdown);
+        await base.StopAsync().ConfigureAwait(false);
+    }
     /// <summary>
     /// Executes get metrics.
     /// </summary>
@@ -152,7 +162,7 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOu
         {
             try
             {
-                await _externalDelivery!.DeliverAsync(entry, token);
+                await _externalDelivery!.DeliverAsync(entry, token, _externalShutdown.Token);
             }
             catch (Exception ex)
             {
