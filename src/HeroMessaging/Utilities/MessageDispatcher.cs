@@ -19,21 +19,23 @@ internal static class MessageDispatcher
     /// <param name="message">The message to dispatch.</param>
     /// <param name="logger">Optional logger for unknown message types.</param>
     /// <param name="source">Source identifier for logging (e.g., "inbox", "outbox", "queue").</param>
+    /// <param name="cancellationToken">Cancellation token for message handlers.</param>
     /// <returns>True if the message was dispatched, false if type was unknown.</returns>
     public static async Task<bool> DispatchAsync(
         IHeroMessaging messaging,
         IMessage message,
         ILogger? logger = null,
-        string? source = null)
+        string? source = null,
+        CancellationToken cancellationToken = default)
     {
         switch (message)
         {
             case ICommand command:
-                await messaging.SendAsync(command).ConfigureAwait(false);
+                await messaging.SendAsync(command, cancellationToken).ConfigureAwait(false);
                 return true;
 
             case IEvent @event:
-                await messaging.PublishAsync(@event).ConfigureAwait(false);
+                await messaging.PublishAsync(@event, cancellationToken).ConfigureAwait(false);
                 return true;
 
             default:

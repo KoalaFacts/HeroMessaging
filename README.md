@@ -48,6 +48,8 @@ For external outbox delivery, configure `WithOutbox()`, `UsePostgreSqlOutbox(...
 
 `WithOutbox()` registers a hosted service that starts and stops the processor with the application host. Normal shutdown drains in-flight work; when the host shutdown deadline expires, unconfirmed external deliveries are made retryable if storage is available, or recovered after their lease expires. Applications that use a service provider without a host must start and stop `IOutboxProcessor` explicitly.
 
+Local handlers receive shutdown cancellation. A handler that ignores cancellation may continue after the host's shutdown deadline; handlers should therefore be idempotent.
+
 If `PostgreSqlStorageOptions.AutoCreateTables` is `false`, provision the outbox table using the current `PostgreSqlOutboxStorage` schema before starting a worker. In particular, external delivery requires `retry_delay_ms BIGINT`, `lease_token UUID`, and `lease_expires_at TIMESTAMPTZ` in addition to the existing outbox columns and indexes. No old-schema migration is provided because this feature has not been released.
 
 **Observability:**

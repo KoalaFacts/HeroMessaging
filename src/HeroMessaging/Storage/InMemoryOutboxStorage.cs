@@ -141,10 +141,7 @@ public class InMemoryOutboxStorage : IOutboxStorage
             entry.RetryCount = retryCount;
             entry.NextRetryAt = nextRetry;
 
-            if (retryCount >= entry.Options.MaxRetries)
-            {
-                entry.Status = OutboxStatus.Failed;
-            }
+            entry.Status = retryCount >= entry.Options.MaxRetries ? OutboxStatus.Failed : OutboxStatus.Pending;
 
             return Task.FromResult(true);
         }

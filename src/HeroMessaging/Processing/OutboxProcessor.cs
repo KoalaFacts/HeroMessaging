@@ -12,13 +12,14 @@ namespace HeroMessaging.Processing;
 /// Represents the outbox processor type.
 /// </summary>
 
-public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOutboxProcessor
+public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOutboxProcessor, IAsyncDisposable
 {
     private static readonly TimeSpan ExternalLeaseDuration = TimeSpan.FromMinutes(1);
     private readonly IOutboxStorage _outboxStorage;
     private readonly IExternalOutboxStorage? _externalStorage;
     private readonly ExternalOutboxDelivery? _externalDelivery;
-    private readonly CancellationTokenSource _externalShutdown = new();
+    private readonly CancellationTokenSource _shutdown = new();
+    private bool _stopTimedOut;
     private int _externalClaimInFlight;
     /// <summary>
     /// Represents service provider.
@@ -80,9 +81,33 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOu
     /// </summary>
     public new async Task StopAsync(CancellationToken cancellationToken = default)
     {
-        using var registration = cancellationToken.Register(static state => ((CancellationTokenSource)state!).Cancel(), _externalShutdown);
-        await base.StopAsync().ConfigureAwait(false);
+        try
+        {
+            await base.StopAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            await _shutdown.CancelAsync().ConfigureAwait(false);
+            _stopTimedOut = true;
+            Logger.LogWarning("Outbox processor did not drain before the host shutdown deadline");
+        }
     }
+
+    Task IOutboxProcessor.StopAsync(CancellationToken cancellationToken) => StopAsync(cancellationToken);
+
+    /// <summary>
+    /// Disposes the processor without waiting again after a host shutdown deadline has expired.
+    /// </summary>
+    public new async ValueTask DisposeAsync()
+    {
+        if (_stopTimedOut)
+            return;
+
+        await base.DisposeAsync().ConfigureAwait(false);
+        _shutdown.Dispose();
+    }
+
+    ValueTask IAsyncDisposable.DisposeAsync() => DisposeAsync();
     /// <summary>
     /// Executes get metrics.
     /// </summary>
@@ -162,7 +187,7 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOu
         {
             try
             {
-                await _externalDelivery!.DeliverAsync(entry, token, _externalShutdown.Token);
+                await _externalDelivery!.DeliverAsync(entry, token, _shutdown.Token);
             }
             catch (Exception ex)
             {
@@ -187,11 +212,15 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOu
             // Mark as processing to prevent duplicate processing
             entry.Status = OutboxStatus.Processing;
 
-            await ScopedMessagingExecutor.DispatchAsync(_serviceProvider, entry.Message, Logger, "outbox");
+            await ScopedMessagingExecutor.DispatchAsync(_serviceProvider, entry.Message, Logger, "outbox", _shutdown.Token);
 
             await _outboxStorage.MarkProcessedAsync(entry.Id);
 
             Logger.LogInformation("Outbox entry {EntryId} processed successfully", entry.Id);
+        }
+        catch (OperationCanceledException) when (_shutdown.IsCancellationRequested)
+        {
+            await _outboxStorage.UpdateRetryCountAsync(entry.Id, entry.RetryCount, _timeProvider.GetUtcNow());
         }
         catch (Exception ex)
         {

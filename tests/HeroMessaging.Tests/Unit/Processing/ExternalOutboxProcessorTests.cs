@@ -190,7 +190,9 @@ public sealed class ExternalOutboxProcessorTests
         };
         var token = Guid.NewGuid();
         var sending = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var canceled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var retried = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        CancellationToken deliveryToken = default;
         var claimCount = 0;
         storage.Setup(s => s.GetLocalPendingAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
@@ -208,7 +210,15 @@ public sealed class ExternalOutboxProcessorTests
             .Returns(async (TransportAddress _, TransportEnvelope _, CancellationToken cancellationToken) =>
             {
                 sending.TrySetResult();
-                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                deliveryToken = cancellationToken;
+                try
+                {
+                    await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                }
+                finally
+                {
+                    canceled.TrySetResult();
+                }
             });
 
         using var services = new ServiceCollection().BuildServiceProvider();
@@ -220,6 +230,8 @@ public sealed class ExternalOutboxProcessorTests
         var stopping = registered.StopAsync(shutdown.Token);
         await shutdown.CancelAsync();
         await stopping.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        Assert.True(deliveryToken.IsCancellationRequested);
+        await canceled.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
         await retried.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         storage.Verify(s => s.CompleteExternalAsync(It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
