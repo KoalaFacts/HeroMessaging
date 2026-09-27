@@ -95,7 +95,7 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
         var start = base.StartAsync(cancellationToken);
         if (_cleanupCancellationTokenSource is null)
         {
-            _cleanupCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(_shutdown.Token);
+            _cleanupCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _shutdown.Token);
             _cleanupTask = RunCleanup(_cleanupCancellationTokenSource.Token);
         }
 
@@ -227,12 +227,25 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
 
     protected override async Task ProcessWorkItemAsync(InboxEntry entry)
     {
+        IAsyncDisposable? claim = null;
+        var dispatchStarted = false;
         try
         {
-            // Mark as processing
+            if (_inboxStorage is IInboxClaimStorage claimStorage)
+            {
+                claim = await claimStorage.TryClaimAsync(entry.Id, _shutdown.Token);
+                if (claim is null)
+                    return;
+
+                var persisted = await _inboxStorage.GetAsync(entry.Id, _shutdown.Token);
+                if (persisted?.Status != InboxStatus.Pending)
+                    return;
+                entry = persisted;
+            }
+
             entry.Status = InboxStatus.Processing;
 
-            // Process based on message type
+            dispatchStarted = true;
             await ScopedMessagingExecutor.DispatchAsync(_serviceProvider, entry.Message, Logger, "inbox", _shutdown.Token);
 
             await _inboxStorage.MarkProcessedAsync(entry.Id);
@@ -245,6 +258,15 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
             entry.Status = InboxStatus.Pending;
             Logger.LogInformation("Inbox entry {EntryId} will be retried after shutdown", entry.Id);
         }
+        catch (Exception ex) when (_shutdown.IsCancellationRequested)
+        {
+            entry.Status = InboxStatus.Pending;
+            Logger.LogWarning(ex, "Inbox entry {EntryId} failed during shutdown and will be retried", entry.Id);
+        }
+        catch (Exception ex) when (!dispatchStarted)
+        {
+            Logger.LogError(ex, "Unable to claim inbox entry {EntryId}; it remains pending", entry.Id);
+        }
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error processing inbox entry {EntryId} (Message: {MessageId})",
@@ -254,6 +276,17 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
         }
         finally
         {
+            if (claim is not null)
+            {
+                try
+                {
+                    await claim.DisposeAsync();
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError(ex, "Unable to release inbox claim for {EntryId}", entry.Id);
+                }
+            }
             _inFlight.TryRemove(entry.Id, out _);
         }
     }

@@ -12,7 +12,7 @@ namespace HeroMessaging.Storage.SqlServer;
 /// SQL Server implementation of inbox storage using pure ADO.NET
 /// Provides message deduplication and idempotent message processing
 /// </summary>
-public class SqlServerInboxStorage : IInboxStorage
+public class SqlServerInboxStorage : IInboxStorage, IInboxClaimStorage
 {
     private readonly SqlServerStorageOptions _options;
     private readonly IDbConnectionProvider<SqlConnection, SqlTransaction> _connectionProvider;
@@ -67,6 +67,38 @@ public class SqlServerInboxStorage : IInboxStorage
         _schemaInitializer = new SqlServerSchemaInitializer(_connectionProvider);
     }
 
+    /// <inheritdoc />
+    public async Task<IAsyncDisposable?> TryClaimAsync(string messageId, CancellationToken cancellationToken = default)
+    {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+        var connection = new SqlConnection(_options.ConnectionString);
+        try
+        {
+            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+            var resource = $"HeroMessaging.Inbox:{_tableName}:{messageId}";
+            using var command = new SqlCommand("sp_getapplock", connection) { CommandType = CommandType.StoredProcedure };
+            command.Parameters.Add("@Resource", SqlDbType.NVarChar, 255).Value = resource;
+            command.Parameters.Add("@LockMode", SqlDbType.NVarChar, 32).Value = "Exclusive";
+            command.Parameters.Add("@LockOwner", SqlDbType.NVarChar, 32).Value = "Session";
+            command.Parameters.Add("@LockTimeout", SqlDbType.Int).Value = 0;
+            var result = command.Parameters.Add("@RETURN_VALUE", SqlDbType.Int);
+            result.Direction = ParameterDirection.ReturnValue;
+            await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            if ((int)result.Value < 0)
+            {
+                await connection.DisposeAsync().ConfigureAwait(false);
+                return null;
+            }
+
+            return new SqlServerInboxClaim(connection, resource);
+        }
+        catch
+        {
+            await connection.DisposeAsync().ConfigureAwait(false);
+            throw;
+        }
+    }
+
     private async Task EnsureInitializedAsync(CancellationToken cancellationToken = default)
     {
         if (_initialized || !_options.AutoCreateTables) return;
@@ -98,7 +130,7 @@ public class SqlServerInboxStorage : IInboxStorage
             BEGIN
                 CREATE TABLE {_tableName} (
                     Id NVARCHAR(100) PRIMARY KEY,
-                    MessageType NVARCHAR(500) NOT NULL,
+                    MessageType NVARCHAR(MAX) NOT NULL,
                     Payload NVARCHAR(MAX) NOT NULL,
                     Source NVARCHAR(200) NULL,
                     Status NVARCHAR(50) NOT NULL DEFAULT 'Pending',
@@ -150,7 +182,7 @@ public class SqlServerInboxStorage : IInboxStorage
             using var command = new SqlCommand(sql, connection, transaction);
             command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = messageId;
             var messageType = message.GetType();
-            command.Parameters.Add("@MessageType", SqlDbType.NVarChar, 500).Value = messageType.AssemblyQualifiedName ?? throw new InvalidOperationException("Message type cannot be resolved.");
+            command.Parameters.Add("@MessageType", SqlDbType.NVarChar, -1).Value = messageType.AssemblyQualifiedName ?? throw new InvalidOperationException("Message type cannot be resolved.");
             command.Parameters.Add("@Payload", SqlDbType.NVarChar, -1).Value = _jsonSerializer.SerializeToString(message, messageType, _jsonOptionsProvider.GetOptions());
             command.Parameters.Add("@Source", SqlDbType.NVarChar, 200).Value = (object?)options.Source ?? DBNull.Value;
             command.Parameters.Add("@Status", SqlDbType.NVarChar, 50).Value = "Pending";

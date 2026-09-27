@@ -8,6 +8,7 @@ using HeroMessaging.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using Xunit;
 
@@ -16,6 +17,26 @@ namespace HeroMessaging.Tests.Unit.Processing;
 [Trait("Category", "Unit")]
 public sealed class InboxHostLifecycleTests
 {
+    [Fact]
+    public async Task DirectStartCancellationAlsoStopsCleanup()
+    {
+        var storage = new Mock<IInboxStorage>();
+        storage.Setup(value => value.GetUnprocessedAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        var timeProvider = new FakeTimeProvider();
+        using var services = new ServiceCollection().BuildServiceProvider();
+        await using var processor = new InboxProcessor(storage.Object, services, NullLogger<InboxProcessor>.Instance, timeProvider);
+        using var lifetime = new CancellationTokenSource();
+
+        await processor.StartAsync(lifetime.Token);
+        await lifetime.CancelAsync();
+        timeProvider.Advance(TimeSpan.FromHours(2));
+        await Task.Delay(TimeSpan.FromMilliseconds(20), TestContext.Current.CancellationToken);
+        await processor.StopAsync(TestContext.Current.CancellationToken);
+
+        storage.Verify(value => value.CleanupOldEntriesAsync(It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     [Fact]
     public async Task HostStartsPendingInboxAndSurvivesStartupTokenCancellation()
     {
@@ -107,8 +128,10 @@ public sealed class InboxHostLifecycleTests
         Assert.Null(entry.Error);
     }
 
-    [Fact]
-    public async Task ShutdownDeadlineDoesNotWaitForUncooperativeHandlerDuringDisposal()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ShutdownDeadlineDoesNotWaitForUncooperativeHandlerDuringDisposal(bool failsAfterShutdown)
     {
         var storage = new InMemoryInboxStorage(TimeProvider.System);
         var entry = await storage.AddAsync(new TestEvent(), new InboxOptions(), TestContext.Current.CancellationToken);
@@ -120,6 +143,8 @@ public sealed class InboxHostLifecycleTests
             {
                 entered.TrySetResult();
                 await release.Task;
+                if (failsAfterShutdown)
+                    throw new ObjectDisposedException("handler dependency");
             });
         using var services = new ServiceCollection().AddSingleton(messaging.Object).BuildServiceProvider();
         var processor = new InboxProcessor(storage, services, NullLogger<InboxProcessor>.Instance, TimeProvider.System);
@@ -138,8 +163,10 @@ public sealed class InboxHostLifecycleTests
         release.TrySetResult();
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
         timeout.CancelAfter(TimeSpan.FromSeconds(5));
-        while (entry.Status != InboxStatus.Processed)
+        var expectedStatus = failsAfterShutdown ? InboxStatus.Pending : InboxStatus.Processed;
+        while (entry.Status != expectedStatus)
             await Task.Delay(TimeSpan.FromMilliseconds(10), timeout.Token);
+        Assert.Null(entry.Error);
     }
 
     private sealed class TestEvent : IEvent

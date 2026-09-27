@@ -11,7 +11,7 @@ namespace HeroMessaging.Storage.PostgreSql;
 /// PostgreSQL implementation of inbox storage using pure ADO.NET
 /// Provides message deduplication and idempotent message processing
 /// </summary>
-public class PostgreSqlInboxStorage : IInboxStorage
+public class PostgreSqlInboxStorage : IInboxStorage, IInboxClaimStorage
 {
     private readonly PostgreSqlStorageOptions _options;
     private readonly IDbConnectionProvider<NpgsqlConnection, NpgsqlTransaction> _connectionProvider;
@@ -66,6 +66,32 @@ public class PostgreSqlInboxStorage : IInboxStorage
         _schemaInitializer = new PostgreSqlSchemaInitializer(_connectionProvider);
     }
 
+    /// <inheritdoc />
+    public async Task<IAsyncDisposable?> TryClaimAsync(string messageId, CancellationToken cancellationToken = default)
+    {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+        var connection = new NpgsqlConnection(_options.ConnectionString);
+        try
+        {
+            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+            var resource = $"HeroMessaging.Inbox:{_tableName}:{messageId}";
+            await using var command = new NpgsqlCommand("SELECT pg_try_advisory_lock(hashtextextended(@resource, 0))", connection);
+            command.Parameters.AddWithValue("resource", resource);
+            if (await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) is not true)
+            {
+                await connection.DisposeAsync().ConfigureAwait(false);
+                return null;
+            }
+
+            return new PostgreSqlInboxClaim(connection, resource);
+        }
+        catch
+        {
+            await connection.DisposeAsync().ConfigureAwait(false);
+            throw;
+        }
+    }
+
     private async Task EnsureInitializedAsync(CancellationToken cancellationToken = default)
     {
         if (_initialized || !_options.AutoCreateTables) return;
@@ -98,7 +124,7 @@ public class PostgreSqlInboxStorage : IInboxStorage
         var createTableSql = $"""
             CREATE TABLE IF NOT EXISTS {_tableName} (
                 id VARCHAR(100) PRIMARY KEY,
-                message_type VARCHAR(500) NOT NULL,
+                message_type TEXT NOT NULL,
                 payload JSONB NOT NULL,
                 source VARCHAR(200),
                 status VARCHAR(50) NOT NULL DEFAULT 'Pending',

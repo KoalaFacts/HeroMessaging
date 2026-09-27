@@ -68,7 +68,7 @@ public sealed class PostgreSqlInboxRecoveryTests : PostgreSqlIntegrationTestBase
     }
 
     [Fact]
-    public async Task SlowHandlerIsNotQueuedAgainByTheSameHost()
+    public async Task SlowHandlerIsNotDispatchedByAnotherHost()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         var options = new PostgreSqlStorageOptions
@@ -90,6 +90,7 @@ public sealed class PostgreSqlInboxRecoveryTests : PostgreSqlIntegrationTestBase
         try
         {
             await using var host = CreateHost(options, messaging.Object);
+            await using var secondHost = CreateHost(options, messaging.Object);
             try
             {
                 var storage = host.GetRequiredService<IInboxStorage>();
@@ -97,7 +98,10 @@ public sealed class PostgreSqlInboxRecoveryTests : PostgreSqlIntegrationTestBase
                 var hosted = Assert.Single(host.GetServices<IHostedService>());
                 await hosted.StartAsync(cancellationToken);
                 await entered.Task.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken);
+                var secondHosted = Assert.Single(secondHost.GetServices<IHostedService>());
+                await secondHosted.StartAsync(cancellationToken);
                 await Task.Delay(TimeSpan.FromMilliseconds(350), cancellationToken);
+                messaging.Verify(service => service.PublishAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()), Times.Once);
                 release.TrySetResult();
 
                 using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -106,6 +110,7 @@ public sealed class PostgreSqlInboxRecoveryTests : PostgreSqlIntegrationTestBase
                     await Task.Delay(TimeSpan.FromMilliseconds(100), timeout.Token);
                 await Task.Delay(TimeSpan.FromMilliseconds(350), cancellationToken);
                 await hosted.StopAsync(cancellationToken);
+                await secondHosted.StopAsync(cancellationToken);
                 messaging.Verify(service => service.PublishAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()), Times.Once);
             }
             finally
