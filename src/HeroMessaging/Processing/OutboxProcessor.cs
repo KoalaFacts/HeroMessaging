@@ -11,7 +11,7 @@ namespace HeroMessaging.Processing;
 /// Represents the outbox processor type.
 /// </summary>
 
-public class OutboxProcessor : PollingBackgroundServiceBase<OutboxProcessor.WorkItem>, IOutboxProcessor
+public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOutboxProcessor
 {
     private static readonly TimeSpan ExternalLeaseDuration = TimeSpan.FromMinutes(1);
     private readonly IOutboxStorage _outboxStorage;
@@ -64,7 +64,7 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxProcessor.Work
         // Trigger immediate processing for high priority messages
         if (options.Destination is null && options.Priority > 5)
         {
-            await SubmitWorkItemAsync(new WorkItem(entry), cancellationToken);
+            await SubmitWorkItemAsync(new OutboxWorkItem(entry), cancellationToken);
         }
     }
     /// <summary>
@@ -109,16 +109,16 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxProcessor.Work
     /// Executes poll for work items async.
     /// </summary>
 
-    protected override async Task<IEnumerable<WorkItem>> PollForWorkItemsAsync(CancellationToken cancellationToken)
+    protected override async Task<IEnumerable<OutboxWorkItem>> PollForWorkItemsAsync(CancellationToken cancellationToken)
     {
         if (_externalStorage is null)
         {
             var pending = await _outboxStorage.GetPendingAsync(100, cancellationToken);
-            return pending.Select(static entry => new WorkItem(entry));
+            return pending.Select(static entry => new OutboxWorkItem(entry));
         }
 
         var local = await _externalStorage.GetLocalPendingAsync(100, cancellationToken);
-        var work = local.Select(static entry => new WorkItem(entry)).ToList();
+        var work = local.Select(static entry => new OutboxWorkItem(entry)).ToList();
         if (!_externalStorage.SupportsExternalClaims || _externalDelivery is null)
             return work;
 
@@ -131,7 +131,7 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxProcessor.Work
             if (claims.Count == 0)
                 Volatile.Write(ref _externalClaimInFlight, 0);
             else
-                work.Insert(0, new WorkItem(claims[0].Entry, claims[0].Token));
+                work.Insert(0, new OutboxWorkItem(claims[0].Entry, claims[0].Token));
             return work;
         }
         catch
@@ -144,7 +144,7 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxProcessor.Work
     /// Executes process work item async.
     /// </summary>
 
-    protected override async Task ProcessWorkItemAsync(WorkItem work)
+    protected override async Task ProcessWorkItemAsync(OutboxWorkItem work)
     {
         var entry = work.Entry;
         if (work.LeaseToken is Guid token)
@@ -206,7 +206,4 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxProcessor.Work
             }
         }
     }
-
-    /// <summary>A queued local message or a claimed external message.</summary>
-    public sealed record WorkItem(OutboxEntry Entry, Guid? LeaseToken = null);
 }
