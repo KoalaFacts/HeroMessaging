@@ -123,12 +123,13 @@ public class PostgreSqlStorageIntegrationTests : PostgreSqlIntegrationTestBase
         // Arrange
         var storage = CreateMessageStorage();
         var baseTime = DateTimeOffset.UtcNow;
+        var searchText = $"Query test {Guid.NewGuid():N}";
         var messages = new[]
         {
-            CreateMessageWithTimestamp("Query test 1", baseTime),
-            CreateMessageWithTimestamp("Query test 2", baseTime.AddMinutes(1)),
+            CreateMessageWithTimestamp($"{searchText} 1", baseTime),
+            CreateMessageWithTimestamp($"{searchText} 2", baseTime.AddMinutes(1)),
             CreateMessageWithTimestamp("Different content", baseTime.AddMinutes(2)),
-            CreateMessageWithTimestamp("Query test 3", baseTime.AddMinutes(3))
+            CreateMessageWithTimestamp($"{searchText} 3", baseTime.AddMinutes(3))
         };
 
         foreach (var message in messages)
@@ -139,17 +140,17 @@ public class PostgreSqlStorageIntegrationTests : PostgreSqlIntegrationTestBase
         // Act
         var queryResult = await storage.QueryAsync(new MessageQuery
         {
-            ContentContains = "Query test",
+            ContentContains = searchText,
             FromTimestamp = baseTime,
             ToTimestamp = baseTime.AddMinutes(5),
             MaxResults = 10
         }, cancellationToken: TestContext.Current.CancellationToken);
 
         // Assert
-        Assert.Equal(3, queryResult.Count); // Should find 3 messages with "Query test"
+        Assert.Equal(3, queryResult.Count);
         Assert.All(queryResult, msg =>
         {
-            Assert.Contains("Query test", msg.GetTestContent() ?? "");
+            Assert.Contains(searchText, msg.GetTestContent() ?? "");
         });
     }
 
