@@ -20,7 +20,7 @@ HeroMessaging is a modern, extensible messaging framework for .NET that provides
 ### Core Capabilities
 
 - **Message Processing**: In-memory message bus with async/await support
-- **Inbox/Outbox Pattern**: Storage-backed in-process processing; external outbox destinations are not yet supported
+- **Inbox/Outbox Pattern**: Storage-backed local processing and PostgreSQL-to-RabbitMQ external queue delivery
 - **Saga Orchestration**: State machine-based long-running process coordination
 - **Compensation Framework**: Automatic rollback support for distributed transactions
 - **Timeout Handling**: Background monitoring for saga timeouts
@@ -43,6 +43,8 @@ HeroMessaging is a modern, extensible messaging framework for .NET that provides
 - `HeroMessaging.Transport.RabbitMQ` - RabbitMQ integration for distributed messaging
 
 RabbitMQ `DeferAsync(delay)` holds the delivery unacknowledged until the delay expires, then requeues it. This best-effort delay occupies a consumer prefetch slot and is not durable scheduling: stopping the consumer or losing its channel can cause earlier redelivery. Use a broker-backed scheduler when the delay must survive restarts.
+
+For external outbox delivery, configure `WithOutbox()`, `UsePostgreSqlOutbox(...)`, and `WithRabbitMq(...)`, then publish with `OutboxOptions.Destination` set to an existing durable queue. RabbitMQ publisher confirms must remain enabled. The processor claims rows with renewable PostgreSQL leases and marks them processed only after RabbitMQ confirms a routable send. Delivery is **at least once**, not atomic across PostgreSQL and RabbitMQ: a crash after broker confirmation can cause a duplicate, so consumers should deduplicate by the stable message ID. A shared-transaction PostgreSQL outbox instance cannot run the background external delivery worker; use the standalone registered storage for that worker.
 
 **Observability:**
 - `HeroMessaging.Observability.OpenTelemetry` - Distributed tracing and metrics
