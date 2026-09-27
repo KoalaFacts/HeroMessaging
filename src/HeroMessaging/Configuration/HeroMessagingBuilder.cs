@@ -297,6 +297,7 @@ public class HeroMessagingBuilder(IServiceCollection services) : IHeroMessagingB
         if (_withOutbox)
         {
             Services.AddSingleton<IOutboxProcessor, OutboxProcessor>();
+            Services.AddHostedService<OutboxHostedService>();
         }
 
         if (_withInbox)

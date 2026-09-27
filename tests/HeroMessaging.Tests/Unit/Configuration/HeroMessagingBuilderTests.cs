@@ -9,6 +9,7 @@ using HeroMessaging.Abstractions.Storage;
 using HeroMessaging.Configuration;
 using HeroMessaging.Utilities;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Moq;
 using Xunit;
 
@@ -143,6 +144,26 @@ public sealed class HeroMessagingBuilderTests
 
         // Assert
         Assert.Contains(_services, s => s.ServiceType == typeof(IOutboxProcessor));
+        Assert.Contains(_services, s => s.ServiceType == typeof(IHostedService));
+    }
+
+    [Fact]
+    public async Task WithOutbox_HostStartsAndStopsRegisteredProcessor()
+    {
+        var builder = new HeroMessagingBuilder(_services);
+        builder.UseInMemoryStorage().WithOutbox().Build();
+        _services.AddLogging();
+        await using var provider = _services.BuildServiceProvider();
+        var hosted = Assert.Single(provider.GetServices<IHostedService>());
+        var processor = provider.GetRequiredService<IOutboxProcessor>();
+        using var startup = new CancellationTokenSource();
+
+        await hosted.StartAsync(startup.Token);
+        await startup.CancelAsync();
+        Assert.True(processor.IsRunning);
+
+        await hosted.StopAsync(TestContext.Current.CancellationToken);
+        Assert.False(processor.IsRunning);
     }
 
     [Fact]

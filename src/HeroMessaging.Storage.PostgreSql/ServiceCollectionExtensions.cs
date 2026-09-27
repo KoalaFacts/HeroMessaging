@@ -28,7 +28,7 @@ public static class ExtensionsToIHeroMessagingBuilderForPostgreSql
     /// </summary>
     public static IHeroMessagingBuilder UsePostgreSql(this IHeroMessagingBuilder builder, PostgreSqlStorageOptions options)
     {
-        var services = builder as IServiceCollection ?? throw new InvalidOperationException("Builder must implement IServiceCollection");
+        var services = builder.Services;
 
         services.AddSingleton(options);
         services.AddSingleton<IMessageStorage>(sp => new PostgreSqlMessageStorage(options, sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<IJsonSerializer>()));
@@ -53,7 +53,7 @@ public static class ExtensionsToIHeroMessagingBuilderForPostgreSql
     /// </summary>
     public static IHeroMessagingBuilder UsePostgreSqlMessageStorage(this IHeroMessagingBuilder builder, PostgreSqlStorageOptions options)
     {
-        var services = builder as IServiceCollection ?? throw new InvalidOperationException("Builder must implement IServiceCollection");
+        var services = builder.Services;
         services.AddSingleton<IMessageStorage>(sp => new PostgreSqlMessageStorage(options, sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<IJsonSerializer>()));
         return builder;
     }
@@ -63,7 +63,7 @@ public static class ExtensionsToIHeroMessagingBuilderForPostgreSql
     /// </summary>
     public static IHeroMessagingBuilder UsePostgreSqlOutbox(this IHeroMessagingBuilder builder, PostgreSqlStorageOptions options)
     {
-        var services = builder as IServiceCollection ?? throw new InvalidOperationException("Builder must implement IServiceCollection");
+        var services = builder.Services;
         services.AddSingleton<IOutboxStorage>(sp => new PostgreSqlOutboxStorage(options, sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<IJsonSerializer>()));
         return builder;
     }
@@ -73,7 +73,7 @@ public static class ExtensionsToIHeroMessagingBuilderForPostgreSql
     /// </summary>
     public static IHeroMessagingBuilder UsePostgreSqlDeadLetterQueue(this IHeroMessagingBuilder builder, PostgreSqlStorageOptions options)
     {
-        var services = builder as IServiceCollection ?? throw new InvalidOperationException("Builder must implement IServiceCollection");
+        var services = builder.Services;
         services.AddSingleton<IDeadLetterQueue>(sp => new PostgreSqlDeadLetterQueue(options, sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<IJsonSerializer>()));
         return builder;
     }
@@ -84,7 +84,7 @@ public static class ExtensionsToIHeroMessagingBuilderForPostgreSql
     public static IHeroMessagingBuilder UsePostgreSqlSagaRepository<TSaga>(this IHeroMessagingBuilder builder, PostgreSqlStorageOptions options)
         where TSaga : class, ISaga
     {
-        var services = builder as IServiceCollection ?? throw new InvalidOperationException("Builder must implement IServiceCollection");
+        var services = builder.Services;
         services.AddSingleton<ISagaRepository<TSaga>>(sp => new PostgreSqlSagaRepository<TSaga>(options, sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<IJsonSerializer>()));
         return builder;
     }
@@ -95,7 +95,7 @@ public static class ExtensionsToIHeroMessagingBuilderForPostgreSql
     public static IHeroMessagingBuilder UsePostgreSqlSagaRepository<TSaga>(this IHeroMessagingBuilder builder)
         where TSaga : class, ISaga
     {
-        var services = builder as IServiceCollection ?? throw new InvalidOperationException("Builder must implement IServiceCollection");
+        var services = builder.Services;
         services.AddSingleton<ISagaRepository<TSaga>>(sp =>
         {
             var options = sp.GetRequiredService<PostgreSqlStorageOptions>();

@@ -17,15 +17,23 @@ internal sealed class ExternalOutboxDelivery(
     private static readonly TimeSpan LeaseDuration = TimeSpan.FromMinutes(1);
     private static readonly TimeSpan LeaseRenewalInterval = TimeSpan.FromSeconds(20);
 
-    public async Task DeliverAsync(OutboxEntry entry, Guid token)
+    public async Task DeliverAsync(OutboxEntry entry, Guid token, CancellationToken shutdown)
     {
+        if (shutdown.IsCancellationRequested)
+        {
+            if (!await storage.RetryExternalAsync(entry.Id, token, entry.RetryCount, timeProvider.GetUtcNow(),
+                    "Delivery interrupted by shutdown").ConfigureAwait(false))
+                logger.LogWarning("Outbox lease for {EntryId} was lost during shutdown", entry.Id);
+            return;
+        }
+
         if (!await storage.RenewExternalAsync(entry.Id, token, LeaseDuration).ConfigureAwait(false))
         {
             logger.LogWarning("Outbox lease for {EntryId} was lost before delivery started", entry.Id);
             return;
         }
 
-        using var delivery = new CancellationTokenSource();
+        using var delivery = CancellationTokenSource.CreateLinkedTokenSource(shutdown);
         var renewal = RenewLeaseAsync(entry.Id, token, delivery);
         try
         {
@@ -49,6 +57,14 @@ internal sealed class ExternalOutboxDelivery(
             await renewal.ConfigureAwait(false);
             if (!await storage.CompleteExternalAsync(entry.Id, token).ConfigureAwait(false))
                 logger.LogWarning("Outbox lease for {EntryId} expired after transport delivery; a duplicate may be retried", entry.Id);
+        }
+        catch (OperationCanceledException) when (shutdown.IsCancellationRequested)
+        {
+            await delivery.CancelAsync().ConfigureAwait(false);
+            await renewal.ConfigureAwait(false);
+            if (!await storage.RetryExternalAsync(entry.Id, token, entry.RetryCount, timeProvider.GetUtcNow(),
+                    "Delivery interrupted by shutdown").ConfigureAwait(false))
+                logger.LogWarning("Outbox lease for {EntryId} was lost during shutdown", entry.Id);
         }
         catch (Exception ex)
         {

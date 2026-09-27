@@ -1,4 +1,5 @@
 using HeroMessaging.Abstractions;
+using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Abstractions.Serialization;
 using HeroMessaging.Abstractions.Storage;
 using HeroMessaging.Abstractions.Transport;
@@ -173,6 +174,117 @@ public sealed class ExternalOutboxProcessorTests
         storage.Verify(s => s.CompleteExternalAsync(It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
         storage.Verify(s => s.RetryExternalAsync(entry.Id, token, 1,
             It.IsAny<DateTimeOffset>(), "broker unavailable", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ShutdownDeadline_CancelsUnconfirmedSendAndMakesLeaseRetryable()
+    {
+        var storage = new Mock<IExternalOutboxStorage>();
+        storage.SetupGet(s => s.SupportsExternalClaims).Returns(true);
+        var transport = new Mock<IConfirmedQueueTransport>();
+        var entry = new OutboxEntry
+        {
+            Id = Guid.NewGuid().ToString(),
+            Message = TestMessageBuilder.CreateValidMessage(),
+            Options = new OutboxOptions { Destination = "orders" }
+        };
+        var token = Guid.NewGuid();
+        var sending = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var canceled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var retried = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        CancellationToken deliveryToken = default;
+        var claimCount = 0;
+        storage.Setup(s => s.GetLocalPendingAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        storage.Setup(s => s.ClaimExternalAsync(It.IsAny<int>(), It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => Interlocked.Increment(ref claimCount) == 1 ? [new OutboxLease(entry, token)] : []);
+        storage.Setup(s => s.RenewExternalAsync(entry.Id, token, It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        storage.Setup(s => s.RetryExternalAsync(entry.Id, token, 0, It.IsAny<DateTimeOffset>(),
+                "Delivery interrupted by shutdown", It.IsAny<CancellationToken>()))
+            .Callback(() => retried.TrySetResult())
+            .ReturnsAsync(true);
+        transport.SetupGet(t => t.State).Returns(TransportState.Connected);
+        transport.Setup(t => t.SendConfirmedAsync(It.IsAny<TransportAddress>(), It.IsAny<TransportEnvelope>(),
+                It.IsAny<CancellationToken>()))
+            .Returns(async (TransportAddress _, TransportEnvelope _, CancellationToken cancellationToken) =>
+            {
+                sending.TrySetResult();
+                deliveryToken = cancellationToken;
+                try
+                {
+                    await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                }
+                finally
+                {
+                    canceled.TrySetResult();
+                }
+            });
+
+        using var services = new ServiceCollection().BuildServiceProvider();
+        await using var processor = CreateProcessor(storage.Object, transport.Object, services);
+        IOutboxProcessor registered = processor;
+        await registered.StartAsync(TestContext.Current.CancellationToken);
+        await sending.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        using var shutdown = new CancellationTokenSource();
+        var stopping = registered.StopAsync(shutdown.Token);
+        await shutdown.CancelAsync();
+        await stopping.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        Assert.True(deliveryToken.IsCancellationRequested);
+        await canceled.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        await retried.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        storage.Verify(s => s.CompleteExternalAsync(It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+        storage.Verify(s => s.FailExternalAsync(It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<int>(),
+            It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GracefulShutdown_WaitsForConfirmedSendToComplete()
+    {
+        var storage = new Mock<IExternalOutboxStorage>();
+        storage.SetupGet(s => s.SupportsExternalClaims).Returns(true);
+        var transport = new Mock<IConfirmedQueueTransport>();
+        var entry = new OutboxEntry
+        {
+            Id = Guid.NewGuid().ToString(),
+            Message = TestMessageBuilder.CreateValidMessage(),
+            Options = new OutboxOptions { Destination = "orders" }
+        };
+        var token = Guid.NewGuid();
+        var sending = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var claimCount = 0;
+        storage.Setup(s => s.GetLocalPendingAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        storage.Setup(s => s.ClaimExternalAsync(It.IsAny<int>(), It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => Interlocked.Increment(ref claimCount) == 1 ? [new OutboxLease(entry, token)] : []);
+        storage.Setup(s => s.RenewExternalAsync(entry.Id, token, It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        storage.Setup(s => s.CompleteExternalAsync(entry.Id, token, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        transport.SetupGet(t => t.State).Returns(TransportState.Connected);
+        transport.Setup(t => t.SendConfirmedAsync(It.IsAny<TransportAddress>(), It.IsAny<TransportEnvelope>(),
+                It.IsAny<CancellationToken>()))
+            .Returns(async (TransportAddress _, TransportEnvelope _, CancellationToken cancellationToken) =>
+            {
+                sending.TrySetResult();
+                await release.Task.WaitAsync(cancellationToken);
+            });
+
+        using var services = new ServiceCollection().BuildServiceProvider();
+        await using var processor = CreateProcessor(storage.Object, transport.Object, services);
+        IOutboxProcessor registered = processor;
+        await registered.StartAsync(TestContext.Current.CancellationToken);
+        await sending.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        var stopping = registered.StopAsync(TestContext.Current.CancellationToken);
+        Assert.False(stopping.IsCompleted);
+        release.TrySetResult();
+        await stopping.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        storage.Verify(s => s.CompleteExternalAsync(entry.Id, token, It.IsAny<CancellationToken>()), Times.Once);
+        storage.Verify(s => s.RetryExternalAsync(It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<int>(),
+            It.IsAny<DateTimeOffset>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]

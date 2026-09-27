@@ -47,15 +47,17 @@ public static class ScopedMessagingExecutor
     /// <param name="message">The message to dispatch</param>
     /// <param name="logger">Optional logger for warnings</param>
     /// <param name="source">Optional source identifier for logging</param>
+    /// <param name="cancellationToken">Cancellation token for message handlers</param>
     /// <returns>True if the message was successfully dispatched</returns>
     public static async Task<bool> DispatchAsync(
         IServiceProvider serviceProvider,
         Abstractions.Messages.IMessage message,
         Microsoft.Extensions.Logging.ILogger? logger = null,
-        string? source = null)
+        string? source = null,
+        CancellationToken cancellationToken = default)
     {
         using var scope = serviceProvider.CreateScope();
         var messaging = scope.ServiceProvider.GetRequiredService<IHeroMessaging>();
-        return await MessageDispatcher.DispatchAsync(messaging, message, logger, source).ConfigureAwait(false);
+        return await MessageDispatcher.DispatchAsync(messaging, message, logger, source, cancellationToken).ConfigureAwait(false);
     }
 }
