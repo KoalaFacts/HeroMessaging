@@ -84,8 +84,8 @@ public class PostgreSqlOutboxLeaseTests : PostgreSqlIntegrationTestBase
         var options = new PostgreSqlStorageOptions
         {
             ConnectionString = source.ConnectionString,
-            Schema = source.Schema,
-            OutboxTableName = $"outbox_{Guid.NewGuid():N}"
+            Schema = $"outbox_test_{Guid.NewGuid():N}",
+            OutboxTableName = source.OutboxTableName
         };
         var time = new FakeTimeProvider(DateTimeOffset.UtcNow);
         var storage = CreateStorage(options, time);
@@ -98,7 +98,7 @@ public class PostgreSqlOutboxLeaseTests : PostgreSqlIntegrationTestBase
         {
             await using var connection = new NpgsqlConnection(options.ConnectionString);
             await connection.OpenAsync(CancellationToken.None);
-            await using var command = new NpgsqlCommand($"DROP TABLE IF EXISTS {options.GetFullTableName(options.OutboxTableName)}", connection);
+            await using var command = new NpgsqlCommand($"DROP SCHEMA IF EXISTS {options.Schema} CASCADE", connection);
             await command.ExecuteNonQueryAsync(CancellationToken.None);
         }
     }
