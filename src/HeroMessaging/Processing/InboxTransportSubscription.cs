@@ -42,13 +42,32 @@ public static class InboxTransportSubscription
         return transport.SubscribeAsync(source, async (envelope, context, token) =>
         {
             if (!Guid.TryParse(envelope.MessageId, out var messageId))
-                throw new InvalidDataException("Transport message ID must be a GUID.");
+            {
+                await context.DeadLetterAsync("Invalid transport message ID", token).ConfigureAwait(false);
+                return;
+            }
             if (!string.Equals(envelope.ContentType, serializer.ContentType, StringComparison.OrdinalIgnoreCase))
-                throw new InvalidDataException($"Unexpected content type: {envelope.ContentType}.");
+            {
+                await context.DeadLetterAsync("Unexpected content type", token).ConfigureAwait(false);
+                return;
+            }
 
-            var message = await serializer.DeserializeAsync<TMessage>(envelope.Body.ToArray(), token).ConfigureAwait(false);
+            TMessage? message;
+            try
+            {
+                message = await serializer.DeserializeAsync<TMessage>(envelope.Body.ToArray(), token).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                await context.DeadLetterAsync("Invalid message payload", token).ConfigureAwait(false);
+                return;
+            }
+
             if (message is null || message.MessageId != messageId)
-                throw new InvalidDataException("Transport and message body IDs do not match.");
+            {
+                await context.DeadLetterAsync("Transport and message body IDs do not match", token).ConfigureAwait(false);
+                return;
+            }
 
             await inbox.ProcessIncomingAsync(message, inboxOptions, token).ConfigureAwait(false);
             await context.AcknowledgeAsync(token).ConfigureAwait(false);

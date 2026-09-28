@@ -69,7 +69,7 @@ public sealed class InboxTransportSubscriptionTests
     }
 
     [Fact]
-    public async Task MismatchedMessageIdNeverEntersInboxOrAcknowledges()
+    public async Task MismatchedMessageIdIsDeadLetteredWithoutEnteringInbox()
     {
         var message = new InboundMessage();
         var inbox = new Mock<IInboxProcessor>();
@@ -78,13 +78,64 @@ public sealed class InboxTransportSubscriptionTests
             TransportAddress.Queue("inbox"), inbox.Object, serializer.Object,
             cancellationToken: TestContext.Current.CancellationToken);
         var acknowledged = false;
+        string? deadLetterReason = null;
 
-        await Assert.ThrowsAsync<InvalidDataException>(() => getHandler()(Envelope(Guid.NewGuid()),
-            new MessageContext { Acknowledge = _ => { acknowledged = true; return Task.CompletedTask; } },
-            TestContext.Current.CancellationToken));
+        await getHandler()(Envelope(Guid.NewGuid()), new MessageContext
+        {
+            Acknowledge = _ => { acknowledged = true; return Task.CompletedTask; },
+            DeadLetter = (reason, _) => { deadLetterReason = reason; return Task.CompletedTask; }
+        }, TestContext.Current.CancellationToken);
 
         inbox.Verify(processor => processor.ProcessIncomingAsync(It.IsAny<IMessage>(), It.IsAny<InboxOptions?>(), It.IsAny<CancellationToken>()), Times.Never);
         Assert.False(acknowledged);
+        Assert.Equal("Transport and message body IDs do not match", deadLetterReason);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task InvalidEnvelopeIsDeadLetteredWithoutEnteringInbox(bool invalidId)
+    {
+        var message = new InboundMessage();
+        var inbox = new Mock<IInboxProcessor>();
+        var (transport, serializer, getHandler, _) = CreateSubscription(message);
+        await InboxTransportSubscription.SubscribeAsync<InboundMessage>(transport.Object,
+            TransportAddress.Queue("inbox"), inbox.Object, serializer.Object,
+            cancellationToken: TestContext.Current.CancellationToken);
+        var envelope = invalidId
+            ? Envelope(message.MessageId) with { MessageId = "not-a-guid" }
+            : Envelope(message.MessageId) with { ContentType = "text/plain" };
+        string? deadLetterReason = null;
+
+        await getHandler()(envelope, new MessageContext
+        {
+            DeadLetter = (reason, _) => { deadLetterReason = reason; return Task.CompletedTask; }
+        }, TestContext.Current.CancellationToken);
+
+        Assert.NotNull(deadLetterReason);
+        inbox.Verify(processor => processor.ProcessIncomingAsync(It.IsAny<IMessage>(), It.IsAny<InboxOptions?>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task CorruptPayloadIsDeadLetteredWithoutRequeue()
+    {
+        var message = new InboundMessage();
+        var inbox = new Mock<IInboxProcessor>();
+        var (transport, serializer, getHandler, _) = CreateSubscription(message);
+        serializer.Setup(value => value.DeserializeAsync<InboundMessage>(It.IsAny<byte[]>(), It.IsAny<CancellationToken>()))
+            .Throws(new FormatException("corrupt payload"));
+        await InboxTransportSubscription.SubscribeAsync<InboundMessage>(transport.Object,
+            TransportAddress.Queue("inbox"), inbox.Object, serializer.Object,
+            cancellationToken: TestContext.Current.CancellationToken);
+        string? deadLetterReason = null;
+
+        await getHandler()(Envelope(message.MessageId), new MessageContext
+        {
+            DeadLetter = (reason, _) => { deadLetterReason = reason; return Task.CompletedTask; }
+        }, TestContext.Current.CancellationToken);
+
+        Assert.Equal("Invalid message payload", deadLetterReason);
+        inbox.Verify(processor => processor.ProcessIncomingAsync(It.IsAny<IMessage>(), It.IsAny<InboxOptions?>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     private static (Mock<IMessageTransport> Transport, Mock<IMessageSerializer> Serializer,
