@@ -122,7 +122,13 @@ public sealed class RabbitMqTransport : IConfirmedQueueTransport, IRabbitMqConsu
             disconnectTask = _disconnectTask;
         }
 
-        return calledFromHandler ? Task.CompletedTask : disconnectTask.WaitAsync(cancellationToken);
+        if (calledFromHandler)
+            return Task.CompletedTask;
+
+        // The cleanup keeps running even when a caller was already canceled.
+        return cancellationToken.IsCancellationRequested
+            ? Task.FromCanceled(cancellationToken)
+            : disconnectTask.WaitAsync(cancellationToken);
     }
 
     private async Task DisconnectCoreAsync(Task[] stopTasks)
