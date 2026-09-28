@@ -5,10 +5,8 @@ using HeroMessaging.Processing;
 namespace HeroMessaging.Benchmarks;
 
 /// <summary>
-/// Benchmarks for CommandProcessor to validate performance claims:
-/// - Target: Less than 1ms p99 latency for message processing overhead
-/// - Target: Greater than 100K messages/second single-threaded capability
-/// - Target: Less than 1KB allocation per message in steady state
+/// Measures steady-state command dispatch overhead and managed allocations.
+/// This does not measure end-to-end latency, p99, or sustained throughput.
 /// </summary>
 [MemoryDiagnoser]
 [SimpleJob(RuntimeMoniker.Net80, warmupCount: 3, iterationCount: 10)]
@@ -18,6 +16,7 @@ public class CommandProcessorBenchmarks
     private IServiceProvider _serviceProvider = null!;
     private CommandProcessor _processor = null!;
     private TestCommand _testCommand = null!;
+    private TestCommandWithResponse _testCommandWithResponse = null!;
 
     [GlobalSetup]
     public void Setup()
@@ -30,6 +29,7 @@ public class CommandProcessorBenchmarks
         _serviceProvider = services.BuildServiceProvider();
         _processor = new CommandProcessor(_serviceProvider);
         _testCommand = new TestCommand { Id = 1, Name = "TestCommand" };
+        _testCommandWithResponse = new TestCommandWithResponse { Id = 1, Name = "Test" };
     }
 
     [GlobalCleanup]
@@ -42,7 +42,7 @@ public class CommandProcessorBenchmarks
     }
 
     /// <summary>
-    /// Measures single command processing latency (should be less than 1ms)
+    /// Measures single command processing overhead.
     /// </summary>
     [Benchmark(Description = "Process single command")]
     public async Task ProcessCommand_SingleMessage()
@@ -51,8 +51,7 @@ public class CommandProcessorBenchmarks
     }
 
     /// <summary>
-    /// Measures throughput of sequential command processing
-    /// Target: Greater than 100K messages/second (less than 10 microseconds per message)
+    /// Measures sequential command processing overhead.
     /// </summary>
     [Benchmark(Description = "Process 100 commands sequentially")]
     public async Task ProcessCommand_SequentialBatch()
@@ -69,8 +68,7 @@ public class CommandProcessorBenchmarks
     [Benchmark(Description = "Process command with response")]
     public async Task ProcessCommand_WithResponse()
     {
-        var command = new TestCommandWithResponse { Id = 1, Name = "Test" };
-        await _processor.SendAsync(command);
+        await _processor.SendAsync(_testCommandWithResponse);
     }
 }
 
