@@ -16,6 +16,10 @@ namespace HeroMessaging.Transport.RabbitMQ.Tests.Integration;
 [Trait("Category", "Integration")]
 public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposable
 {
+    private static string RabbitMqHost => Environment.GetEnvironmentVariable("RabbitMq__Host") ?? "localhost";
+    private static int RabbitMqPort => int.Parse(Environment.GetEnvironmentVariable("RabbitMq__Port") ?? "5672",
+        System.Globalization.CultureInfo.InvariantCulture);
+
     private readonly ActivityListener _activityListener;
     private readonly List<Activity> _activities;
     private readonly MeterListener _meterListener;
@@ -109,8 +113,8 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
         var options = new RabbitMqTransportOptions
         {
             Name = "test-transport",
-            Host = "localhost",
-            Port = 5672,
+            Host = RabbitMqHost,
+            Port = RabbitMqPort,
             UserName = "guest",
             Password = "guest",
             UsePublisherConfirms = false
@@ -219,8 +223,8 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
         var options = new RabbitMqTransportOptions
         {
             Name = "test-transport",
-            Host = "localhost",
-            Port = 5672,
+            Host = RabbitMqHost,
+            Port = RabbitMqPort,
             UserName = "guest",
             Password = "guest",
             UsePublisherConfirms = true,
@@ -272,8 +276,8 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
         var options = new RabbitMqTransportOptions
         {
             Name = "test-transport",
-            Host = "localhost",
-            Port = 5672,
+            Host = RabbitMqHost,
+            Port = RabbitMqPort,
             UserName = "guest",
             Password = "guest",
             UsePublisherConfirms = false
@@ -334,8 +338,8 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
         var options = new RabbitMqTransportOptions
         {
             Name = "test-transport",
-            Host = "localhost",
-            Port = 5672,
+            Host = RabbitMqHost,
+            Port = RabbitMqPort,
             UserName = "guest",
             Password = "guest",
             UsePublisherConfirms = false
@@ -370,8 +374,8 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
         var options = new RabbitMqTransportOptions
         {
             Name = "test-transport",
-            Host = "localhost",
-            Port = 5672,
+            Host = RabbitMqHost,
+            Port = RabbitMqPort,
             UserName = "guest",
             Password = "guest",
             UsePublisherConfirms = false
@@ -461,8 +465,8 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
         var options = new RabbitMqTransportOptions
         {
             Name = "test-transport",
-            Host = "localhost",
-            Port = 5672,
+            Host = RabbitMqHost,
+            Port = RabbitMqPort,
             UserName = "guest",
             Password = "guest",
             UsePublisherConfirms = false
