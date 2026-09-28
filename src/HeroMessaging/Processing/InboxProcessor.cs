@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Data.Common;
 using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Processing;
@@ -276,18 +277,19 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
         }
         finally
         {
-            if (claim is not null)
+            try
             {
-                try
-                {
+                if (claim is not null)
                     await claim.DisposeAsync();
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogError(ex, "Unable to release inbox claim for {EntryId}", entry.Id);
-                }
             }
-            _inFlight.TryRemove(entry.Id, out _);
+            catch (DbException ex)
+            {
+                Logger.LogError(ex, "Unable to release inbox claim for {EntryId}", entry.Id);
+            }
+            finally
+            {
+                _inFlight.TryRemove(entry.Id, out _);
+            }
         }
     }
     /// <summary>
