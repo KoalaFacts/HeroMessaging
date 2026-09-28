@@ -47,19 +47,15 @@ public class CommandProcessor : ICommandProcessor, IProcessor, IAsyncDisposable
             throw new ObjectDisposedException(nameof(CommandProcessor));
         }
 
-        // Use cached handler type - avoids MakeGenericType allocation after first call
-        var handlerType = HandlerTypeCache.GetCommandHandlerType(command.GetType());
-        var handler = _serviceProvider.GetService(handlerType) ?? throw new InvalidOperationException($"No handler found for command type {command.GetType().Name}");
-
-        // Cache the handle method to avoid reflection on each call
-        var handleMethod = HandlerTypeCache.GetHandleMethod(handlerType);
+        var invoker = CommandHandlerInvokerCache.Get(command.GetType());
+        var handler = _serviceProvider.GetService(invoker.HandlerType) ?? throw new InvalidOperationException($"No handler found for command type {command.GetType().Name}");
 
         await _processingLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
             var startTime = _timeProvider.GetTimestamp();
-            await ((Task)handleMethod.Invoke(handler, [command, cancellationToken])!).ConfigureAwait(false);
+            await invoker.Invoke(handler, command, cancellationToken).ConfigureAwait(false);
             var elapsedMs = _timeProvider.GetElapsedTime(startTime).TotalMilliseconds;
 
             _metrics.RecordSuccess((long)elapsedMs);
@@ -92,19 +88,15 @@ public class CommandProcessor : ICommandProcessor, IProcessor, IAsyncDisposable
             throw new ObjectDisposedException(nameof(CommandProcessor));
         }
 
-        // Use cached handler type - avoids MakeGenericType allocation after first call
-        var handlerType = HandlerTypeCache.GetCommandWithResponseHandlerType(command.GetType(), typeof(TResponse));
-        var handler = _serviceProvider.GetService(handlerType) ?? throw new InvalidOperationException($"No handler found for command type {command.GetType().Name}");
-
-        // Cache the handle method to avoid reflection on each call
-        var handleMethod = HandlerTypeCache.GetHandleMethod(handlerType);
+        var invoker = CommandHandlerInvokerCache.GetResponse<TResponse>(command.GetType());
+        var handler = _serviceProvider.GetService(invoker.HandlerType) ?? throw new InvalidOperationException($"No handler found for command type {command.GetType().Name}");
 
         await _processingLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
             var startTime = _timeProvider.GetTimestamp();
-            var result = await ((Task<TResponse>)handleMethod.Invoke(handler, [command, cancellationToken])!).ConfigureAwait(false);
+            var result = await invoker.Invoke(handler, command, cancellationToken).ConfigureAwait(false);
             var elapsedMs = _timeProvider.GetElapsedTime(startTime).TotalMilliseconds;
 
             _metrics.RecordSuccess((long)elapsedMs);

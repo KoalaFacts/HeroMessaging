@@ -131,13 +131,15 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: |
+            8.0.x
+            10.0.x
 
       - name: Restore dependencies
         run: dotnet restore
 
       - name: Build benchmarks
-        run: dotnet build tests/HeroMessaging.Benchmarks --configuration Release --no-restore
+        run: dotnet build tests/HeroMessaging.Benchmarks --configuration Release --framework net8.0 --no-restore
 
       - name: Download baseline benchmarks
         uses: actions/download-artifact@v8
@@ -151,7 +153,10 @@ jobs:
           dotnet run \
             --project tests/HeroMessaging.Benchmarks \
             --configuration Release \
-            -- --exporters json \
+            --framework net8.0 \
+            --no-build \
+            -- --filter "*CommandProcessorBenchmarks*" "*EventBusBenchmarks*" "*QueryProcessorBenchmarks*" "*SagaOrchestrationBenchmarks*" "*StorageBenchmarks*" "*WaitStrategyBenchmarks*" "*RingBufferEnqueueBenchmarks*" \
+            --exporters json \
             --artifacts ./benchmark-results \
             --job short
 
