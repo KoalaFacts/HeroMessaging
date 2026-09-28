@@ -142,6 +142,16 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOu
 
     protected override string GetServiceName() => "Outbox processor";
     /// <summary>
+    /// Avoid a fixed delay between external deliveries while preserving the idle polling interval.
+    /// </summary>
+    protected override TimeSpan GetPollingDelay(bool hasWork)
+    {
+        if (_externalDelivery is not null && (hasWork || Volatile.Read(ref _externalClaimInFlight) != 0))
+            return TimeSpan.FromMilliseconds(25);
+
+        return base.GetPollingDelay(hasWork);
+    }
+    /// <summary>
     /// Executes poll for work items async.
     /// </summary>
 
