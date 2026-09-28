@@ -26,27 +26,34 @@ public abstract class RabbitMqIntegrationTestBase : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
-        // Create and start RabbitMQ container
-        _rabbitMqContainer = new RabbitMqBuilder("rabbitmq:3.13-management-alpine")
-            .WithPortBinding(5672, true) // Random host port
-            .WithCreateParameterModifier(parameters =>
-            {
-                parameters.HostConfig ??= new Docker.DotNet.Models.HostConfig();
-                parameters.HostConfig.Tmpfs ??= new System.Collections.Generic.Dictionary<string, string>();
-                parameters.HostConfig.Tmpfs["/var/lib/rabbitmq"] = "rw,size=64m,mode=1777";
-            })
-            .WithUsername("guest")
-            .WithPassword("guest")
-            .WithWaitStrategy(Wait.ForUnixContainer().UntilMessageIsLogged("Server startup complete"))
-            .Build();
+        var host = Environment.GetEnvironmentVariable("RabbitMq__Host");
+        if (string.IsNullOrWhiteSpace(host))
+        {
+            _rabbitMqContainer = new RabbitMqBuilder("rabbitmq:3.13-management-alpine")
+                .WithPortBinding(5672, true)
+                .WithCreateParameterModifier(parameters =>
+                {
+                    parameters.HostConfig ??= new Docker.DotNet.Models.HostConfig();
+                    parameters.HostConfig.Tmpfs ??= new System.Collections.Generic.Dictionary<string, string>();
+                    parameters.HostConfig.Tmpfs["/var/lib/rabbitmq"] = "rw,size=64m,mode=1777";
+                })
+                .WithUsername("guest")
+                .WithPassword("guest")
+                .WithWaitStrategy(Wait.ForUnixContainer().UntilMessageIsLogged("Server startup complete"))
+                .Build();
 
-        await _rabbitMqContainer.StartAsync(TestContext.Current.CancellationToken);
+            await _rabbitMqContainer.StartAsync(TestContext.Current.CancellationToken);
+            host = _rabbitMqContainer.Hostname;
+        }
+
+        var port = _rabbitMqContainer?.GetMappedPublicPort(5672)
+            ?? int.Parse(Environment.GetEnvironmentVariable("RabbitMq__Port") ?? "5672", System.Globalization.CultureInfo.InvariantCulture);
 
         // Create transport options
         Options = new RabbitMqTransportOptions
         {
-            Host = _rabbitMqContainer.Hostname,
-            Port = _rabbitMqContainer.GetMappedPublicPort(5672),
+            Host = host,
+            Port = port,
             VirtualHost = "/",
             UserName = "guest",
             Password = "guest",

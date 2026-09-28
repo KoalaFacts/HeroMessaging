@@ -33,6 +33,7 @@ public static class ExtensionsToIHeroMessagingBuilderForPostgreSql
         services.AddSingleton(options);
         services.AddSingleton<IMessageStorage>(sp => new PostgreSqlMessageStorage(options, sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<IJsonSerializer>()));
         services.AddSingleton<IOutboxStorage>(sp => new PostgreSqlOutboxStorage(options, sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<IJsonSerializer>()));
+        services.AddSingleton<IInboxStorage>(sp => new PostgreSqlInboxStorage(options, sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<IJsonSerializer>()));
         services.AddSingleton<IDeadLetterQueue>(sp => new PostgreSqlDeadLetterQueue(options, sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<IJsonSerializer>()));
 
         return builder;
@@ -65,6 +66,15 @@ public static class ExtensionsToIHeroMessagingBuilderForPostgreSql
     {
         var services = builder.Services;
         services.AddSingleton<IOutboxStorage>(sp => new PostgreSqlOutboxStorage(options, sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<IJsonSerializer>()));
+        return builder;
+    }
+
+    /// <summary>
+    /// Use PostgreSQL for the durable inbox pattern.
+    /// </summary>
+    public static IHeroMessagingBuilder UsePostgreSqlInbox(this IHeroMessagingBuilder builder, PostgreSqlStorageOptions options)
+    {
+        builder.Services.AddSingleton<IInboxStorage>(sp => new PostgreSqlInboxStorage(options, sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<IJsonSerializer>()));
         return builder;
     }
 
