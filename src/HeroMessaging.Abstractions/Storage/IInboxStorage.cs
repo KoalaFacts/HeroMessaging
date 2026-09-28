@@ -82,6 +82,18 @@ public interface IInboxStorage
 }
 
 /// <summary>
+/// Provides a cross-process claim held while an inbox entry is dispatched.
+/// </summary>
+public interface IInboxClaimStorage
+{
+    /// <summary>
+    /// Attempts to claim an entry without waiting for another processor.
+    /// </summary>
+    /// <returns>A claim that must be disposed after processing, or null if another processor owns it.</returns>
+    Task<IAsyncDisposable?> TryClaimAsync(string messageId, CancellationToken cancellationToken = default);
+}
+
+/// <summary>
 /// Represents an entry in the inbox storage.
 /// </summary>
 public class InboxEntry

@@ -194,6 +194,7 @@ public sealed class HeroMessagingBuilderTests
 
         // Assert
         Assert.Contains(_services, s => s.ServiceType == typeof(IInboxProcessor));
+        Assert.Contains(_services, s => s.ServiceType == typeof(IHostedService));
     }
 
     [Fact]

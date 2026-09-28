@@ -303,6 +303,7 @@ public class HeroMessagingBuilder(IServiceCollection services) : IHeroMessagingB
         if (_withInbox)
         {
             Services.AddSingleton<IInboxProcessor, InboxProcessor>();
+            Services.AddHostedService<InboxHostedService>();
         }
 
         Services.AddSingleton<IHeroMessaging, HeroMessagingService>();

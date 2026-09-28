@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+using System.Data.Common;
 using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Processing;
@@ -10,11 +12,14 @@ namespace HeroMessaging.Processing;
 /// Represents the inbox processor type.
 /// </summary>
 
-public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxProcessor
+public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxProcessor, IAsyncDisposable
 {
     private readonly IInboxStorage _inboxStorage;
     private readonly IServiceProvider _serviceProvider;
     private readonly TimeProvider _timeProvider;
+    private readonly ConcurrentDictionary<string, byte> _inFlight = new();
+    private readonly CancellationTokenSource _shutdown = new();
+    private bool _stopTimedOut;
     /// <summary>
     /// Represents cleanup task.
     /// </summary>
@@ -67,8 +72,18 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
             return false;
         }
 
-        // Process immediately
-        await SubmitWorkItemAsync(entry, cancellationToken);
+        if (_inFlight.TryAdd(entry.Id, 0))
+        {
+            try
+            {
+                await SubmitWorkItemAsync(entry, cancellationToken);
+            }
+            catch
+            {
+                _inFlight.TryRemove(entry.Id, out _);
+                throw;
+            }
+        }
 
         return true;
     }
@@ -78,11 +93,14 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
 
     public new Task StartAsync(CancellationToken cancellationToken = default)
     {
-        // Start cleanup task in addition to base polling
-        _cleanupCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        _cleanupTask = RunCleanup(_cleanupCancellationTokenSource.Token);
+        var start = base.StartAsync(cancellationToken);
+        if (_cleanupCancellationTokenSource is null)
+        {
+            _cleanupCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _shutdown.Token);
+            _cleanupTask = RunCleanup(_cleanupCancellationTokenSource.Token);
+        }
 
-        return base.StartAsync(cancellationToken);
+        return start;
     }
     /// <summary>
     /// Executes stop async.
@@ -92,11 +110,37 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
     {
         _cleanupCancellationTokenSource?.Cancel();
 
-        if (_cleanupTask != null)
-            await _cleanupTask.ConfigureAwait(false);
-
-        await base.StopAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await base.StopAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
+            if (_cleanupTask is not null)
+                await _cleanupTask.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            await _shutdown.CancelAsync().ConfigureAwait(false);
+            _stopTimedOut = true;
+            Logger.LogWarning("Inbox processor did not drain before the host shutdown deadline");
+        }
     }
+
+    Task IInboxProcessor.StopAsync(CancellationToken cancellationToken) => StopAsync(cancellationToken);
+
+    /// <summary>
+    /// Disposes the processor without waiting again after a host shutdown deadline has expired.
+    /// </summary>
+    public new async ValueTask DisposeAsync()
+    {
+        if (_stopTimedOut)
+            return;
+
+        await StopAsync().ConfigureAwait(false);
+        await base.DisposeAsync().ConfigureAwait(false);
+        _cleanupCancellationTokenSource?.Dispose();
+        _shutdown.Dispose();
+    }
+
+    ValueTask IAsyncDisposable.DisposeAsync() => DisposeAsync();
     /// <summary>
     /// Gets is running.
     /// </summary>
@@ -141,7 +185,8 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
 
     protected override async Task<IEnumerable<InboxEntry>> PollForWorkItemsAsync(CancellationToken cancellationToken)
     {
-        return await _inboxStorage.GetUnprocessedAsync(100, cancellationToken);
+        var pending = await _inboxStorage.GetUnprocessedAsync(100, cancellationToken);
+        return [.. pending.Where(entry => _inFlight.TryAdd(entry.Id, 0))];
     }
     /// <summary>
     /// Executes get polling delay.
@@ -183,18 +228,45 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
 
     protected override async Task ProcessWorkItemAsync(InboxEntry entry)
     {
+        IAsyncDisposable? claim = null;
+        var dispatchStarted = false;
         try
         {
-            // Mark as processing
+            if (_inboxStorage is IInboxClaimStorage claimStorage)
+            {
+                claim = await claimStorage.TryClaimAsync(entry.Id, _shutdown.Token);
+                if (claim is null)
+                    return;
+
+                var persisted = await _inboxStorage.GetAsync(entry.Id, _shutdown.Token);
+                if (persisted?.Status != InboxStatus.Pending)
+                    return;
+                entry = persisted;
+            }
+
             entry.Status = InboxStatus.Processing;
 
-            // Process based on message type
-            await ScopedMessagingExecutor.DispatchAsync(_serviceProvider, entry.Message, Logger, "inbox");
+            dispatchStarted = true;
+            await ScopedMessagingExecutor.DispatchAsync(_serviceProvider, entry.Message, Logger, "inbox", _shutdown.Token);
 
             await _inboxStorage.MarkProcessedAsync(entry.Id);
 
             Logger.LogInformation("Inbox entry {EntryId} (Message: {MessageId}) processed successfully from source {Source}",
                 entry.Id, entry.Message.MessageId, entry.Options.Source ?? "Unknown");
+        }
+        catch (OperationCanceledException) when (_shutdown.IsCancellationRequested)
+        {
+            entry.Status = InboxStatus.Pending;
+            Logger.LogInformation("Inbox entry {EntryId} will be retried after shutdown", entry.Id);
+        }
+        catch (Exception ex) when (_shutdown.IsCancellationRequested)
+        {
+            entry.Status = InboxStatus.Pending;
+            Logger.LogWarning(ex, "Inbox entry {EntryId} failed during shutdown and will be retried", entry.Id);
+        }
+        catch (Exception ex) when (!dispatchStarted)
+        {
+            Logger.LogError(ex, "Unable to claim inbox entry {EntryId}; it remains pending", entry.Id);
         }
         catch (Exception ex)
         {
@@ -202,6 +274,22 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
                 entry.Id, entry.Message.MessageId);
 
             await _inboxStorage.MarkFailedAsync(entry.Id, ex.Message);
+        }
+        finally
+        {
+            try
+            {
+                if (claim is not null)
+                    await claim.DisposeAsync();
+            }
+            catch (DbException ex)
+            {
+                Logger.LogError(ex, "Unable to release inbox claim for {EntryId}", entry.Id);
+            }
+            finally
+            {
+                _inFlight.TryRemove(entry.Id, out _);
+            }
         }
     }
     /// <summary>

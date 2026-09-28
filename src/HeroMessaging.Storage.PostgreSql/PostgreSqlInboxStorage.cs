@@ -11,7 +11,7 @@ namespace HeroMessaging.Storage.PostgreSql;
 /// PostgreSQL implementation of inbox storage using pure ADO.NET
 /// Provides message deduplication and idempotent message processing
 /// </summary>
-public class PostgreSqlInboxStorage : IInboxStorage
+public class PostgreSqlInboxStorage : IInboxStorage, IInboxClaimStorage
 {
     private readonly PostgreSqlStorageOptions _options;
     private readonly IDbConnectionProvider<NpgsqlConnection, NpgsqlTransaction> _connectionProvider;
@@ -66,6 +66,32 @@ public class PostgreSqlInboxStorage : IInboxStorage
         _schemaInitializer = new PostgreSqlSchemaInitializer(_connectionProvider);
     }
 
+    /// <inheritdoc />
+    public async Task<IAsyncDisposable?> TryClaimAsync(string messageId, CancellationToken cancellationToken = default)
+    {
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+        var connection = new NpgsqlConnection(_options.ConnectionString);
+        try
+        {
+            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+            var resource = $"HeroMessaging.Inbox:{_tableName}:{messageId}";
+            await using var command = new NpgsqlCommand("SELECT pg_try_advisory_lock(hashtextextended(@resource, 0))", connection);
+            command.Parameters.AddWithValue("resource", resource);
+            if (await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) is not true)
+            {
+                await connection.DisposeAsync().ConfigureAwait(false);
+                return null;
+            }
+
+            return new PostgreSqlInboxClaim(connection, resource);
+        }
+        catch
+        {
+            await connection.DisposeAsync().ConfigureAwait(false);
+            throw;
+        }
+    }
+
     private async Task EnsureInitializedAsync(CancellationToken cancellationToken = default)
     {
         if (_initialized || !_options.AutoCreateTables) return;
@@ -98,7 +124,7 @@ public class PostgreSqlInboxStorage : IInboxStorage
         var createTableSql = $"""
             CREATE TABLE IF NOT EXISTS {_tableName} (
                 id VARCHAR(100) PRIMARY KEY,
-                message_type VARCHAR(500) NOT NULL,
+                message_type TEXT NOT NULL,
                 payload JSONB NOT NULL,
                 source VARCHAR(200),
                 status VARCHAR(50) NOT NULL DEFAULT 'Pending',
@@ -148,8 +174,9 @@ public class PostgreSqlInboxStorage : IInboxStorage
 
             using var command = new NpgsqlCommand(sql, connection, transaction);
             command.Parameters.AddWithValue("id", messageId);
-            command.Parameters.AddWithValue("message_type", message.GetType().FullName ?? "Unknown");
-            command.Parameters.AddWithValue("payload", _jsonSerializer.SerializeToString(message, _jsonOptionsProvider.GetOptions()));
+            var messageType = message.GetType();
+            command.Parameters.AddWithValue("message_type", messageType.AssemblyQualifiedName ?? throw new InvalidOperationException("Message type cannot be resolved."));
+            command.Parameters.AddWithValue("payload", _jsonSerializer.SerializeToString(message, messageType, _jsonOptionsProvider.GetOptions()));
             command.Parameters.AddWithValue("source", (object?)options.Source ?? DBNull.Value);
             command.Parameters.AddWithValue("status", "Pending");
             command.Parameters.AddWithValue("received_at", now);
@@ -246,12 +273,12 @@ public class PostgreSqlInboxStorage : IInboxStorage
                 var requireIdempotency = reader.GetBoolean(7);
                 var deduplicationWindowMinutes = reader.IsDBNull(8) ? (int?)null : reader.GetInt32(8);
 
-                var message = _jsonSerializer.DeserializeFromString<IMessage>(payload, _jsonOptionsProvider.GetOptions());
+                var message = DeserializeMessage(messageType, payload);
 
                 return new InboxEntry
                 {
                     Id = messageId,
-                    Message = message!,
+                    Message = message,
                     Options = new InboxOptions
                     {
                         Source = source,
@@ -271,6 +298,8 @@ public class PostgreSqlInboxStorage : IInboxStorage
         }
         finally
         {
+            if (!_connectionProvider.IsSharedConnection)
+                await connection.DisposeAsync().ConfigureAwait(false);
         }
     }
     /// <summary>
@@ -302,6 +331,8 @@ public class PostgreSqlInboxStorage : IInboxStorage
         }
         finally
         {
+            if (!_connectionProvider.IsSharedConnection)
+                await connection.DisposeAsync().ConfigureAwait(false);
         }
     }
     /// <summary>
@@ -334,6 +365,8 @@ public class PostgreSqlInboxStorage : IInboxStorage
         }
         finally
         {
+            if (!_connectionProvider.IsSharedConnection)
+                await connection.DisposeAsync().ConfigureAwait(false);
         }
     }
     /// <summary>
@@ -402,12 +435,12 @@ public class PostgreSqlInboxStorage : IInboxStorage
                 var requireIdempotency = reader.GetBoolean(8);
                 var deduplicationWindowMinutes = reader.IsDBNull(9) ? (int?)null : reader.GetInt32(9);
 
-                var message = _jsonSerializer.DeserializeFromString<IMessage>(payload, _jsonOptionsProvider.GetOptions());
+                var message = DeserializeMessage(messageType, payload);
 
                 entries.Add(new InboxEntry
                 {
                     Id = messageId,
-                    Message = message!,
+                    Message = message,
                     Options = new InboxOptions
                     {
                         Source = source,
@@ -427,6 +460,8 @@ public class PostgreSqlInboxStorage : IInboxStorage
         }
         finally
         {
+            if (!_connectionProvider.IsSharedConnection)
+                await connection.DisposeAsync().ConfigureAwait(false);
         }
     }
     /// <summary>
@@ -464,6 +499,8 @@ public class PostgreSqlInboxStorage : IInboxStorage
         }
         finally
         {
+            if (!_connectionProvider.IsSharedConnection)
+                await connection.DisposeAsync().ConfigureAwait(false);
         }
     }
     /// <summary>
@@ -494,6 +531,16 @@ public class PostgreSqlInboxStorage : IInboxStorage
         }
         finally
         {
+            if (!_connectionProvider.IsSharedConnection)
+                await connection.DisposeAsync().ConfigureAwait(false);
         }
+    }
+
+    private IMessage DeserializeMessage(string messageTypeName, string payload)
+    {
+        var messageType = Type.GetType(messageTypeName)
+            ?? throw new InvalidOperationException($"Unable to resolve inbox message type: {messageTypeName}");
+        return _jsonSerializer.DeserializeFromString(payload, messageType, _jsonOptionsProvider.GetOptions()) as IMessage
+            ?? throw new InvalidOperationException($"Unable to deserialize inbox message type: {messageTypeName}");
     }
 }
