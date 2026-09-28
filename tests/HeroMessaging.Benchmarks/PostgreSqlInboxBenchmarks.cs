@@ -15,6 +15,7 @@ public class PostgreSqlInboxBenchmarks
     private readonly InboxOptions _inboxOptions = new();
     private PostgreSqlInboxStorage _storage = null!;
     private PostgreSqlStorageOptions _options = null!;
+    private TestEvent[] _newMessages = null!;
     private TestEvent[] _duplicates = null!;
 
     [GlobalSetup]
@@ -29,16 +30,27 @@ public class PostgreSqlInboxBenchmarks
         };
         _storage = new PostgreSqlInboxStorage(_options, TimeProvider.System,
             new DefaultJsonSerializer(new DefaultBufferPoolManager()));
+        _newMessages = [.. Enumerable.Range(0, BatchSize).Select(static _ => new TestEvent())];
         _duplicates = [.. Enumerable.Range(0, BatchSize).Select(static _ => new TestEvent())];
         foreach (var message in _duplicates)
             await _storage.AddAsync(message, _inboxOptions);
     }
 
+    [IterationSetup(Target = nameof(InsertNew))]
+    public void PrepareNewMessages()
+    {
+        _newMessages = [.. Enumerable.Range(0, BatchSize).Select(static _ => new TestEvent())];
+        using var connection = new NpgsqlConnection(_options.ConnectionString);
+        connection.Open();
+        using var command = new NpgsqlCommand($"TRUNCATE TABLE {_options.GetFullTableName(_options.InboxTableName)}", connection);
+        command.ExecuteNonQuery();
+    }
+
     [Benchmark(OperationsPerInvoke = BatchSize)]
     public async Task InsertNew()
     {
-        for (var i = 0; i < BatchSize; i++)
-            await _storage.AddAsync(new TestEvent(), _inboxOptions);
+        foreach (var message in _newMessages)
+            await _storage.AddAsync(message, _inboxOptions);
     }
 
     [Benchmark(OperationsPerInvoke = BatchSize)]

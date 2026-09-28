@@ -10,7 +10,7 @@ Use a Release build on a stable machine:
 dotnet run --project tests/HeroMessaging.Benchmarks --configuration Release --framework net10.0 -- --filter "*CommandProcessor*"
 ```
 
-Remove the filter to run all benchmarks only after configuring PostgreSQL for the opt-in `PostgreSqlInboxBenchmarks`. Other available classes are `CommandProcessorBenchmarks`, `EventBusBenchmarks`, `QueryProcessorBenchmarks`, `SagaOrchestrationBenchmarks`, `StorageBenchmarks`, and `RingBufferBenchmarks`.
+Remove the filter to run all benchmarks only after configuring PostgreSQL for the opt-in `PostgreSqlInboxBenchmarks`. The scheduled CI benchmark run lists the non-database classes explicitly and does not run this opt-in benchmark.
 
 The custom configuration reports mean, median, p95, and allocations. These measurements do not include a real broker, sustained load, p99, or an end-to-end publish-to-handler latency distribution. Capture a baseline on fixed hardware before using results as a regression gate or claiming a throughput target.
 
