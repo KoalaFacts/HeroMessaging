@@ -341,6 +341,7 @@ public class OpenTelemetryIntegrationTests : IDisposable
 
         public IHeroMessagingBuilder WithMediator() => this;
         public IHeroMessagingBuilder WithEventBus() => this;
+        public IHeroMessagingBuilder WithEventBus(Action<EventBusOptions> configure) => this;
         public IHeroMessagingBuilder WithQueues() => this;
         public IHeroMessagingBuilder WithOutbox() => this;
         public IHeroMessagingBuilder WithInbox() => this;

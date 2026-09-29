@@ -2,6 +2,7 @@ using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Threading.Tasks.Dataflow;
+using HeroMessaging.Abstractions.Configuration;
 using HeroMessaging.Abstractions.Events;
 using HeroMessaging.Abstractions.Processing;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,6 +20,7 @@ public class EventBus : IEventBus, IAsyncDisposable
     private readonly ILogger<EventBus> _logger;
     private readonly ActionBlock<EventEnvelope> _processingBlock;
     private readonly MessageProcessingPipelineBuilder _pipelineBuilder;
+    private readonly int _maxPooledEnvelopes;
 
     private readonly ConcurrentDictionary<Type, IMessageProcessor> _coreProcessors = new();
     private readonly ConcurrentDictionary<(Type EventType, Type HandlerType), ImmutableDictionary<string, object>> _contextMetadata = new();
@@ -26,7 +28,6 @@ public class EventBus : IEventBus, IAsyncDisposable
     // Lightweight object pool for EventEnvelope using ConcurrentBag (zero dependencies)
     private readonly ConcurrentBag<EventEnvelope> _envelopePool = [];
     private int _pooledEnvelopeCount;
-    private const int MaxPoolSize = 64;
     private const int DefaultTaskArraySize = 8; // Most events have <8 handlers
 
     // Lock-free metrics using Interlocked
@@ -37,11 +38,13 @@ public class EventBus : IEventBus, IAsyncDisposable
     /// Initializes a new instance of the <see cref="EventBus"/> class.
     /// </summary>
 
-    public EventBus(IServiceProvider serviceProvider, ILogger<EventBus>? logger = null)
+    public EventBus(IServiceProvider serviceProvider, ILogger<EventBus>? logger = null, EventBusOptions? options = null)
     {
+        var settings = EventBusSettings.Resolve(options ?? new EventBusOptions(), Environment.ProcessorCount);
         _serviceProvider = serviceProvider;
         _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<EventBus>.Instance;
         _pipelineBuilder = new MessageProcessingPipelineBuilder(serviceProvider);
+        _maxPooledEnvelopes = settings.MaxPooledEnvelopes;
 
         // Configure default pipeline
         ConfigurePipeline();
@@ -50,8 +53,8 @@ public class EventBus : IEventBus, IAsyncDisposable
             ProcessEventWithPipeline,
             new ExecutionDataflowBlockOptions
             {
-                MaxDegreeOfParallelism = Environment.ProcessorCount,
-                BoundedCapacity = ProcessingConstants.EventBusBoundedCapacity
+                MaxDegreeOfParallelism = settings.MaxDegreeOfParallelism,
+                BoundedCapacity = settings.BoundedCapacity
             });
     }
     /// <summary>
@@ -199,7 +202,7 @@ public class EventBus : IEventBus, IAsyncDisposable
     {
         envelope.Reset();
         // Reserve capacity before publishing the envelope to concurrent renters.
-        if (Interlocked.Increment(ref _pooledEnvelopeCount) <= MaxPoolSize)
+        if (Interlocked.Increment(ref _pooledEnvelopeCount) <= _maxPooledEnvelopes)
             _envelopePool.Add(envelope);
         else
             Interlocked.Decrement(ref _pooledEnvelopeCount);
