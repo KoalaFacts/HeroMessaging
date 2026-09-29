@@ -11,11 +11,18 @@ internal static class InProcessPipelineBenchmark
 {
     public static async Task RunAsync(string[] args)
     {
-        if (args.Length > 2 || args.Any(arg => !int.TryParse(arg, NumberStyles.None, CultureInfo.InvariantCulture, out var value) || value < 1))
-            throw new ArgumentException("Usage: --inprocess [message-count] [handler-count]");
+        if (args.Length > 3 || args.Take(2).Any(arg => !int.TryParse(arg, NumberStyles.None, CultureInfo.InvariantCulture, out var value) || value < 1))
+            throw new ArgumentException("Usage: --inprocess [message-count] [handler-count] [noop|cpu|async]");
 
         var count = args.Length > 0 ? int.Parse(args[0], CultureInfo.InvariantCulture) : 10_000;
         var handlerCount = args.Length > 1 ? int.Parse(args[1], CultureInfo.InvariantCulture) : 1;
+        var workload = args.Length > 2 ? args[2] switch
+        {
+            "noop" => InProcessWorkload.Noop,
+            "cpu" => InProcessWorkload.Cpu,
+            "async" => InProcessWorkload.Async,
+            _ => throw new ArgumentException("Usage: --inprocess [message-count] [handler-count] [noop|cpu|async]")
+        } : InProcessWorkload.Noop;
         if ((long)count * handlerCount > int.MaxValue)
             throw new ArgumentException("The total number of handler deliveries must fit in an array.");
 
@@ -26,7 +33,7 @@ internal static class InProcessPipelineBenchmark
         {
             var index = handlerIndex;
             services.AddSingleton<IEventHandler<InProcessEvent>>(provider =>
-                new InProcessHandler(provider.GetRequiredService<InProcessSink>(), index));
+                new InProcessHandler(provider.GetRequiredService<InProcessSink>(), index, workload));
         }
 
         using var provider = services.BuildServiceProvider();
@@ -34,7 +41,7 @@ internal static class InProcessPipelineBenchmark
         var sink = provider.GetRequiredService<InProcessSink>();
 
         await RunBatchAsync(bus, sink, 1_000, handlerCount);
-        Console.WriteLine($"Scenario: messages={count}, handlers={handlerCount}, deliveries={count * (long)handlerCount}");
+        Console.WriteLine($"Scenario: messages={count}, handlers={handlerCount}, workload={workload}, deliveries={count * (long)handlerCount}");
         for (var run = 1; run <= 3; run++)
         {
             var allocatedBefore = GC.GetTotalAllocatedBytes(precise: true);
@@ -95,7 +102,7 @@ internal static class InProcessPipelineBenchmark
         double[] FirstHandlerLatencies, double[] CompletionLatencies, string SteadyRate);
 }
 
-public sealed class InProcessEvent : IEvent
+internal sealed class InProcessEvent : IEvent
 {
     public Guid MessageId { get; set; } = Guid.NewGuid();
     public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
@@ -105,16 +112,37 @@ public sealed class InProcessEvent : IEvent
     public int Sequence { get; set; }
 }
 
-public sealed class InProcessHandler(InProcessSink sink, int handlerIndex) : IEventHandler<InProcessEvent>
+internal enum InProcessWorkload { Noop, Cpu, Async }
+
+internal sealed class InProcessHandler(InProcessSink sink, int handlerIndex, InProcessWorkload workload) : IEventHandler<InProcessEvent>
 {
+    private int _checksum;
+
     public Task HandleAsync(InProcessEvent message, CancellationToken cancellationToken = default)
     {
+        if (workload == InProcessWorkload.Async)
+            return HandleWithYieldAsync(message);
+
+        if (workload == InProcessWorkload.Cpu)
+        {
+            var hash = message.Sequence;
+            for (var round = 0; round < 1_024; round++)
+                hash = unchecked((hash * 16_777_619) ^ round);
+            Volatile.Write(ref _checksum, hash);
+        }
+
         sink.RecordHandlerCompleted(message.Sequence, handlerIndex);
         return Task.CompletedTask;
     }
+
+    private async Task HandleWithYieldAsync(InProcessEvent message)
+    {
+        await Task.Yield();
+        sink.RecordHandlerCompleted(message.Sequence, handlerIndex);
+    }
 }
 
-public sealed class InProcessSink
+internal sealed class InProcessSink
 {
     private long[] _publishing = [];
     private long[] _accepted = [];
