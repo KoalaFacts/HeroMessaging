@@ -52,6 +52,19 @@ For the receiving side, configure `WithInbox().UsePostgreSqlInbox(options)`, sta
 
 Local handlers receive shutdown cancellation. A handler that ignores cancellation may continue after the host's shutdown deadline; handlers should therefore be idempotent.
 
+The in-process EventBus sizes its defaults from `Environment.ProcessorCount`: concurrent handlers equal the processor count (up to 32), queued handler invocations allow 128 per processor (up to 1000), and the reusable envelope pool allows 8 per processor (up to 64). These are default caps, not limits on explicit configuration. Tune only after measuring throughput, tail latency, and memory under your workload:
+
+```csharp
+builder.WithEventBus(options =>
+{
+    options.MaxDegreeOfParallelism = 48;
+    options.BoundedCapacity = 2000;
+    options.MaxPooledEnvelopes = 128;
+});
+```
+
+`MaxDegreeOfParallelism` and `BoundedCapacity` must be positive. Set `MaxPooledEnvelopes` to zero to disable pooling.
+
 If `PostgreSqlStorageOptions.AutoCreateTables` is `false`, provision the outbox table using the current `PostgreSqlOutboxStorage` schema before starting a worker. In particular, external delivery requires `retry_delay_ms BIGINT`, `lease_token UUID`, and `lease_expires_at TIMESTAMPTZ` in addition to the existing outbox columns and indexes. No old-schema migration is provided because this feature has not been released.
 
 **Observability:**

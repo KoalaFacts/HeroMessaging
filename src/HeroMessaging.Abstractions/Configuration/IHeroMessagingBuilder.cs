@@ -26,6 +26,19 @@ public interface IHeroMessagingBuilder
     IHeroMessagingBuilder WithEventBus();
 
     /// <summary>
+    /// Enables the event bus and configures its in-process capacity limits.
+    /// </summary>
+    /// <param name="configure">Configuration action for event bus options.</param>
+    IHeroMessagingBuilder WithEventBus(Action<EventBusOptions> configure)
+    {
+        ArgumentNullException.ThrowIfNull(configure);
+        var options = new EventBusOptions();
+        configure(options);
+        Services.AddSingleton(options);
+        return WithEventBus();
+    }
+
+    /// <summary>
     /// Enables queue-based message processing.
     /// </summary>
     IHeroMessagingBuilder WithQueues();

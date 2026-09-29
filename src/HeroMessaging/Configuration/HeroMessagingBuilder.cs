@@ -28,6 +28,7 @@ public class HeroMessagingBuilder(IServiceCollection services) : IHeroMessagingB
     private readonly List<Assembly> _assemblies = [];
     private readonly List<IMessagingPlugin> _plugins = [];
     private readonly ProcessingOptions _processingOptions = new();
+    private readonly EventBusOptions _eventBusOptions = new();
 
     private bool _withMediator;
     private bool _withEventBus;
@@ -54,6 +55,15 @@ public class HeroMessagingBuilder(IServiceCollection services) : IHeroMessagingB
     {
         _withEventBus = true;
         return this;
+    }
+    /// <summary>
+    /// Enables the event bus with explicit capacity and concurrency settings.
+    /// </summary>
+    public IHeroMessagingBuilder WithEventBus(Action<EventBusOptions> configure)
+    {
+        ArgumentNullException.ThrowIfNull(configure);
+        configure(_eventBusOptions);
+        return WithEventBus();
     }
     /// <summary>
     /// Executes with queues.
@@ -283,6 +293,7 @@ public class HeroMessagingBuilder(IServiceCollection services) : IHeroMessagingB
         if (_withEventBus)
         {
             // Register the pipeline-based EventBus
+            Services.AddSingleton(_eventBusOptions);
             Services.AddSingleton<IEventBus, EventBus>();
 
             // Register pipeline services
