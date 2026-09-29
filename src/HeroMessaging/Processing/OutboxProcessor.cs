@@ -21,6 +21,7 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOu
     private readonly CancellationTokenSource _shutdown = new();
     private bool _stopTimedOut;
     private int _externalClaimInFlight;
+    private bool _fastExternalPoll; // Latched for the current poll, even if a delivery finishes before delay selection.
     /// <summary>
     /// Represents service provider.
     /// </summary>
@@ -142,6 +143,16 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOu
 
     protected override string GetServiceName() => "Outbox processor";
     /// <summary>
+    /// Avoid a fixed delay between external deliveries while preserving the idle polling interval.
+    /// </summary>
+    protected override TimeSpan GetPollingDelay(bool hasWork)
+    {
+        if (_fastExternalPoll)
+            return TimeSpan.FromMilliseconds(25);
+
+        return base.GetPollingDelay(hasWork);
+    }
+    /// <summary>
     /// Executes poll for work items async.
     /// </summary>
 
@@ -155,11 +166,15 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOu
 
         var local = await _externalStorage.GetLocalPendingAsync(100, cancellationToken);
         var work = local.Select(static entry => new OutboxWorkItem(entry)).ToList();
+        _fastExternalPoll = false;
         if (!_externalStorage.SupportsExternalClaims || _externalDelivery is null)
             return work;
 
         if (Interlocked.CompareExchange(ref _externalClaimInFlight, 1, 0) != 0)
+        {
+            _fastExternalPoll = work.Count == 0;
             return work;
+        }
 
         try
         {
@@ -167,11 +182,15 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOu
             if (claims.Count == 0)
                 Volatile.Write(ref _externalClaimInFlight, 0);
             else
+            {
+                _fastExternalPoll = work.Count == 0;
                 work.Insert(0, new OutboxWorkItem(claims[0].Entry, claims[0].Token));
+            }
             return work;
         }
         catch
         {
+            _fastExternalPoll = false;
             Volatile.Write(ref _externalClaimInFlight, 0);
             throw;
         }

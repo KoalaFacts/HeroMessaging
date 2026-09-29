@@ -19,6 +19,8 @@
     <ProjectReference Include="..\..\src\HeroMessaging\HeroMessaging.csproj" />
     <ProjectReference Include="..\..\src\HeroMessaging.Abstractions\HeroMessaging.Abstractions.csproj" />
     <ProjectReference Include="..\..\src\HeroMessaging.Storage.PostgreSql\HeroMessaging.Storage.PostgreSql.csproj" />
+    <ProjectReference Include="..\..\src\HeroMessaging.Transport.RabbitMQ\HeroMessaging.Transport.RabbitMQ.csproj" />
+    <ProjectReference Include="..\..\src\HeroMessaging.Serialization.Json\HeroMessaging.Serialization.Json.csproj" />
   </ItemGroup>
 
 </Project>
