@@ -25,6 +25,7 @@ public class EventBus : IEventBus, IAsyncDisposable
 
     // Lightweight object pool for EventEnvelope using ConcurrentBag (zero dependencies)
     private readonly ConcurrentBag<EventEnvelope> _envelopePool = [];
+    private int _pooledEnvelopeCount;
     private const int MaxPoolSize = 64;
     private const int DefaultTaskArraySize = 8; // Most events have <8 handlers
 
@@ -187,17 +188,21 @@ public class EventBus : IEventBus, IAsyncDisposable
 
     private EventEnvelope RentEnvelope()
     {
-        return _envelopePool.TryTake(out var envelope) ? envelope : new EventEnvelope();
+        if (!_envelopePool.TryTake(out var envelope))
+            return new EventEnvelope();
+
+        Interlocked.Decrement(ref _pooledEnvelopeCount);
+        return envelope;
     }
 
     private void ReturnEnvelope(EventEnvelope envelope)
     {
         envelope.Reset();
-        // Only return to pool if below max size to prevent unbounded growth
-        if (_envelopePool.Count < MaxPoolSize)
-        {
+        // Reserve capacity before publishing the envelope to concurrent renters.
+        if (Interlocked.Increment(ref _pooledEnvelopeCount) <= MaxPoolSize)
             _envelopePool.Add(envelope);
-        }
+        else
+            Interlocked.Decrement(ref _pooledEnvelopeCount);
     }
     /// <summary>
     /// Executes get metrics.
