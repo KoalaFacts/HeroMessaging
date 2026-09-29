@@ -40,7 +40,11 @@ internal static class InProcessPipelineBenchmark
             var allocatedBefore = GC.GetTotalAllocatedBytes(precise: true);
             var result = await RunBatchAsync(bus, sink, count, handlerCount);
             var allocatedBytes = GC.GetTotalAllocatedBytes(precise: true) - allocatedBefore;
-            Console.WriteLine($"Run {run}: publish={count / result.PublishSeconds:F0} events/s, complete={count / result.CompletionSeconds:F0} events/s ({count * (long)handlerCount / result.CompletionSeconds:F0} deliveries/s), steady={result.SteadyRate}, accept p95/p99={Percentile(result.AcceptLatencies, 0.95):F2}/{Percentile(result.AcceptLatencies, 0.99):F2}ms, first-handler p95/p99={Percentile(result.FirstHandlerLatencies, 0.95):F2}/{Percentile(result.FirstHandlerLatencies, 0.99):F2}ms, all-handlers p50/p95/p99={Percentile(result.CompletionLatencies, 0.50):F2}/{Percentile(result.CompletionLatencies, 0.95):F2}/{Percentile(result.CompletionLatencies, 0.99):F2}ms, allocated={allocatedBytes / (double)count:F0} B/event");
+            var completedEventsPerSecond = count / result.CompletionSeconds;
+            var completedDeliveriesPerSecond = completedEventsPerSecond * handlerCount;
+            Console.WriteLine($"Run {run}: publish={count / result.PublishSeconds:F0} events/s, complete={completedEventsPerSecond:F0} events/s ({completedDeliveriesPerSecond:F0} deliveries/s), steady={result.SteadyRate}, " +
+                $"accept p95/p99={Percentile(result.AcceptLatencies, 0.95):F2}/{Percentile(result.AcceptLatencies, 0.99):F2}ms, first-handler p95/p99={Percentile(result.FirstHandlerLatencies, 0.95):F2}/{Percentile(result.FirstHandlerLatencies, 0.99):F2}ms, " +
+                $"all-handlers p50/p95/p99={Percentile(result.CompletionLatencies, 0.50):F2}/{Percentile(result.CompletionLatencies, 0.95):F2}/{Percentile(result.CompletionLatencies, 0.99):F2}ms, allocated={allocatedBytes / (double)count:F0} B/event");
         }
     }
 
