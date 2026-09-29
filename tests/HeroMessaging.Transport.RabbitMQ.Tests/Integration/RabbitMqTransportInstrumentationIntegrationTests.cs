@@ -3,6 +3,7 @@ using HeroMessaging.Abstractions.Transport;
 using HeroMessaging.Observability.OpenTelemetry;
 using HeroMessaging.Transport.RabbitMQ;
 using Microsoft.Extensions.Logging.Abstractions;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using Xunit;
@@ -21,10 +22,10 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
         System.Globalization.CultureInfo.InvariantCulture);
 
     private readonly ActivityListener _activityListener;
-    private readonly List<Activity> _activities;
+    private readonly ConcurrentQueue<Activity> _activities;
     private readonly MeterListener _meterListener;
-    private readonly Dictionary<string, List<Measurement<long>>> _longMeasurements;
-    private readonly Dictionary<string, List<Measurement<double>>> _doubleMeasurements;
+    private readonly ConcurrentDictionary<string, ConcurrentQueue<Measurement<long>>> _longMeasurements;
+    private readonly ConcurrentDictionary<string, ConcurrentQueue<Measurement<double>>> _doubleMeasurements;
     private readonly ITransportInstrumentation _instrumentation;
     private readonly TaskCompletionSource _receiveOperationRecorded = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -42,7 +43,7 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
                 source.Name == TransportInstrumentation.ActivitySourceName ||
                 source.Name == HeroMessagingInstrumentation.ActivitySourceName,
             Sample = SampleAllData,
-            ActivityStarted = activity => _activities.Add(activity)
+            ActivityStarted = activity => _activities.Enqueue(activity)
         };
         ActivitySource.AddActivityListener(_activityListener);
 
@@ -60,11 +61,8 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
 
         _meterListener.SetMeasurementEventCallback<long>((instrument, measurement, tags, state) =>
         {
-            if (!_longMeasurements.ContainsKey(instrument.Name))
-            {
-                _longMeasurements[instrument.Name] = [];
-            }
-            _longMeasurements[instrument.Name].Add(new Measurement<long>(measurement, tags));
+            _longMeasurements.GetOrAdd(instrument.Name, static _ => new ConcurrentQueue<Measurement<long>>())
+                .Enqueue(new Measurement<long>(measurement, tags));
             if (instrument.Name == "heromessaging_transport_operations_total")
             {
                 foreach (var tag in tags)
@@ -80,11 +78,8 @@ public sealed class RabbitMqTransportInstrumentationIntegrationTests : IDisposab
 
         _meterListener.SetMeasurementEventCallback<double>((instrument, measurement, tags, state) =>
         {
-            if (!_doubleMeasurements.ContainsKey(instrument.Name))
-            {
-                _doubleMeasurements[instrument.Name] = [];
-            }
-            _doubleMeasurements[instrument.Name].Add(new Measurement<double>(measurement, tags));
+            _doubleMeasurements.GetOrAdd(instrument.Name, static _ => new ConcurrentQueue<Measurement<double>>())
+                .Enqueue(new Measurement<double>(measurement, tags));
         });
 
         _meterListener.Start();
