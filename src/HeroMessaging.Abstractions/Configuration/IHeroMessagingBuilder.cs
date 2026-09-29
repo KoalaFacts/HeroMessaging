@@ -145,6 +145,12 @@ public interface IHeroMessagingBuilder
 public class ProcessingOptions
 {
     /// <summary>
+    /// Maximum number of external Outbox deliveries in flight per processor. Default: 4.
+    /// Actual parallel execution is also bounded by the processor's worker count.
+    /// </summary>
+    public int ExternalOutboxMaxConcurrency { get; set; } = 4;
+
+    /// <summary>
     /// Maximum number of concurrent message processors. Default: CPU count.
     /// </summary>
     public int MaxConcurrency { get; set; } = Environment.ProcessorCount;
