@@ -64,7 +64,7 @@ public sealed class EventBusSettingsTests
             MaxPooledEnvelopes = poolSize
         };
 
-        Assert.Throws<ArgumentOutOfRangeException>(() => new EventBus(provider, options: options));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new EventBus(provider, null, options));
     }
 
     [Fact]

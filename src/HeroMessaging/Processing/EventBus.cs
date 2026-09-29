@@ -38,6 +38,14 @@ public class EventBus : IEventBus, IAsyncDisposable
     /// Initializes a new instance of the <see cref="EventBus"/> class.
     /// </summary>
 
+    public EventBus(IServiceProvider serviceProvider, ILogger<EventBus>? logger = null)
+        : this(serviceProvider, logger, null)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance with configurable in-process capacity limits.
+    /// </summary>
     public EventBus(IServiceProvider serviceProvider, ILogger<EventBus>? logger = null, EventBusOptions? options = null)
     {
         var settings = EventBusSettings.Resolve(options ?? new EventBusOptions(), Environment.ProcessorCount);
