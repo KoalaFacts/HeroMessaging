@@ -107,7 +107,7 @@ public sealed class InMemoryScheduler : IMessageScheduler, IDisposable
         var timer = new Timer(
             callback: TimerCallback,
             state: scheduleId,
-            dueTime: dueTime,
+            dueTime: Timeout.InfiniteTimeSpan,
             period: Timeout.InfiniteTimeSpan);
 
         var entry = new ScheduledEntry
@@ -123,6 +123,7 @@ public sealed class InMemoryScheduler : IMessageScheduler, IDisposable
             return Task.FromResult(ScheduleResult.Failed("Failed to schedule message (duplicate schedule ID)"));
         }
 
+        timer.Change(dueTime, Timeout.InfiniteTimeSpan);
         return Task.FromResult(ScheduleResult.Successful(scheduleId, deliverAt));
     }
     /// <summary>

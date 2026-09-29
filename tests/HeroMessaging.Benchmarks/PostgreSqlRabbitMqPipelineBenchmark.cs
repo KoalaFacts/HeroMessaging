@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Configuration;
-using HeroMessaging.Abstractions.Events;
 using HeroMessaging.Abstractions.Handlers;
 using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Abstractions.Serialization;
@@ -19,12 +18,17 @@ namespace HeroMessaging.Benchmarks;
 
 internal static class PostgreSqlRabbitMqPipelineBenchmark
 {
-    public static async Task RunAsync(string[] args)
+    public static async Task RunAsync(string[] args, bool direct = false)
     {
-        if (args.Length > 1 || args.Length == 1 && (!int.TryParse(args[0], out var parsed) || parsed < 1))
-            throw new ArgumentException("Usage: --pipeline [message-count]");
+        if (args.Length > (direct ? 1 : 2))
+            throw new ArgumentException("Usage: --pipeline [message-count] [external-concurrency] or --pipeline-direct [message-count]");
+        if (args.Length >= 1 && (!int.TryParse(args[0], out var parsedCount) || parsedCount < 1))
+            throw new ArgumentException("Usage: --pipeline [message-count] [external-concurrency] or --pipeline-direct [message-count]");
+        if (args.Length == 2 && (!int.TryParse(args[1], out var parsedConcurrency) || parsedConcurrency < 1))
+            throw new ArgumentException("Usage: --pipeline [message-count] [external-concurrency] or --pipeline-direct [message-count]");
 
         var count = args.Length == 0 ? 100 : int.Parse(args[0], System.Globalization.CultureInfo.InvariantCulture);
+        var externalConcurrency = args.Length < 2 ? 4 : int.Parse(args[1], System.Globalization.CultureInfo.InvariantCulture);
         var connectionString = Environment.GetEnvironmentVariable("PostgreSql__ConnectionString")
             ?? throw new InvalidOperationException("Set PostgreSql__ConnectionString to a disposable loopback PostgreSQL instance.");
         var databaseHost = new NpgsqlConnectionStringBuilder(connectionString).Host;
@@ -56,8 +60,15 @@ internal static class PostgreSqlRabbitMqPipelineBenchmark
         services.AddSingleton<IMessageSerializer>(serializer);
         services.AddSingleton<PipelineSink>();
         services.AddTransient<IEventHandler<PipelineEvent>, PipelineHandler>();
-        services.AddHeroMessaging(builder => builder.WithMediator().WithEventBus().WithOutbox().WithInbox()
-            .UsePostgreSqlOutbox(options).UsePostgreSqlInbox(options));
+        services.AddHeroMessaging(builder =>
+        {
+            builder.WithMediator().WithEventBus().WithInbox().UsePostgreSqlInbox(options);
+            if (!direct)
+            {
+                builder.ConfigureProcessing(processing => processing.ExternalOutboxMaxConcurrency = externalConcurrency);
+                builder.WithOutbox().UsePostgreSqlOutbox(options);
+            }
+        });
         await using var provider = services.BuildServiceProvider();
         var hosted = provider.GetServices<IHostedService>().ToArray();
         var startedServices = 0;
@@ -76,15 +87,33 @@ internal static class PostgreSqlRabbitMqPipelineBenchmark
 
             await using var consumer = await InboxTransportSubscription.SubscribeAsync<PipelineEvent>(
                 transport, TransportAddress.Queue(queue), provider.GetRequiredService<IInboxProcessor>(), serializer);
-            var outbox = provider.GetRequiredService<IOutboxProcessor>();
+            var outbox = direct ? null : provider.GetRequiredService<IOutboxProcessor>();
             var sink = provider.GetRequiredService<PipelineSink>();
-            await RunBatchAsync(10, queue, outbox, sink);
-            await WaitForDurableCompletionAsync(options, 10);
-            var result = await RunBatchAsync(count, queue, outbox, sink);
-            var durableSeconds = await WaitForDurableCompletionAsync(options, count + 10, result.Started);
+            var outboxOptions = new OutboxOptions { Destination = queue };
+            async Task PublishAsync(PipelineEvent message)
+            {
+                if (!direct)
+                {
+                    await outbox!.PublishToOutboxAsync(message, outboxOptions);
+                    return;
+                }
+
+                await transport.SendConfirmedAsync(TransportAddress.Queue(queue), new TransportEnvelope
+                {
+                    MessageId = message.MessageId.ToString(),
+                    MessageType = typeof(PipelineEvent).AssemblyQualifiedName!,
+                    ContentType = serializer.ContentType,
+                    Body = await serializer.SerializeAsync(message)
+                });
+            }
+
+            await RunBatchAsync(10, PublishAsync, sink);
+            await WaitForDurableCompletionAsync(options, 10, direct);
+            var result = await RunBatchAsync(count, PublishAsync, sink);
+            var durableSeconds = await WaitForDurableCompletionAsync(options, count + 10, direct, result.Started);
             sink.Validate();
 
-            Console.WriteLine($"Messages: {count}; publisher: {result.PublishSeconds:F2}s; handler throughput: {count / result.HandlerSeconds:F2}/s; durable throughput: {count / durableSeconds:F2}/s");
+            Console.WriteLine($"Path: {(direct ? "RabbitMQ -> Inbox" : "PostgreSQL -> RabbitMQ -> Inbox")}; messages: {count}; external concurrency: {(direct ? "n/a" : externalConcurrency)}; publisher: {result.PublishSeconds:F2}s; handler throughput: {count / result.HandlerSeconds:F2}/s; durable throughput: {count / durableSeconds:F2}/s");
             Console.WriteLine($"Publish-to-handler latency: p50={Percentile(result.Latencies, 0.50):F1}ms, p95={Percentile(result.Latencies, 0.95):F1}ms, p99={Percentile(result.Latencies, 0.99):F1}ms, max={result.Latencies[^1]:F1}ms");
 
         }
@@ -107,15 +136,14 @@ internal static class PostgreSqlRabbitMqPipelineBenchmark
 
     private static bool IsLoopback(string? host) => host is "localhost" or "127.0.0.1" or "::1";
 
-    private static async Task<BatchResult> RunBatchAsync(int count, string queue, IOutboxProcessor outbox, PipelineSink sink)
+    private static async Task<BatchResult> RunBatchAsync(int count, Func<PipelineEvent, Task> publish, PipelineSink sink)
     {
         sink.Start(count);
         var started = Stopwatch.GetTimestamp();
         for (var index = 0; index < count; index++)
         {
             sink.RecordPublished(index);
-            await outbox.PublishToOutboxAsync(new PipelineEvent { Sequence = index, RunId = sink.RunId },
-                new OutboxOptions { Destination = queue });
+            await publish(new PipelineEvent { Sequence = index, RunId = sink.RunId });
         }
 
         var publishSeconds = Stopwatch.GetElapsedTime(started).TotalSeconds;
@@ -127,7 +155,7 @@ internal static class PostgreSqlRabbitMqPipelineBenchmark
         return new BatchResult(started, publishSeconds, handlerSeconds, latencies);
     }
 
-    private static async Task<double> WaitForDurableCompletionAsync(PostgreSqlStorageOptions options, int count, long? started = null)
+    private static async Task<double> WaitForDurableCompletionAsync(PostgreSqlStorageOptions options, int count, bool direct, long? started = null)
     {
         var beginning = started ?? Stopwatch.GetTimestamp();
         using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(3));
@@ -135,15 +163,18 @@ internal static class PostgreSqlRabbitMqPipelineBenchmark
         await connection.OpenAsync(timeout.Token);
         while (true)
         {
+            var outboxCounts = direct ? "0::bigint, 0::bigint" : $"""
+                (SELECT COUNT(*) FROM {options.Schema}.{options.OutboxTableName}),
+                (SELECT COUNT(*) FROM {options.Schema}.{options.OutboxTableName} WHERE status = 'Processed')
+                """;
             await using var command = new NpgsqlCommand($"""
-                SELECT (SELECT COUNT(*) FROM {options.Schema}.{options.OutboxTableName}),
-                       (SELECT COUNT(*) FROM {options.Schema}.{options.OutboxTableName} WHERE status = 'Processed'),
+                SELECT {outboxCounts},
                        (SELECT COUNT(*) FROM {options.Schema}.{options.InboxTableName}),
                        (SELECT COUNT(*) FROM {options.Schema}.{options.InboxTableName} WHERE status = 'Processed')
                 """, connection);
             await using var reader = await command.ExecuteReaderAsync(timeout.Token);
             await reader.ReadAsync(timeout.Token);
-            if (reader.GetInt64(0) == count && reader.GetInt64(1) == count
+            if (reader.GetInt64(0) == (direct ? 0 : count) && reader.GetInt64(1) == (direct ? 0 : count)
                 && reader.GetInt64(2) == count && reader.GetInt64(3) == count)
                 return Stopwatch.GetElapsedTime(beginning).TotalSeconds;
             await Task.Delay(50, timeout.Token);
@@ -154,80 +185,4 @@ internal static class PostgreSqlRabbitMqPipelineBenchmark
         => sorted[(int)Math.Ceiling(sorted.Length * percentile) - 1];
 
     private sealed record BatchResult(long Started, double PublishSeconds, double HandlerSeconds, double[] Latencies);
-
-    public sealed class PipelineEvent : IEvent
-    {
-        public Guid MessageId { get; set; } = Guid.NewGuid();
-        public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
-        public string? CorrelationId { get; set; }
-        public string? CausationId { get; set; }
-        public Dictionary<string, object>? Metadata { get; set; }
-        public int Sequence { get; set; }
-        public Guid RunId { get; set; }
-    }
-
-    public sealed class PipelineHandler(PipelineSink sink) : IEventHandler<PipelineEvent>
-    {
-        public Task HandleAsync(PipelineEvent message, CancellationToken cancellationToken = default)
-        {
-            sink.RecordHandled(message.RunId, message.Sequence);
-            return Task.CompletedTask;
-        }
-    }
-
-    public sealed class PipelineSink
-    {
-        private long[] _published = [];
-        private long[] _handled = [];
-        private int _completed;
-        private int _duplicates;
-        private TaskCompletionSource _completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
-
-        public Task Completion => _completion.Task;
-        public Guid RunId { get; private set; }
-
-        public void Start(int count)
-        {
-            _published = new long[count];
-            _handled = new long[count];
-            _completed = 0;
-            _duplicates = 0;
-            RunId = Guid.NewGuid();
-            _completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        }
-
-        public void RecordPublished(int sequence) => _published[sequence] = Stopwatch.GetTimestamp();
-
-        public void RecordHandled(Guid runId, int sequence)
-        {
-            if (runId != RunId || sequence < 0 || sequence >= _handled.Length)
-            {
-                Interlocked.Increment(ref _duplicates);
-                return;
-            }
-
-            if (Interlocked.CompareExchange(ref _handled[sequence], Stopwatch.GetTimestamp(), 0) != 0)
-            {
-                Interlocked.Increment(ref _duplicates);
-                return;
-            }
-
-            if (Interlocked.Increment(ref _completed) == _handled.Length)
-                _completion.TrySetResult();
-        }
-
-        public void Validate()
-        {
-            if (Volatile.Read(ref _duplicates) != 0)
-                throw new InvalidOperationException("The handler ran more than once for a benchmark event.");
-        }
-
-        public double[] GetLatencies()
-        {
-            var latencies = new double[_published.Length];
-            for (var index = 0; index < latencies.Length; index++)
-                latencies[index] = Stopwatch.GetElapsedTime(_published[index], _handled[index]).TotalMilliseconds;
-            return latencies;
-        }
-    }
 }

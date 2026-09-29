@@ -1,4 +1,5 @@
 using HeroMessaging.Abstractions;
+using HeroMessaging.Abstractions.Configuration;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Abstractions.Serialization;
@@ -15,13 +16,17 @@ namespace HeroMessaging.Processing;
 public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOutboxProcessor, IAsyncDisposable
 {
     private static readonly TimeSpan ExternalLeaseDuration = TimeSpan.FromMinutes(1);
+    private static readonly TimeSpan LocalPollInterval = TimeSpan.FromMilliseconds(100);
     private readonly IOutboxStorage _outboxStorage;
     private readonly IExternalOutboxStorage? _externalStorage;
     private readonly ExternalOutboxDelivery? _externalDelivery;
     private readonly CancellationTokenSource _shutdown = new();
     private bool _stopTimedOut;
-    private int _externalClaimInFlight;
+    private readonly int _maxExternalDeliveries;
+    private int _externalClaimsInFlight;
     private bool _fastExternalPoll; // Latched for the current poll, even if a delivery finishes before delay selection.
+    private long _lastLocalPoll;
+    private bool _hasPolledLocal;
     /// <summary>
     /// Represents service provider.
     /// </summary>
@@ -37,9 +42,13 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOu
         ILogger<OutboxProcessor> logger,
         TimeProvider timeProvider,
         IMessageTransport? transport = null,
-        IMessageSerializer? messageSerializer = null)
+        IMessageSerializer? messageSerializer = null,
+        ProcessingOptions? processingOptions = null)
         : base(logger, timeProvider, maxDegreeOfParallelism: Environment.ProcessorCount, boundedCapacity: 100)
     {
+        var configuredMaxDeliveries = processingOptions?.ExternalOutboxMaxConcurrency ?? 4;
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(configuredMaxDeliveries);
+        _maxExternalDeliveries = Math.Min(configuredMaxDeliveries, Environment.ProcessorCount);
         _outboxStorage = outboxStorage;
         _externalStorage = outboxStorage as IExternalOutboxStorage;
         if (_externalStorage?.SupportsExternalClaims == true && transport is IConfirmedQueueTransport confirmedTransport && messageSerializer is not null)
@@ -164,23 +173,31 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOu
             return pending.Select(static entry => new OutboxWorkItem(entry));
         }
 
-        var local = await _externalStorage.GetLocalPendingAsync(100, cancellationToken);
-        var work = local.Select(static entry => new OutboxWorkItem(entry)).ToList();
+        var shouldPollLocal = !_hasPolledLocal || TimeProvider.GetElapsedTime(_lastLocalPoll) >= LocalPollInterval;
+        var work = new List<OutboxWorkItem>();
+        if (shouldPollLocal)
+        {
+            var local = await _externalStorage.GetLocalPendingAsync(100, cancellationToken);
+            work.AddRange(local.Select(static entry => new OutboxWorkItem(entry)));
+            _lastLocalPoll = TimeProvider.GetTimestamp();
+            _hasPolledLocal = true;
+        }
         _fastExternalPoll = false;
         if (!_externalStorage.SupportsExternalClaims || _externalDelivery is null)
             return work;
 
-        if (Interlocked.CompareExchange(ref _externalClaimInFlight, 1, 0) != 0)
+        if (Volatile.Read(ref _externalClaimsInFlight) >= _maxExternalDeliveries)
         {
             _fastExternalPoll = work.Count == 0;
             return work;
         }
 
+        Interlocked.Increment(ref _externalClaimsInFlight);
         try
         {
             var claims = await _externalStorage.ClaimExternalAsync(1, ExternalLeaseDuration, cancellationToken);
             if (claims.Count == 0)
-                Volatile.Write(ref _externalClaimInFlight, 0);
+                Interlocked.Decrement(ref _externalClaimsInFlight);
             else
             {
                 _fastExternalPoll = work.Count == 0;
@@ -191,7 +208,7 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOu
         catch
         {
             _fastExternalPoll = false;
-            Volatile.Write(ref _externalClaimInFlight, 0);
+            Interlocked.Decrement(ref _externalClaimsInFlight);
             throw;
         }
     }
@@ -214,7 +231,7 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOu
             }
             finally
             {
-                Volatile.Write(ref _externalClaimInFlight, 0);
+                Interlocked.Decrement(ref _externalClaimsInFlight);
             }
             return;
         }

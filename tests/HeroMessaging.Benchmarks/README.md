@@ -18,10 +18,12 @@ The PostgreSQL Inbox benchmark uses a real database and is opt-in. Set `PostgreS
 
 ## End-to-end pipeline baseline
 
-`--pipeline [message-count]` is an opt-in, real-service workload, not a BenchmarkDotNet microbenchmark. Set `PostgreSql__ConnectionString`, `RabbitMq__Host`, and optionally `RabbitMq__Port` to **disposable services bound to loopback**. The runner refuses non-loopback hosts, creates its own PostgreSQL schema and auto-deleting RabbitMQ queue, warms up with 10 events, then sends 100 events by default:
+`--pipeline [message-count] [external-concurrency]` is an opt-in, real-service workload, not a BenchmarkDotNet microbenchmark. Set `PostgreSql__ConnectionString`, `RabbitMq__Host`, and optionally `RabbitMq__Port` to **disposable services bound to loopback**. The runner refuses non-loopback hosts, creates its own PostgreSQL schema and auto-deleting RabbitMQ queue, warms up with 10 events, then sends 100 events by default. External concurrency defaults to 4:
 
 ```bash
-dotnet run --project tests/HeroMessaging.Benchmarks --configuration Release --framework net8.0 -- --pipeline 100
+dotnet run --project tests/HeroMessaging.Benchmarks --configuration Release --framework net8.0 -- --pipeline 300 4
 ```
 
 It reports sequential Outbox publish duration, publish-to-handler p50/p95/p99 latency, and throughput to handler and to durable Outbox/Inbox `Processed` states. It checks that both tables contain exactly the expected number of processed messages before reporting success. Compare multiple runs on the same machine and service configuration; this is not a CI performance gate.
+
+Use `--pipeline-direct 300` with the same services to bypass Outbox and measure RabbitMQ-to-Inbox headroom. This mode verifies only the durable Inbox state and does not test Outbox reliability. Do not compare it to the full pipeline as an equivalent delivery guarantee.
