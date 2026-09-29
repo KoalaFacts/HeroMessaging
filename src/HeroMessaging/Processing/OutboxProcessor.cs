@@ -46,8 +46,9 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOu
         ProcessingOptions? processingOptions = null)
         : base(logger, timeProvider, maxDegreeOfParallelism: Environment.ProcessorCount, boundedCapacity: 100)
     {
-        _maxExternalDeliveries = processingOptions?.ExternalOutboxMaxConcurrency ?? 4;
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(_maxExternalDeliveries);
+        var configuredMaxDeliveries = processingOptions?.ExternalOutboxMaxConcurrency ?? 4;
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(configuredMaxDeliveries);
+        _maxExternalDeliveries = Math.Min(configuredMaxDeliveries, Environment.ProcessorCount);
         _outboxStorage = outboxStorage;
         _externalStorage = outboxStorage as IExternalOutboxStorage;
         if (_externalStorage?.SupportsExternalClaims == true && transport is IConfirmedQueueTransport confirmedTransport && messageSerializer is not null)

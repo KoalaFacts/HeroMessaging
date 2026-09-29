@@ -17,8 +17,8 @@ public sealed class ExternalOutboxConcurrencyTests
     [Fact]
     public async Task ClaimsStayWithinLimitAndCompletedDeliveriesFreeSlots()
     {
-        const int concurrency = 4;
-        const int messageCount = concurrency + 1;
+        var concurrency = Math.Min(4, Environment.ProcessorCount);
+        var messageCount = concurrency + 1;
         var entries = Enumerable.Range(0, messageCount).Select(_ => new OutboxEntry
         {
             Id = Guid.NewGuid().ToString(),

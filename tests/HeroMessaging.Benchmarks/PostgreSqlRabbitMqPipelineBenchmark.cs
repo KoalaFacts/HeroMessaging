@@ -20,9 +20,11 @@ internal static class PostgreSqlRabbitMqPipelineBenchmark
 {
     public static async Task RunAsync(string[] args, bool direct = false)
     {
-        if (args.Length > (direct ? 1 : 2)
-            || args.Length >= 1 && (!int.TryParse(args[0], out var parsedCount) || parsedCount < 1)
-            || args.Length == 2 && (!int.TryParse(args[1], out var parsedConcurrency) || parsedConcurrency < 1))
+        if (args.Length > (direct ? 1 : 2))
+            throw new ArgumentException("Usage: --pipeline [message-count] [external-concurrency] or --pipeline-direct [message-count]");
+        if (args.Length >= 1 && (!int.TryParse(args[0], out var parsedCount) || parsedCount < 1))
+            throw new ArgumentException("Usage: --pipeline [message-count] [external-concurrency] or --pipeline-direct [message-count]");
+        if (args.Length == 2 && (!int.TryParse(args[1], out var parsedConcurrency) || parsedConcurrency < 1))
             throw new ArgumentException("Usage: --pipeline [message-count] [external-concurrency] or --pipeline-direct [message-count]");
 
         var count = args.Length == 0 ? 100 : int.Parse(args[0], System.Globalization.CultureInfo.InvariantCulture);
