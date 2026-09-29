@@ -14,6 +14,12 @@ Remove the filter to run all benchmarks only after configuring PostgreSQL for th
 
 The custom configuration reports mean, median, p95, and allocations. These measurements do not include a real broker, sustained load, p99, or an end-to-end publish-to-handler latency distribution. Capture a baseline on fixed hardware before using results as a regression gate or claiming a throughput target.
 
+`--inprocess [message-count]` is a manual EventBus workload that waits for every handler to complete and reports publish time, handler-complete throughput, p50/p95/p99 latency, and total process allocation per message across three warmed runs. It uses the default EventBus pipeline and one no-op handler; it is not a competitor comparison or a CI gate. For example:
+
+```bash
+dotnet run --project tests/HeroMessaging.Benchmarks --configuration Release --framework net8.0 -- --inprocess 50000
+```
+
 The PostgreSQL Inbox benchmark uses a real database and is opt-in. Set `PostgreSql__ConnectionString` to a disposable local database, then run `dotnet run --project tests/HeroMessaging.Benchmarks --configuration Release --framework net10.0 -- --filter "*PostgreSqlInboxBenchmarks*"`. It creates and removes its own schema. The new-message and duplicate-message cases are reported separately because reducing database round trips can increase duplicate-path serialization work.
 
 ## End-to-end pipeline baseline

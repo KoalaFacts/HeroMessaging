@@ -27,8 +27,9 @@ public class LoggingDecorator(
         var startTime = _timeProvider.GetTimestamp();
         var messageType = message.GetType().Name;
 
-        _logger.LogDebug("Processing {MessageType} with ID {MessageId} in component {Component}",
-            messageType, message.MessageId, context.Component);
+        if (_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug("Processing {MessageType} with ID {MessageId} in component {Component}",
+                messageType, message.MessageId, context.Component);
 
         if (_logPayload && _logger.IsEnabled(LogLevel.Trace))
         {
@@ -42,9 +43,10 @@ public class LoggingDecorator(
 
             if (result.Success)
             {
-                _logger.Log(_successLogLevel,
-                    "Successfully processed {MessageType} with ID {MessageId} in {ElapsedMs}ms",
-                    messageType, message.MessageId, elapsedMs);
+                if (_logger.IsEnabled(_successLogLevel))
+                    _logger.Log(_successLogLevel,
+                        "Successfully processed {MessageType} with ID {MessageId} in {ElapsedMs}ms",
+                        messageType, message.MessageId, elapsedMs);
             }
             else
             {

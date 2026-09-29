@@ -23,20 +23,22 @@ public class CorrelationContextDecorator(
         ProcessingContext context,
         CancellationToken cancellationToken = default)
     {
-        // Set up correlation context for this message processing
-        using var correlationScope = CorrelationContext.BeginScope(message);
+        var messageId = message.MessageId.ToString();
+        var correlationId = string.IsNullOrEmpty(message.CorrelationId) ? messageId : message.CorrelationId;
+        using var correlationScope = CorrelationContext.BeginScope(correlationId, messageId);
 
-        _logger.LogDebug(
-            "Processing message {MessageId} with CorrelationId={CorrelationId}, CausationId={CausationId}",
-            message.MessageId,
-            message.CorrelationId,
-            message.CausationId);
+        if (_logger.IsEnabled(LogLevel.Debug))
+            _logger.LogDebug(
+                "Processing message {MessageId} with CorrelationId={CorrelationId}, CausationId={CausationId}",
+                message.MessageId,
+                message.CorrelationId,
+                message.CausationId);
 
         // Add correlation information to processing context metadata
         var enrichedContext = context
-            .WithMetadata("CorrelationId", message.CorrelationId ?? message.MessageId.ToString())
+            .WithMetadata("CorrelationId", message.CorrelationId ?? messageId)
             .WithMetadata("CausationId", message.CausationId ?? string.Empty)
-            .WithMetadata("MessageId", message.MessageId.ToString());
+            .WithMetadata("MessageId", messageId);
 
         // Process message with correlation context active
         var result = await _inner.ProcessAsync(message, enrichedContext, cancellationToken).ConfigureAwait(false);

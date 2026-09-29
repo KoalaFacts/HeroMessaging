@@ -18,6 +18,7 @@ public sealed class CorrelationContextDecoratorTests
     {
         _innerMock = new Mock<IMessageProcessor>();
         _loggerMock = new Mock<ILogger<CorrelationContextDecorator>>();
+        _loggerMock.Setup(logger => logger.IsEnabled(It.IsAny<LogLevel>())).Returns(true);
     }
 
     private CorrelationContextDecorator CreateDecorator()
