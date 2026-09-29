@@ -25,9 +25,6 @@ internal static class InProcessPipelineBenchmark
         await RunBatchAsync(bus, sink, 1_000);
         for (var run = 1; run <= 3; run++)
         {
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            GC.Collect();
             var allocatedBefore = GC.GetTotalAllocatedBytes(precise: true);
             var result = await RunBatchAsync(bus, sink, count);
             var allocatedBytes = GC.GetTotalAllocatedBytes(precise: true) - allocatedBefore;
