@@ -281,6 +281,7 @@ public class InMemoryTransportTests : IAsyncLifetime
         // Arrange
         var queue = TransportAddress.Queue("metrics-queue");
         var envelope = new TransportEnvelope("TestMessage", new byte[] { 1, 2, 3 }.AsMemory());
+        var acknowledged = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
         var consumer = await _transport!.SubscribeAsync(
             queue,
@@ -288,12 +289,14 @@ public class InMemoryTransportTests : IAsyncLifetime
             {
                 await Task.Delay(10, TestContext.Current.CancellationToken); // Simulate processing
                 await ctx.AcknowledgeAsync(ct);
+                acknowledged.TrySetResult();
             },
             new ConsumerOptions { StartImmediately = true }, TestContext.Current.CancellationToken);
 
         // Act
         await _transport!.SendAsync(queue, envelope, TestContext.Current.CancellationToken);
-        await Task.Delay(200, TestContext.Current.CancellationToken); // Give time for processing
+        await acknowledged.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        await consumer.StopAsync(TestContext.Current.CancellationToken);
 
         // Assert
         var metrics = consumer.GetMetrics();

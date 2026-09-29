@@ -19,12 +19,31 @@ public sealed class LoggingDecoratorTests
     {
         _innerMock = new Mock<IMessageProcessor>();
         _loggerMock = new Mock<ILogger<LoggingDecorator>>();
+        _loggerMock.Setup(logger => logger.IsEnabled(It.IsAny<LogLevel>())).Returns(true);
         _fakeTimeProvider = new FakeTimeProvider(DateTimeOffset.UtcNow);
     }
 
     private LoggingDecorator CreateDecorator(LogLevel successLogLevel = LogLevel.Debug, bool logPayload = false)
     {
         return new LoggingDecorator(_innerMock.Object, _loggerMock.Object, _fakeTimeProvider, successLogLevel, logPayload);
+    }
+
+    [Fact]
+    public async Task ProcessAsync_WhenDebugLoggingIsDisabled_DoesNotCreateLogEntries()
+    {
+        _loggerMock.Setup(logger => logger.IsEnabled(It.IsAny<LogLevel>())).Returns(false);
+        var decorator = CreateDecorator();
+        var message = new TestMessage();
+        var context = new ProcessingContext();
+        _innerMock.Setup(processor => processor.ProcessAsync(message, context, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ProcessingResult.Successful());
+
+        var result = await decorator.ProcessAsync(message, context, TestContext.Current.CancellationToken);
+
+        Assert.True(result.Success);
+        _loggerMock.Verify(logger => logger.Log(
+            It.IsAny<LogLevel>(), It.IsAny<EventId>(), It.IsAny<It.IsAnyType>(),
+            It.IsAny<Exception?>(), It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Never);
     }
 
     #region ProcessAsync - Success Cases

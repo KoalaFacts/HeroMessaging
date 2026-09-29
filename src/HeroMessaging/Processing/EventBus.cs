@@ -11,7 +11,7 @@ namespace HeroMessaging.Processing;
 
 /// <summary>
 /// Event bus implementation using the pipeline architecture.
-/// Optimized for zero-allocation in steady state through caching and pooling.
+/// Caches handler dispatch while preserving per-event decorator lifetimes.
 /// </summary>
 public class EventBus : IEventBus, IAsyncDisposable
 {
@@ -20,8 +20,8 @@ public class EventBus : IEventBus, IAsyncDisposable
     private readonly ActionBlock<EventEnvelope> _processingBlock;
     private readonly MessageProcessingPipelineBuilder _pipelineBuilder;
 
-    // Pipeline cache per handler type to avoid rebuilding decorator chains
-    private readonly ConcurrentDictionary<Type, Func<EventEnvelope, IMessageProcessor>> _pipelineFactoryCache = new();
+    private readonly ConcurrentDictionary<Type, IMessageProcessor> _coreProcessors = new();
+    private readonly ConcurrentDictionary<(Type EventType, Type HandlerType), ImmutableDictionary<string, object>> _contextMetadata = new();
 
     // Lightweight object pool for EventEnvelope using ConcurrentBag (zero dependencies)
     private readonly ConcurrentBag<EventEnvelope> _envelopePool = [];
@@ -143,12 +143,13 @@ public class EventBus : IEventBus, IAsyncDisposable
     {
         try
         {
-            // Get cached MethodInfo - avoids GetMethod() reflection on each call
-            var handleMethod = HandlerTypeCache.GetHandleMethod(envelope.HandlerType);
-
-            // Get or create pipeline factory for this handler type
-            var pipelineFactory = GetOrCreatePipelineFactory(envelope.HandlerType, handleMethod);
-            var pipeline = pipelineFactory(envelope);
+            var coreProcessor = _coreProcessors.GetOrAdd(envelope.Event.GetType(), eventType =>
+            {
+                var invoker = EventHandlerInvokerCache.Get(eventType);
+                return new CoreMessageProcessor((message, context, ct) =>
+                    new ValueTask(invoker(context.Handler!, (IEvent)message, ct)));
+            });
+            var pipeline = _pipelineBuilder.Build(coreProcessor);
 
             // Create processing context (struct - stack allocated)
             var context = new ProcessingContext
@@ -156,9 +157,10 @@ public class EventBus : IEventBus, IAsyncDisposable
                 Component = "EventBus",
                 Handler = envelope.Handler,
                 HandlerType = envelope.HandlerType,
-                Metadata = ImmutableDictionary<string, object>.Empty
-                    .Add("EventType", envelope.Event.GetType().Name)
-                    .Add("HandlerType", envelope.Handler.GetType().Name)
+                Metadata = _contextMetadata.GetOrAdd((envelope.Event.GetType(), envelope.Handler.GetType()),
+                    static types => ImmutableDictionary<string, object>.Empty
+                        .Add("EventType", types.EventType.Name)
+                        .Add("HandlerType", types.HandlerType.Name))
             };
 
             // Process through the pipeline
@@ -196,26 +198,6 @@ public class EventBus : IEventBus, IAsyncDisposable
         {
             _envelopePool.Add(envelope);
         }
-    }
-    /// <summary>
-    /// Executes get or create pipeline factory.
-    /// </summary>
-
-    private Func<EventEnvelope, IMessageProcessor> GetOrCreatePipelineFactory(Type handlerType, System.Reflection.MethodInfo handleMethod)
-    {
-        return _pipelineFactoryCache.GetOrAdd(handlerType, _ =>
-        {
-            // This factory closure captures the handleMethod, avoiding lookup per call
-            return envelope =>
-            {
-                var coreProcessor = new CoreMessageProcessor(async (message, context, ct) =>
-                {
-                    await ((Task)handleMethod.Invoke(envelope.Handler, [envelope.Event, ct])!).ConfigureAwait(false);
-                });
-
-                return _pipelineBuilder.Build(coreProcessor);
-            };
-        });
     }
     /// <summary>
     /// Executes get metrics.
