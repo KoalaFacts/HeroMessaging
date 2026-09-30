@@ -21,6 +21,19 @@ public interface IEventPublisher
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="event"/> is null.</exception>
     Task PublishAsync(IEvent @event, CancellationToken cancellationToken = default);
 
+    /// <summary>Publishes an in-process event and waits for its handler pipeline outcomes.</summary>
+    /// <param name="event">The event to publish.</param>
+    /// <param name="cancellationToken">Cancels waiting, not handler execution or ongoing admission.</param>
+    /// <returns>Final outcomes in handler registration order; no handlers is an empty successful no-op.</returns>
+    /// <remarks>
+    /// Cancellation at entry prevents publication; cancellation afterwards only stops waiting.
+    /// Delivery continues, including pending admission. This is not a durable or broker acknowledgement.
+    /// Do not await a receipt inside handlers on the same bus when capacity or concurrency is exhausted.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">The event is null.</exception>
+    /// <exception cref="OperationCanceledException">The caller's wait was cancelled.</exception>
+    Task<EventPublishReceipt> PublishAndWaitAsync(IEvent @event, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Publishes multiple events in a batch operation.
     /// </summary>
