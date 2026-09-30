@@ -1,0 +1,97 @@
+#requires -Version 7.0
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+Import-Module (Join-Path $PSScriptRoot 'Report.psm1') -Force
+
+function New-Fixture {
+    param([double[]]$Rates)
+    [PSCustomObject]@{
+        schemaVersion = 1; count = 256; handlerCount = 1; producerCount = 32
+        capacity = 64; parallelism = 24; workload = 'noop'; mode = 'publish'
+        warmupCount = 32; receiptSupported = $false
+        samples = @($Rates | ForEach-Object { [PSCustomObject]@{
+            completeEventsPerSecond = $_; steadyRate = 'n/a (<3s)'
+            publishReturnP95Ms = 1.0; publishReturnP99Ms = 2.0
+            allHandlersP95Ms = 1.0; allHandlersP99Ms = 3.0
+            allocatedBytesPerEvent = 1024.0; gen0 = 1; gen1 = 0; gen2 = 0
+            cpuMicrosecondsPerEvent = 10.0; contentionsPerEvent = 0.0; workItemsPerEvent = 1.0
+        } })
+    }
+}
+
+function Assert-Equal {
+    param($Expected, $Actual)
+    if ($Expected -cne $Actual) { throw "Expected '$Expected', got '$Actual'." }
+}
+
+function Assert-Throws {
+    param([scriptblock]$Action)
+    $threw = $false
+    try { & $Action | Out-Null } catch { $threw = $true }
+    if (!$threw) { throw 'Expected validation to fail.' }
+}
+
+$expected = @{
+    count = 256; handlerCount = 1; producerCount = 32; capacity = 64; parallelism = 24
+    workload = 'noop'; mode = 'publish'; warmupCount = 32; runs = 3
+}
+$fixture = Join-Path ([IO.Path]::GetTempPath()) "HeroMessaging-Comparison-$([Guid]::NewGuid().ToString('N')).json"
+try {
+    $valid = New-Fixture @(10, 20, 1000)
+    $valid | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $fixture -Encoding utf8
+    $parsed = Read-InProcessResult $fixture $expected
+    Assert-Equal 3 @($parsed.samples).Count
+    Assert-Equal 2 (Get-InProcessMedian @(1, 3))
+    Assert-Equal 2 (Get-InProcessMedian @(1, 2, 3))
+
+    $invalid = New-Fixture @(10, 20)
+    $invalid | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $fixture -Encoding utf8
+    Assert-Throws { Read-InProcessResult $fixture $expected }
+    $invalid = New-Fixture @(10, 20, 30)
+    $invalid.capacity = 8
+    $invalid | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $fixture -Encoding utf8
+    Assert-Throws { Read-InProcessResult $fixture $expected }
+    foreach ($value in @(-1.0, [double]::NaN, [double]::PositiveInfinity, '100')) {
+        $invalid = New-Fixture @(10, 20, 30)
+        $invalid.samples[0].completeEventsPerSecond = $value
+        $invalid | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $fixture -Encoding utf8
+        Assert-Throws { Read-InProcessResult $fixture $expected }
+    }
+    $invalid = New-Fixture @(10, 20, 30)
+    $invalid.samples[0].PSObject.Properties.Remove('gen0')
+    $invalid | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $fixture -Encoding utf8
+    Assert-Throws { Read-InProcessResult $fixture $expected }
+    $invalid = New-Fixture @(10, 20, 30)
+    $invalid.samples[0].allHandlersP95Ms = 5
+    $invalid | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $fixture -Encoding utf8
+    Assert-Throws { Read-InProcessResult $fixture $expected }
+
+    $runs = @(
+        [PSCustomObject]@{ Variant = 'baseline'; Mode = 'publish'; Workload = 'noop'; Result = $valid },
+        [PSCustomObject]@{ Variant = 'baseline'; Mode = 'publish'; Workload = 'noop'; Result = New-Fixture @(30, 40, 50) },
+        [PSCustomObject]@{ Variant = 'candidate'; Mode = 'publish'; Workload = 'noop'; Result = New-Fixture @(30, 60, 90) },
+        [PSCustomObject]@{ Variant = 'candidate'; Mode = 'publish'; Workload = 'noop'; Result = New-Fixture @(60, 100, 110) }
+    )
+    $stats = @(Get-InProcessStatistics $runs)
+    $baseline = $stats | Where-Object Variant -eq 'baseline'
+    Assert-Equal 30 $baseline.completeEventsPerSecond
+    Assert-Equal 20 $baseline.minimum
+    Assert-Equal 40 $baseline.maximum
+    Assert-Equal $null $baseline.steady
+    $receipt = New-Fixture @(1, 2, 3)
+    $receipt.mode = 'receipt'
+    $receipt.receiptSupported = $true
+    $runs += [PSCustomObject]@{ Variant = 'candidate'; Mode = 'receipt'; Workload = 'noop'; Result = $receipt }
+    $culture = [Globalization.CultureInfo]::CurrentCulture
+    try {
+        [Globalization.CultureInfo]::CurrentCulture = [Globalization.CultureInfo]::GetCultureInfo('fr-FR')
+        $report = New-InProcessReport $runs ('a' * 40) ('b' * 40)
+        if ($report -notmatch '166\.67%' -or $report -notmatch 'new API / no baseline') { throw 'Incorrect report delta or availability.' }
+    }
+    finally { [Globalization.CultureInfo]::CurrentCulture = $culture }
+    Assert-Throws { New-InProcessReport @($runs | Where-Object Variant -eq 'candidate') ('a' * 40) ('b' * 40) }
+    Write-Host 'Comparison reporting tests passed.'
+}
+finally {
+    if (Test-Path -LiteralPath $fixture) { Remove-Item -LiteralPath $fixture }
+}

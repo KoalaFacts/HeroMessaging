@@ -61,6 +61,10 @@ public class TransactionEventBusDecorator : IEventBus
     /// </summary>
 
     public IEventBusMetrics GetMetrics() => _inner.GetMetrics();
+
+    /// <inheritdoc />
+    public Task<EventPublishReceipt> PublishAndWaitAsync(IEvent @event, CancellationToken cancellationToken = default)
+        => _inner.PublishAndWaitAsync(@event, cancellationToken);
 }
 
 /// <summary>

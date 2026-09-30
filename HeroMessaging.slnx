@@ -22,6 +22,7 @@
     <Project Path="tests/HeroMessaging.Abstractions.Tests/HeroMessaging.Abstractions.Tests.csproj" />
     <Project Path="tests/HeroMessaging.Architecture.Tests/HeroMessaging.Architecture.Tests.csproj" />
     <Project Path="tests/HeroMessaging.Benchmarks/HeroMessaging.Benchmarks.csproj" />
+    <Project Path="tests/HeroMessaging.Benchmarks/Comparison/HeroMessaging.InProcessBenchmarks.csproj" />
     <Project Path="tests/HeroMessaging.Observability.HealthChecks.Tests/HeroMessaging.Observability.HealthChecks.Tests.csproj" />
     <Project Path="tests/HeroMessaging.Security.Tests/HeroMessaging.Security.Tests.csproj" />
     <Project Path="tests/HeroMessaging.Serialization.Json.Tests/HeroMessaging.Serialization.Json.Tests.csproj" />

@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net10.0</TargetFrameworks>
+    <HeroMessagingSourceRoot Condition="'$(HeroMessagingSourceRoot)' == ''">$(MSBuildThisFileDirectory)../../..</HeroMessagingSourceRoot>
+  </PropertyGroup>
+  <ItemGroup>
+    <Using Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
+    <Compile Include="../ConcurrentInProcessPipelineBenchmark.cs" Link="ConcurrentInProcessPipelineBenchmark.cs" />
+    <Compile Include="../InProcessPipelineBenchmark.cs" Link="InProcessPipelineBenchmark.cs" />
+    <Compile Include="../InProcessBenchmarkEvents.cs" Link="InProcessBenchmarkEvents.cs" />
+    <Compile Include="../InProcessComparisonResult.cs" Link="InProcessComparisonResult.cs" />
+    <ProjectReference Include="$(HeroMessagingSourceRoot)/src/HeroMessaging/HeroMessaging.csproj" />
+    <ProjectReference Include="$(HeroMessagingSourceRoot)/src/HeroMessaging.Abstractions/HeroMessaging.Abstractions.csproj" />
+  </ItemGroup>
+</Project>

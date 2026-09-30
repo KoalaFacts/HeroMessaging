@@ -94,6 +94,15 @@ public class HeroMessagingService(
         Interlocked.Increment(ref _eventsPublished);
         await _eventBus.PublishAsync(@event, cancellationToken).ConfigureAwait(false);
     }
+
+    /// <inheritdoc />
+    public Task<EventPublishReceipt> PublishAndWaitAsync(IEvent @event, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(@event);
+        cancellationToken.ThrowIfCancellationRequested();
+        Interlocked.Increment(ref _eventsPublished);
+        return _eventBus.PublishAndWaitAsync(@event, cancellationToken);
+    }
     /// <summary>
     /// Executes send batch async.
     /// </summary>

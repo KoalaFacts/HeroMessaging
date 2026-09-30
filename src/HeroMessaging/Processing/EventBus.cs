@@ -58,7 +58,7 @@ public class EventBus : IEventBus, IAsyncDisposable
         ConfigurePipeline();
 
         _processingBlock = new ActionBlock<EventEnvelope>(
-            ProcessEventWithPipeline,
+            DispatchEventWithPipeline,
             new ExecutionDataflowBlockOptions
             {
                 MaxDegreeOfParallelism = settings.MaxDegreeOfParallelism,
@@ -151,6 +151,92 @@ public class EventBus : IEventBus, IAsyncDisposable
         }
     }
 
+    /// <inheritdoc />
+    public async Task<EventPublishReceipt> PublishAndWaitAsync(IEvent @event, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(@event);
+        cancellationToken.ThrowIfCancellationRequested();
+        var messageId = @event.MessageId;
+        var handlerType = HandlerTypeCache.GetEventHandlerType(@event.GetType());
+        List<Task<EventHandlerReceipt>> deliveries = [];
+
+        foreach (var handler in _serviceProvider.GetServices(handlerType))
+        {
+            if (handler is null) continue;
+            var completion = new TaskCompletionSource<ProcessingResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var envelope = RentEnvelope();
+            // The caller's token cancels waiting, not handler execution or pending admission.
+            envelope.Initialize(@event, handler, handlerType, CancellationToken.None);
+            envelope.Completion = completion;
+            deliveries.Add(PublishTrackedHandlerAsync(envelope, handler.GetType(), completion));
+        }
+
+        if (deliveries.Count > 0)
+        {
+            Interlocked.Increment(ref _publishedCount);
+            Interlocked.Exchange(ref _registeredHandlers, deliveries.Count);
+        }
+
+        var outcomes = await Task.WhenAll(deliveries).WaitAsync(cancellationToken).ConfigureAwait(false);
+        return new EventPublishReceipt(messageId, outcomes);
+    }
+
+    private async Task<EventHandlerReceipt> PublishTrackedHandlerAsync(EventEnvelope envelope, Type handlerType,
+        TaskCompletionSource<ProcessingResult> completion)
+    {
+        bool accepted;
+        try
+        {
+            accepted = await _processingBlock.SendAsync(envelope).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            ReturnEnvelope(envelope);
+            return new EventHandlerReceipt(handlerType, EventHandlerStatus.Rejected, ProcessingResult.Failed(ex));
+        }
+
+        if (!accepted)
+        {
+            ReturnEnvelope(envelope);
+            return new EventHandlerReceipt(handlerType, EventHandlerStatus.Rejected);
+        }
+
+        // Faulted Dataflow blocks can discard queued deliveries without invoking their delegate.
+        if (!completion.Task.IsCompleted)
+            await Task.WhenAny(completion.Task, _processingBlock.Completion).ConfigureAwait(false);
+
+        if (completion.Task.IsCompleted)
+        {
+            var result = await completion.Task.ConfigureAwait(false);
+            return new EventHandlerReceipt(handlerType,
+                result.Success ? EventHandlerStatus.Succeeded : EventHandlerStatus.Failed, result);
+        }
+
+        var failure = _processingBlock.Completion.Exception?.GetBaseException()
+            ?? new InvalidOperationException("The event bus terminated before this handler delivery completed.");
+        return new EventHandlerReceipt(handlerType, EventHandlerStatus.Aborted, ProcessingResult.Failed(failure));
+    }
+
+    private Task DispatchEventWithPipeline(EventEnvelope envelope)
+        => envelope.Completion is { } completion
+            ? ProcessTrackedEventWithPipeline(envelope, completion)
+            : ProcessEventWithPipeline(envelope);
+
+    private async Task ProcessTrackedEventWithPipeline(EventEnvelope envelope,
+        TaskCompletionSource<ProcessingResult> completion)
+    {
+        try
+        {
+            await ProcessEventWithPipeline(envelope).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            // The core returns its envelope to the pool, so retain the tracker separately.
+            completion.TrySetResult(ProcessingResult.Failed(ex));
+            throw;
+        }
+    }
+
     private async Task ProcessEventWithPipeline(EventEnvelope envelope)
     {
         try
@@ -189,6 +275,8 @@ public class EventBus : IEventBus, IAsyncDisposable
                     envelope.Handler.GetType().Name,
                     result.Message);
             }
+
+            envelope.Completion?.TrySetResult(result);
         }
         finally
         {
@@ -247,6 +335,7 @@ public class EventBus : IEventBus, IAsyncDisposable
         public object Handler { get; private set; } = null!;
         public Type HandlerType { get; private set; } = null!;
         public CancellationToken CancellationToken { get; private set; }
+        public TaskCompletionSource<ProcessingResult>? Completion { get; set; }
 
         public void Initialize(IEvent @event, object handler, Type handlerType, CancellationToken cancellationToken)
         {
@@ -262,6 +351,7 @@ public class EventBus : IEventBus, IAsyncDisposable
             Handler = null!;
             HandlerType = null!;
             CancellationToken = default;
+            Completion = null;
         }
     }
 

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WindowsPerformanceRecorder Version="1.0" Author="HeroMessaging">
+  <Profiles>
+    <EventCollector Id="InProcessCollector" Name="HeroMessaging InProcess Events">
+      <BufferSize Value="256" />
+      <Buffers Value="128" />
+    </EventCollector>
+    <!-- EventSource GUID for HeroMessaging-InProcessBenchmark. -->
+    <EventProvider Id="BatchMarkers" Name="2bfc1699-762e-5dae-62c6-95195cf93938" Level="4">
+      <Keywords>
+        <Keyword Value="0xffffffffffffffff" />
+      </Keywords>
+    </EventProvider>
+    <EventProvider Id="RuntimeScheduling" Name="Microsoft-Windows-DotNETRuntime" Level="4">
+      <Keywords>
+        <Keyword Value="0x14001" />
+      </Keywords>
+    </EventProvider>
+    <Profile Id="InProcess.Verbose.File" Name="InProcess" Description="In-process batch markers, GC, threading, and contention; combine with CPU" LoggingMode="File" DetailLevel="Verbose">
+      <Collectors>
+        <EventCollectorId Value="InProcessCollector">
+          <EventProviders>
+            <EventProviderId Value="BatchMarkers" />
+            <EventProviderId Value="RuntimeScheduling" />
+          </EventProviders>
+        </EventCollectorId>
+      </Collectors>
+    </Profile>
+  </Profiles>
+</WindowsPerformanceRecorder>

@@ -254,6 +254,33 @@ var messaging = serviceProvider.GetRequiredService<IHeroMessaging>();
 await messaging.PublishAsync(new OrderCreatedEvent { OrderId = Guid.NewGuid(), Amount = 99.99m });
 ```
 
+#### Optional In-Process Completion Receipt
+
+`PublishAsync` waits for queue submission attempts, not handler completion or a per-handler success result. Use `PublishAndWaitAsync` through
+`IEventBus`, `IEventPublisher`, or `IHeroMessaging` when the caller needs final handler pipeline outcomes:
+
+```csharp
+using var waitCancellation = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+var receipt = await messaging.PublishAndWaitAsync(
+    new OrderCreatedEvent { OrderId = Guid.NewGuid(), Amount = 99.99m }, waitCancellation.Token);
+
+foreach (var handler in receipt.Handlers)
+    Console.WriteLine($"{handler.HandlerType.Name}: {handler.Status} {handler.Result?.Exception?.Message}");
+```
+
+Outcomes are returned in handler registration order, including duplicate registrations. `Succeeded` and
+`Failed` describe the final pipeline result after its retry/validation/error-handling policies; `Rejected`
+means the queue did not accept the delivery, and `Aborted` means an accepted delivery did not complete
+before the bus terminated. Pipeline failures do not necessarily mean the handler itself executed.
+An empty handler list is a successful no-op; inspect `Handlers.Count` if at least one handler is required.
+
+Cancellation at entry prevents publication. Once publication starts, cancellation only stops waiting:
+handler execution and pending admission continue. A timeout/cancellation does not prove that an event
+was unprocessed, and retrying publication can duplicate side effects. Ordinary `PublishAsync` does not
+create completion trackers. Receipts are in-memory only, not Outbox/Inbox durability or RabbitMQ acknowledgement.
+Do not await receipts from handlers on the same bus when bounded capacity or handler concurrency is exhausted;
+that can deadlock. Receipt tracking has opt-in allocation and coordination costs.
+
 ### Saga Orchestration Example
 
 ```csharp
