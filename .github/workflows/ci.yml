@@ -14,6 +14,11 @@ on:
         required: false
         default: false
         type: boolean
+      performance_baseline_ref:
+        description: 'Optional baseline ref (default: PR base commit or candidate first parent)'
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: read
@@ -114,87 +119,72 @@ jobs:
   integration-tests:
     uses: ./.github/workflows/run-integration-tests.yml
 
-  # Performance regression detection
+  # Compare revisions on one runner; measurement validity is required, deltas are informational.
   performance-regression:
-    name: Performance Regression Analysis
+    name: In-Process Performance Comparison
     needs: unit-tests
-    if: always() && (github.event_name == 'schedule' || github.event.inputs.run_performance_tests == 'true')
-    runs-on: ubuntu-latest
+    if: success() && (github.event_name == 'pull_request' || github.event_name == 'schedule' || inputs.run_performance_tests == true)
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
+    permissions:
+      contents: read
 
     steps:
-      - name: Checkout code
+      - name: Checkout candidate
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          path: candidate
+          persist-credentials: false
+
+      - name: Resolve baseline commit
+        id: baseline
+        shell: pwsh
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          REQUESTED_BASE_REF: ${{ inputs.performance_baseline_ref }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ref = if ($env:PR_BASE_SHA) { $env:PR_BASE_SHA }
+            elseif ($env:REQUESTED_BASE_REF) { $env:REQUESTED_BASE_REF }
+            else { 'HEAD^1' }
+          $commit = git -C candidate rev-parse --verify --end-of-options "$ref^{commit}"
+          if ($LASTEXITCODE -ne 0 -or $commit -notmatch '^[a-f0-9]{40}$') {
+            throw 'Cannot resolve performance baseline commit.'
+          }
+          "commit=$commit" | Add-Content -LiteralPath $env:GITHUB_OUTPUT
+
+      - name: Checkout baseline library
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.baseline.outputs.commit }}
+          path: baseline
+          persist-credentials: false
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: |
-            8.0.x
-            10.0.x
+          dotnet-version: 10.0.x
 
-      - name: Restore dependencies
-        run: dotnet restore
+      - name: Verify comparison reporting
+        shell: pwsh
+        run: ./candidate/tests/HeroMessaging.Benchmarks/Comparison/Report.Tests.ps1
 
-      - name: Build benchmarks
-        run: dotnet build tests/HeroMessaging.Benchmarks --configuration Release --framework net8.0 --no-restore
-
-      - name: Download baseline benchmarks
-        uses: actions/download-artifact@v8
-        continue-on-error: true  # Baseline may not exist on first run
-        with:
-          name: performance-baseline
-          path: ./benchmark-baseline
-
-      - name: Run performance benchmarks
+      - name: Compare in-process performance
+        id: compare
+        shell: pwsh
         run: |
-          dotnet run \
-            --project tests/HeroMessaging.Benchmarks \
-            --configuration Release \
-            --framework net8.0 \
-            --no-build \
-            -- --filter "*CommandProcessorBenchmarks*" "*EventBusBenchmarks*" "*QueryProcessorBenchmarks*" "*SagaOrchestrationBenchmarks*" "*StorageBenchmarks*" "*WaitStrategyBenchmarks*" "*RingBufferEnqueueBenchmarks*" \
-            --exporters json \
-            --artifacts ./benchmark-results \
-            --job short
+          ./candidate/tests/HeroMessaging.Benchmarks/Comparison/Compare-InProcess.ps1 `
+            -BaselineRoot ./baseline -CandidateRoot ./candidate `
+            -OutputDirectory ./inprocess-results
 
-      - name: Analyze performance regression
-        continue-on-error: true  # Informational only - don't fail CI
-        run: |
-          dotnet run \
-            --project tests/HeroMessaging.Benchmarks \
-            --configuration Release \
-            -- --analyze-regression \
-            --current ./benchmark-results \
-            --baseline ./benchmark-baseline \
-            --threshold 10
-
-      - name: Upload current benchmarks as baseline
+      - name: Upload comparison evidence
         uses: actions/upload-artifact@v7
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        if: always() && steps.compare.outcome != 'skipped'
         with:
-          name: performance-baseline
-          path: ./benchmark-results/**/*.json
-          retention-days: 90
-
-      - name: Comment performance results
-        uses: actions/github-script@v9
-        if: github.event_name == 'pull_request'
-        with:
-          script: |
-            const fs = require('fs');
-            const path = './benchmark-results/regression-report.md';
-            if (fs.existsSync(path)) {
-              const report = fs.readFileSync(path, 'utf8');
-              github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: `## Performance Analysis\n\n${report}`
-              });
-            }
+          name: inprocess-comparison-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ./inprocess-results/
+          retention-days: 30
 
   # Quality gates and final validation
   quality-gates:

@@ -10,7 +10,7 @@ Use a Release build on a stable machine:
 dotnet run --project tests/HeroMessaging.Benchmarks --configuration Release --framework net10.0 -- --filter "*CommandProcessor*"
 ```
 
-Remove the filter to run all benchmarks only after configuring PostgreSQL for the opt-in `PostgreSqlInboxBenchmarks`. The scheduled CI benchmark run lists the non-database classes explicitly and does not run this opt-in benchmark.
+Remove the filter to run all benchmarks only after configuring PostgreSQL for the opt-in `PostgreSqlInboxBenchmarks`. CI performance comparison focuses on the in-process workloads below; the other BenchmarkDotNet microbenchmarks remain manually runnable. The database benchmark is not part of this CI job.
 
 The custom configuration reports mean, median, p95, and allocations. These measurements do not include a real broker, sustained load, p99, or an end-to-end publish-to-handler latency distribution. Capture a baseline on fixed hardware before using results as a regression gate or claiming a throughput target.
 
@@ -24,16 +24,39 @@ dotnet run --project tests/HeroMessaging.Benchmarks --configuration Release --fr
 dotnet run --project tests/HeroMessaging.Benchmarks --configuration Release --framework net8.0 -- --inprocess 150000 3 async
 ```
 
-`--inprocess-concurrent <message-count> <handler-count> <producer-count> <capacity> <parallelism> <noop|cpu|async|delay>` measures multiple producers publishing through one EventBus. Each producer awaits acceptance before sending its next event; producers start together and publish disjoint sequence numbers. The configured capacity and parallelism override EventBus defaults. The `delay` handler waits for a nominal 2 ms per delivery to make backpressure observable, but actual delay depends on the OS timer and scheduler. For example:
+`--inprocess-concurrent <message-count> <handler-count> <producer-count> <capacity> <parallelism> <noop|cpu|async|delay> [publish|receipt] [warmup-count] [runs] [json-output]` measures multiple producers publishing through one EventBus. The last four arguments are optional (defaults: publish, 1,000 warmup events, three runs, no JSON file). Each producer awaits publication return before sending its next event; producers start together and publish disjoint sequence numbers. The configured capacity and parallelism override EventBus defaults. The `delay` handler waits for a nominal 2 ms per delivery to make backpressure observable, but actual delay depends on the OS timer and scheduler. For example:
 
 ```bash
 dotnet run --project tests/HeroMessaging.Benchmarks --configuration Release --framework net10.0 -- --inprocess-concurrent 500000 3 32 16 4 cpu
 dotnet run --project tests/HeroMessaging.Benchmarks --configuration Release --framework net10.0 -- --inprocess-concurrent 1000 1 16 8 2 delay
 ```
 
-`pending-publish` is the share of `PublishAsync` calls whose task was incomplete immediately after invocation. It is a backpressure signal, not a direct queue-depth measurement. Compare publish and all-handler-complete rates, full-second steady rates, acceptance and completion p95/p99, allocations, and GC counts across identical configurations. The allocation figure includes benchmark harness work and newly created events. Discard runs disrupted by host suspension or competing workloads; a zero steady-rate window or an extreme spread is a warning, not evidence of an EventBus regression. The harness does not tune defaults automatically or prove application-level performance.
+`pending-publish` is the share of publication calls whose task was incomplete immediately after invocation. In publish mode it is a backpressure signal, not a direct queue-depth measurement; in receipt mode it also includes waiting for pipeline completion and is not equivalent to publish-mode backpressure. Compare publish and all-handler-complete rates, full-second steady rates, acceptance and completion p95/p99, allocations, and GC counts across identical configurations and modes. The allocation figure includes benchmark harness work and newly created events. Discard runs disrupted by host suspension or competing workloads; a zero steady-rate window or an extreme spread is a warning, not evidence of an EventBus regression. The harness does not tune defaults automatically or prove application-level performance.
 
 The concurrent runner also reports process CPU core-seconds, average utilized cores, CPU microseconds/event, monitor lock contentions/event, and completed thread-pool work items/event. These process-wide deltas cover the publication-to-handler-completion window, excluding sink setup and result sorting. They include the producers, synthetic handlers, harness instrumentation, GC, and runtime activity, not just library code. Average cores is CPU core-seconds divided by wall seconds; it is not a percentage of one core. Completion is still observed inside handlers, so the last outer pipeline unwind can overlap the boundary.
+
+### CI Revision Comparison
+
+The `In-Process Performance Comparison` job runs after successful unit tests on PRs, nightly runs, and manual runs with `run_performance_tests` enabled. It builds baseline and candidate libraries **before** measuring, then uses the same small comparison executable against each revision on the same runner. No artifact from another run is treated as an equivalent baseline.
+
+PRs use the base commit as baseline and the checked-out PR merge revision as candidate. Scheduled/manual runs default to the candidate's first parent; manual runs can set `performance_baseline_ref`. Baseline refs are resolved to a commit before checkout. The performance job has read-only repository permission and does not post PR comments or use `pull_request_target`.
+
+Each noop/CPU/async scenario uses 100,000 warmup events, then three measured batches per fresh process in baseline-candidate-candidate-baseline order (two processes per variant). `-Rounds` can extend the comparison, reversing the order on alternating rounds. Ordinary publication and optional completion receipts are separate modes. If the baseline predates the receipt API, its receipt rows are omitted and the candidate is marked **new API / no baseline**, not compared with ordinary publication. An API removed from a baseline that supports it fails the comparison. If neither revision supports receipts, the report explicitly says no receipt measurements were run.
+
+Read the job summary and the `inprocess-comparison` artifact: `report.md`, raw JSON/logs, SDK information, manifest with exact commits/dirty-source flags/process order, binary hashes, and the measured binaries. The report summarizes per-process batch medians and process-median ranges, throughput, steady rates when available, publish-return and all-handler p95/p99, B/event, CPU/event, GC, contention and work items. It does not pool percentile distributions or treat batches in one process as independent fresh processes.
+
+In receipt mode, publication-return latency measures the final receipt, not queue admission. Every receipt is checked for success; reflection binds delegates once before warmup, with no per-event reflection. Receipt validation costs remain included. Handler timestamps still come from inside the handlers, while the receipt mode waits for all final pipeline outcomes before finishing the batch.
+
+Build/execution errors, invalid or missing samples, configuration mismatches, and unsuccessful receipts **fail CI**. Performance deltas are initially informational: same-runner pairing reduces cross-runner differences but does not establish a noise-free or fixed-hardware guarantee. Do not claim zero regression or fastest-in-class performance from a green job. See the [GitHub-hosted runner documentation](https://docs.github.com/en/actions/concepts/runners/github-hosted-runners) for runner infrastructure, and [workflow syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax) for job permissions and summaries.
+
+To smoke-test the orchestration with two existing checkouts (small counts are not performance evidence):
+
+```powershell
+pwsh -File tests/HeroMessaging.Benchmarks/Comparison/Report.Tests.ps1
+pwsh -File tests/HeroMessaging.Benchmarks/Comparison/Compare-InProcess.ps1 -BaselineRoot ../baseline-checkout -NoopMessages 256 -MultiHandlerMessages 256 -WarmupCount 32 -Runs 1 -OutputDirectory artifacts/comparison-smoke
+```
+
+The output directory must be new; the script never deletes or overwrites previous evidence. The comparison executable pins the same DI runtime package for both revisions ([NuGet package](https://www.nuget.org/packages/Microsoft.Extensions.DependencyInjection/10.0.12)); it does not upgrade production dependencies. Other dependency differences between revisions remain part of the comparison and are retained in the measured dependency manifests.
 
 For process-targeted tracing, build first and run the existing DLL, without concurrent builds or tests. The `HeroMessaging-InProcessBenchmark` EventSource emits `BatchStart` (message, handler, and producer counts) and `BatchStop` markers. Exclude the 1,000-event warmup and filter analysis to the measured windows; otherwise initialization and latency-array sorting appear as workload hotspots. For example, with a current `dotnet-trace` installation:
 
