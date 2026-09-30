@@ -49,7 +49,7 @@ $manifest = [ordered]@{
     harnessSha256 = (Get-FileHash -LiteralPath $binary).Hash
     profiles = 'dotnet-common,cpu-sampling,thread-time'; executions = @(); calibrations = @()
     perfEvents = 'sched:sched_switch,sched:sched_wakeup,sched:sched_wakeup_new'
-    runtimeProviderMask = '0x100003C01D'
+    runtimeProviderConfiguration = 'dotnet-common profile default; no additional contention events'
     interpretation = 'Diagnostic capture only. Verify loss, symbols, target PID and complete measured batch windows before attribution. Profiled rates are not optimization evidence.'
 }
 

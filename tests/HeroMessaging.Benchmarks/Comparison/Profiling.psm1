@@ -16,7 +16,7 @@ function Get-InProcessNativeTraceArguments {
         throw 'A target PID, output path and bounded duration are required.'
     }
     return @('collect-linux', '--process-id', "$ProcessId", '--profile', 'dotnet-common,cpu-sampling,thread-time',
-        '--providers', 'HeroMessaging-InProcessBenchmark:0xFFFFFFFFFFFFFFFF:4,Microsoft-Windows-DotNETRuntime:0x100003C01D:4',
+        '--providers', 'HeroMessaging-InProcessBenchmark:0xFFFFFFFFFFFFFFFF:4',
         '--perf-events', 'sched:sched_switch,sched:sched_wakeup,sched:sched_wakeup_new',
         '--duration', ([TimeSpan]::FromSeconds($Seconds).ToString('dd\:hh\:mm\:ss')), '--output', $Output)
 }

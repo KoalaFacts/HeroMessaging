@@ -24,7 +24,7 @@ foreach ($mode in @('publish', 'receipt')) {
 }
 $arguments = Get-InProcessNativeTraceArguments 123 'capture.nettrace'
 if (($arguments -join ' ') -ne ('collect-linux --process-id 123 --profile dotnet-common,cpu-sampling,thread-time ' +
-    '--providers HeroMessaging-InProcessBenchmark:0xFFFFFFFFFFFFFFFF:4,Microsoft-Windows-DotNETRuntime:0x100003C01D:4 ' +
+    '--providers HeroMessaging-InProcessBenchmark:0xFFFFFFFFFFFFFFFF:4 ' +
     '--perf-events sched:sched_switch,sched:sched_wakeup,sched:sched_wakeup_new --duration 00:00:01:00 --output capture.nettrace')) {
     throw 'Native profile lost PID scoping, kernel sampling, scheduler events or batch markers.'
 }

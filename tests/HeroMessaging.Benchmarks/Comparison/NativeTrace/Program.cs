@@ -12,11 +12,22 @@ using var log = new TraceLog(cache);
 var windows = new List<(double Start, double Stop)>();
 var targetThreads = new HashSet<int>();
 var eventKinds = new Dictionary<string, int>();
+var batchMarkers = new List<object>();
 double? started = null;
 foreach (var data in log.Events)
 {
     var kind = data.ProviderName + "/" + data.EventName;
     eventKinds[kind] = eventKinds.GetValueOrDefault(kind) + 1;
+    if (data.ProviderName == "HeroMessaging-InProcessBenchmark")
+        batchMarkers.Add(new
+        {
+            id = (int)data.ID,
+            data.EventName,
+            data.ProcessID,
+            data.ThreadID,
+            data.TimeStampRelativeMSec,
+            payload = data.PayloadNames.ToDictionary(name => name, data.PayloadByName)
+        });
     if (data.ProcessID != processId)
         continue;
     targetThreads.Add(data.ThreadID);
@@ -96,6 +107,7 @@ Console.WriteLine(JsonSerializer.Serialize(new
     missingStacks,
     unresolvedLeaves,
     eventKinds,
+    batchMarkers,
     exclusiveSamples = exclusive.OrderByDescending(pair => pair.Value).Take(30),
     monitorCallerSamples = monitorCallers.OrderByDescending(pair => pair.Value).Take(20),
     interpretation = "Sample counts, not exclusive instruction costs. Inlined handler code can be attributed to its caller. Unresolved frames and native loss reporting require review. Scheduler event counts do not prove ready-time or queue causality."
