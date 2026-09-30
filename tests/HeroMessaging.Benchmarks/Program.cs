@@ -6,6 +6,12 @@ public static class Program
 {
     public static async Task Main(string[] args)
     {
+        if (args.Length == 1 && args[0] == "--inprocess-allocations")
+        {
+            InProcessAllocationBenchmark.Run();
+            return;
+        }
+
         if (args.Length > 0 && args[0] == "--inprocess")
         {
             await InProcessPipelineBenchmark.RunAsync(args[1..]);

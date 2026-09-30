@@ -68,7 +68,9 @@ internal static class ConcurrentInProcessPipelineBenchmark
                 $"pending-publish={result.PendingPublishes * 100.0 / count:F1}%, accept p95/p99={InProcessPipelineBenchmark.Percentile(result.AcceptLatencies, 0.95):F2}/{InProcessPipelineBenchmark.Percentile(result.AcceptLatencies, 0.99):F2}ms, " +
                 $"first-handler p95/p99={InProcessPipelineBenchmark.Percentile(result.FirstHandlerLatencies, 0.95):F2}/{InProcessPipelineBenchmark.Percentile(result.FirstHandlerLatencies, 0.99):F2}ms, " +
                 $"all-handlers p50/p95/p99={InProcessPipelineBenchmark.Percentile(result.CompletionLatencies, 0.50):F2}/{InProcessPipelineBenchmark.Percentile(result.CompletionLatencies, 0.95):F2}/{InProcessPipelineBenchmark.Percentile(result.CompletionLatencies, 0.99):F2}ms, " +
-                $"allocated={allocatedBytes / (double)count:F0} B/event, GC gen0/1/2={GC.CollectionCount(0) - gen0Before}/{GC.CollectionCount(1) - gen1Before}/{GC.CollectionCount(2) - gen2Before}");
+                $"allocated={allocatedBytes / (double)count:F0} B/event, GC gen0/1/2={GC.CollectionCount(0) - gen0Before}/{GC.CollectionCount(1) - gen1Before}/{GC.CollectionCount(2) - gen2Before}, " +
+                $"cpu={result.CpuSeconds:F2} core-s ({result.CpuSeconds / result.CompletionSeconds:F2} average cores, {result.CpuSeconds * 1_000_000 / count:F2} us/event), " +
+                $"contentions={result.Contentions / (double)count:F4}/event, work-items={result.CompletedWorkItems / (double)count:F2}/event");
         }
     }
 
@@ -103,17 +105,27 @@ internal static class ConcurrentInProcessPipelineBenchmark
         }
 
         await ready.Task.WaitAsync(TimeSpan.FromSeconds(30));
+        using var process = Process.GetCurrentProcess();
+        var cpuBefore = process.TotalProcessorTime;
+        var contentionsBefore = Monitor.LockContentionCount;
+        var workItemsBefore = ThreadPool.CompletedWorkItemCount;
+        InProcessBenchmarkEvents.Log.BatchStart(count, handlerCount, producerCount);
         var started = Stopwatch.GetTimestamp();
         start.TrySetResult();
         await Task.WhenAll(tasks).WaitAsync(TimeSpan.FromMinutes(2));
         var publishSeconds = Stopwatch.GetElapsedTime(started).TotalSeconds;
         await sink.Completion.WaitAsync(TimeSpan.FromMinutes(2));
         var completionSeconds = Stopwatch.GetElapsedTime(started).TotalSeconds;
+        InProcessBenchmarkEvents.Log.BatchStop();
+        var cpuSeconds = (process.TotalProcessorTime - cpuBefore).TotalSeconds;
+        var contentions = Monitor.LockContentionCount - contentionsBefore;
+        var completedWorkItems = ThreadPool.CompletedWorkItemCount - workItemsBefore;
         var (accept, firstHandler, completion, completionTimestamps) = sink.GetLatencies();
         Array.Sort(accept);
         Array.Sort(firstHandler);
         Array.Sort(completion);
-        return new BatchResult(started, publishSeconds, completionSeconds, pendingPublishes, accept, firstHandler, completion, completionTimestamps);
+        return new BatchResult(started, publishSeconds, completionSeconds, pendingPublishes, accept, firstHandler, completion, completionTimestamps,
+            cpuSeconds, contentions, completedWorkItems);
     }
 
     private static int ParsePositive(string value, string name)
@@ -124,5 +136,6 @@ internal static class ConcurrentInProcessPipelineBenchmark
     }
 
     private sealed record BatchResult(long Started, double PublishSeconds, double CompletionSeconds, int PendingPublishes,
-        double[] AcceptLatencies, double[] FirstHandlerLatencies, double[] CompletionLatencies, long[] CompletionTimestamps);
+        double[] AcceptLatencies, double[] FirstHandlerLatencies, double[] CompletionLatencies, long[] CompletionTimestamps,
+        double CpuSeconds, long Contentions, long CompletedWorkItems);
 }

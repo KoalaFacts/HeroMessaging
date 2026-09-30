@@ -33,6 +33,49 @@ dotnet run --project tests/HeroMessaging.Benchmarks --configuration Release --fr
 
 `pending-publish` is the share of `PublishAsync` calls whose task was incomplete immediately after invocation. It is a backpressure signal, not a direct queue-depth measurement. Compare publish and all-handler-complete rates, full-second steady rates, acceptance and completion p95/p99, allocations, and GC counts across identical configurations. The allocation figure includes benchmark harness work and newly created events. Discard runs disrupted by host suspension or competing workloads; a zero steady-rate window or an extreme spread is a warning, not evidence of an EventBus regression. The harness does not tune defaults automatically or prove application-level performance.
 
+The concurrent runner also reports process CPU core-seconds, average utilized cores, CPU microseconds/event, monitor lock contentions/event, and completed thread-pool work items/event. These process-wide deltas cover the publication-to-handler-completion window, excluding sink setup and result sorting. They include the producers, synthetic handlers, harness instrumentation, GC, and runtime activity, not just library code. Average cores is CPU core-seconds divided by wall seconds; it is not a percentage of one core. Completion is still observed inside handlers, so the last outer pipeline unwind can overlap the boundary.
+
+For process-targeted tracing, build first and run the existing DLL, without concurrent builds or tests. The `HeroMessaging-InProcessBenchmark` EventSource emits `BatchStart` (message, handler, and producer counts) and `BatchStop` markers. Exclude the 1,000-event warmup and filter analysis to the measured windows; otherwise initialization and latency-array sorting appear as workload hotspots. For example, with a current `dotnet-trace` installation:
+
+```bash
+dotnet-trace collect --profile dotnet-common,dotnet-sampled-thread-time --providers System.Runtime:0:4:EventCounterIntervalSec=1,Microsoft-Windows-DotNETRuntime:0x100003C01D:4,HeroMessaging-InProcessBenchmark:0xFFFFFFFFFFFFFFFF:4 --output artifacts/inprocess.nettrace --show-child-io -- dotnet tests/HeroMessaging.Benchmarks/bin/Release/net10.0/HeroMessaging.Benchmarks.dll --inprocess-concurrent 2000000 1 32 64 24 noop
+dotnet-trace report artifacts/inprocess.nettrace topN -n 30
+dotnet-trace convert artifacts/inprocess.nettrace --format Speedscope
+```
+
+The runtime mask adds contention events to `dotnet-common`. Check lost events and compare against untraced runs to assess measurement overhead. `topN` covers the whole trace, not just the batch markers. Managed sampled-thread-time includes waiting threads and must not be presented as on-CPU percentages; EventPipe does not capture native CPU execution or OS context-switch/ready-time data. Windows CPU and scheduler attribution needs an authorized ETW/WPR recording. See the [official dotnet-trace documentation](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/dotnet-trace) for the distinction and platform requirements.
+
+### Windows CPU And Scheduler Capture
+
+`Profile-InProcess.ps1` combines the built-in WPR CPU profile with `InProcess.wprp` for batch markers, GC, threading, and contention. The collector runs in PowerShell 7 on Windows. Windows PowerShell 5.1 can launch the same script: the entry point resolves `pwsh.exe` on PATH, verifies version 7 or later, and forwards the scenario, timeout, and validation switch. It inherits the current elevation and does not install a runtime or request elevation. Missing or older runtimes fail before recording. Build before recording, then validate without elevation or side effects:
+
+```powershell
+dotnet build tests/HeroMessaging.Benchmarks/HeroMessaging.Benchmarks.csproj -c Release -f net10.0 -warnaserror
+./tests/HeroMessaging.Benchmarks/Profile-InProcess.ps1 -ValidateOnly
+```
+
+Run one scenario at a time from an **elevated** PowerShell session (5.1 or 7, with PowerShell 7 installed) at the repository root:
+
+```powershell
+./tests/HeroMessaging.Benchmarks/Profile-InProcess.ps1 -Scenario noop
+./tests/HeroMessaging.Benchmarks/Profile-InProcess.ps1 -Scenario cpu
+./tests/HeroMessaging.Benchmarks/Profile-InProcess.ps1 -Scenario async
+```
+
+Each invocation uses a fresh recording instance and writes private output beneath ignored `artifacts/wpr-inprocess/`. The no-op configuration is `2000000 1 32 64 24 noop`; CPU/async use `500000 3 32 16 4` with the corresponding workload. The benchmark process is limited to 90 seconds by default (`-TimeoutSeconds`, 1-180). On timeout/failure, the script terminates only its own benchmark process and attempts to save the partial recording, then reports failure. It stops only its named WPR instance, with named cancellation as a fallback if saving fails. Do not terminate the script host forcibly during capture; `finally` cleanup cannot run after host termination. It does not grant profiling privileges, change registry/policies/thread-pool settings, build during recording, or automatically elevate.
+
+Saving is a separate phase after the benchmark exits. WPR merges the ETL and generates managed symbols; progress can remain at `0%` for several minutes. The benchmark timeout does not cover saving. Wait for `The trace was successfully saved` and the script's `Capture complete` message rather than interrupting or starting another capture. A saved ETL still needs loss, symbol, and window checks before analysis.
+
+WPR captures **system-wide activity**, including other processes and potentially personal paths. Do not commit or publicly upload ETLs or raw logs. Profiling overhead means traced throughput is not an optimization comparison. In WPA, filter to the PID in `session.txt` and the three measured batch windows, excluding the 1,000-event warmup and gaps used for sorting. Verify symbols and lost events from `wpr.log` and ETL statistics; unresolved managed frames or dropped events make attribution incomplete. Examine CPU Usage (Sampled) for actual sampled execution and CPU Usage (Precise) for wait/ready-time, context switches, and readying threads, alongside GC/monitor contention events. Only then choose an optimization mechanism. See the [WPR instance/recording documentation](https://learn.microsoft.com/en-us/windows-hardware/test/wpt/wpr-command-line-options) and [CPU analysis guide](https://learn.microsoft.com/en-us/windows-hardware/test/wpt/cpu-analysis).
+
+Profile/schema validation does not prove a successful elevated capture or usable symbols. Do not claim OS scheduler evidence until an ETL has actually been collected and analyzed.
+
+`--inprocess-allocations` isolates allocation sources on the calling thread with `GC.GetAllocatedBytesForCurrentThread`. It prewarms each operation and reports event objects and the three-handler sink/latency arrays in B/event, and pipeline construction plus synchronous successful decorator execution in B/delivery. The context starts with the same two metadata keys used by EventBus. Loggers are disabled and optional metrics, validation, and error handlers are not registered, matching the manual workload. Three individual metadata updates and a local builder are measured in the same process to avoid cross-process string-hash differences. These rows exclude Dataflow queuing, publisher continuations, async handlers, and concurrent scheduling; they are attribution probes, not additive estimates of every allocation in the concurrent runner or throughput benchmarks. For example:
+
+```bash
+dotnet run --project tests/HeroMessaging.Benchmarks --configuration Release --framework net10.0 -- --inprocess-allocations
+```
+
 The PostgreSQL Inbox benchmark uses a real database and is opt-in. Set `PostgreSql__ConnectionString` to a disposable local database, then run `dotnet run --project tests/HeroMessaging.Benchmarks --configuration Release --framework net10.0 -- --filter "*PostgreSqlInboxBenchmarks*"`. It creates and removes its own schema. The new-message and duplicate-message cases are reported separately because reducing database round trips can increase duplicate-path serialization work.
 
 ## End-to-end pipeline baseline
