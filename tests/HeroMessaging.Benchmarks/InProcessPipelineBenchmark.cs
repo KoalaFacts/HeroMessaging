@@ -77,7 +77,7 @@ internal static class InProcessPipelineBenchmark
             completion, SteadyRate(completionTimestamps, started, completionSeconds));
     }
 
-    private static string SteadyRate(long[] completionTimestamps, long started, double durationSeconds)
+    internal static string SteadyRate(long[] completionTimestamps, long started, double durationSeconds)
     {
         var fullSeconds = (int)Math.Floor(durationSeconds);
         if (fullSeconds < 3)
@@ -95,7 +95,7 @@ internal static class InProcessPipelineBenchmark
         return $"{perSecond[0]}/{perSecond[perSecond.Length / 2]}/{perSecond[^1]} events/s min/median/max";
     }
 
-    private static double Percentile(double[] sorted, double percentile)
+    internal static double Percentile(double[] sorted, double percentile)
         => sorted[(int)Math.Ceiling(sorted.Length * percentile) - 1];
 
     private sealed record BatchResult(double PublishSeconds, double CompletionSeconds, double[] AcceptLatencies,
@@ -112,7 +112,7 @@ internal sealed class InProcessEvent : IEvent
     public int Sequence { get; set; }
 }
 
-internal enum InProcessWorkload { Noop, Cpu, Async }
+internal enum InProcessWorkload { Noop, Cpu, Async, Delay }
 
 internal sealed class InProcessHandler(InProcessSink sink, int handlerIndex, InProcessWorkload workload) : IEventHandler<InProcessEvent>
 {
@@ -122,6 +122,9 @@ internal sealed class InProcessHandler(InProcessSink sink, int handlerIndex, InP
     {
         if (workload == InProcessWorkload.Async)
             return HandleWithYieldAsync(message);
+
+        if (workload == InProcessWorkload.Delay)
+            return HandleWithDelayAsync(message, cancellationToken);
 
         if (workload == InProcessWorkload.Cpu)
         {
@@ -138,6 +141,12 @@ internal sealed class InProcessHandler(InProcessSink sink, int handlerIndex, InP
     private async Task HandleWithYieldAsync(InProcessEvent message)
     {
         await Task.Yield();
+        sink.RecordHandlerCompleted(message.Sequence, handlerIndex);
+    }
+
+    private async Task HandleWithDelayAsync(InProcessEvent message, CancellationToken cancellationToken)
+    {
+        await Task.Delay(2, cancellationToken);
         sink.RecordHandlerCompleted(message.Sequence, handlerIndex);
     }
 }
