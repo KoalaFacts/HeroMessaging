@@ -12,6 +12,12 @@ public static class Program
             return;
         }
 
+        if (args.Length > 0 && args[0] == "--inprocess-concurrent")
+        {
+            await ConcurrentInProcessPipelineBenchmark.RunAsync(args[1..]);
+            return;
+        }
+
         if (args.Length > 0 && (args[0] is "--pipeline" or "--pipeline-direct"))
         {
             await PostgreSqlRabbitMqPipelineBenchmark.RunAsync(args[1..], direct: args[0] == "--pipeline-direct");

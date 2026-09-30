@@ -24,6 +24,15 @@ dotnet run --project tests/HeroMessaging.Benchmarks --configuration Release --fr
 dotnet run --project tests/HeroMessaging.Benchmarks --configuration Release --framework net8.0 -- --inprocess 150000 3 async
 ```
 
+`--inprocess-concurrent <message-count> <handler-count> <producer-count> <capacity> <parallelism> <noop|cpu|async|delay>` measures multiple producers publishing through one EventBus. Each producer awaits acceptance before sending its next event; producers start together and publish disjoint sequence numbers. The configured capacity and parallelism override EventBus defaults. The `delay` handler waits for a nominal 2 ms per delivery to make backpressure observable, but actual delay depends on the OS timer and scheduler. For example:
+
+```bash
+dotnet run --project tests/HeroMessaging.Benchmarks --configuration Release --framework net10.0 -- --inprocess-concurrent 500000 3 32 16 4 cpu
+dotnet run --project tests/HeroMessaging.Benchmarks --configuration Release --framework net10.0 -- --inprocess-concurrent 1000 1 16 8 2 delay
+```
+
+`pending-publish` is the share of `PublishAsync` calls whose task was incomplete immediately after invocation. It is a backpressure signal, not a direct queue-depth measurement. Compare publish and all-handler-complete rates, full-second steady rates, acceptance and completion p95/p99, allocations, and GC counts across identical configurations. The allocation figure includes benchmark harness work and newly created events. Discard runs disrupted by host suspension or competing workloads; a zero steady-rate window or an extreme spread is a warning, not evidence of an EventBus regression. The harness does not tune defaults automatically or prove application-level performance.
+
 The PostgreSQL Inbox benchmark uses a real database and is opt-in. Set `PostgreSql__ConnectionString` to a disposable local database, then run `dotnet run --project tests/HeroMessaging.Benchmarks --configuration Release --framework net10.0 -- --filter "*PostgreSqlInboxBenchmarks*"`. It creates and removes its own schema. The new-message and duplicate-message cases are reported separately because reducing database round trips can increase duplicate-path serialization work.
 
 ## End-to-end pipeline baseline
