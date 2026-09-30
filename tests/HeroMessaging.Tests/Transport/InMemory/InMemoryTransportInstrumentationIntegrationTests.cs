@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using HeroMessaging.Abstractions.Transport;
@@ -103,6 +104,58 @@ public sealed class InMemoryTransportInstrumentationIntegrationTests
         finally
         {
             await transport.DisposeAsync();
+        }
+    }
+
+    [Trait("Category", "Unit")]
+    public sealed class CollectorConcurrency
+    {
+        [Fact]
+        public async Task ParallelCallbacksRetainEveryActivityAndMeasurement()
+        {
+            const int producerCount = 16;
+            const int measurementsPerProducer = 512;
+            var sourceName = $"collector-test-{Guid.NewGuid():N}";
+            using var collector = new TestInstrumentationCollector(sourceName, sourceName);
+            using var meter = new Meter(sourceName);
+            using var source = new ActivitySource(sourceName);
+            var counter = meter.CreateCounter<long>("count");
+            var histogram = meter.CreateHistogram<double>("duration");
+            var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var entered = 0;
+            var cancellationToken = TestContext.Current.CancellationToken;
+            var producers = Enumerable.Range(0, producerCount).Select(producer => Task.Run(async () =>
+            {
+                if (Interlocked.Increment(ref entered) == producerCount)
+                    ready.TrySetResult();
+                await start.Task.WaitAsync(cancellationToken);
+                for (var index = 0; index < measurementsPerProducer; index++)
+                {
+                    using var activity = source.StartActivity("concurrent-callback");
+                    var tag = new KeyValuePair<string, object?>("producer", producer);
+                    counter.Add(1, tag);
+                    histogram.Record(0.5, tag);
+                }
+            }, cancellationToken)).ToArray();
+
+            try
+            {
+                await ready.Task.WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
+            }
+            finally { start.TrySetResult(); }
+            await Task.WhenAll(producers).WaitAsync(TimeSpan.FromSeconds(10), cancellationToken);
+
+            var expectedCount = producerCount * measurementsPerProducer;
+            Assert.Equal(expectedCount, collector.Activities.Count);
+            var longMeasurements = collector.LongMeasurements["count"].ToArray();
+            var doubleMeasurements = collector.DoubleMeasurements["duration"].ToArray();
+            Assert.Equal(expectedCount, longMeasurements.Length);
+            Assert.Equal(expectedCount, doubleMeasurements.Length);
+            Assert.Equal(expectedCount, longMeasurements.Sum(measurement => measurement.Value));
+            Assert.Equal(expectedCount * 0.5, doubleMeasurements.Sum(measurement => measurement.Value));
+            Assert.Equal(producerCount, longMeasurements.Select(measurement =>
+                Assert.Single(measurement.Tags.ToArray()).Value).Distinct().Count());
         }
     }
 
@@ -246,20 +299,20 @@ public sealed class InMemoryTransportInstrumentationIntegrationTests
     {
         private readonly ActivityListener _activityListener;
         private readonly MeterListener _meterListener;
-        public List<Activity> Activities { get; } = [];
-        public Dictionary<string, List<Measurement<long>>> LongMeasurements { get; } = [];
-        public Dictionary<string, List<Measurement<double>>> DoubleMeasurements { get; } = [];
+        public ConcurrentQueue<Activity> Activities { get; } = new();
+        public ConcurrentDictionary<string, ConcurrentQueue<Measurement<long>>> LongMeasurements { get; } = new();
+        public ConcurrentDictionary<string, ConcurrentQueue<Measurement<double>>> DoubleMeasurements { get; } = new();
 
-        public TestInstrumentationCollector()
+        public TestInstrumentationCollector(string? activitySourceName = null, string? meterName = null)
         {
             // Set up activity listener for this test only
             _activityListener = new ActivityListener
             {
                 ShouldListenTo = source =>
-                    source.Name == TransportInstrumentation.ActivitySourceName ||
-                    source.Name == HeroMessagingInstrumentation.ActivitySourceName,
+                    source.Name == (activitySourceName ?? TransportInstrumentation.ActivitySourceName) ||
+                    (activitySourceName is null && source.Name == HeroMessagingInstrumentation.ActivitySourceName),
                 Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded,
-                ActivityStarted = Activities.Add
+                ActivityStarted = Activities.Enqueue
             };
             ActivitySource.AddActivityListener(_activityListener);
 
@@ -268,7 +321,7 @@ public sealed class InMemoryTransportInstrumentationIntegrationTests
             {
                 InstrumentPublished = (instrument, listener) =>
                 {
-                    if (instrument.Meter.Name == TransportInstrumentation.MeterName)
+                    if (instrument.Meter.Name == (meterName ?? TransportInstrumentation.MeterName))
                     {
                         listener.EnableMeasurementEvents(instrument);
                     }
@@ -277,24 +330,14 @@ public sealed class InMemoryTransportInstrumentationIntegrationTests
 
             _meterListener.SetMeasurementEventCallback<long>((instrument, measurement, tags, state) =>
             {
-                if (!LongMeasurements.TryGetValue(instrument.Name, out List<Measurement<long>>? value))
-                {
-                    value = [];
-                    LongMeasurements[instrument.Name] = value;
-                }
-
-                value.Add(new Measurement<long>(measurement, tags));
+                LongMeasurements.GetOrAdd(instrument.Name, static _ => new())
+                    .Enqueue(new Measurement<long>(measurement, tags));
             });
 
             _meterListener.SetMeasurementEventCallback<double>((instrument, measurement, tags, state) =>
             {
-                if (!DoubleMeasurements.TryGetValue(instrument.Name, out List<Measurement<double>>? value))
-                {
-                    value = [];
-                    DoubleMeasurements[instrument.Name] = value;
-                }
-
-                value.Add(new Measurement<double>(measurement, tags));
+                DoubleMeasurements.GetOrAdd(instrument.Name, static _ => new())
+                    .Enqueue(new Measurement<double>(measurement, tags));
             });
 
             _meterListener.Start();
@@ -307,31 +350,14 @@ public sealed class InMemoryTransportInstrumentationIntegrationTests
 
         public void Dispose()
         {
-            // CRITICAL: Stop listening FIRST before clearing data
             try
             {
-                // Stop the meter listener first (stops collecting metrics)
-                _meterListener?.Dispose();
+                _meterListener.Dispose();
             }
-            catch
+            finally
             {
-                // Ignore disposal errors
+                _activityListener.Dispose();
             }
-
-            try
-            {
-                // Stop the activity listener (stops collecting traces)
-                _activityListener?.Dispose();
-            }
-            catch
-            {
-                // Ignore disposal errors
-            }
-
-            // Now safe to clear collected data
-            Activities.Clear();
-            LongMeasurements.Clear();
-            DoubleMeasurements.Clear();
         }
     }
 }

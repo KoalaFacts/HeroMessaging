@@ -8,11 +8,20 @@ param(
     [ValidateRange(1, 10)][int]$Runs = 3,
     [ValidateRange(32, 10000000)][int]$NoopMessages = 2000000,
     [ValidateRange(32, 10000000)][int]$MultiHandlerMessages = 500000,
-    [ValidateRange(32, 1000000)][int]$WarmupCount = 100000
+    [ValidateRange(32, 1000000)][int]$WarmupCount = 100000,
+    [ValidateRange(0, 30)][int]$MinimumBatchSeconds = 10,
+    [ValidateRange(32, 10000000)][int]$MaximumMessages = 10000000
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'Report.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'Calibration.psm1') -Force
+if ($MinimumBatchSeconds -gt 0 -and $MinimumBatchSeconds -lt 3) {
+    throw 'MinimumBatchSeconds must be zero for a smoke test, or at least three for steady windows.'
+}
+if ([Math]::Max($NoopMessages, $MultiHandlerMessages) -gt $MaximumMessages) {
+    throw 'Initial scenario counts must not exceed MaximumMessages.'
+}
 
 function Invoke-LoggedDotNet {
     param([string[]]$Arguments, [string]$Log)
@@ -53,7 +62,8 @@ $manifest = [ordered]@{
     candidateDirty = Test-DirtySource $candidate; rounds = $Rounds; runs = $Runs; warmupCount = $WarmupCount
     os = [Environment]::OSVersion.VersionString; processorCount = [Environment]::ProcessorCount
     processOrder = 'baseline, candidate, candidate, baseline; reverse order on alternating rounds'
-    binaries = @(); executions = @()
+    minimumBatchSeconds = $MinimumBatchSeconds; maximumMessages = $MaximumMessages
+    binaries = @(); calibrations = @(); configurations = @(); executions = @()
 }
 try {
     if ($manifest.baselineDirty) { throw 'Baseline source must be clean.' }
@@ -81,16 +91,55 @@ try {
     )
     $results = [Collections.Generic.List[object]]::new()
     $supported = @{}
+    function Invoke-InProcessExecution {
+        param([string]$Variant, [string]$Name, [hashtable]$Expected, [int]$MinimumSeconds = 0)
+        $json = Join-Path $output "$Name.json"
+        Write-Host "Running $Name (messages=$($Expected.count))"
+        Invoke-LoggedDotNet @($assemblies[$Variant], "$($Expected.count)", "$($Expected.handlerCount)",
+            "$($Expected.producerCount)", "$($Expected.capacity)", "$($Expected.parallelism)", $Expected.workload,
+            $Expected.mode, "$($Expected.warmupCount)", "$($Expected.runs)", $json) (Join-Path $output "$Name.log")
+        $result = Read-InProcessResult $json $Expected -MinimumBatchSeconds $MinimumSeconds
+        if ($supported.ContainsKey($Variant) -and $supported[$Variant] -ne $result.receiptSupported) {
+            throw 'Receipt availability changed between executions of the same binary.'
+        }
+        $supported[$Variant] = $result.receiptSupported
+        return $result
+    }
     foreach ($mode in @('publish', 'receipt')) {
         if ($mode -eq 'receipt' -and $supported.baseline -and !$supported.candidate) {
             throw 'The candidate removed the receipt API present in the baseline.'
         }
+        $variants = @('baseline', 'candidate' | Where-Object { $mode -eq 'publish' -or $supported[$_] })
+        if ($variants.Count -eq 0) { continue }
         foreach ($scenario in $scenarios) {
             $expected = @{
                 schemaVersion = 1; count = $scenario.count; handlerCount = $scenario.handlerCount
                 producerCount = 32; capacity = $scenario.capacity; parallelism = $scenario.parallelism
                 workload = $scenario.workload; mode = $mode; warmupCount = $WarmupCount; runs = $Runs
             }
+            $calibrated = $MinimumBatchSeconds -eq 0
+            for ($attempt = 1; $attempt -le 4 -and !$calibrated; $attempt++) {
+                $pilot = $expected.Clone()
+                $pilot.runs = 1
+                $durations = @(
+                    foreach ($variant in $variants) {
+                        $name = "calibrate-$mode-$($scenario.workload)-$attempt-$variant"
+                        $result = Invoke-InProcessExecution $variant $name $pilot
+                        $seconds = @(Get-InProcessBatchSeconds $result)[0]
+                        $manifest.calibrations += [ordered]@{
+                            execution = $name; variant = $variant; mode = $mode; workload = $scenario.workload
+                            count = $pilot.count; seconds = $seconds
+                        }
+                        $seconds
+                    }
+                )
+                $fastest = ($durations | Measure-Object -Minimum).Minimum
+                $nextCount = Get-InProcessCalibrationCount $expected.count $fastest $MinimumBatchSeconds $MaximumMessages -Attempt $attempt
+                $calibrated = $nextCount -eq $expected.count
+                $expected.count = $nextCount
+            }
+            if (!$calibrated) { throw "Calibration did not converge within four attempts for $mode/$($scenario.workload)." }
+            $manifest.configurations += [ordered]@{ mode = $mode; workload = $scenario.workload; messages = $expected.count }
             for ($round = 1; $round -le $Rounds; $round++) {
                 $order = if ($round % 2 -eq 1) { @('baseline', 'candidate', 'candidate', 'baseline') }
                     else { @('candidate', 'baseline', 'baseline', 'candidate') }
@@ -98,23 +147,14 @@ try {
                     $variant = $order[$index]
                     if ($mode -eq 'receipt' -and !$supported[$variant]) { continue }
                     $name = "$mode-$($scenario.workload)-$round-$index-$variant"
-                    $json = Join-Path $output "$name.json"
-                    Write-Host "Running $name"
-                    Invoke-LoggedDotNet @($assemblies[$variant], "$($scenario.count)", "$($scenario.handlerCount)",
-                        '32', "$($scenario.capacity)", "$($scenario.parallelism)", $scenario.workload,
-                        $mode, "$WarmupCount", "$Runs", $json) (Join-Path $output "$name.log")
-                    $result = Read-InProcessResult $json $expected
-                    if ($supported.ContainsKey($variant) -and $supported[$variant] -ne $result.receiptSupported) {
-                        throw 'Receipt availability changed between executions of the same binary.'
-                    }
-                    $supported[$variant] = $result.receiptSupported
+                    $result = Invoke-InProcessExecution $variant $name $expected $MinimumBatchSeconds
                     $results.Add([PSCustomObject]@{ Variant = $variant; Mode = $mode; Workload = $scenario.workload; Result = $result })
                     $manifest.executions += $name
                 }
             }
         }
     }
-    $report = New-InProcessReport $results.ToArray() $manifest.baselineCommit $manifest.candidateCommit
+    $report = New-InProcessReport $results.ToArray() $manifest.baselineCommit $manifest.candidateCommit $MinimumBatchSeconds
     if (!$supported.candidate) { $report += "`n`nReceipt API is unavailable in the candidate; no receipt measurements were run." }
     $report | Set-Content -LiteralPath (Join-Path $output 'report.md') -Encoding utf8
     if ($env:GITHUB_STEP_SUMMARY) { $report | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Encoding utf8 }

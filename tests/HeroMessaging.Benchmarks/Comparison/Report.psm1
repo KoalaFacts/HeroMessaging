@@ -1,12 +1,14 @@
 #requires -Version 7.0
 Set-StrictMode -Version Latest
+Import-Module (Join-Path $PSScriptRoot 'Calibration.psm1') -Force
 
 $MetricNames = @('completeEventsPerSecond', 'publishReturnP95Ms', 'publishReturnP99Ms',
     'allHandlersP95Ms', 'allHandlersP99Ms', 'allocatedBytesPerEvent', 'gen0', 'gen1', 'gen2',
     'cpuMicrosecondsPerEvent', 'contentionsPerEvent', 'workItemsPerEvent')
 
 function Read-InProcessResult {
-    param([Parameter(Mandatory)][string]$Path, [Parameter(Mandatory)][hashtable]$Expected)
+    param([Parameter(Mandatory)][string]$Path, [Parameter(Mandatory)][hashtable]$Expected,
+        [ValidateRange(0, 30)][int]$MinimumBatchSeconds = 0)
     $result = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
     foreach ($key in $Expected.Keys) {
         if ($key -ne 'runs' -and $result.$key -cne $Expected[$key]) {
@@ -34,6 +36,11 @@ function Read-InProcessResult {
             $sample.allHandlersP95Ms -gt $sample.allHandlersP99Ms) {
             throw "Unordered percentiles in $Path"
         }
+    }
+    $durations = @(Get-InProcessBatchSeconds $result)
+    if (($durations | Measure-Object -Minimum).Minimum -lt $MinimumBatchSeconds -or
+        ($MinimumBatchSeconds -ge 3 -and @($result.samples | Where-Object steadyRate -Like 'n/a*').Count -gt 0)) {
+        throw "Insufficient sustained sampling in $Path; every batch must last at least $MinimumBatchSeconds seconds and provide steady windows."
     }
     return $result
 }
@@ -68,6 +75,19 @@ function Get-InProcessStatistics {
             if ($values.Count -eq @($_.Result.samples).Count) { Get-InProcessMedian $values }
         })
         $stats['steady'] = if ($steady.Count -eq $group.Count) { Get-InProcessMedian $steady } else { $null }
+        $counts = @($group.Group | ForEach-Object { $_.Result.count } | Select-Object -Unique)
+        if ($counts.Count -ne 1) { throw 'Message counts changed between processes of the same scenario.' }
+        $stats['count'] = $counts[0]
+        $durations = @($group.Group | ForEach-Object { Get-InProcessBatchSeconds $_.Result })
+        $stats['batchMinimumSeconds'] = ($durations | Measure-Object -Minimum).Minimum
+        $stats['batchMaximumSeconds'] = ($durations | Measure-Object -Maximum).Maximum
+        $stats['batchMedianSeconds'] = Get-InProcessMedian @($group.Group | ForEach-Object {
+            Get-InProcessMedian @(Get-InProcessBatchSeconds $_.Result)
+        })
+        $stats['minimumSteadyWindows'] = ($durations | ForEach-Object {
+            $fullSeconds = [Math]::Floor($_)
+            if ($fullSeconds -ge 3) { $fullSeconds - 1 } else { 0 }
+        } | Measure-Object -Minimum).Minimum
         [PSCustomObject]$stats
     }
 }
@@ -80,14 +100,22 @@ function Format-InProcessNumber {
 
 function New-InProcessReport {
     param([Parameter(Mandatory)][object[]]$Runs,
-        [Parameter(Mandatory)][string]$BaselineCommit, [Parameter(Mandatory)][string]$CandidateCommit)
+        [Parameter(Mandatory)][string]$BaselineCommit, [Parameter(Mandatory)][string]$CandidateCommit,
+        [ValidateRange(0, 30)][int]$MinimumBatchSeconds = 0)
     $statistics = @(Get-InProcessStatistics $Runs | Sort-Object Mode, Workload, Variant)
+    if ($MinimumBatchSeconds -gt 0 -and @($statistics | Where-Object {
+        $_.batchMinimumSeconds -lt $MinimumBatchSeconds -or $null -eq $_.steady
+    }).Count -gt 0) { throw 'Report cannot claim sustained sampling for short or missing steady measurements.' }
     $lines = [Collections.Generic.List[string]]::new()
     $lines.Add('# In-Process Performance Comparison')
     $lines.Add('')
     $lines.Add("Baseline: ``$BaselineCommit``. Candidate: ``$CandidateCommit``. Exact binaries and dirty-source flags are recorded in manifest.json.")
     $lines.Add('Same runner, SDK, harness and configuration; sequential alternating fresh processes. Metrics below are medians of per-process batch medians, not pooled percentiles. Process ranges show medians, not individual events.')
     $lines.Add('Performance differences are informational, not proof of equivalence or a hard regression gate. Hosted runners can still vary. Build, execution, missing-data and validation failures fail the job.')
+    if ($MinimumBatchSeconds -eq 0) {
+        $lines.Add('Smoke mode: no minimum batch duration was required. This is orchestration evidence, not sustained performance evidence.')
+    }
+    else { $lines.Add("Every measured batch passed the requested minimum duration of $MinimumBatchSeconds seconds.") }
     $lines.Add('')
     $lines.Add('| Mode | Workload | Variant | Processes | Complete events/s | Process median range | Difference | Steady events/s |')
     $lines.Add('| --- | --- | --- | ---: | ---: | --- | --- | ---: |')
@@ -96,6 +124,7 @@ function New-InProcessReport {
         $difference = '-'
         if ($row.Variant -eq 'candidate') {
             if ($baseline.Count -eq 1) {
+                if ($row.count -ne $baseline[0].count) { throw 'Paired revisions must use the same message count.' }
                 $difference = (Format-InProcessNumber (($row.completeEventsPerSecond / $baseline[0].completeEventsPerSecond - 1) * 100)) + '%'
             }
             elseif ($row.Mode -eq 'receipt') { $difference = 'new API / no baseline' }
@@ -103,6 +132,14 @@ function New-InProcessReport {
         }
         $lines.Add("| $($row.Mode) | $($row.Workload) | $($row.Variant) | $($row.Processes) | $(Format-InProcessNumber $row.completeEventsPerSecond 0) | $(Format-InProcessNumber $row.minimum 0)-$(Format-InProcessNumber $row.maximum 0) | $difference | $(Format-InProcessNumber $row.steady 0) |")
     }
+    $lines.Add('')
+    $lines.Add('| Mode | Workload | Variant | Messages/batch | Batch seconds min / median / max | Minimum full steady windows/batch |')
+    $lines.Add('| --- | --- | --- | ---: | --- | ---: |')
+    foreach ($row in $statistics) {
+        $lines.Add("| $($row.Mode) | $($row.Workload) | $($row.Variant) | $($row.count) | $(Format-InProcessNumber $row.batchMinimumSeconds) / $(Format-InProcessNumber $row.batchMedianSeconds) / $(Format-InProcessNumber $row.batchMaximumSeconds) | $($row.minimumSteadyWindows) |")
+    }
+    $lines.Add('')
+    $lines.Add('Calibration processes are excluded from these tables. Counts are fixed across paired revisions after calibration. Batch seconds are count / complete events/s; full steady windows exclude the first and partial final seconds. Percentiles cover the entire measured batch, not only the steady windows.')
     $lines.Add('')
     $lines.Add('| Mode | Workload | Variant | Publish-return p95 / p99 ms | All-handler p95 / p99 ms |')
     $lines.Add('| --- | --- | --- | --- | --- |')
