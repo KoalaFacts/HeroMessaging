@@ -16,11 +16,13 @@ function Get-InProcessCalibrationCount {
     param([ValidateRange(32, 10000000)][int]$CurrentCount,
         [Parameter(Mandatory)][double]$FastestSeconds,
         [ValidateRange(1, 30)][int]$MinimumBatchSeconds,
-        [ValidateRange(32, 10000000)][int]$MaximumMessages)
+        [ValidateRange(32, 10000000)][int]$MaximumMessages,
+        [ValidateRange(1, 4)][int]$Attempt = 1)
     if (![double]::IsFinite($FastestSeconds) -or $FastestSeconds -le 0 -or $CurrentCount -gt $MaximumMessages) {
         throw 'Invalid calibration input.'
     }
     if ($FastestSeconds -ge $MinimumBatchSeconds * 1.25) { return $CurrentCount }
+    if ($Attempt -gt 1 -and $FastestSeconds -ge $MinimumBatchSeconds) { return $CurrentCount }
     if ($CurrentCount -eq $MaximumMessages) {
         if ($FastestSeconds -ge $MinimumBatchSeconds) { return $CurrentCount }
         throw 'Calibration reached MaximumMessages before MinimumBatchSeconds. Increase the bound or use a shorter explicit sampling duration.'

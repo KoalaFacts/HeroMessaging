@@ -134,7 +134,7 @@ try {
                     }
                 )
                 $fastest = ($durations | Measure-Object -Minimum).Minimum
-                $nextCount = Get-InProcessCalibrationCount $expected.count $fastest $MinimumBatchSeconds $MaximumMessages
+                $nextCount = Get-InProcessCalibrationCount $expected.count $fastest $MinimumBatchSeconds $MaximumMessages -Attempt $attempt
                 $calibrated = $nextCount -eq $expected.count
                 $expected.count = $nextCount
             }

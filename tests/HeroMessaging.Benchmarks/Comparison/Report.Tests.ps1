@@ -47,6 +47,8 @@ try {
     Assert-Equal 3200000 (Get-InProcessCalibrationCount 256000 1 10 10000000)
     Assert-Equal 320000 (Get-InProcessCalibrationCount 256000 10 10 10000000)
     Assert-Equal 256000 (Get-InProcessCalibrationCount 256000 12.5 10 10000000)
+    Assert-Equal 256000 (Get-InProcessCalibrationCount 256000 10 10 10000000 -Attempt 2)
+    Assert-Equal 355556 (Get-InProcessCalibrationCount 256000 9 10 10000000 -Attempt 2)
     Assert-Equal 10000000 (Get-InProcessCalibrationCount 256000 0.01 10 10000000)
     Assert-Equal 10000000 (Get-InProcessCalibrationCount 10000000 10 10 10000000)
     foreach ($seconds in @(0, -1, [double]::NaN, [double]::PositiveInfinity)) {
