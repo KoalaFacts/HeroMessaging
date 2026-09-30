@@ -2,6 +2,7 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'Report.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'Calibration.psm1') -Force
 
 function New-Fixture {
     param([double[]]$Rates)
@@ -43,6 +44,46 @@ try {
     Assert-Equal 3 @($parsed.samples).Count
     Assert-Equal 2 (Get-InProcessMedian @(1, 3))
     Assert-Equal 2 (Get-InProcessMedian @(1, 2, 3))
+    Assert-Equal 3200000 (Get-InProcessCalibrationCount 256000 1 10 10000000)
+    Assert-Equal 320000 (Get-InProcessCalibrationCount 256000 10 10 10000000)
+    Assert-Equal 256000 (Get-InProcessCalibrationCount 256000 12.5 10 10000000)
+    Assert-Equal 10000000 (Get-InProcessCalibrationCount 256000 0.01 10 10000000)
+    Assert-Equal 10000000 (Get-InProcessCalibrationCount 10000000 10 10 10000000)
+    foreach ($seconds in @(0, -1, [double]::NaN, [double]::PositiveInfinity)) {
+        Assert-Throws { Get-InProcessCalibrationCount 256000 $seconds 10 10000000 }
+    }
+    Assert-Throws { Get-InProcessCalibrationCount 10000000 1 10 10000000 }
+    Assert-Throws { Get-InProcessCalibrationCount 256000 1 10 128000 }
+    Assert-Throws { Read-InProcessResult $fixture $expected -MinimumBatchSeconds 10 }
+    $sustained = New-Fixture @(10, 20, 25)
+    $sustained.samples | ForEach-Object { $_.steadyRate = '1/2/3 events/s min/median/max' }
+    $sustained | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $fixture -Encoding utf8
+    Read-InProcessResult $fixture $expected -MinimumBatchSeconds 10 | Out-Null
+    $boundary = New-Fixture @(25.6, 25.6, 25.6)
+    $boundary.samples | ForEach-Object { $_.steadyRate = '20/25/30 events/s min/median/max' }
+    $boundary | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $fixture -Encoding utf8
+    Read-InProcessResult $fixture $expected -MinimumBatchSeconds 10 | Out-Null
+    $paired = @(
+        [PSCustomObject]@{ Variant = 'baseline'; Mode = 'publish'; Workload = 'noop'; Result = $boundary },
+        [PSCustomObject]@{ Variant = 'candidate'; Mode = 'publish'; Workload = 'noop'; Result = $boundary }
+    )
+    $boundaryStats = @(Get-InProcessStatistics $paired)
+    Assert-Equal 9 $boundaryStats[0].minimumSteadyWindows
+    Assert-Equal 10 $boundaryStats[0].batchMinimumSeconds
+    $sustainedReport = New-InProcessReport $paired ('a' * 40) ('b' * 40) -MinimumBatchSeconds 10
+    if ($sustainedReport -notmatch 'minimum duration of 10 seconds' -or $sustainedReport -match 'Smoke mode') {
+        throw 'Sustained report did not preserve duration evidence.'
+    }
+    $sustained.samples[0].steadyRate = 'n/a (<3s)'
+    $sustained | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $fixture -Encoding utf8
+    Assert-Throws { Read-InProcessResult $fixture $expected -MinimumBatchSeconds 10 }
+    $sustained.samples[0].completeEventsPerSecond = 1e-320
+    $sustained | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $fixture -Encoding utf8
+    Assert-Throws { Read-InProcessResult $fixture $expected }
+    Assert-Throws { New-InProcessReport @(
+        [PSCustomObject]@{ Variant = 'baseline'; Mode = 'publish'; Workload = 'noop'; Result = $valid },
+        [PSCustomObject]@{ Variant = 'candidate'; Mode = 'publish'; Workload = 'noop'; Result = $valid }
+    ) ('a' * 40) ('b' * 40) -MinimumBatchSeconds 10 }
 
     $invalid = New-Fixture @(10, 20)
     $invalid | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $fixture -Encoding utf8
@@ -78,6 +119,8 @@ try {
     Assert-Equal 20 $baseline.minimum
     Assert-Equal 40 $baseline.maximum
     Assert-Equal $null $baseline.steady
+    Assert-Equal 256 $baseline.count
+    Assert-Equal 0 $baseline.minimumSteadyWindows
     $receipt = New-Fixture @(1, 2, 3)
     $receipt.mode = 'receipt'
     $receipt.receiptSupported = $true
@@ -86,10 +129,15 @@ try {
     try {
         [Globalization.CultureInfo]::CurrentCulture = [Globalization.CultureInfo]::GetCultureInfo('fr-FR')
         $report = New-InProcessReport $runs ('a' * 40) ('b' * 40)
-        if ($report -notmatch '166\.67%' -or $report -notmatch 'new API / no baseline') { throw 'Incorrect report delta or availability.' }
+        if ($report -notmatch '166\.67%' -or $report -notmatch 'new API / no baseline' -or
+            $report -notmatch 'Minimum full steady windows/batch') { throw 'Incorrect report delta, availability or sampling evidence.' }
     }
     finally { [Globalization.CultureInfo]::CurrentCulture = $culture }
     Assert-Throws { New-InProcessReport @($runs | Where-Object Variant -eq 'candidate') ('a' * 40) ('b' * 40) }
+    $runs[2].Result.count = 128
+    Assert-Throws { New-InProcessReport $runs ('a' * 40) ('b' * 40) }
+    $runs[3].Result.count = 128
+    Assert-Throws { New-InProcessReport $runs ('a' * 40) ('b' * 40) }
     Write-Host 'Comparison reporting tests passed.'
 }
 finally {
