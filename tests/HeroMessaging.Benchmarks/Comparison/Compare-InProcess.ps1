@@ -120,17 +120,17 @@ try {
             $calibrated = $MinimumBatchSeconds -eq 0
             for ($attempt = 1; $attempt -le 4 -and !$calibrated; $attempt++) {
                 $pilot = $expected.Clone()
-                $pilot.runs = 1
                 $durations = @(
                     foreach ($variant in $variants) {
                         $name = "calibrate-$mode-$($scenario.workload)-$attempt-$variant"
                         $result = Invoke-InProcessExecution $variant $name $pilot
-                        $seconds = @(Get-InProcessBatchSeconds $result)[0]
+                        $observation = Get-InProcessCalibrationObservation $result -Runs $Runs
                         $manifest.calibrations += [ordered]@{
                             execution = $name; variant = $variant; mode = $mode; workload = $scenario.workload
-                            count = $pilot.count; seconds = $seconds
+                            count = $pilot.count; seconds = $observation.fastestSeconds
+                            batchSeconds = $observation.batchSeconds
                         }
-                        $seconds
+                        $observation.fastestSeconds
                     }
                 )
                 $fastest = ($durations | Measure-Object -Minimum).Minimum

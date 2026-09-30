@@ -51,6 +51,13 @@ try {
     Assert-Equal 355556 (Get-InProcessCalibrationCount 256000 9 10 10000000 -Attempt 2)
     Assert-Equal 10000000 (Get-InProcessCalibrationCount 256000 0.01 10 10000000)
     Assert-Equal 10000000 (Get-InProcessCalibrationCount 10000000 10 10 10000000)
+    $laterBatch = New-Fixture @(23.4, 26.6, 26.9)
+    $observation = Get-InProcessCalibrationObservation $laterBatch -Runs 3
+    Assert-Equal 3 @($observation.batchSeconds).Count
+    Assert-Equal (256 / 26.9) $observation.fastestSeconds
+    $adjusted = Get-InProcessCalibrationCount 256 $observation.fastestSeconds 10 10000000 -Attempt 2
+    if ($adjusted -le 256) { throw 'Calibration ignored the faster later batches.' }
+    Assert-Throws { Get-InProcessCalibrationObservation (New-Fixture @(23.4)) -Runs 3 }
     foreach ($seconds in @(0, -1, [double]::NaN, [double]::PositiveInfinity)) {
         Assert-Throws { Get-InProcessCalibrationCount 256000 $seconds 10 10000000 }
     }

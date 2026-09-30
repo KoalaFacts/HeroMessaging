@@ -13,7 +13,7 @@ public sealed class EventBusOptions
     public int? MaxDegreeOfParallelism { get; set; }
 
     /// <summary>
-    /// Maximum number of queued handler invocations. Defaults to 128 per processor, capped at 1000.
+    /// Maximum number of queued or executing handler invocations. Defaults to 128 per processor, capped at 1000.
     /// </summary>
     public int? BoundedCapacity { get; set; }
 
