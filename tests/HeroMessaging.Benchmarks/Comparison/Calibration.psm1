@@ -32,4 +32,14 @@ function Get-InProcessCalibrationCount {
     return [int][Math]::Min($MaximumMessages, [Math]::Max($CurrentCount + 1, $scaled))
 }
 
-Export-ModuleMember -Function Get-InProcessBatchSeconds, Get-InProcessCalibrationCount
+function Get-InProcessCalibrationObservation {
+    param([Parameter(Mandatory)][object]$Result, [ValidateRange(1, 10)][int]$Runs)
+    $durations = @(Get-InProcessBatchSeconds $Result)
+    if ($durations.Count -ne $Runs) { throw 'Calibration must use the measured batch count.' }
+    [PSCustomObject]@{
+        batchSeconds = $durations
+        fastestSeconds = ($durations | Measure-Object -Minimum).Minimum
+    }
+}
+
+Export-ModuleMember -Function Get-InProcessBatchSeconds, Get-InProcessCalibrationCount, Get-InProcessCalibrationObservation
