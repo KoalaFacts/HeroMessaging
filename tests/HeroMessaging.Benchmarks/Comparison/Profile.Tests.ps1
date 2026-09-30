@@ -24,14 +24,37 @@ foreach ($mode in @('publish', 'receipt')) {
 }
 $arguments = Get-InProcessNativeTraceArguments 123 'capture.nettrace'
 if (($arguments -join ' ') -ne ('collect-linux --process-id 123 --profile dotnet-common,cpu-sampling,thread-time ' +
-    '--providers HeroMessaging-InProcessBenchmark:0xFFFFFFFFFFFFFFFF:4 --duration 00:00:01:00 --output capture.nettrace')) {
+    '--providers HeroMessaging-InProcessBenchmark:0xFFFFFFFFFFFFFFFF:4,Microsoft-Windows-DotNETRuntime:0x100003C01D:4 ' +
+    '--perf-events sched:sched_switch,sched:sched_wakeup,sched:sched_wakeup_new --duration 00:00:01:00 --output capture.nettrace')) {
     throw 'Native profile lost PID scoping, kernel sampling, scheduler events or batch markers.'
 }
 Assert-Throws { Get-InProcessNativeTraceArguments 0 'capture.nettrace' }
 Assert-Throws { Get-InProcessNativeTraceArguments 123 '' }
 Assert-Throws { Get-InProcessNativeTraceArguments 123 'capture.nettrace' 181 }
 $maximum = Get-InProcessNativeTraceArguments 123 'capture.nettrace' 180
-if ($maximum[8] -ne '00:00:03:00') { throw 'Capture duration is not a valid bounded timespan.' }
+if ($maximum[10] -ne '00:00:03:00') { throw 'Capture duration is not a valid bounded timespan.' }
+$summary = [PSCustomObject]@{
+    processId = 123; messageCount = 500000; completeWindows = @([PSCustomObject]@{ seconds = 12.5 })
+    nativeCpuSamples = 1000; targetSchedulerEvents = 10; eventLossReportedByTraceLog = 0
+}
+Assert-InProcessNativeSummary $summary 123 500000
+foreach ($property in @('nativeCpuSamples', 'targetSchedulerEvents')) {
+    $value = $summary.$property
+    $summary.$property = 0
+    Assert-Throws { Assert-InProcessNativeSummary $summary 123 500000 }
+    $summary.$property = $value
+}
+$summary.eventLossReportedByTraceLog = 1
+Assert-Throws { Assert-InProcessNativeSummary $summary 123 500000 }
+$summary.eventLossReportedByTraceLog = 0
+Assert-Throws { Assert-InProcessNativeSummary $summary 999 500000 }
+Assert-Throws { Assert-InProcessNativeSummary $summary 123 999 }
+foreach ($seconds in @(9, [double]::NaN, [double]::PositiveInfinity)) {
+    $summary.completeWindows[0].seconds = $seconds
+    Assert-Throws { Assert-InProcessNativeSummary $summary 123 500000 }
+}
+$summary.completeWindows = @()
+Assert-Throws { Assert-InProcessNativeSummary $summary 123 500000 }
 
 $fixture = Join-Path ([IO.Path]::GetTempPath()) "HeroMessaging-Profile-$([Guid]::NewGuid().ToString('N')).json"
 try {

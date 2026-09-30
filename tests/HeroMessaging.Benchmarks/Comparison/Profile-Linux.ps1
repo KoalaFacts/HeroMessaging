@@ -3,6 +3,7 @@
 param(
     [Parameter(Mandatory)][string]$Assembly,
     [Parameter(Mandatory)][string]$TraceTool,
+    [Parameter(Mandatory)][string]$Analyzer,
     [Parameter(Mandatory)][string]$OutputDirectory,
     [ValidateRange(30, 180)][int]$CaptureSeconds = 60,
     [switch]$ValidateOnly
@@ -23,6 +24,7 @@ if (!(Test-Path -LiteralPath '/sys/kernel/tracing/user_events_data')) {
 }
 $binary = (Resolve-Path -LiteralPath $Assembly).Path
 $trace = (Resolve-Path -LiteralPath $TraceTool).Path
+$analyzerBinary = (Resolve-Path -LiteralPath $Analyzer).Path
 $dotnet = (Get-Command dotnet -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
 $version = & $trace --version
 if ($LASTEXITCODE -ne 0) { throw 'The native trace tool is unavailable.' }
@@ -46,6 +48,8 @@ $manifest = [ordered]@{
     librarySha256 = (Get-FileHash -LiteralPath (Join-Path (Split-Path $binary) 'HeroMessaging.dll')).Hash
     harnessSha256 = (Get-FileHash -LiteralPath $binary).Hash
     profiles = 'dotnet-common,cpu-sampling,thread-time'; executions = @(); calibrations = @()
+    perfEvents = 'sched:sched_switch,sched:sched_wakeup,sched:sched_wakeup_new'
+    runtimeProviderMask = '0x100003C01D'
     interpretation = 'Diagnostic capture only. Verify loss, symbols, target PID and complete measured batch windows before attribution. Profiled rates are not optimization evidence.'
 }
 
@@ -101,6 +105,12 @@ function Invoke-Execution {
         if ($benchmark.process.ExitCode -ne 0) { throw 'The profiled workload failed; this capture is not a passing workload.' }
         $result = if ($Control) { Read-InProcessProfileControl $json $Expected } else { Read-InProcessResult $json $Expected }
         $record.batchSeconds = @(Get-InProcessBatchSeconds $result)
+        if ($NativeTrace) {
+            $summaryPath = Join-Path $output "$Name-summary.json"
+            & $dotnet $analyzerBinary $tracePath "$($record.processId)" "$($Expected.count)" 1> $summaryPath 2> (Join-Path $output "$Name-analysis.log")
+            if ($LASTEXITCODE -ne 0) { throw 'Native trace decoding failed.' }
+            Assert-InProcessNativeSummary (Get-Content -LiteralPath $summaryPath -Raw | ConvertFrom-Json) $record.processId $Expected.count
+        }
         $record.status = 'completed'
         return $result
     }
