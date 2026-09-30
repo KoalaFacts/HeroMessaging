@@ -2,6 +2,12 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'Profiling.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'Report.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'Calibration.psm1') -Force
+foreach ($command in @('Get-InProcessBatchSeconds', 'Get-InProcessCalibrationObservation',
+    'Get-InProcessCalibrationCount', 'Read-InProcessResult', 'Read-InProcessProfileControl')) {
+    if (!(Get-Command $command -ErrorAction SilentlyContinue)) { throw "Profile import lost required command: $command" }
+}
 
 function Assert-Throws {
     param([scriptblock]$Action)
@@ -41,6 +47,10 @@ try {
     } })
     $result | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $fixture
     Read-InProcessProfileControl $fixture $expected | Out-Null
+    $observation = Get-InProcessCalibrationObservation ([PSCustomObject]$result) -Runs 3
+    if ($observation.fastestSeconds -ne 12.5 -or (Get-InProcessCalibrationCount 500000 $observation.fastestSeconds 10 10000000) -ne 500000) {
+        throw 'Actual profiling import order broke calibration execution.'
+    }
     $result.samples[2].completeEventsPerSecond = 60000
     $result | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $fixture
     Assert-Throws { Read-InProcessProfileControl $fixture $expected }

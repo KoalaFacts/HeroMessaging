@@ -10,8 +10,9 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'Profiling.psm1') -Force
-Import-Module (Join-Path $PSScriptRoot 'Calibration.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'Report.psm1') -Force
+# Report reloads calibration in its private scope; expose calibration after that reload.
+Import-Module (Join-Path $PSScriptRoot 'Calibration.psm1') -Force
 
 if (!$IsLinux) { throw 'Native CI profiling requires Linux; managed thread-time sampling is not a CPU fallback.' }
 if ([Environment]::ProcessorCount -ne 4) { throw 'This profile requires the CI runner with four available processors.' }
