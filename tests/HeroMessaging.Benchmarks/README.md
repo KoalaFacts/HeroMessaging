@@ -51,6 +51,8 @@ In receipt mode, publication-return latency measures the final receipt, not queu
 
 Build/execution errors, invalid or missing samples, insufficient sampling duration/steady windows, configuration mismatches, and unsuccessful receipts **fail CI**. Performance deltas are initially informational: same-runner pairing reduces cross-runner differences but does not establish a noise-free or fixed-hardware guarantee. Do not claim zero regression or fastest-in-class performance from a green job. See the [GitHub-hosted runner documentation](https://docs.github.com/en/actions/concepts/runners/github-hosted-runners) for runner infrastructure, and [workflow syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax) for job permissions and summaries.
 
+The [bounded channel dispatch experiment](results/2026-10-01-channel-dispatch-experiment.md) was withdrawn after paired CI measurements showed CPU and tail-latency regressions despite some async gains. EventBus retains ActionBlock; the experiment is evidence, not a shipped optimization.
+
 To smoke-test the orchestration with two existing checkouts (small counts are not performance evidence):
 
 ```powershell

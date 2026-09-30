@@ -1,6 +1,7 @@
 using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
+using System.Threading.Tasks.Dataflow;
 using HeroMessaging.Abstractions.Configuration;
 using HeroMessaging.Abstractions.Events;
 using HeroMessaging.Abstractions.Processing;
@@ -17,7 +18,7 @@ public class EventBus : IEventBus, IAsyncDisposable
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<EventBus> _logger;
-    private readonly EventDispatchQueue<EventEnvelope> _dispatchQueue;
+    private readonly ActionBlock<EventEnvelope> _processingBlock;
     private readonly MessageProcessingPipelineBuilder _pipelineBuilder;
     private readonly int _maxPooledEnvelopes;
 
@@ -56,8 +57,13 @@ public class EventBus : IEventBus, IAsyncDisposable
         // Configure default pipeline
         ConfigurePipeline();
 
-        _dispatchQueue = new EventDispatchQueue<EventEnvelope>(settings.BoundedCapacity,
-            settings.MaxDegreeOfParallelism, DispatchEventWithPipeline, ReturnEnvelope);
+        _processingBlock = new ActionBlock<EventEnvelope>(
+            DispatchEventWithPipeline,
+            new ExecutionDataflowBlockOptions
+            {
+                MaxDegreeOfParallelism = settings.MaxDegreeOfParallelism,
+                BoundedCapacity = settings.BoundedCapacity
+            });
     }
     /// <summary>
     /// Gets or sets is running.
@@ -120,7 +126,7 @@ public class EventBus : IEventBus, IAsyncDisposable
                 var envelope = RentEnvelope();
                 envelope.Initialize(@event, handler, handlerType, cancellationToken);
 
-                taskArray[handlerCount++] = _dispatchQueue.SendAsync(envelope, cancellationToken);
+                taskArray[handlerCount++] = _processingBlock.SendAsync(envelope, cancellationToken);
             }
 
             if (handlerCount == 0)
@@ -181,7 +187,7 @@ public class EventBus : IEventBus, IAsyncDisposable
         bool accepted;
         try
         {
-            accepted = await _dispatchQueue.SendAsync(envelope).ConfigureAwait(false);
+            accepted = await _processingBlock.SendAsync(envelope).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -195,9 +201,9 @@ public class EventBus : IEventBus, IAsyncDisposable
             return new EventHandlerReceipt(handlerType, EventHandlerStatus.Rejected);
         }
 
-        // A faulted dispatcher can discard queued deliveries without invoking their delegate.
+        // Faulted Dataflow blocks can discard queued deliveries without invoking their delegate.
         if (!completion.Task.IsCompleted)
-            await Task.WhenAny(completion.Task, _dispatchQueue.Completion).ConfigureAwait(false);
+            await Task.WhenAny(completion.Task, _processingBlock.Completion).ConfigureAwait(false);
 
         if (completion.Task.IsCompleted)
         {
@@ -206,7 +212,7 @@ public class EventBus : IEventBus, IAsyncDisposable
                 result.Success ? EventHandlerStatus.Succeeded : EventHandlerStatus.Failed, result);
         }
 
-        var failure = _dispatchQueue.Completion.Exception?.GetBaseException()
+        var failure = _processingBlock.Completion.Exception?.GetBaseException()
             ?? new InvalidOperationException("The event bus terminated before this handler delivery completed.");
         return new EventHandlerReceipt(handlerType, EventHandlerStatus.Aborted, ProcessingResult.Failed(failure));
     }
@@ -355,7 +361,7 @@ public class EventBus : IEventBus, IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         IsRunning = false;
-        _dispatchQueue.Complete();
-        await _dispatchQueue.Completion.ConfigureAwait(false);
+        _processingBlock.Complete();
+        await _processingBlock.Completion.ConfigureAwait(false);
     }
 }
