@@ -155,11 +155,16 @@ jobs:
           "commit=$commit" | Add-Content -LiteralPath $env:GITHUB_OUTPUT
 
       - name: Checkout baseline library
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ steps.baseline.outputs.commit }}
-          path: baseline
-          persist-credentials: false
+        shell: pwsh
+        env:
+          BASELINE_COMMIT: ${{ steps.baseline.outputs.commit }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:BASELINE_COMMIT -notmatch '^[a-f0-9]{40}$') {
+            throw 'Invalid performance baseline commit.'
+          }
+          git -C candidate worktree add --detach ../baseline $env:BASELINE_COMMIT
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot create performance baseline checkout.' }
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v5

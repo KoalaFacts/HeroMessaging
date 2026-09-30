@@ -102,7 +102,7 @@ public abstract class CorrelationContextDecoratorTests
         public async Task ConcurrentAsyncInvocationsKeepMetadataAndAmbientStateIsolated()
         {
             var cancellationToken = TestContext.Current.CancellationToken;
-            var metadata = ImmutableDictionary<string, object>.Empty.Add("custom", "unchanged");
+            var metadata = ImmutableDictionary.Create<string, object>().Add("custom", "unchanged");
             var original = new ProcessingContext("shared", metadata);
             var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -566,7 +566,7 @@ public abstract class CorrelationContextDecoratorTests
             var decorator = CreateDecorator();
             var message = new TestMessage();
             var context = new ProcessingContext();
-            var cts = new CancellationTokenSource();
+            using var cts = new CancellationTokenSource();
             var cancellationToken = cts.Token;
 
             _innerMock
