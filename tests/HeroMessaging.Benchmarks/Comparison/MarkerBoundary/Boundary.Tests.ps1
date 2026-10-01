@@ -33,4 +33,22 @@ $audit = New-Audit; $audit.observed[2].timestamp = 0; Assert-Rejected $audit
 $audit = New-Audit; $audit.observed[2].timestamp = $audit.calls[3].timestamp + 1; Assert-Rejected $audit
 $audit = New-Audit; $audit.stopwatchFrequency = [double]::PositiveInfinity; Assert-Rejected $audit
 $audit = New-Audit; $audit.batchSeconds[2] = 1; Assert-Rejected $audit
-Write-Host 'Marker boundary audit guards passed; no native capture performed.'
+$statuses = @("Tgid:`t123`nPid:`t123`nTracerPid:`t456", "Tgid:`t123`nPid:`t124`nTracerPid:`t456")
+if (!(Test-InProcessNativeWriteObserverAttachment $statuses 123 456)) { throw 'Attached thread snapshot rejected.' }
+foreach ($invalid in @(
+    @{ statuses = @(); processId = 123; observerId = 456 },
+    @{ statuses = $statuses; processId = 0; observerId = 456 },
+    @{ statuses = $statuses; processId = 123; observerId = 0 },
+    @{ statuses = @($statuses[0], $statuses[0]); processId = 123; observerId = 456 },
+    @{ statuses = @($statuses[0], "Tgid:`t999`nPid:`t124`nTracerPid:`t456"); processId = 123; observerId = 456 },
+    @{ statuses = @($statuses[0], "Tgid:`t123`nPid:`t124`nTracerPid:`t0"); processId = 123; observerId = 456 },
+    @{ statuses = @($statuses[0], "Tgid:`t123`nPid:`t124`nTracerPid:`t789"); processId = 123; observerId = 456 },
+    @{ statuses = @($statuses[0], "Tgid:`t123`nPid:`t124"); processId = 123; observerId = 456 },
+    @{ statuses = @($statuses[1]); processId = 123; observerId = 456 },
+    @{ statuses = @("Tgid:`t123`nPid:`t123`nTracerPid:`t456`nTracerPid:`t456"); processId = 123; observerId = 456 }
+)) {
+    if (Test-InProcessNativeWriteObserverAttachment $invalid.statuses $invalid.processId $invalid.observerId) {
+        throw 'Incomplete, duplicate or foreign observer attachment accepted.'
+    }
+}
+Write-Host 'Marker boundary and observer attachment guards passed; no native capture performed.'

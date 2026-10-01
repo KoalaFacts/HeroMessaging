@@ -60,6 +60,14 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Marker boundary probe build failed.' }
           dotnet ./marker-boundary-binaries/HeroMessaging.MarkerBoundaryBenchmarks.dll --self-test
           if ($LASTEXITCODE -ne 0) { throw 'Marker observer self-test failed.' }
+      - name: Prepare native write observer
+        if: inputs.marker_boundary_only
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo -n apt-get update
+          sudo -n apt-get install --yes --no-install-recommends strace
+          strace --version
       - name: Observe marker boundary with native CPU and scheduler data
         if: inputs.marker_boundary_only
         shell: pwsh
@@ -67,7 +75,7 @@ jobs:
           sudo -n env "PATH=$env:PATH" "DOTNET_ROOT=$env:DOTNET_ROOT" pwsh -NoProfile -File ./tests/HeroMessaging.Benchmarks/Comparison/MarkerBoundary/Profile-Boundary.ps1 `
             -Assembly ./marker-boundary-binaries/HeroMessaging.MarkerBoundaryBenchmarks.dll `
             -TraceTool "$env:RUNNER_TEMP/profile-tools/dotnet-trace" `
-            -Analyzer ./profile-analyzer/HeroMessaging.NativeTraceBenchmarks.dll -OutputDirectory ./marker-boundary-results
+            -Analyzer ./profile-analyzer/HeroMessaging.NativeTraceBenchmarks.dll -OutputDirectory ./marker-boundary-results -ObserveNativeWrites
           if ($LASTEXITCODE -ne 0) { throw 'Marker boundary evidence is incomplete; no automatic retry.' }
       - name: Capture CPU and scheduling with unprofiled controls
         if: '!inputs.marker_boundary_only'

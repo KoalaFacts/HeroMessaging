@@ -38,4 +38,23 @@ function Assert-InProcessMarkerAudit {
     }
 }
 
-Export-ModuleMember -Function Assert-InProcessMarkerAudit
+function Test-InProcessNativeWriteObserverAttachment {
+    param([string[]]$Statuses, [int]$ProcessId, [int]$ObserverId)
+    if ($ProcessId -le 0 -or $ObserverId -le 0 -or @($Statuses).Count -eq 0) { return $false }
+    $threads = [Collections.Generic.HashSet[int]]::new()
+    foreach ($status in $Statuses) {
+        $fields = @{}
+        foreach ($name in @('Tgid', 'Pid', 'TracerPid')) {
+            $matches = [regex]::Matches($status, "(?m)^${name}:\s*([0-9]+)\s*$")
+            if ($matches.Count -ne 1) { return $false }
+            $number = 0
+            if (![int]::TryParse($matches[0].Groups[1].Value, [ref]$number)) { return $false }
+            $fields[$name] = $number
+        }
+        if ($fields.Tgid -ne $ProcessId -or $fields.TracerPid -ne $ObserverId -or
+            $fields.Pid -le 0 -or !$threads.Add($fields.Pid)) { return $false }
+    }
+    return $threads.Contains($ProcessId)
+}
+
+Export-ModuleMember -Function Assert-InProcessMarkerAudit, Test-InProcessNativeWriteObserverAttachment

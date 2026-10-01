@@ -1,7 +1,8 @@
 #requires -Version 7.0
 [CmdletBinding()]
 param([Parameter(Mandatory)][string]$Assembly, [Parameter(Mandatory)][string]$TraceTool,
-    [Parameter(Mandatory)][string]$Analyzer, [Parameter(Mandatory)][string]$OutputDirectory)
+    [Parameter(Mandatory)][string]$Analyzer, [Parameter(Mandatory)][string]$OutputDirectory,
+    [switch]$ObserveNativeWrites)
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot '../Profiling.psm1') -Force
@@ -26,6 +27,7 @@ $manifest = [ordered]@{
     schemaVersion = 1; status = 'running'; commit = $commit; traceToolVersion = $version -join ' '
     probeSha256 = (Get-FileHash $binary).Hash; analyzerSha256 = (Get-FileHash $analyzerBinary).Hash
     processorCount = [Environment]::ProcessorCount; captureSeconds = 90
+    observeNativeWrites = [bool]$ObserveNativeWrites
     interpretation = 'Synthetic marker boundary diagnostic, not a performance comparison or repair. Local observation does not prove native emission or perf readiness. Required CPU/scheduler/three-window guards remain intact.'
 }
 $children = [Collections.Generic.List[object]]::new()
@@ -48,8 +50,37 @@ try {
     $capture = Join-Path $output 'native.nettrace'
     $probe = Start-Child $dotnet @($binary, $auditPath) 'probe'
     $manifest.processId = $probe.Id
+    if ($ObserveNativeWrites) {
+        $syscallTool = (Get-Command strace -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
+        $manifest.syscallToolVersion = (& $syscallTool --version) -join ' '
+        if ($LASTEXITCODE -ne 0) { throw 'Cannot identify native syscall observer.' }
+        $manifest.syscallToolSha256 = (Get-FileHash $syscallTool).Hash
+        $syscallLog = Join-Path $output 'native-writev.log'
+        $manifest.syscallArguments = @('-f', '-ttt', '-yy', '-xx', '-v', '-s', '4096', '-e', 'trace=writev', '-o', $syscallLog, '-p', "$($probe.Id)")
+        $observer = Start-Child $syscallTool $manifest.syscallArguments 'syscall-observer'
+        $manifest.syscallObserverId = $observer.Id
+        $attachment = [Diagnostics.Stopwatch]::StartNew()
+        do {
+            if ($observer.HasExited -or $probe.HasExited -or $attachment.Elapsed.TotalSeconds -ge 10) {
+                throw 'Native syscall observer did not attach before provider enablement.'
+            }
+            $statuses = @(Get-ChildItem -LiteralPath "/proc/$($probe.Id)/task" -Directory |
+                ForEach-Object { Get-Content -LiteralPath (Join-Path $_.FullName 'status') -Raw })
+            $attached = Test-InProcessNativeWriteObserverAttachment $statuses $probe.Id $observer.Id
+            if (!$attached) { Start-Sleep -Milliseconds 10 }
+        } while (!$attached)
+        $statuses | Set-Content -LiteralPath (Join-Path $output 'observer-attachment.log')
+        $manifest.observerAttachedBeforeCollector = $true
+        $manifest.observerInterpretation = 'ptrace changes scheduling and syscall cost. Inspect native writev descriptor, event identity, payload and result manually, including unfinished/resumed calls. Wall-clock strace times are not monotonic audit times. This is not performance or loss-free native proof.'
+    }
     $collector = Start-Child $trace (Get-InProcessNativeTraceArguments $probe.Id $capture 90) 'collector'
     if (!$probe.WaitForExit(70000) -or $probe.ExitCode -ne 0) { throw 'Marker probe failed or exceeded its bounded timeout.' }
+    if ($ObserveNativeWrites) {
+        if (!$observer.WaitForExit(10000) -or $observer.ExitCode -ne 0 -or
+            !(Test-Path -LiteralPath $syscallLog) -or (Get-Item -LiteralPath $syscallLog).Length -eq 0) {
+            throw 'Native syscall observation failed or its saved log is empty.'
+        }
+    }
     if (!$collector.WaitForExit(210000) -or $collector.ExitCode -ne 0) { throw 'Boundary native collection failed or exceeded its bounded save timeout.' }
     $audit = Get-Content -LiteralPath $auditPath -Raw | ConvertFrom-Json
     Assert-InProcessMarkerAudit $audit $manifest.processId
