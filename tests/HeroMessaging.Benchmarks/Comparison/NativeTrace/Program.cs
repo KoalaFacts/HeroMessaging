@@ -49,22 +49,18 @@ var missingStacks = 0;
 var unresolvedLeaves = 0;
 var exclusive = new Dictionary<string, int>();
 var monitorCallers = new Dictionary<string, int>();
-foreach (var data in log.Events)
+foreach (var data in log.Events.Where(data => windows.Any(window =>
+    data.TimeStampRelativeMSec >= window.Start && data.TimeStampRelativeMSec <= window.Stop)))
 {
-    if (!windows.Any(window => data.TimeStampRelativeMSec >= window.Start && data.TimeStampRelativeMSec <= window.Stop))
-        continue;
     var isSwitch = (data.ProviderName == "Universal.Events" && data.EventName == "cswitch") ||
         data.EventName.Contains("sched_switch", StringComparison.Ordinal);
     if (isSwitch)
     {
         schedulerEvents++;
-        var matchesTarget = data.ProcessID == processId;
-        foreach (var field in data.PayloadNames.Where(name => name is "prev_pid" or "next_pid"))
-        {
-            if (int.TryParse(Convert.ToString(data.PayloadByName(field), CultureInfo.InvariantCulture), out var threadId) &&
-                targetThreads.Contains(threadId))
-                matchesTarget = true;
-        }
+        var matchesTarget = data.ProcessID == processId || data.PayloadNames
+            .Where(name => name is "prev_pid" or "next_pid")
+            .Any(field => int.TryParse(Convert.ToString(data.PayloadByName(field), CultureInfo.InvariantCulture), out var threadId) &&
+                targetThreads.Contains(threadId));
         if (matchesTarget)
             targetSchedulerEvents++;
     }
