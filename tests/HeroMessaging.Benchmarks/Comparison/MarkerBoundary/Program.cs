@@ -9,6 +9,11 @@ internal static class Program
 {
     private static async Task Main(string[] args)
     {
+        if (NativeCollector.TryRun(args))
+        {
+            return;
+        }
+
         var selfTest = args is ["--self-test"];
         if (!selfTest && args.Length != 1)
             throw new ArgumentException("Usage: <new-audit-json> | --self-test");

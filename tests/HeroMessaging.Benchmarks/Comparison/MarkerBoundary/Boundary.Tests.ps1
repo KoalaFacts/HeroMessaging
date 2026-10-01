@@ -2,6 +2,7 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'Boundary.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'NativeLogging.psm1') -Force
 function New-Audit {
     $calls = @(0..5 | ForEach-Object { @{ eventId = 1 + ($_ % 2); batchId = 1 + [int][Math]::Floor($_ / 2); timestamp = 1000 + $_ * 12000; providerEnabled = $true } })
     return [PSCustomObject]@{
@@ -51,4 +52,41 @@ foreach ($invalid in @(
         throw 'Incomplete, duplicate or foreign observer attachment accepted.'
     }
 }
-Write-Host 'Marker boundary and observer attachment guards passed; no native capture performed.'
+$config = Get-InProcessNativeLoggingConfiguration 123 'native.nettrace' 'native.script' 'native.log'
+$expected = @(
+    'let HeroMessaging_InProcessBenchmark_flags = new_dotnet_provider_flags();',
+    'HeroMessaging_InProcessBenchmark_flags.with_callstacks();',
+    'record_dotnet_provider("HeroMessaging-InProcessBenchmark", 0xFFFFFFFFFFFFFFFF, 4, HeroMessaging_InProcessBenchmark_flags);', '',
+    'let sched_switch = event_from_tracefs("sched", "sched_switch");', 'record_event(sched_switch);', '',
+    'let sched_wakeup = event_from_tracefs("sched", "sched_wakeup");', 'record_event(sched_wakeup);', '',
+    'let sched_wakeup_new = event_from_tracefs("sched", "sched_wakeup_new");', 'record_event(sched_wakeup_new);', '', ''
+) -join "`n"
+if ($config.script -cne $expected -or
+    $config.command -cne '--on-cpu --pid 123 --out native.nettrace --script-file native.script --log-filter debug --log-path native.log --log-mode file') {
+    throw 'Native logging adapter changed the characterized script or arguments.'
+}
+foreach ($path in @('', 'two words', 'two"quotes', "two`nlines", 'two\slashes', '-option')) {
+    $rejected = $false
+    try { $null = Get-InProcessNativeLoggingConfiguration 123 $path 'native.script' 'native.log' } catch { $rejected = $true }
+    if (!$rejected) { throw 'Ambiguous native argument accepted.' }
+}
+$rejected = $false
+try { $null = Get-InProcessNativeLoggingConfiguration 0 'native.nettrace' 'native.script' 'native.log' } catch { $rejected = $true }
+if (!$rejected) { throw 'Invalid native target accepted.' }
+Assert-InProcessNativeRuntimeSupport "pid,processName,supportsCollectLinux`n123,dotnet,true" 123
+Assert-InProcessNativeLoggingTool '10.0.745401+cef304c50763bf24f99566cb31d55540842e7ae9'
+$rejected = $false
+try { Assert-InProcessNativeLoggingTool '10.0.745402+unreviewed' } catch { $rejected = $true }
+if (!$rejected) { throw 'Uncharacterized collector version accepted.' }
+foreach ($csv in @(
+    "pid,processName,supportsCollectLinux`n124,dotnet,true",
+    "pid,processName,supportsCollectLinux`n123,dotnet,false",
+    "pid,processName,supportsCollectLinux`n123,dotnet,unknown",
+    "pid,processName,supportsCollectLinux`n123,dotnet,true`n123,dotnet,true",
+    "pid,processName,supportsCollectLinux"
+)) {
+    $rejected = $false
+    try { Assert-InProcessNativeRuntimeSupport $csv 123 } catch { $rejected = $true }
+    if (!$rejected) { throw 'Invalid native runtime support accepted.' }
+}
+Write-Host 'Marker boundary, observer attachment and native logging configuration guards passed; no native capture performed.'

@@ -2,11 +2,12 @@
 [CmdletBinding()]
 param([Parameter(Mandatory)][string]$Assembly, [Parameter(Mandatory)][string]$TraceTool,
     [Parameter(Mandatory)][string]$Analyzer, [Parameter(Mandatory)][string]$OutputDirectory,
-    [switch]$ObserveNativeWrites)
+    [switch]$ObserveNativeWrites, [switch]$NativeLogging)
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot '../Profiling.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'Boundary.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'NativeLogging.psm1') -Force
 if (!$IsLinux -or [Environment]::ProcessorCount -ne 4) { throw 'Boundary capture requires isolated four-CPU Linux.' }
 if ((& id -u) -ne '0' -or !(Test-Path -LiteralPath '/sys/kernel/tracing/user_events_data')) {
     throw 'Boundary capture requires root and kernel user_events; no fallback.'
@@ -28,6 +29,7 @@ $manifest = [ordered]@{
     probeSha256 = (Get-FileHash $binary).Hash; analyzerSha256 = (Get-FileHash $analyzerBinary).Hash
     processorCount = [Environment]::ProcessorCount; captureSeconds = 90
     observeNativeWrites = [bool]$ObserveNativeWrites
+    nativeLogging = [bool]$NativeLogging
     interpretation = 'Synthetic marker boundary diagnostic, not a performance comparison or repair. Local observation does not prove native emission or perf readiness. Required CPU/scheduler/three-window guards remain intact.'
 }
 $children = [Collections.Generic.List[object]]::new()
@@ -46,10 +48,51 @@ function Start-Child {
     return $process
 }
 try {
+    if ($NativeLogging) {
+        Assert-InProcessNativeLoggingTool $manifest.traceToolVersion
+        $library = Get-InProcessNativeLoggingLibrary $trace
+        $manifest.nativeLibrarySha256 = (Get-FileHash $library).Hash
+        $manifest.nativeLibraryLength = (Get-Item -LiteralPath $library).Length
+        $manifest.nativeLibraryPath = $library
+        $manifest.traceToolSha256 = (Get-FileHash $trace).Hash
+        $toolAssembly = [IO.Path]::GetFullPath((Join-Path (Split-Path $library -Parent) '../../../dotnet-trace.dll'))
+        $manifest.traceToolAssemblySha256 = (Get-FileHash -LiteralPath $toolAssembly).Hash
+        $toolDependencies = [IO.Path]::ChangeExtension($toolAssembly, '.deps.json')
+        $manifest.traceToolDependenciesSha256 = (Get-FileHash -LiteralPath $toolDependencies).Hash
+        $manifest.kernelRelease = (& uname -r) -join ' '
+        if ($LASTEXITCODE -ne 0) { throw 'Cannot identify the capture kernel.' }
+        $manifest.kernelVersion = Get-Content -LiteralPath '/proc/version' -Raw
+        $manifest.nativeLoggingInterpretation = 'Explicit installed-library Cdecl invocation with characterized wrapper configuration and callback duration; adds debug logging, not a durable collector repair or performance proof. Source-template equivalence is not historical wrapper-script byte equivalence.'
+        $selfTestLog = Join-Path $output 'native-logging-self-test.log'
+        $selfTest = Start-Child $dotnet @($binary, '--native-logging-self-test', $library, $selfTestLog) 'native-logging-self-test'
+        if (!$selfTest.WaitForExit(15000) -or $selfTest.ExitCode -ne 0) { throw 'Native logging adapter self-test failed or exceeded its timeout.' }
+    }
     $auditPath = Join-Path $output 'marker-audit.json'
     $capture = Join-Path $output 'native.nettrace'
     $probe = Start-Child $dotnet @($binary, $auditPath) 'probe'
     $manifest.processId = $probe.Id
+    if ($NativeLogging) {
+        $runtimeProbe = Start-Child $trace @('collect-linux', '--probe', '--process-id', "$($probe.Id)", '--output', 'stdout') 'runtime-probe'
+        if (!$runtimeProbe.WaitForExit(10000) -or $runtimeProbe.ExitCode -ne 0) { throw 'Native runtime support probe failed or timed out.' }
+        $runtimeChild = $children[$children.Count - 1]
+        if (!$runtimeChild.stdout.Wait(1000)) { throw 'Runtime probe output did not close.' }
+        Assert-InProcessNativeRuntimeSupport $runtimeChild.stdout.GetAwaiter().GetResult() $probe.Id
+        $maps = Get-Content -LiteralPath "/proc/$($probe.Id)/maps"
+        $maps | Set-Content -LiteralPath (Join-Path $output 'target-runtime-maps.log')
+        $runtimeLibraries = @($maps | ForEach-Object {
+            if ($_ -match '\s(/\S*/lib(coreclr|clrjit)\.so)$') { $Matches[1] }
+        } | Sort-Object -Unique)
+        if ($runtimeLibraries.Count -ne 2) { throw 'Cannot identify both loaded target runtime libraries.' }
+        $manifest.targetRuntimeLibraries = @($runtimeLibraries | ForEach-Object { @{ path = $_; sha256 = (Get-FileHash -LiteralPath $_).Hash } })
+        $scriptPath = Join-Path $output 'native.script'
+        $nativeLog = Join-Path $output 'native-collector.log'
+        $config = Get-InProcessNativeLoggingConfiguration $probe.Id $capture $scriptPath $nativeLog
+        [IO.File]::WriteAllText($scriptPath, $config.script, [Text.UTF8Encoding]::new($false))
+        $commandPath = Join-Path $output 'native-command.txt'
+        [IO.File]::WriteAllText($commandPath, $config.command, [Text.UTF8Encoding]::new($false))
+        $manifest.nativeArguments = $config.arguments
+        $manifest.nativeScriptSha256 = (Get-FileHash $scriptPath).Hash
+    }
     if ($ObserveNativeWrites) {
         $syscallTool = (Get-Command strace -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
         $manifest.syscallToolVersion = (& $syscallTool --version) -join ' '
@@ -73,7 +116,11 @@ try {
         $manifest.observerAttachedBeforeCollector = $true
         $manifest.observerInterpretation = 'ptrace changes scheduling and syscall cost. Inspect native writev descriptor, event identity, payload and result manually, including unfinished/resumed calls. Wall-clock strace times are not monotonic audit times. This is not performance or loss-free native proof.'
     }
-    $collector = Start-Child $trace (Get-InProcessNativeTraceArguments $probe.Id $capture 90) 'collector'
+    $collector = if ($NativeLogging) {
+        Start-Child $dotnet @($binary, '--native-collector', $library, $commandPath, '90') 'collector'
+    } else {
+        Start-Child $trace (Get-InProcessNativeTraceArguments $probe.Id $capture 90) 'collector'
+    }
     if (!$probe.WaitForExit(70000) -or $probe.ExitCode -ne 0) { throw 'Marker probe failed or exceeded its bounded timeout.' }
     if ($ObserveNativeWrites) {
         if (!$observer.WaitForExit(10000) -or $observer.ExitCode -ne 0 -or
@@ -82,6 +129,8 @@ try {
         }
     }
     if (!$collector.WaitForExit(210000) -or $collector.ExitCode -ne 0) { throw 'Boundary native collection failed or exceeded its bounded save timeout.' }
+    if ($NativeLogging -and (!(Test-Path -LiteralPath $nativeLog) -or (Get-Item -LiteralPath $nativeLog).Length -eq 0 -or
+        (Get-FileHash $library).Hash -cne $manifest.nativeLibrarySha256)) { throw 'Native collector log or binary identity is invalid.' }
     $audit = Get-Content -LiteralPath $auditPath -Raw | ConvertFrom-Json
     Assert-InProcessMarkerAudit $audit $manifest.processId
     $summaryPath = Join-Path $output 'native-summary.json'
