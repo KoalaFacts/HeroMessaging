@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
 		<TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
@@ -32,6 +32,8 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<Compile Include="../HeroMessaging.Benchmarks/Comparison/NativeTrace/BatchMarkerPayload.cs" Link="Unit/Benchmarks/BatchMarkerPayload.cs" />
+		<Compile Include="../HeroMessaging.Benchmarks/InProcessBenchmarkEvents.cs" Link="Unit/Benchmarks/InProcessBenchmarkEvents.cs" />
 		<ProjectReference Include="..\..\src\HeroMessaging\HeroMessaging.csproj" />
 		<ProjectReference Include="..\..\src\HeroMessaging.Abstractions\HeroMessaging.Abstractions.csproj" />
 		<ProjectReference Include="..\..\src\HeroMessaging.Observability.OpenTelemetry\HeroMessaging.Observability.OpenTelemetry.csproj" />

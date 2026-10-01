@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using HeroMessaging.Benchmarks;
 using Microsoft.Diagnostics.Tracing.Etlx;
 
 if (args.Length != 3)
@@ -26,19 +27,26 @@ foreach (var data in log.Events)
             data.ProcessID,
             data.ThreadID,
             data.TimeStampRelativeMSec,
+            data.Version,
+            data.ProviderGuid,
+            rawPayload = Convert.ToHexString(data.EventData()),
             payload = data.PayloadNames.ToDictionary(name => name, data.PayloadByName)
         });
     if (data.ProcessID != processId)
         continue;
-    targetThreads.Add(data.ThreadID);
-    if (data.ProviderName != "HeroMessaging-InProcessBenchmark")
+    if (data.ThreadID > 0)
+        targetThreads.Add(data.ThreadID);
+    if (data.ProviderGuid != BatchMarkerPayload.ProviderId)
         continue;
+    // Decode our exact versioned wire schema; native dynamic metadata can be unavailable.
+    var payload = data.EventData();
     if ((int)data.ID == 1)
-        started = Convert.ToInt32(data.PayloadByName("messages"), CultureInfo.InvariantCulture) == messageCount
+        started = BatchMarkerPayload.MatchesStart(data.ProviderGuid, (int)data.ID, data.Version, payload, messageCount)
             ? data.TimeStampRelativeMSec : null;
-    if ((int)data.ID == 2 && started is { } start)
+    if ((int)data.ID == 2)
     {
-        windows.Add((start, data.TimeStampRelativeMSec));
+        if (BatchMarkerPayload.MatchesStop(data.ProviderGuid, (int)data.ID, data.Version, payload) && started is { } start)
+            windows.Add((start, data.TimeStampRelativeMSec));
         started = null;
     }
 }
