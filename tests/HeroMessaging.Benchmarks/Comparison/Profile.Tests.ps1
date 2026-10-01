@@ -23,10 +23,10 @@ foreach ($mode in @('publish', 'receipt')) {
         $config.workload -ne 'cpu' -or $config.mode -ne $mode) { throw 'Profile configuration drifted from CI.' }
 }
 $arguments = Get-InProcessNativeTraceArguments 123 'capture.nettrace'
-if (($arguments -join ' ') -ne ('collect-linux --process-id 123 --profile dotnet-common,cpu-sampling,thread-time ' +
+if (($arguments -join ' ') -ne ('collect-linux --process-id 123 --profile cpu-sampling ' +
     '--providers HeroMessaging-InProcessBenchmark:0xFFFFFFFFFFFFFFFF:4 ' +
     '--perf-events sched:sched_switch,sched:sched_wakeup,sched:sched_wakeup_new --duration 00:00:01:00 --output capture.nettrace')) {
-    throw 'Native profile lost PID scoping, kernel sampling, scheduler events or batch markers.'
+    throw 'Native profile lost required data or reintroduced redundant high-volume providers.'
 }
 Assert-Throws { Get-InProcessNativeTraceArguments 0 'capture.nettrace' }
 Assert-Throws { Get-InProcessNativeTraceArguments 123 '' }

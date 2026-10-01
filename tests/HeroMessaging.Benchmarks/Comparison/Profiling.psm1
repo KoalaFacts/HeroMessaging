@@ -15,7 +15,8 @@ function Get-InProcessNativeTraceArguments {
     if ($ProcessId -le 0 -or $Seconds -lt 1 -or $Seconds -gt 180 -or !$Output) {
         throw 'A target PID, output path and bounded duration are required.'
     }
-    return @('collect-linux', '--process-id', "$ProcessId", '--profile', 'dotnet-common,cpu-sampling,thread-time',
+    # Raw scheduler tracepoints supply scheduling data without duplicate thread-time stacks.
+    return @('collect-linux', '--process-id', "$ProcessId", '--profile', 'cpu-sampling',
         '--providers', 'HeroMessaging-InProcessBenchmark:0xFFFFFFFFFFFFFFFF:4',
         '--perf-events', 'sched:sched_switch,sched:sched_wakeup,sched:sched_wakeup_new',
         '--duration', ([TimeSpan]::FromSeconds($Seconds).ToString('dd\:hh\:mm\:ss')), '--output', $Output)

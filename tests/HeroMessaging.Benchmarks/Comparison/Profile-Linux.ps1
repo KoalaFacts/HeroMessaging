@@ -29,8 +29,8 @@ $dotnet = (Get-Command dotnet -CommandType Application -ErrorAction Stop | Selec
 $version = & $trace --version
 if ($LASTEXITCODE -ne 0) { throw 'The native trace tool is unavailable.' }
 $profiles = & $trace list-profiles
-if ($LASTEXITCODE -ne 0 -or ($profiles -join "`n") -notmatch 'cpu-sampling' -or ($profiles -join "`n") -notmatch 'thread-time') {
-    throw 'The trace tool does not support native CPU and scheduler profiles.'
+if ($LASTEXITCODE -ne 0 -or ($profiles -join "`n") -notmatch 'cpu-sampling') {
+    throw 'The trace tool does not support native CPU sampling.'
 }
 if ($ValidateOnly) { Write-Host 'Linux native profiling prerequisites passed; no workload or trace was started.'; return }
 
@@ -47,9 +47,9 @@ $manifest = [ordered]@{
     traceToolVersion = $version -join ' '; captureSeconds = $CaptureSeconds
     librarySha256 = (Get-FileHash -LiteralPath (Join-Path (Split-Path $binary) 'HeroMessaging.dll')).Hash
     harnessSha256 = (Get-FileHash -LiteralPath $binary).Hash
-    profiles = 'dotnet-common,cpu-sampling,thread-time'; executions = @(); calibrations = @()
+    profiles = 'cpu-sampling'; executions = @(); calibrations = @()
     perfEvents = 'sched:sched_switch,sched:sched_wakeup,sched:sched_wakeup_new'
-    runtimeProviderConfiguration = 'dotnet-common profile default; no additional contention events'
+    runtimeProviderConfiguration = 'benchmark markers only; no extra CLR provider or duplicate thread-time samples'
     interpretation = 'Diagnostic capture only. Verify loss, symbols, target PID and complete measured batch windows before attribution. Profiled rates are not optimization evidence.'
 }
 
