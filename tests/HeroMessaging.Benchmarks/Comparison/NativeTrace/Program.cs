@@ -38,7 +38,7 @@ foreach (var data in log.Events)
     if (data.ProviderGuid != BatchMarkerPayload.ProviderId)
         continue;
     // Decode our exact versioned wire schema; native dynamic metadata can be unavailable.
-    collector.Observe(data.ProviderGuid, (int)data.ID, data.Version, data.EventData(), messageCount, data.TimeStampRelativeMSec);
+    collector.Observe(data.ProviderGuid, (int)data.ID, data.EventData(), messageCount, data.TimeStampRelativeMSec);
 }
 var windows = collector.Windows;
 var nativeCpuSamples = 0;

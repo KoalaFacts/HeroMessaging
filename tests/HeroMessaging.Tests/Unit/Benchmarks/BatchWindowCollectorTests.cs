@@ -9,19 +9,21 @@ public class BatchWindowCollectorTests
 {
     private static void Start(BatchWindowCollector collector, int batchId, double timestamp)
     {
-        Span<byte> payload = stackalloc byte[16];
-        BinaryPrimitives.WriteInt32LittleEndian(payload, 500000);
-        BinaryPrimitives.WriteInt32LittleEndian(payload[4..], 3);
-        BinaryPrimitives.WriteInt32LittleEndian(payload[8..], 32);
-        BinaryPrimitives.WriteInt32LittleEndian(payload[12..], batchId);
-        collector.Observe(BatchMarkerPayload.ProviderId, 1, 1, payload, 500000, timestamp);
+        Span<byte> payload = stackalloc byte[20];
+        BinaryPrimitives.WriteInt32LittleEndian(payload, BatchMarkerPayload.SchemaVersion);
+        BinaryPrimitives.WriteInt32LittleEndian(payload[4..], 500000);
+        BinaryPrimitives.WriteInt32LittleEndian(payload[8..], 3);
+        BinaryPrimitives.WriteInt32LittleEndian(payload[12..], 32);
+        BinaryPrimitives.WriteInt32LittleEndian(payload[16..], batchId);
+        collector.Observe(BatchMarkerPayload.ProviderId, 1, payload, 500000, timestamp);
     }
 
     private static void Stop(BatchWindowCollector collector, int batchId, double timestamp)
     {
-        Span<byte> payload = stackalloc byte[4];
-        BinaryPrimitives.WriteInt32LittleEndian(payload, batchId);
-        collector.Observe(BatchMarkerPayload.ProviderId, 2, 1, payload, 500000, timestamp);
+        Span<byte> payload = stackalloc byte[8];
+        BinaryPrimitives.WriteInt32LittleEndian(payload, BatchMarkerPayload.SchemaVersion);
+        BinaryPrimitives.WriteInt32LittleEndian(payload[4..], batchId);
+        collector.Observe(BatchMarkerPayload.ProviderId, 2, payload, 500000, timestamp);
     }
 
     public class Pairing
@@ -108,7 +110,7 @@ public class BatchWindowCollectorTests
         {
             var collector = new BatchWindowCollector();
             Start(collector, 1, 1000);
-            collector.Observe(BatchMarkerPayload.ProviderId, eventId, 1, [], 500000, 2000);
+            collector.Observe(BatchMarkerPayload.ProviderId, eventId, [], 500000, 2000);
             Stop(collector, 1, 14000);
             Assert.Empty(collector.Windows);
         }
@@ -132,7 +134,7 @@ public class BatchWindowCollectorTests
         {
             var collector = new BatchWindowCollector();
             Start(collector, 1, 1000);
-            collector.Observe(Guid.Empty, 2, 1, [], 500000, 2000);
+            collector.Observe(Guid.Empty, 2, [], 500000, 2000);
             Stop(collector, 1, 14000);
             Assert.Single(collector.Windows);
         }

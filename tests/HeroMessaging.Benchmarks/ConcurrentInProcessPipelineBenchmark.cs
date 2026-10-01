@@ -159,14 +159,14 @@ internal static class ConcurrentInProcessPipelineBenchmark
         var cpuBefore = process.TotalProcessorTime;
         var contentionsBefore = Monitor.LockContentionCount;
         var workItemsBefore = ThreadPool.CompletedWorkItemCount;
-        InProcessBenchmarkEvents.Log.BatchStart(count, handlerCount, producerCount, batchId);
+        InProcessBenchmarkEvents.Log.BatchStart(InProcessBenchmarkEvents.SchemaVersion, count, handlerCount, producerCount, batchId);
         var started = Stopwatch.GetTimestamp();
         start.TrySetResult();
         await Task.WhenAll(tasks).WaitAsync(TimeSpan.FromMinutes(2));
         var publishSeconds = Stopwatch.GetElapsedTime(started).TotalSeconds;
         await sink.Completion.WaitAsync(TimeSpan.FromMinutes(2));
         var completionSeconds = Stopwatch.GetElapsedTime(started).TotalSeconds;
-        InProcessBenchmarkEvents.Log.BatchStop(batchId);
+        InProcessBenchmarkEvents.Log.BatchStop(InProcessBenchmarkEvents.SchemaVersion, batchId);
         var cpuSeconds = (process.TotalProcessorTime - cpuBefore).TotalSeconds;
         var contentions = Monitor.LockContentionCount - contentionsBefore;
         var completedWorkItems = ThreadPool.CompletedWorkItemCount - workItemsBefore;

@@ -10,7 +10,7 @@ internal sealed class BatchWindowCollector
 
     internal IReadOnlyList<BatchWindow> Windows => _windows;
 
-    internal void Observe(Guid provider, int eventId, int version, ReadOnlySpan<byte> payload, int messages, double timestamp)
+    internal void Observe(Guid provider, int eventId, ReadOnlySpan<byte> payload, int messages, double timestamp)
     {
         if (provider != BatchMarkerPayload.ProviderId || eventId is not (1 or 2))
             return;
@@ -22,7 +22,7 @@ internal sealed class BatchWindowCollector
         if (eventId == 1)
         {
             _pending = null;
-            if (!BatchMarkerPayload.TryReadStart(provider, eventId, version, payload, messages, out var batchId))
+            if (!BatchMarkerPayload.TryReadStart(provider, eventId, payload, messages, out var batchId))
                 return;
             if (batchId <= _latestBatchId)
             {
@@ -34,7 +34,7 @@ internal sealed class BatchWindowCollector
             return;
         }
 
-        if (BatchMarkerPayload.TryReadStop(provider, eventId, version, payload, out var stoppedId))
+        if (BatchMarkerPayload.TryReadStop(provider, eventId, payload, out var stoppedId))
         {
             // A stop from a later batch must not close an earlier start after marker loss.
             if (_pending is { } start && start.BatchId == stoppedId && timestamp > start.Timestamp)
