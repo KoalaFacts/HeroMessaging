@@ -74,6 +74,20 @@ $rejected = $false
 try { $null = Get-InProcessNativeLoggingConfiguration 0 'native.nettrace' 'native.script' 'native.log' } catch { $rejected = $true }
 if (!$rejected) { throw 'Invalid native target accepted.' }
 Assert-InProcessNativeRuntimeSupport "pid,processName,supportsCollectLinux`n123,dotnet,true" 123
+$probeArguments = Get-InProcessNativeRuntimeProbeArguments 123 'runtime-support.csv'
+if (($probeArguments -join ' ') -cne 'collect-linux --probe --process-id 123 --output runtime-support.csv') {
+    throw 'Runtime support probe must write machine-readable evidence, not parse console banners.'
+}
+$nativeTestLog = Get-InProcessNativeLoggingSelfTestLogPath 'diagnostic-results'
+if ([IO.Path]::GetFileName($nativeTestLog) -cne 'native-logging-self-test-native.log' -or
+    $nativeTestLog -ceq (Join-Path 'diagnostic-results' 'native-logging-self-test.log')) {
+    throw 'Native self-test log collides with owned child stdout.'
+}
+foreach ($invalid in @(@{ processId = 0; path = 'runtime-support.csv' }, @{ processId = 123; path = '' }, @{ processId = 123; path = 'stdout' })) {
+    $rejected = $false
+    try { $null = Get-InProcessNativeRuntimeProbeArguments $invalid.processId $invalid.path } catch { $rejected = $true }
+    if (!$rejected) { throw 'Invalid or console-only runtime probe accepted.' }
+}
 Assert-InProcessNativeLoggingTool '10.0.745401+cef304c50763bf24f99566cb31d55540842e7ae9'
 $rejected = $false
 try { Assert-InProcessNativeLoggingTool '10.0.745402+unreviewed' } catch { $rejected = $true }
@@ -83,6 +97,8 @@ foreach ($csv in @(
     "pid,processName,supportsCollectLinux`n123,dotnet,false",
     "pid,processName,supportsCollectLinux`n123,dotnet,unknown",
     "pid,processName,supportsCollectLinux`n123,dotnet,true`n123,dotnet,true",
+    "preview banner`npid,processName,supportsCollectLinux`n123,dotnet,true",
+    "pid,processName,supportsCollectLinux,unexpected`n123,dotnet,true,ignored",
     "pid,processName,supportsCollectLinux"
 )) {
     $rejected = $false

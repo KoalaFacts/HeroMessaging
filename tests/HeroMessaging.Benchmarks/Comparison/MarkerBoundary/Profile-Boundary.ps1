@@ -63,7 +63,7 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'Cannot identify the capture kernel.' }
         $manifest.kernelVersion = Get-Content -LiteralPath '/proc/version' -Raw
         $manifest.nativeLoggingInterpretation = 'Explicit installed-library Cdecl invocation with characterized wrapper configuration and callback duration; adds debug logging, not a durable collector repair or performance proof. Source-template equivalence is not historical wrapper-script byte equivalence.'
-        $selfTestLog = Join-Path $output 'native-logging-self-test.log'
+        $selfTestLog = Get-InProcessNativeLoggingSelfTestLogPath $output
         $selfTest = Start-Child $dotnet @($binary, '--native-logging-self-test', $library, $selfTestLog) 'native-logging-self-test'
         if (!$selfTest.WaitForExit(15000) -or $selfTest.ExitCode -ne 0) { throw 'Native logging adapter self-test failed or exceeded its timeout.' }
     }
@@ -72,11 +72,10 @@ try {
     $probe = Start-Child $dotnet @($binary, $auditPath) 'probe'
     $manifest.processId = $probe.Id
     if ($NativeLogging) {
-        $runtimeProbe = Start-Child $trace @('collect-linux', '--probe', '--process-id', "$($probe.Id)", '--output', 'stdout') 'runtime-probe'
+        $runtimeSupport = Join-Path $output 'runtime-support.csv'
+        $runtimeProbe = Start-Child $trace (Get-InProcessNativeRuntimeProbeArguments $probe.Id $runtimeSupport) 'runtime-probe'
         if (!$runtimeProbe.WaitForExit(10000) -or $runtimeProbe.ExitCode -ne 0) { throw 'Native runtime support probe failed or timed out.' }
-        $runtimeChild = $children[$children.Count - 1]
-        if (!$runtimeChild.stdout.Wait(1000)) { throw 'Runtime probe output did not close.' }
-        Assert-InProcessNativeRuntimeSupport $runtimeChild.stdout.GetAwaiter().GetResult() $probe.Id
+        Assert-InProcessNativeRuntimeSupport (Get-Content -LiteralPath $runtimeSupport -Raw) $probe.Id
         $maps = Get-Content -LiteralPath "/proc/$($probe.Id)/maps"
         $maps | Set-Content -LiteralPath (Join-Path $output 'target-runtime-maps.log')
         $runtimeLibraries = @($maps | ForEach-Object {

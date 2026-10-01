@@ -32,11 +32,29 @@ function Get-InProcessNativeLoggingLibrary {
 
 function Assert-InProcessNativeRuntimeSupport {
     param([string]$Csv, [int]$ProcessId)
+    $lines = @($Csv -split '\r?\n' | Where-Object { ![string]::IsNullOrWhiteSpace($_) })
+    if ($lines.Count -ne 2 -or $lines[0] -cne 'pid,processName,supportsCollectLinux') {
+        throw 'Native runtime support requires the exact machine-readable CSV schema.'
+    }
     $rows = @($Csv | ConvertFrom-Csv)
     if ($ProcessId -le 0 -or $rows.Count -ne 1 -or $rows[0].pid -cne "$ProcessId" -or
         $rows[0].supportsCollectLinux -cne 'true') {
         throw 'Native runtime probe did not confirm support for the exact target PID.'
     }
+}
+
+function Get-InProcessNativeRuntimeProbeArguments {
+    param([int]$ProcessId, [string]$OutputPath)
+    if ($ProcessId -le 0 -or [string]::IsNullOrWhiteSpace($OutputPath) -or
+        [IO.Path]::GetFileName($OutputPath) -ieq 'stdout') {
+        throw 'Native runtime probe requires a positive PID and a CSV evidence file.'
+    }
+    return @('collect-linux', '--probe', '--process-id', "$ProcessId", '--output', $OutputPath)
+}
+
+function Get-InProcessNativeLoggingSelfTestLogPath {
+    param([string]$OutputDirectory)
+    return Join-Path $OutputDirectory 'native-logging-self-test-native.log'
 }
 
 function Assert-InProcessNativeLoggingTool {
@@ -46,4 +64,4 @@ function Assert-InProcessNativeLoggingTool {
     }
 }
 
-Export-ModuleMember -Function Get-InProcessNativeLoggingConfiguration, Get-InProcessNativeLoggingLibrary, Assert-InProcessNativeRuntimeSupport, Assert-InProcessNativeLoggingTool
+Export-ModuleMember -Function Get-InProcessNativeLoggingConfiguration, Get-InProcessNativeLoggingLibrary, Assert-InProcessNativeRuntimeSupport, Assert-InProcessNativeLoggingTool, Get-InProcessNativeRuntimeProbeArguments, Get-InProcessNativeLoggingSelfTestLogPath
