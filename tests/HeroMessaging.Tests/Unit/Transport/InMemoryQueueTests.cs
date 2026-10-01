@@ -84,11 +84,12 @@ public class InMemoryQueueTests
     public async Task Queue_EnqueueAndDequeue_ProcessesMessagesInFIFOOrder()
     {
         // Arrange
-        var transport = new InMemoryTransport(_options, TimeProvider.System);
+        await using var transport = new InMemoryTransport(_options, TimeProvider.System);
         await transport.ConnectAsync(cancellationToken: TestContext.Current.CancellationToken);
 
         var queue = TransportAddress.Queue("test-queue");
         var receivedMessages = new List<string>();
+        var completed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
         var consumer = await transport.SubscribeAsync(
             queue,
@@ -96,6 +97,8 @@ public class InMemoryQueueTests
             {
                 receivedMessages.Add(env.MessageType);
                 await ctx.AcknowledgeAsync(ct);
+                if (receivedMessages.Count == 3)
+                    completed.TrySetResult();
             },
             new ConsumerOptions { StartImmediately = true }, cancellationToken: TestContext.Current.CancellationToken);
 
@@ -104,15 +107,13 @@ public class InMemoryQueueTests
         await transport.SendAsync(queue, CreateTestEnvelope("Message2"), cancellationToken: TestContext.Current.CancellationToken);
         await transport.SendAsync(queue, CreateTestEnvelope("Message3"), cancellationToken: TestContext.Current.CancellationToken);
 
-        await Task.Delay(200, TestContext.Current.CancellationToken); // Wait for processing
+        await completed.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
 
         // Assert
         Assert.Equal(3, receivedMessages.Count);
         Assert.Equal("Message1", receivedMessages[0]);
         Assert.Equal("Message2", receivedMessages[1]);
         Assert.Equal("Message3", receivedMessages[2]);
-
-        await transport.DisposeAsync();
     }
 
     [Fact]

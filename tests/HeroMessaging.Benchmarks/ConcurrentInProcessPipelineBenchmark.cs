@@ -76,7 +76,7 @@ internal static class ConcurrentInProcessPipelineBenchmark
             receiptSucceeded = Expression.Lambda<Func<Task, bool>>(Expression.Property(receipt, "Success"), task).Compile();
         }
 
-        await RunBatchAsync(bus, sink, warmupCount, handlerCount, producerCount, publishReceipt, receiptSucceeded);
+        await RunBatchAsync(bus, sink, warmupCount, handlerCount, producerCount, publishReceipt, receiptSucceeded, 0);
         List<InProcessComparisonSample> samples = [];
         Console.WriteLine($"Scenario: messages={count}, handlers={handlerCount}, producers={producerCount}, capacity={capacity}, parallelism={parallelism}, workload={workload}, mode={mode}, deliveries={count * (long)handlerCount}");
         for (var run = 1; run <= runs; run++)
@@ -85,7 +85,7 @@ internal static class ConcurrentInProcessPipelineBenchmark
             var gen0Before = GC.CollectionCount(0);
             var gen1Before = GC.CollectionCount(1);
             var gen2Before = GC.CollectionCount(2);
-            var result = await RunBatchAsync(bus, sink, count, handlerCount, producerCount, publishReceipt, receiptSucceeded);
+            var result = await RunBatchAsync(bus, sink, count, handlerCount, producerCount, publishReceipt, receiptSucceeded, run);
             var allocatedBytes = GC.GetTotalAllocatedBytes(precise: true) - allocatedBefore;
             var completeRate = count / result.CompletionSeconds;
             var sample = new InProcessComparisonSample(
@@ -121,7 +121,7 @@ internal static class ConcurrentInProcessPipelineBenchmark
     }
 
     private static async Task<BatchResult> RunBatchAsync(EventBus bus, InProcessSink sink, int count, int handlerCount, int producerCount,
-        Func<IEvent, CancellationToken, Task>? publishReceipt, Func<Task, bool>? receiptSucceeded)
+        Func<IEvent, CancellationToken, Task>? publishReceipt, Func<Task, bool>? receiptSucceeded, int batchId)
     {
         sink.Start(count, handlerCount);
         var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -159,14 +159,14 @@ internal static class ConcurrentInProcessPipelineBenchmark
         var cpuBefore = process.TotalProcessorTime;
         var contentionsBefore = Monitor.LockContentionCount;
         var workItemsBefore = ThreadPool.CompletedWorkItemCount;
-        InProcessBenchmarkEvents.Log.BatchStart(count, handlerCount, producerCount);
+        InProcessBenchmarkEvents.Log.BatchStart(InProcessBenchmarkEvents.SchemaVersion, count, handlerCount, producerCount, batchId);
         var started = Stopwatch.GetTimestamp();
         start.TrySetResult();
         await Task.WhenAll(tasks).WaitAsync(TimeSpan.FromMinutes(2));
         var publishSeconds = Stopwatch.GetElapsedTime(started).TotalSeconds;
         await sink.Completion.WaitAsync(TimeSpan.FromMinutes(2));
         var completionSeconds = Stopwatch.GetElapsedTime(started).TotalSeconds;
-        InProcessBenchmarkEvents.Log.BatchStop();
+        InProcessBenchmarkEvents.Log.BatchStop(InProcessBenchmarkEvents.SchemaVersion, batchId);
         var cpuSeconds = (process.TotalProcessorTime - cpuBefore).TotalSeconds;
         var contentions = Monitor.LockContentionCount - contentionsBefore;
         var completedWorkItems = ThreadPool.CompletedWorkItemCount - workItemsBefore;

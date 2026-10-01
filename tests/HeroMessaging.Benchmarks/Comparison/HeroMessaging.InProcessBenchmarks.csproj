@@ -5,6 +5,7 @@
     <HeroMessagingSourceRoot Condition="'$(HeroMessagingSourceRoot)' == ''">$(MSBuildThisFileDirectory)../../..</HeroMessagingSourceRoot>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="NativeTrace/**/*.cs" />
     <Using Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
     <Compile Include="../ConcurrentInProcessPipelineBenchmark.cs" Link="ConcurrentInProcessPipelineBenchmark.cs" />

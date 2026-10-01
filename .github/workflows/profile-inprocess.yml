@@ -1,0 +1,66 @@
+name: In-Process CPU and Scheduling Diagnostics
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  profile:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+      - name: Verify diagnostic guards
+        shell: pwsh
+        run: |
+          ./tests/HeroMessaging.Benchmarks/Comparison/Report.Tests.ps1
+          ./tests/HeroMessaging.Benchmarks/Comparison/Profile.Tests.ps1
+      - name: Build before recording
+        shell: pwsh
+        run: |
+          dotnet build tests/HeroMessaging.Benchmarks/Comparison/HeroMessaging.InProcessBenchmarks.csproj -c Release -f net10.0 -warnaserror -o ./profile-binaries
+          if ($LASTEXITCODE -ne 0) { throw 'Profile harness build failed.' }
+          dotnet build tests/HeroMessaging.Benchmarks/Comparison/NativeTrace/HeroMessaging.NativeTraceBenchmarks.csproj -c Release -f net10.0 -warnaserror -o ./profile-analyzer
+          if ($LASTEXITCODE -ne 0) { throw 'Native data validator build failed.' }
+          dotnet tool install dotnet-trace --tool-path "$env:RUNNER_TEMP/profile-tools"
+          if ($LASTEXITCODE -ne 0) { throw 'Trace tool installation failed.' }
+          dotnet tool install dotnet-symbol --tool-path "$env:RUNNER_TEMP/profile-tools"
+          if ($LASTEXITCODE -ne 0) { throw 'Symbol tool installation failed.' }
+          $runtime = Get-ChildItem "$env:DOTNET_ROOT/shared/Microsoft.NETCore.App" -Directory |
+            Where-Object Name -Match '^10\.0\.\d+$' | Sort-Object { [Version]$_.Name } | Select-Object -Last 1
+          if ($null -eq $runtime) { throw 'Cannot resolve the .NET 10 native runtime.' }
+          & "$env:RUNNER_TEMP/profile-tools/dotnet-symbol" --symbols "$($runtime.FullName)/libcoreclr.so" "$($runtime.FullName)/libclrjit.so"
+          if ($LASTEXITCODE -ne 0) { throw 'Matching runtime symbol download failed.' }
+      - name: Prepare isolated native collector
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! mountpoint -q /sys/kernel/tracing; then
+            sudo -n mount -t tracefs tracefs /sys/kernel/tracing
+          fi
+          sudo -n test -e /sys/kernel/tracing/user_events_data
+      - name: Capture CPU and scheduling with unprofiled controls
+        id: capture
+        shell: pwsh
+        run: |
+          sudo -n env "PATH=$env:PATH" "DOTNET_ROOT=$env:DOTNET_ROOT" pwsh -NoProfile -File ./tests/HeroMessaging.Benchmarks/Comparison/Profile-Linux.ps1 `
+            -Assembly ./profile-binaries/HeroMessaging.InProcessBenchmarks.dll `
+            -TraceTool "$env:RUNNER_TEMP/profile-tools/dotnet-trace" `
+            -Analyzer ./profile-analyzer/HeroMessaging.NativeTraceBenchmarks.dll -OutputDirectory ./profile-results
+          if ($LASTEXITCODE -ne 0) { throw 'Native profiling failed; no fallback or automatic retry.' }
+      - name: Upload isolated-runner diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: inprocess-native-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ./profile-results/
+            ./profile-binaries/*.pdb
+          retention-days: 7
