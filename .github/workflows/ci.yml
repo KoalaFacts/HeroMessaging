@@ -19,6 +19,11 @@ on:
         required: false
         default: false
         type: boolean
+      marker_boundary_only:
+        description: 'Use synthetic marker boundary diagnostics, not a performance capture (requires native profile)'
+        required: false
+        default: false
+        type: boolean
       performance_baseline_ref:
         description: 'Optional baseline ref (default: PR base commit or candidate first parent)'
         required: false
@@ -127,6 +132,8 @@ jobs:
   native-profile:
     if: github.event_name == 'workflow_dispatch' && inputs.run_native_profile == true
     uses: ./.github/workflows/profile-inprocess.yml
+    with:
+      marker_boundary_only: ${{ inputs.marker_boundary_only == true }}
 
   # Compare revisions on one runner; measurement validity is required, deltas are informational.
   performance-regression:
@@ -185,6 +192,7 @@ jobs:
         run: |
           ./candidate/tests/HeroMessaging.Benchmarks/Comparison/Report.Tests.ps1
           ./candidate/tests/HeroMessaging.Benchmarks/Comparison/Profile.Tests.ps1
+          ./candidate/tests/HeroMessaging.Benchmarks/Comparison/MarkerBoundary/Boundary.Tests.ps1
 
       - name: Compare in-process performance
         id: compare

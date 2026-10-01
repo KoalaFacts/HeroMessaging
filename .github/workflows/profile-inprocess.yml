@@ -2,6 +2,11 @@ name: In-Process CPU and Scheduling Diagnostics
 
 on:
   workflow_call:
+    inputs:
+      marker_boundary_only:
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -22,6 +27,7 @@ jobs:
         run: |
           ./tests/HeroMessaging.Benchmarks/Comparison/Report.Tests.ps1
           ./tests/HeroMessaging.Benchmarks/Comparison/Profile.Tests.ps1
+          ./tests/HeroMessaging.Benchmarks/Comparison/MarkerBoundary/Boundary.Tests.ps1
       - name: Build before recording
         shell: pwsh
         run: |
@@ -46,7 +52,25 @@ jobs:
             sudo -n mount -t tracefs tracefs /sys/kernel/tracing
           fi
           sudo -n test -e /sys/kernel/tracing/user_events_data
+      - name: Build marker boundary probe
+        if: inputs.marker_boundary_only
+        shell: pwsh
+        run: |
+          dotnet build tests/HeroMessaging.Benchmarks/Comparison/MarkerBoundary/HeroMessaging.MarkerBoundaryBenchmarks.csproj -c Release -f net10.0 -warnaserror -o ./marker-boundary-binaries
+          if ($LASTEXITCODE -ne 0) { throw 'Marker boundary probe build failed.' }
+          dotnet ./marker-boundary-binaries/HeroMessaging.MarkerBoundaryBenchmarks.dll --self-test
+          if ($LASTEXITCODE -ne 0) { throw 'Marker observer self-test failed.' }
+      - name: Observe marker boundary with native CPU and scheduler data
+        if: inputs.marker_boundary_only
+        shell: pwsh
+        run: |
+          sudo -n env "PATH=$env:PATH" "DOTNET_ROOT=$env:DOTNET_ROOT" pwsh -NoProfile -File ./tests/HeroMessaging.Benchmarks/Comparison/MarkerBoundary/Profile-Boundary.ps1 `
+            -Assembly ./marker-boundary-binaries/HeroMessaging.MarkerBoundaryBenchmarks.dll `
+            -TraceTool "$env:RUNNER_TEMP/profile-tools/dotnet-trace" `
+            -Analyzer ./profile-analyzer/HeroMessaging.NativeTraceBenchmarks.dll -OutputDirectory ./marker-boundary-results
+          if ($LASTEXITCODE -ne 0) { throw 'Marker boundary evidence is incomplete; no automatic retry.' }
       - name: Capture CPU and scheduling with unprofiled controls
+        if: '!inputs.marker_boundary_only'
         id: capture
         shell: pwsh
         run: |
@@ -59,8 +83,10 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: inprocess-native-${{ github.run_id }}-${{ github.run_attempt }}
+          name: ${{ inputs.marker_boundary_only && 'inprocess-marker-boundary' || 'inprocess-native' }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             ./profile-results/
             ./profile-binaries/*.pdb
+            ./marker-boundary-results/
+            ./marker-boundary-binaries/*.pdb
           retention-days: 7
