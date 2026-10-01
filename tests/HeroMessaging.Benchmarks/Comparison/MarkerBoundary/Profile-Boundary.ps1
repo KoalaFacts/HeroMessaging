@@ -2,12 +2,13 @@
 [CmdletBinding()]
 param([Parameter(Mandatory)][string]$Assembly, [Parameter(Mandatory)][string]$TraceTool,
     [Parameter(Mandatory)][string]$Analyzer, [Parameter(Mandatory)][string]$OutputDirectory,
-    [switch]$ObserveNativeWrites, [switch]$NativeLogging)
+    [switch]$ObserveNativeWrites, [switch]$NativeLogging, [switch]$RingTrace)
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot '../Profiling.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'Boundary.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'NativeLogging.psm1') -Force
+if ($RingTrace -and !$NativeLogging) { throw 'Ring trace requires the isolated native logging adapter.' }
 if (!$IsLinux -or [Environment]::ProcessorCount -ne 4) { throw 'Boundary capture requires isolated four-CPU Linux.' }
 if ((& id -u) -ne '0' -or !(Test-Path -LiteralPath '/sys/kernel/tracing/user_events_data')) {
     throw 'Boundary capture requires root and kernel user_events; no fallback.'
@@ -30,6 +31,7 @@ $manifest = [ordered]@{
     processorCount = [Environment]::ProcessorCount; captureSeconds = 90
     observeNativeWrites = [bool]$ObserveNativeWrites
     nativeLogging = [bool]$NativeLogging
+    ringTrace = [bool]$RingTrace
     interpretation = 'Synthetic marker boundary diagnostic, not a performance comparison or repair. Local observation does not prove native emission or perf readiness. Required CPU/scheduler/three-window guards remain intact.'
 }
 $children = [Collections.Generic.List[object]]::new()
@@ -52,6 +54,10 @@ try {
         Assert-InProcessNativeLoggingTool $manifest.traceToolVersion
         $library = Get-InProcessNativeLoggingLibrary $trace
         $manifest.nativeLibrarySha256 = (Get-FileHash $library).Hash
+        if ($RingTrace) {
+            Assert-InProcessNativeRingTraceLibrary $manifest.nativeLibrarySha256
+            $manifest.ringTraceInterpretation = 'Adds only characterized ring-reader TRACE targets while preserving global debug/WARN/ERROR. Logging perturbs pressure; compiled sites and parser acceptance do not prove reachable records, marker identity or loss-free collection.'
+        }
         $manifest.nativeLibraryLength = (Get-Item -LiteralPath $library).Length
         $manifest.nativeLibraryPath = $library
         $manifest.traceToolSha256 = (Get-FileHash $trace).Hash
@@ -85,7 +91,7 @@ try {
         $manifest.targetRuntimeLibraries = @($runtimeLibraries | ForEach-Object { @{ path = $_; sha256 = (Get-FileHash -LiteralPath $_).Hash } })
         $scriptPath = Join-Path $output 'native.script'
         $nativeLog = Join-Path $output 'native-collector.log'
-        $config = Get-InProcessNativeLoggingConfiguration $probe.Id $capture $scriptPath $nativeLog
+        $config = Get-InProcessNativeLoggingConfiguration $probe.Id $capture $scriptPath $nativeLog -RingTrace:$RingTrace
         [IO.File]::WriteAllText($scriptPath, $config.script, [Text.UTF8Encoding]::new($false))
         $commandPath = Join-Path $output 'native-command.txt'
         [IO.File]::WriteAllText($commandPath, $config.command, [Text.UTF8Encoding]::new($false))

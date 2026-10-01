@@ -65,6 +65,22 @@ if ($config.script -cne $expected -or
     $config.command -cne '--on-cpu --pid 123 --out native.nettrace --script-file native.script --log-filter debug --log-path native.log --log-mode file') {
     throw 'Native logging adapter changed the characterized script or arguments.'
 }
+$ringConfig = Get-InProcessNativeLoggingConfiguration 123 'native.nettrace' 'native.script' 'native.log' -RingTrace
+$ringFilter = 'debug,one_collect::perf_event::rb=trace,one_collect::perf_event::rb::source=trace'
+if ($ringConfig.script -cne $config.script -or
+    $ringConfig.command -cne $config.command.Replace('--log-filter debug ', "--log-filter $ringFilter ") -or
+    ($ringConfig.arguments -join ' ') -cne $ringConfig.command) {
+    throw 'Ring trace must change only the characterized logging filter, preserving global debug.'
+}
+Assert-InProcessNativeRingTraceLibrary 'FCA0D0DAB5CDF81CC156A15BCF40ACA77E2B65744C11CC5DECC74E769A262860'
+$rejected = $false
+try { Assert-InProcessNativeRingTraceLibrary 'uncharacterized' } catch { $rejected = $true }
+if (!$rejected) { throw 'Ring trace accepted an uncharacterized native binary.' }
+$rejected = $false
+try {
+    & (Join-Path $PSScriptRoot 'Profile-Boundary.ps1') -Assembly unused -TraceTool unused -Analyzer unused -OutputDirectory unused -RingTrace
+} catch { $rejected = $_.Exception.Message -ceq 'Ring trace requires the isolated native logging adapter.' }
+if (!$rejected) { throw 'Ring trace must fail before startup without native logging.' }
 foreach ($path in @('', 'two words', 'two"quotes', "two`nlines", 'two\slashes', '-option')) {
     $rejected = $false
     try { $null = Get-InProcessNativeLoggingConfiguration 123 $path 'native.script' 'native.log' } catch { $rejected = $true }

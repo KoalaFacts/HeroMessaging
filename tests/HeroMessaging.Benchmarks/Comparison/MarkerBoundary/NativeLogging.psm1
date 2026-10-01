@@ -2,7 +2,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 function Get-InProcessNativeLoggingConfiguration {
-    param([int]$ProcessId, [string]$OutputPath, [string]$ScriptPath, [string]$LogPath)
+    param([int]$ProcessId, [string]$OutputPath, [string]$ScriptPath, [string]$LogPath, [switch]$RingTrace)
     if ($ProcessId -le 0) { throw 'Native logging requires a positive target PID.' }
     foreach ($path in @($OutputPath, $ScriptPath, $LogPath)) {
         if ([string]::IsNullOrWhiteSpace($path) -or $path -match '[\s"\\]' -or $path.StartsWith('-')) {
@@ -16,9 +16,17 @@ function Get-InProcessNativeLoggingConfiguration {
     foreach ($event in @('sched_switch', 'sched_wakeup', 'sched_wakeup_new')) {
         $script += "let $event = event_from_tracefs(`"sched`", `"$event`");`nrecord_event($event);`n`n"
     }
+    $filter = if ($RingTrace) { 'debug,one_collect::perf_event::rb=trace,one_collect::perf_event::rb::source=trace' } else { 'debug' }
     $arguments = @('--on-cpu', '--pid', "$ProcessId", '--out', $OutputPath, '--script-file', $ScriptPath,
-        '--log-filter', 'debug', '--log-path', $LogPath, '--log-mode', 'file')
+        '--log-filter', $filter, '--log-path', $LogPath, '--log-mode', 'file')
     return [PSCustomObject]@{ script = $script; arguments = $arguments; command = $arguments -join ' ' }
+}
+
+function Assert-InProcessNativeRingTraceLibrary {
+    param([string]$Sha256)
+    if ($Sha256 -cne 'FCA0D0DAB5CDF81CC156A15BCF40ACA77E2B65744C11CC5DECC74E769A262860') {
+        throw 'Ring trace requires the exact native binary with characterized trace sites and filter acceptance.'
+    }
 }
 
 function Get-InProcessNativeLoggingLibrary {
@@ -64,4 +72,4 @@ function Assert-InProcessNativeLoggingTool {
     }
 }
 
-Export-ModuleMember -Function Get-InProcessNativeLoggingConfiguration, Get-InProcessNativeLoggingLibrary, Assert-InProcessNativeRuntimeSupport, Assert-InProcessNativeLoggingTool, Get-InProcessNativeRuntimeProbeArguments, Get-InProcessNativeLoggingSelfTestLogPath
+Export-ModuleMember -Function Get-InProcessNativeLoggingConfiguration, Get-InProcessNativeLoggingLibrary, Assert-InProcessNativeRuntimeSupport, Assert-InProcessNativeLoggingTool, Get-InProcessNativeRuntimeProbeArguments, Get-InProcessNativeLoggingSelfTestLogPath, Assert-InProcessNativeRingTraceLibrary
