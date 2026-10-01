@@ -34,27 +34,52 @@ Assert-Throws { Get-InProcessNativeTraceArguments 123 'capture.nettrace' 181 }
 $maximum = Get-InProcessNativeTraceArguments 123 'capture.nettrace' 180
 if ($maximum[10] -ne '00:00:03:00') { throw 'Capture duration is not a valid bounded timespan.' }
 $summary = [PSCustomObject]@{
-    processId = 123; messageCount = 500000; completeWindows = @([PSCustomObject]@{ seconds = 12.5 })
+    processId = 123; messageCount = 500000
+    completeWindows = @([PSCustomObject]@{ batchId = 1; startMilliseconds = 0; stopMilliseconds = 12500; seconds = 12.5 })
     nativeCpuSamples = 1000; targetSchedulerEvents = 10; eventLossReportedByTraceLog = 0
 }
-Assert-InProcessNativeSummary $summary 123 500000
+$batchSeconds = @(12.5, 13.0, 13.5)
+Assert-InProcessNativeSummary $summary 123 500000 $batchSeconds
 foreach ($property in @('nativeCpuSamples', 'targetSchedulerEvents')) {
     $value = $summary.$property
     $summary.$property = 0
-    Assert-Throws { Assert-InProcessNativeSummary $summary 123 500000 }
+    Assert-Throws { Assert-InProcessNativeSummary $summary 123 500000 $batchSeconds }
     $summary.$property = $value
 }
 $summary.eventLossReportedByTraceLog = 1
-Assert-Throws { Assert-InProcessNativeSummary $summary 123 500000 }
+Assert-Throws { Assert-InProcessNativeSummary $summary 123 500000 $batchSeconds }
 $summary.eventLossReportedByTraceLog = 0
-Assert-Throws { Assert-InProcessNativeSummary $summary 999 500000 }
-Assert-Throws { Assert-InProcessNativeSummary $summary 123 999 }
+Assert-Throws { Assert-InProcessNativeSummary $summary 999 500000 $batchSeconds }
+Assert-Throws { Assert-InProcessNativeSummary $summary 123 999 $batchSeconds }
 foreach ($seconds in @(9, [double]::NaN, [double]::PositiveInfinity)) {
     $summary.completeWindows[0].seconds = $seconds
-    Assert-Throws { Assert-InProcessNativeSummary $summary 123 500000 }
+    Assert-Throws { Assert-InProcessNativeSummary $summary 123 500000 $batchSeconds }
+}
+$summary.completeWindows[0].seconds = 12.5
+foreach ($id in @(0, -1, 4, 1.5, [double]::NaN, [double]::PositiveInfinity)) {
+    $summary.completeWindows[0].batchId = $id
+    Assert-Throws { Assert-InProcessNativeSummary $summary 123 500000 $batchSeconds }
+}
+$summary.completeWindows[0].batchId = 1
+$validWindows = $summary.completeWindows
+$summary.completeWindows = @($validWindows[0], $validWindows[0])
+Assert-Throws { Assert-InProcessNativeSummary $summary 123 500000 $batchSeconds }
+$summary.completeWindows = @([PSCustomObject]@{ seconds = 12.5 })
+Assert-Throws { Assert-InProcessNativeSummary $summary 123 500000 $batchSeconds }
+# Reproduce the green capture's erroneous start 2 -> stop 3 concatenation.
+$summary.completeWindows = @([PSCustomObject]@{ batchId = 2; startMilliseconds = 15934; stopMilliseconds = 43290; seconds = 27.356 })
+Assert-Throws { Assert-InProcessNativeSummary $summary 123 500000 $batchSeconds }
+$summary.completeWindows = @([PSCustomObject]@{ batchId = 3; startMilliseconds = 29475; stopMilliseconds = 42975; seconds = 13.5 })
+Assert-InProcessNativeSummary $summary 123 500000 $batchSeconds
+Assert-Throws { Assert-InProcessNativeSummary $summary 123 500000 @(12.5, 13.0) }
+Assert-Throws { Assert-InProcessNativeSummary $summary 123 500000 @(12.5, 13.0, [double]::NaN) }
+$summary.completeWindows = $validWindows
+foreach ($stop in @(-1, [double]::NaN, [double]::PositiveInfinity, 13500)) {
+    $summary.completeWindows[0].stopMilliseconds = $stop
+    Assert-Throws { Assert-InProcessNativeSummary $summary 123 500000 $batchSeconds }
 }
 $summary.completeWindows = @()
-Assert-Throws { Assert-InProcessNativeSummary $summary 123 500000 }
+Assert-Throws { Assert-InProcessNativeSummary $summary 123 500000 $batchSeconds }
 
 $fixture = Join-Path ([IO.Path]::GetTempPath()) "HeroMessaging-Profile-$([Guid]::NewGuid().ToString('N')).json"
 try {

@@ -11,9 +11,9 @@ internal sealed class InProcessBenchmarkEvents : EventSource
     {
     }
 
-    [Event(1, Level = EventLevel.Informational)]
-    public void BatchStart(int messages, int handlers, int producers) => WriteEvent(1, messages, handlers, producers);
+    [Event(1, Version = 1, Level = EventLevel.Informational)]
+    public void BatchStart(int messages, int handlers, int producers, int batchId) => WriteEvent(1, messages, handlers, producers, batchId);
 
-    [Event(2, Level = EventLevel.Informational)]
-    public void BatchStop() => WriteEvent(2);
+    [Event(2, Version = 1, Level = EventLevel.Informational)]
+    public void BatchStop(int batchId) => WriteEvent(2, batchId);
 }

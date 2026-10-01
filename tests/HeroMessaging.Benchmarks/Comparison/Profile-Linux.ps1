@@ -109,7 +109,7 @@ function Invoke-Execution {
             $summaryPath = Join-Path $output "$Name-summary.json"
             & $dotnet $analyzerBinary $tracePath "$($record.processId)" "$($Expected.count)" 1> $summaryPath 2> (Join-Path $output "$Name-analysis.log")
             if ($LASTEXITCODE -ne 0) { throw 'Native trace decoding failed.' }
-            Assert-InProcessNativeSummary (Get-Content -LiteralPath $summaryPath -Raw | ConvertFrom-Json) $record.processId $Expected.count
+            Assert-InProcessNativeSummary (Get-Content -LiteralPath $summaryPath -Raw | ConvertFrom-Json) $record.processId $Expected.count $record.batchSeconds
         }
         $record.status = 'completed'
         return $result

@@ -10,11 +10,10 @@ var messageCount = int.Parse(args[2], CultureInfo.InvariantCulture);
 var cache = Path.ChangeExtension(args[0], ".etlx");
 TraceLog.CreateFromEventPipeDataFile(args[0], cache, new TraceLogOptions { ConversionLog = Console.Error });
 using var log = new TraceLog(cache);
-var windows = new List<(double Start, double Stop)>();
+var collector = new BatchWindowCollector();
 var targetThreads = new HashSet<int>();
 var eventKinds = new Dictionary<string, int>();
 var batchMarkers = new List<object>();
-double? started = null;
 foreach (var data in log.Events)
 {
     var kind = data.ProviderName + "/" + data.EventName;
@@ -39,17 +38,9 @@ foreach (var data in log.Events)
     if (data.ProviderGuid != BatchMarkerPayload.ProviderId)
         continue;
     // Decode our exact versioned wire schema; native dynamic metadata can be unavailable.
-    var payload = data.EventData();
-    if ((int)data.ID == 1)
-        started = BatchMarkerPayload.MatchesStart(data.ProviderGuid, (int)data.ID, data.Version, payload, messageCount)
-            ? data.TimeStampRelativeMSec : null;
-    if ((int)data.ID == 2)
-    {
-        if (BatchMarkerPayload.MatchesStop(data.ProviderGuid, (int)data.ID, data.Version, payload) && started is { } start)
-            windows.Add((start, data.TimeStampRelativeMSec));
-        started = null;
-    }
+    collector.Observe(data.ProviderGuid, (int)data.ID, data.Version, data.EventData(), messageCount, data.TimeStampRelativeMSec);
 }
+var windows = collector.Windows;
 var nativeCpuSamples = 0;
 var schedulerEvents = 0;
 var targetSchedulerEvents = 0;
@@ -103,7 +94,7 @@ Console.WriteLine(JsonSerializer.Serialize(new
 {
     processId,
     messageCount,
-    completeWindows = windows.Select(window => new { startMilliseconds = window.Start, stopMilliseconds = window.Stop, seconds = (window.Stop - window.Start) / 1000 }),
+    completeWindows = windows.Select(window => new { batchId = window.BatchId, startMilliseconds = window.Start, stopMilliseconds = window.Stop, seconds = (window.Stop - window.Start) / 1000 }),
     nativeCpuSamples,
     schedulerEvents,
     targetSchedulerEvents,

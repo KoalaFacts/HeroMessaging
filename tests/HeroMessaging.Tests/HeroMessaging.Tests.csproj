@@ -33,6 +33,7 @@
 
 	<ItemGroup>
 		<Compile Include="../HeroMessaging.Benchmarks/Comparison/NativeTrace/BatchMarkerPayload.cs" Link="Unit/Benchmarks/BatchMarkerPayload.cs" />
+		<Compile Include="../HeroMessaging.Benchmarks/Comparison/NativeTrace/BatchWindowCollector.cs" Link="Unit/Benchmarks/BatchWindowCollector.cs" />
 		<Compile Include="../HeroMessaging.Benchmarks/InProcessBenchmarkEvents.cs" Link="Unit/Benchmarks/InProcessBenchmarkEvents.cs" />
 		<ProjectReference Include="..\..\src\HeroMessaging\HeroMessaging.csproj" />
 		<ProjectReference Include="..\..\src\HeroMessaging.Abstractions\HeroMessaging.Abstractions.csproj" />
