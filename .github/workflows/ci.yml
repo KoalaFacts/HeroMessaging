@@ -108,6 +108,17 @@ jobs:
               --logger "trx;LogFileName=unit-tests-${{ matrix.os }}-${{ matrix.framework }}-$project_name.trx"
             )
 
+            # Bound hang capture inside the existing job deadline, before coverage runsettings.
+            if [[ "${{ matrix.os }}" == "ubuntu-latest" && "${{ matrix.framework }}" == "net10.0" && "$project_name" == "HeroMessaging.Tests" ]]; then
+              mkdir -p "./test-results/$project_name"
+              test_args+=(
+                --blame-hang
+                --blame-hang-timeout 10m
+                --blame-hang-dump-type mini
+                --diag "./test-results/$project_name/vstest-diag.log"
+              )
+            fi
+
             if [[ "$project_name" != "HeroMessaging.Architecture.Tests" ]]; then
               test_args+=(--collect:"XPlat Code Coverage")
               test_args+=(-- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura)
@@ -124,6 +135,8 @@ jobs:
           path: |
             ./test-results/**/*.trx
             ./test-results/**/*.xml
+            ./test-results/**/*.dmp
+            ./test-results/**/*.log
           retention-days: 7
 
   integration-tests:
@@ -239,7 +252,8 @@ jobs:
       - name: Generate combined coverage report
         run: |
           # Check if any coverage files exist
-          if find ./all-test-results -name "coverage.cobertura.xml" -type f | grep -q .; then
+          coverage_file=$(find ./all-test-results -name "coverage.cobertura.xml" -type f -print -quit)
+          if [[ -n "$coverage_file" ]]; then
             echo "Found coverage files, generating report..."
             echo ""
             echo "Coverage filters:"
