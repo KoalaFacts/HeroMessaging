@@ -14,32 +14,43 @@ namespace HeroMessaging.Tests.Unit.Processing;
 [Trait("Category", "Unit")]
 public sealed class OutboxHostShutdownTests
 {
-    [Fact]
-    public async Task Deadline_CancelsCooperativeLocalHandlerWithoutConsumingRetry()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Deadline_CancelsCooperativeLocalHandlerWithoutConsumingRetry(bool pauseAfterEntry)
     {
         var storage = new InMemoryOutboxStorage(TimeProvider.System);
         var entry = await storage.AddAsync(new TestEvent(), new OutboxOptions(), TestContext.Current.CancellationToken);
-        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        CancellationToken handlerToken = default;
+        var entered = new TaskCompletionSource<CancellationToken>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var messaging = new Mock<IHeroMessaging>();
         messaging.Setup(service => service.PublishAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()))
             .Returns(async (IEvent _, CancellationToken cancellationToken) =>
             {
-                entered.TrySetResult();
-                handlerToken = cancellationToken;
+                entered.TrySetResult(cancellationToken);
+                // Keep the deadline-before-handler-await interleaving deterministic.
+                if (pauseAfterEntry)
+                    await release.Task.WaitAsync(TestContext.Current.CancellationToken);
                 await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
             });
         using var services = new ServiceCollection().AddSingleton(messaging.Object).BuildServiceProvider();
         await using var processor = new OutboxProcessor(storage, services, NullLogger<OutboxProcessor>.Instance, TimeProvider.System);
         IOutboxProcessor registered = processor;
         await registered.StartAsync(TestContext.Current.CancellationToken);
-        await entered.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        var handlerToken = await entered.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
-        using var deadline = new CancellationTokenSource();
-        var stopping = registered.StopAsync(deadline.Token);
-        await deadline.CancelAsync();
-        await stopping.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
-        Assert.True(handlerToken.IsCancellationRequested);
+        try
+        {
+            using var deadline = new CancellationTokenSource();
+            var stopping = registered.StopAsync(deadline.Token);
+            await deadline.CancelAsync();
+            await stopping.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+            Assert.True(handlerToken.IsCancellationRequested);
+        }
+        finally
+        {
+            release.TrySetResult();
+        }
 
         using var updateTimeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
         updateTimeout.CancelAfter(TimeSpan.FromSeconds(5));

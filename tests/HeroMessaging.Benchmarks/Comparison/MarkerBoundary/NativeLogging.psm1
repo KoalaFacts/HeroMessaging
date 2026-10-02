@@ -1,0 +1,75 @@
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+
+function Get-InProcessNativeLoggingConfiguration {
+    param([int]$ProcessId, [string]$OutputPath, [string]$ScriptPath, [string]$LogPath, [switch]$RingTrace)
+    if ($ProcessId -le 0) { throw 'Native logging requires a positive target PID.' }
+    foreach ($path in @($OutputPath, $ScriptPath, $LogPath)) {
+        if ([string]::IsNullOrWhiteSpace($path) -or $path -match '[\s"\\]' -or $path.StartsWith('-')) {
+            throw 'Native logging paths must be unambiguous native command tokens.'
+        }
+    }
+    # Matches the pinned collect-linux provider/perf-event templates, without extra CLR streams.
+    $script = 'let HeroMessaging_InProcessBenchmark_flags = new_dotnet_provider_flags();' + "`n" +
+        'HeroMessaging_InProcessBenchmark_flags.with_callstacks();' + "`n" +
+        'record_dotnet_provider("HeroMessaging-InProcessBenchmark", 0xFFFFFFFFFFFFFFFF, 4, HeroMessaging_InProcessBenchmark_flags);' + "`n`n"
+    foreach ($event in @('sched_switch', 'sched_wakeup', 'sched_wakeup_new')) {
+        $script += "let $event = event_from_tracefs(`"sched`", `"$event`");`nrecord_event($event);`n`n"
+    }
+    $filter = if ($RingTrace) { 'debug,one_collect::perf_event::rb=trace,one_collect::perf_event::rb::source=trace' } else { 'debug' }
+    $arguments = @('--on-cpu', '--pid', "$ProcessId", '--out', $OutputPath, '--script-file', $ScriptPath,
+        '--log-filter', $filter, '--log-path', $LogPath, '--log-mode', 'file')
+    return [PSCustomObject]@{ script = $script; arguments = $arguments; command = $arguments -join ' ' }
+}
+
+function Assert-InProcessNativeRingTraceLibrary {
+    param([string]$Sha256)
+    if ($Sha256 -cne 'FCA0D0DAB5CDF81CC156A15BCF40ACA77E2B65744C11CC5DECC74E769A262860') {
+        throw 'Ring trace requires the exact native binary with characterized trace sites and filter acceptance.'
+    }
+}
+
+function Get-InProcessNativeLoggingLibrary {
+    param([string]$TraceTool)
+    $store = Join-Path (Split-Path $TraceTool -Parent) '.store/dotnet-trace'
+    $candidates = @(Get-ChildItem -LiteralPath $store -Filter librecordtrace.so -File -Recurse |
+        Where-Object { $_.FullName -match '/runtimes/linux-x64/native/librecordtrace\.so$' })
+    if ($candidates.Count -ne 1) { throw 'Cannot uniquely identify the installed Linux x64 native collector.' }
+    return $candidates[0].FullName
+}
+
+function Assert-InProcessNativeRuntimeSupport {
+    param([string]$Csv, [int]$ProcessId)
+    $lines = @($Csv -split '\r?\n' | Where-Object { ![string]::IsNullOrWhiteSpace($_) })
+    if ($lines.Count -ne 2 -or $lines[0] -cne 'pid,processName,supportsCollectLinux') {
+        throw 'Native runtime support requires the exact machine-readable CSV schema.'
+    }
+    $rows = @($Csv | ConvertFrom-Csv)
+    if ($ProcessId -le 0 -or $rows.Count -ne 1 -or $rows[0].pid -cne "$ProcessId" -or
+        $rows[0].supportsCollectLinux -cne 'true') {
+        throw 'Native runtime probe did not confirm support for the exact target PID.'
+    }
+}
+
+function Get-InProcessNativeRuntimeProbeArguments {
+    param([int]$ProcessId, [string]$OutputPath)
+    if ($ProcessId -le 0 -or [string]::IsNullOrWhiteSpace($OutputPath) -or
+        [IO.Path]::GetFileName($OutputPath) -ieq 'stdout') {
+        throw 'Native runtime probe requires a positive PID and a CSV evidence file.'
+    }
+    return @('collect-linux', '--probe', '--process-id', "$ProcessId", '--output', $OutputPath)
+}
+
+function Get-InProcessNativeLoggingSelfTestLogPath {
+    param([string]$OutputDirectory)
+    return Join-Path $OutputDirectory 'native-logging-self-test-native.log'
+}
+
+function Assert-InProcessNativeLoggingTool {
+    param([string]$Version)
+    if ($Version -cne '10.0.745401+cef304c50763bf24f99566cb31d55540842e7ae9') {
+        throw 'Installed collector changed; re-characterize its native configuration before capture.'
+    }
+}
+
+Export-ModuleMember -Function Get-InProcessNativeLoggingConfiguration, Get-InProcessNativeLoggingLibrary, Assert-InProcessNativeRuntimeSupport, Assert-InProcessNativeLoggingTool, Get-InProcessNativeRuntimeProbeArguments, Get-InProcessNativeLoggingSelfTestLogPath, Assert-InProcessNativeRingTraceLibrary
