@@ -42,7 +42,7 @@ dotnet test --filter-trait "Category=Integration"
 dotnet test --filter-trait "Category=Contract"
 
 # Run with coverage
-dotnet test --coverlet --coverlet-output-format cobertura
+dotnet test --project tests/HeroMessaging.Tests --filter-not-trait Category=Integration --coverlet --coverlet-output-format cobertura
 
 # Run benchmarks
 dotnet run --project tests/HeroMessaging.Benchmarks -c Release
@@ -108,7 +108,7 @@ Improve code quality while keeping tests green.
 ### Generate Coverage Report
 ```bash
 # Collect coverage data
-dotnet test --coverlet --coverlet-output-format cobertura --results-directory ./TestResults
+dotnet test --project tests/HeroMessaging.Tests --filter-not-trait Category=Integration --coverlet --coverlet-output-format cobertura --results-directory ./TestResults
 
 # Generate HTML report
 reportgenerator -reports:"TestResults/**/coverage.cobertura*.xml" \

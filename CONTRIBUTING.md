@@ -95,7 +95,7 @@ Improve code quality while keeping all tests green:
 
 Ensure your changes maintain coverage standards:
 ```bash
-dotnet test --coverlet --coverlet-output-format cobertura
+dotnet test --project tests/HeroMessaging.Tests --filter-not-trait Category=Integration --coverlet --coverlet-output-format cobertura
 reportgenerator -reports:**/coverage.cobertura*.xml -targetdir:coverage-report
 ```
 
@@ -293,7 +293,7 @@ See existing ADRs for examples:
 
 3. **Check coverage:**
    ```bash
-   dotnet test --coverlet --coverlet-output-format cobertura
+   dotnet test --project tests/HeroMessaging.Tests --filter-not-trait Category=Integration --coverlet --coverlet-output-format cobertura
    ```
 
 4. **Run benchmarks (if applicable):**

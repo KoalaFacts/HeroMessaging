@@ -32,10 +32,12 @@ dotnet test --project tests/HeroMessaging.Tests --framework net10.0 --filter-not
 dotnet test --filter-trait Category=Integration --minimum-expected-tests 0 --ignore-exit-code 8
 
 # Produce TRX and Cobertura reports
-dotnet test --filter-not-trait Category=Integration --report-trx --coverlet --coverlet-output-format cobertura
+dotnet test --project tests/HeroMessaging.Tests --filter-not-trait Category=Integration --filter-not-trait Category=Integration --report-trx --coverlet --coverlet-output-format cobertura
 
 reportgenerator '-reports:**/coverage.cobertura*.xml' -targetdir:coverage-report
 ```
+
+Architecture tests run without coverage instrumentation because they inspect assembly metadata. CI collects coverage from the other test projects.
 
 Shared test properties register the TRX and Coverlet MTP extensions only for executable `.Tests` projects. CI runs each supported framework separately and retains the 80% coverage requirement. See [the testing guide](../docs/testing-guide.md) for service configuration and test conventions.
 

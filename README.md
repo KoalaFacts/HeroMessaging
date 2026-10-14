@@ -429,7 +429,7 @@ dotnet test --filter-trait "Category=Unit"
 dotnet test --filter-trait "Category=Integration"
 
 # Generate coverage report
-dotnet test --coverlet --coverlet-output-format cobertura
+dotnet test --project tests/HeroMessaging.Tests --filter-not-trait Category=Integration --coverlet --coverlet-output-format cobertura
 reportgenerator -reports:**/coverage.cobertura*.xml -targetdir:coverage-report
 ```
 

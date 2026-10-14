@@ -44,7 +44,7 @@ dotnet test --filter-trait "Category=Integration"  # <2min target
 dotnet test                                 # <5min full suite
 
 # Coverage analysis
-dotnet test --coverlet --coverlet-output-format cobertura
+dotnet test --project tests/HeroMessaging.Tests --filter-not-trait Category=Integration --coverlet --coverlet-output-format cobertura
 reportgenerator -reports:**/coverage.cobertura*.xml -targetdir:coverage-report
 
 # Performance benchmarks
@@ -339,7 +339,7 @@ dotnet build --no-restore --verbosity normal
 dotnet test --no-build --output Normal
 
 # Verify coverage (if applicable)
-dotnet test --coverlet --coverlet-output-format cobertura --no-build
+dotnet test --project tests/HeroMessaging.Tests --filter-not-trait Category=Integration --coverlet --coverlet-output-format cobertura --no-build
 
 # Verify file existence
 ls -la [specified-file-path]
