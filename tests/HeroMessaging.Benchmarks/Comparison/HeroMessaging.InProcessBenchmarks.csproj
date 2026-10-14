@@ -7,7 +7,7 @@
   <ItemGroup>
     <Compile Remove="NativeTrace/**/*.cs" />
     <Using Include="Microsoft.Extensions.DependencyInjection" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.13" />
     <Compile Include="../ConcurrentInProcessPipelineBenchmark.cs" Link="ConcurrentInProcessPipelineBenchmark.cs" />
     <Compile Include="../InProcessPipelineBenchmark.cs" Link="InProcessPipelineBenchmark.cs" />
     <Compile Include="../InProcessBenchmarkEvents.cs" Link="InProcessBenchmarkEvents.cs" />

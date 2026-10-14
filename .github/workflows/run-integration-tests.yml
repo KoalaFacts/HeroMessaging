@@ -77,7 +77,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: |
             8.0.x
@@ -152,15 +152,18 @@ jobs:
             fi
 
             project_name=$(basename "$project" .csproj)
-            dotnet test "$project" \
+            dotnet test --project "$project" \
               --configuration Release \
               --no-build \
               --framework ${{ matrix.framework }} \
-              --filter "Category=Integration" \
-              --collect:"XPlat Code Coverage" \
+              --filter-trait "Category=Integration" \
+              --coverlet --coverlet-output-format cobertura --coverlet-include "[HeroMessaging*]*" \
               --results-directory "./test-results/$project_name" \
-              --logger "trx;LogFileName=integration-tests-${{ matrix.framework }}-$project_name.trx" \
-              -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
+              --report-trx \
+              --report-trx-filename "integration-tests-${{ matrix.framework }}-$project_name.trx" \
+              --minimum-expected-tests 0 \
+              --ignore-exit-code 8 \
+              --no-progress
           done
 
       - name: Upload integration test results

@@ -39,13 +39,13 @@ tests/
 ```bash
 # Build and test (fast feedback)
 dotnet build
-dotnet test --filter Category=Unit         # <30s target
-dotnet test --filter Category=Integration  # <2min target
+dotnet test --filter-trait "Category=Unit"         # <30s target
+dotnet test --filter-trait "Category=Integration"  # <2min target
 dotnet test                                 # <5min full suite
 
 # Coverage analysis
-dotnet test --collect:"XPlat Code Coverage"
-reportgenerator -reports:**/coverage.cobertura.xml -targetdir:coverage-report
+dotnet test --coverlet --coverlet-output-format cobertura
+reportgenerator -reports:**/coverage.cobertura*.xml -targetdir:coverage-report
 
 # Performance benchmarks
 dotnet run --project tests/HeroMessaging.Benchmarks --configuration Release
@@ -336,10 +336,10 @@ Before marking any task as finished, verify:
 dotnet build --no-restore --verbosity normal
 
 # Verify tests
-dotnet test --no-build --verbosity normal
+dotnet test --no-build --output Normal
 
 # Verify coverage (if applicable)
-dotnet test --collect:"XPlat Code Coverage" --no-build
+dotnet test --coverlet --coverlet-output-format cobertura --no-build
 
 # Verify file existence
 ls -la [specified-file-path]

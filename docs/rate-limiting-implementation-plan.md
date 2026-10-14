@@ -478,7 +478,7 @@ dotnet test --filter Category=Integration --no-build --verbosity normal
 dotnet test --no-build --verbosity normal
 
 # Coverage
-dotnet test --collect:"XPlat Code Coverage" --no-build
+dotnet test --coverlet --coverlet-output-format cobertura --no-build
 reportgenerator -reports:**/coverage.cobertura.xml -targetdir:coverage-report
 ```
 

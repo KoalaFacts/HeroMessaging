@@ -95,8 +95,8 @@ Improve code quality while keeping all tests green:
 
 Ensure your changes maintain coverage standards:
 ```bash
-dotnet test --collect:"XPlat Code Coverage"
-reportgenerator -reports:**/coverage.cobertura.xml -targetdir:coverage-report
+dotnet test --coverlet --coverlet-output-format cobertura
+reportgenerator -reports:**/coverage.cobertura*.xml -targetdir:coverage-report
 ```
 
 **Coverage Requirements:**
@@ -293,7 +293,7 @@ See existing ADRs for examples:
 
 3. **Check coverage:**
    ```bash
-   dotnet test --collect:"XPlat Code Coverage"
+   dotnet test --coverlet --coverlet-output-format cobertura
    ```
 
 4. **Run benchmarks (if applicable):**

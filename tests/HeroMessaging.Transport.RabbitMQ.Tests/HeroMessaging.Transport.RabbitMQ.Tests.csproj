@@ -10,24 +10,15 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.5" />
-		<PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.5" />
-		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.3.0" />
-		<PackageReference Include="xunit.v3" Version="3.2.2" />
-		<PackageReference Include="xunit.runner.visualstudio" Version="3.1.5">
-			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-			<PrivateAssets>all</PrivateAssets>
-		</PackageReference>
-		<PackageReference Include="Moq" Version="4.20.72" />
-		<PackageReference Include="Testcontainers.RabbitMq" Version="4.15.0" />
-		<PackageReference Include="Testcontainers.PostgreSql" Version="4.15.0" />
-		<PackageReference Include="coverlet.collector" Version="8.0.1">
-			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-			<PrivateAssets>all</PrivateAssets>
-		</PackageReference>
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.13" />
+		<PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.13" />
+		<PackageReference Include="xunit.v3" Version="4.0.2" />
+		<PackageReference Include="Moq" Version="4.21.0" />
+		<PackageReference Include="Testcontainers.RabbitMq" Version="4.16.0" />
+		<PackageReference Include="Testcontainers.PostgreSql" Version="4.16.0" />
 		<PackageReference Include="OpenTelemetry" Version="1.19.1" />
 		<PackageReference Include="OpenTelemetry.Api" Version="1.19.1" />
-		<PackageReference Include="System.Diagnostics.DiagnosticSource" Version="10.0.5" />
+		<PackageReference Include="System.Diagnostics.DiagnosticSource" Version="10.0.13" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -40,10 +31,10 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Update="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.5" />
-		<PackageReference Update="Microsoft.Extensions.Logging.Abstractions" Version="10.0.5" />
-		<PackageReference Update="PolySharp" Version="1.15.0" />
-		<PackageReference Update="System.Collections.Immutable" Version="10.0.5" />
+		<PackageReference Update="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.13" />
+		<PackageReference Update="Microsoft.Extensions.Logging.Abstractions" Version="10.0.13" />
+		<PackageReference Update="PolySharp" Version="1.16.0" />
+		<PackageReference Update="System.Collections.Immutable" Version="10.0.13" />
 	</ItemGroup>
 
 </Project>

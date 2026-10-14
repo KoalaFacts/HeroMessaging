@@ -411,7 +411,7 @@ dotnet run --project tests/HeroMessaging.Benchmarks --configuration Release --fr
 
 ### Prerequisites
 
-- .NET 10 SDK (to build every target framework)
+- .NET 10 SDK with Roslyn 5.9 or later (verified with SDK 10.0.401; builds every target framework)
 - Docker (for integration tests)
 
 ### Building
@@ -421,16 +421,16 @@ dotnet run --project tests/HeroMessaging.Benchmarks --configuration Release --fr
 dotnet restore
 dotnet build
 
-# Run tests
+# Run tests with Microsoft.Testing.Platform (selected by global.json)
 dotnet test
 
 # Run specific test categories
-dotnet test --filter Category=Unit
-dotnet test --filter Category=Integration
+dotnet test --filter-trait "Category=Unit"
+dotnet test --filter-trait "Category=Integration"
 
 # Generate coverage report
-dotnet test --collect:"XPlat Code Coverage"
-reportgenerator -reports:**/coverage.cobertura.xml -targetdir:coverage-report
+dotnet test --coverlet --coverlet-output-format cobertura
+reportgenerator -reports:**/coverage.cobertura*.xml -targetdir:coverage-report
 ```
 
 ### Code Quality
