@@ -309,4 +309,4 @@ When adding new features to HeroMessaging:
 
 ## License
 
-Same as HeroMessaging project (MIT).
+Same as HeroMessaging project (Apache License, Version 2.0).

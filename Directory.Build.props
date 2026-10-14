@@ -18,7 +18,7 @@
     <Authors>HeroMessaging Contributors</Authors>
     <Company>HeroMessaging</Company>
     <Copyright>Copyright (c) 2025 HeroMessaging Contributors</Copyright>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/KoalaFacts/HeroMessaging</PackageProjectUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryUrl>https://github.com/KoalaFacts/HeroMessaging</RepositoryUrl>

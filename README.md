@@ -4,7 +4,7 @@
 
 [![Build Status](https://github.com/KoalaFacts/HeroMessaging/workflows/CI/badge.svg)](https://github.com/KoalaFacts/HeroMessaging/actions)
 [![NuGet](https://img.shields.io/nuget/v/HeroMessaging.svg)](https://www.nuget.org/packages/HeroMessaging/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 
 HeroMessaging is a modern, extensible messaging framework for .NET that provides in-process messaging, saga orchestration, CQRS support, and pluggable infrastructure for building distributed systems.
 
@@ -468,7 +468,7 @@ See [CHANGELOG.md](CHANGELOG.md) for version history and migration guides.
 
 ## License
 
-HeroMessaging is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+HeroMessaging is licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for details.
 
 ## Acknowledgments
 
