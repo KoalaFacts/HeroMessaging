@@ -927,7 +927,7 @@ A: Yes, it's normal C# code. Test it like any other code.
 
 ## License
 
-MIT License - same as HeroMessaging
+Apache License, Version 2.0 - same as HeroMessaging
 
 ---
 
