@@ -186,7 +186,7 @@ jobs:
           ls -lh *.nupkg *.snupkg 2>/dev/null || echo "No packages found!"
 
       - name: Setup .NET for signing
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: |
             8.0.x
