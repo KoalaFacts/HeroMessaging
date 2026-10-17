@@ -61,14 +61,17 @@ It also records **retention-days: 7**, the measurement guard failure, and exit 1
 Seven days elapsed before this audit. Expiration is consistent with the 404s;
 the 404 response does not distinguish expiration from manual deletion.
 
-The following expected hashes come from the historical
+The following native expected hashes come from the historical
 [review](https://github.com/KoalaFacts/HeroMessaging/pull/118#issuecomment-5943434848),
 not a fresh read of those files:
 
 - Native trace: `E2EB67A6CD621A212270EC85984F1E66996E51C5E0CDFED619DF259BF627C7DE`.
 - Complete native log: `E147E4FCD57A0268992F8E749D05CE0318D553F2179D2CF3F4FC73AD972338BD`.
 - Native library: `FCA0D0DAB5CDF81CC156A15BCF40ACA77E2B65744C11CC5DECC74E769A262860`.
-- Independent reader: `5DE8B783AB48AF46043FDBE775EA5A189E294F909BA79E92BC19EC1652C29ED2`.
+
+The independent-reader hash comes from the earlier
+[#116 raw-boundary review](https://github.com/KoalaFacts/HeroMessaging/pull/116#issuecomment-5926473906):
+`5DE8B783AB48AF46043FDBE775EA5A189E294F909BA79E92BC19EC1652C29ED2`.
 
 Recover those originals from the earlier workspace before claiming another raw
 analysis. A matching hash is necessary; a comment quoting a hash is not the asset.
@@ -130,8 +133,9 @@ assigning an unwind cause. No warnings or guard thresholds were suppressed.
 
 ## Independently revalidated performance blocker
 
-`verify_saved_comparisons.py` in the local evidence directory only reads files;
-it never launches saved binaries. It verifies archive digests, manifested library
+`verify_saved_comparisons.py` in the local evidence directory reads saved inputs
+and writes `comparison-revalidation.json`; it never launches saved binaries.
+It verifies archive digests, manifested library
 and harness hashes, clean-source flags, exact configurations, alternating process
 order, all 24 executions/72 batches per artifact, finite metrics, ordered
 percentiles and >=10-second measured durations. Statistics are medians of
