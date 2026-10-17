@@ -63,4 +63,5 @@ jobs:
           path: |
             ./profile-results/
             ./profile-binaries/*.pdb
-          retention-days: 7
+          # Keep raw traces available for follow-up alongside the 30-day performance artifacts.
+          retention-days: 30
