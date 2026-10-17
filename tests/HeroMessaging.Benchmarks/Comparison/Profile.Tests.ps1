@@ -10,9 +10,12 @@ foreach ($command in @('Get-InProcessBatchSeconds', 'Get-InProcessCalibrationObs
 }
 
 function Assert-Throws {
-    param([scriptblock]$Action)
+    param([scriptblock]$Action, [string]$ExpectedMessage)
     $threw = $false
-    try { & $Action | Out-Null } catch { $threw = $true }
+    try { & $Action | Out-Null } catch {
+        if ($ExpectedMessage -and $_.Exception.Message -ne $ExpectedMessage) { throw }
+        $threw = $true
+    }
     if (!$threw) { throw 'Expected profiling validation to fail.' }
 }
 
@@ -35,11 +38,23 @@ $maximum = Get-InProcessNativeTraceArguments 123 'capture.nettrace' 180
 if ($maximum[10] -ne '00:00:03:00') { throw 'Capture duration is not a valid bounded timespan.' }
 $summary = [PSCustomObject]@{
     processId = 123; messageCount = 500000
-    completeWindows = @([PSCustomObject]@{ batchId = 1; startMilliseconds = 0; stopMilliseconds = 12500; seconds = 12.5 })
+    completeWindows = @(
+        [PSCustomObject]@{ batchId = 1; startMilliseconds = 0; stopMilliseconds = 12500; seconds = 12.5 }
+        [PSCustomObject]@{ batchId = 2; startMilliseconds = 13000; stopMilliseconds = 26000; seconds = 13.0 }
+        [PSCustomObject]@{ batchId = 3; startMilliseconds = 26500; stopMilliseconds = 40000; seconds = 13.5 }
+    )
     nativeCpuSamples = 1000; targetSchedulerEvents = 10; eventLossReportedByTraceLog = 0
 }
 $batchSeconds = @(12.5, 13.0, 13.5)
 Assert-InProcessNativeSummary $summary 123 500000 $batchSeconds
+$validWindows = $summary.completeWindows
+# Every requested batch is required, including captures missing only the first, middle or last stop.
+foreach ($ids in @(@(1, 2), @(1, 3), @(2, 3), @(1), @(2), @(3))) {
+    $summary.completeWindows = @($validWindows | Where-Object { $_.batchId -in $ids })
+    Assert-Throws { Assert-InProcessNativeSummary $summary 123 500000 $batchSeconds } `
+        'Native diagnostics must contain a complete window for every measured benchmark batch.'
+}
+$summary.completeWindows = $validWindows
 foreach ($property in @('nativeCpuSamples', 'targetSchedulerEvents')) {
     $value = $summary.$property
     $summary.$property = 0
@@ -61,16 +76,20 @@ foreach ($id in @(0, -1, 4, 1.5, [double]::NaN, [double]::PositiveInfinity)) {
     Assert-Throws { Assert-InProcessNativeSummary $summary 123 500000 $batchSeconds }
 }
 $summary.completeWindows[0].batchId = 1
-$validWindows = $summary.completeWindows
-$summary.completeWindows = @($validWindows[0], $validWindows[0])
+$summary.completeWindows = @($validWindows[0], $validWindows[0], $validWindows[2])
 Assert-Throws { Assert-InProcessNativeSummary $summary 123 500000 $batchSeconds }
-$summary.completeWindows = @([PSCustomObject]@{ seconds = 12.5 })
+$summary.completeWindows = @($validWindows[1], $validWindows[0], $validWindows[2])
+Assert-Throws { Assert-InProcessNativeSummary $summary 123 500000 $batchSeconds }
+$summary.completeWindows = @([PSCustomObject]@{ seconds = 12.5 }, $validWindows[1], $validWindows[2])
 Assert-Throws { Assert-InProcessNativeSummary $summary 123 500000 $batchSeconds }
 # Reproduce the green capture's erroneous start 2 -> stop 3 concatenation.
-$summary.completeWindows = @([PSCustomObject]@{ batchId = 2; startMilliseconds = 15934; stopMilliseconds = 43290; seconds = 27.356 })
+$summary.completeWindows = @($validWindows[0],
+    [PSCustomObject]@{ batchId = 2; startMilliseconds = 15934; stopMilliseconds = 43290; seconds = 27.356 },
+    $validWindows[2])
 Assert-Throws { Assert-InProcessNativeSummary $summary 123 500000 $batchSeconds }
 $summary.completeWindows = @([PSCustomObject]@{ batchId = 3; startMilliseconds = 29475; stopMilliseconds = 42975; seconds = 13.5 })
-Assert-InProcessNativeSummary $summary 123 500000 $batchSeconds
+Assert-Throws { Assert-InProcessNativeSummary $summary 123 500000 $batchSeconds }
+$summary.completeWindows = $validWindows
 Assert-Throws { Assert-InProcessNativeSummary $summary 123 500000 @(12.5, 13.0) }
 Assert-Throws { Assert-InProcessNativeSummary $summary 123 500000 @(12.5, 13.0, [double]::NaN) }
 $summary.completeWindows = $validWindows
