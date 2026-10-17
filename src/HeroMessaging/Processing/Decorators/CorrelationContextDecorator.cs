@@ -35,10 +35,15 @@ public class CorrelationContextDecorator(
                 message.CausationId);
 
         // Add correlation information to processing context metadata
-        var enrichedContext = context
-            .WithMetadata("CorrelationId", message.CorrelationId ?? messageId)
-            .WithMetadata("CausationId", message.CausationId ?? string.Empty)
-            .WithMetadata("MessageId", messageId);
+        var enrichedContext = context with
+        {
+            Metadata = context.Metadata.SetItems(
+            [
+                new("CorrelationId", message.CorrelationId ?? messageId),
+                new("CausationId", message.CausationId ?? string.Empty),
+                new("MessageId", messageId)
+            ])
+        };
 
         // Process message with correlation context active
         var result = await _inner.ProcessAsync(message, enrichedContext, cancellationToken).ConfigureAwait(false);
