@@ -55,8 +55,11 @@ jobs:
 
       - name: Validate version format
         id: validate
+        env:
+          REQUESTED_VERSION: ${{ github.event.inputs.version }}
+          REQUESTED_COMMIT: ${{ github.event.inputs.commit_sha }}
         run: |
-          VERSION="${{ github.event.inputs.version }}"
+          VERSION="$REQUESTED_VERSION"
 
           # Remove 'v' prefix if present
           VERSION=${VERSION#v}
@@ -78,11 +81,11 @@ jobs:
             exit 1
           fi
 
-          # Get commit SHA
-          COMMIT_SHA="${{ github.event.inputs.commit_sha }}"
-          if [ -z "$COMMIT_SHA" ]; then
-            COMMIT_SHA=$(git rev-parse HEAD)
-            echo "No commit SHA provided, using latest main: $COMMIT_SHA"
+          # Checkout resolves the requested source; carry its immutable identity forward.
+          COMMIT_SHA=$(git rev-parse HEAD)
+          if [[ -n "$REQUESTED_COMMIT" && ! "$REQUESTED_COMMIT" =~ ^[a-fA-F0-9]{40}$ ]]; then
+            echo "commit_sha must be an exact 40-character commit SHA" >&2
+            exit 1
           fi
 
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
@@ -110,6 +113,8 @@ jobs:
               repo: context.repo.repo,
               workflow_id: ciWorkflow,
               status: 'success',
+              event: 'push',
+              branch: 'main',
               head_sha: commitSha,
               per_page: 1
             });
@@ -121,6 +126,11 @@ jobs:
             }
 
             const run = runs.data.workflow_runs[0];
+            if (run.head_sha !== commitSha || run.event !== 'push' || run.head_branch !== 'main' ||
+                run.status !== 'completed' || run.conclusion !== 'success') {
+              core.setFailed('CI run does not establish a successful main build of the requested source.');
+              return;
+            }
             console.log(`✅ Found workflow run: ${run.id}`);
             console.log(`   Status: ${run.status}`);
             console.log(`   Conclusion: ${run.conclusion}`);
@@ -129,69 +139,51 @@ jobs:
             core.setOutput('run_id', run.id);
 
   download-packages:
-    name: Download Pre-built Packages
+    name: Prepare Versioned Release Packages
     needs: validate-and-prepare
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
     steps:
-      - name: Download packages from CI workflow
+      - name: Checkout release preparation tools
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          path: release-tools
+
+      - name: Checkout exact validated source
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.validate-and-prepare.outputs.commit_sha }}
+          fetch-depth: 0
+          path: release-source
+
+      - name: Download packages from validated CI run
         uses: actions/download-artifact@v8
         with:
           name: release-packages-${{ needs.validate-and-prepare.outputs.commit_sha }}
-          path: ./release-packages
+          path: ./ci-packages
           run-id: ${{ needs.validate-and-prepare.outputs.workflow_run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: List downloaded packages
-        run: |
-          echo "📦 Downloaded packages from CI workflow:"
-          ls -lh ./release-packages/
-          echo ""
-          echo "These packages were built and tested in workflow run:"
-          echo "${{ needs.validate-and-prepare.outputs.workflow_run_id }}"
-
-      - name: Rename packages with release version
-        run: |
-          VERSION="${{ needs.validate-and-prepare.outputs.version }}"
-
-          cd ./release-packages
-
-          echo "Renaming packages to version: ${VERSION}"
-          echo ""
-
-          # Rename packages from CI version to release version
-          # CI format: {PackageId}.{version}-ci.{metadata}.{ext}
-          # Release format: {PackageId}.{version}.{ext}
-          for file in *.nupkg *.snupkg 2>/dev/null; do
-            # Skip if no files match
-            [ -e "$file" ] || continue
-
-            # Extract package ID and extension
-            # Match pattern: anything before version-ci, then version, then extension
-            if [[ "$file" =~ ^(.+)\.[0-9]+\.[0-9]+\.[0-9]+-ci\.(.+)\.(nupkg|snupkg)$ ]]; then
-              package_id="${BASH_REMATCH[1]}"
-              ext="${BASH_REMATCH[3]}"
-              newname="${package_id}.${VERSION}.${ext}"
-
-              echo "✓ Renaming: $file → $newname"
-              mv "$file" "$newname"
-            else
-              echo "⚠ Warning: $file doesn't match expected CI package format, skipping"
-            fi
-          done
-
-          echo ""
-          echo "📦 Final packages:"
-          ls -lh *.nupkg *.snupkg 2>/dev/null || echo "No packages found!"
-
-      - name: Setup .NET for signing
+      - name: Setup .NET for packing and signing
         uses: actions/setup-dotnet@v6
         with:
           dotnet-version: |
             8.0.x
             9.0.x
             10.0.x
+
+      - name: Build and verify requested package identities
+        env:
+          RELEASE_VERSION: ${{ needs.validate-and-prepare.outputs.version }}
+          SOURCE_COMMIT: ${{ needs.validate-and-prepare.outputs.commit_sha }}
+          CI_RUN_ID: ${{ needs.validate-and-prepare.outputs.workflow_run_id }}
+        run: |
+          python3 release-tools/.github/scripts/prepare_release.py \
+            --source ./release-source --ci-packages ./ci-packages \
+            --output ./release-packages --version "$RELEASE_VERSION" \
+            --commit "$SOURCE_COMMIT" --ci-run-id "$CI_RUN_ID"
 
       - name: Sign NuGet packages
         env:
@@ -255,7 +247,7 @@ jobs:
             echo "✅ Packages have been signed with code signing certificate"
           fi
 
-      - name: Upload renamed packages
+      - name: Upload verified release packages
         uses: actions/upload-artifact@v7
         with:
           name: release-packages-${{ needs.validate-and-prepare.outputs.version }}
@@ -297,6 +289,7 @@ jobs:
 
           - [HeroMessaging v${VERSION}](https://www.nuget.org/packages/HeroMessaging/${VERSION})
           - [HeroMessaging.Abstractions v${VERSION}](https://www.nuget.org/packages/HeroMessaging.Abstractions/${VERSION})
+          - [HeroMessaging.RingBuffer v${VERSION}](https://www.nuget.org/packages/HeroMessaging.RingBuffer/${VERSION})
 
           ## Installation
 
@@ -322,7 +315,7 @@ jobs:
           echo "---" >> release-notes.md
           echo "" >> release-notes.md
           echo "**Release commit**: ${COMMIT_SHA}" >> release-notes.md
-          echo "**Built by**: [CI Workflow Run](https://github.com/${{ github.repository }}/actions/runs/${{ needs.validate-and-prepare.outputs.workflow_run_id }})" >> release-notes.md
+          echo "**Source validated by**: [CI Workflow Run](https://github.com/${{ github.repository }}/actions/runs/${{ needs.validate-and-prepare.outputs.workflow_run_id }})" >> release-notes.md
 
           if [ -n "$LAST_TAG" ]; then
             echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${LAST_TAG}...${TAG}" >> release-notes.md
@@ -363,7 +356,7 @@ jobs:
             const files = fs.readdirSync(packagesDir);
 
             for (const file of files) {
-              if (file.endsWith('.nupkg') || file.endsWith('.snupkg')) {
+              if (file.endsWith('.nupkg') || file.endsWith('.snupkg') || file === 'release-manifest.json') {
                 const filePath = path.join(packagesDir, file);
                 const stats = fs.statSync(filePath);
                 const fileContent = fs.readFileSync(filePath);
@@ -398,7 +391,7 @@ jobs:
 
           ### 📦 Packages Included
 
-          Built from [CI Workflow Run #${{ needs.validate-and-prepare.outputs.workflow_run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ needs.validate-and-prepare.outputs.workflow_run_id }})
+          Source validated by [CI Workflow Run #${{ needs.validate-and-prepare.outputs.workflow_run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ needs.validate-and-prepare.outputs.workflow_run_id }})
 
           ### 🚀 Next Steps
 
@@ -410,7 +403,7 @@ jobs:
           - NuGet.org via Trusted Publishing
           - GitHub Packages
 
-          No rebuild or re-test needed - using pre-built artifacts from CI!
+          Release packages were rebuilt with the requested version from the exact CI-validated source. The release manifest records CI artifacts and unsigned package identities.
           EOF
           else
             cat >> $GITHUB_STEP_SUMMARY << EOF
