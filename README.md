@@ -185,7 +185,11 @@ private async partial Task<Order> ProcessOrderCore(string orderId, decimal amoun
 
 ```bash
 dotnet add package HeroMessaging
+dotnet add package Microsoft.Extensions.DependencyInjection
 ```
+
+The standalone example below uses the dependency injection package to build its
+service provider with `BuildServiceProvider()`.
 
 For additional capabilities:
 ```bash
