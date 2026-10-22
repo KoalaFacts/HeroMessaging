@@ -19,7 +19,8 @@ public class PostgreSqlSagaRepositoryTests : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
-        // External test databases are owned and cleaned up by the caller, as in the other storage fixtures.
+        // External connections must target a dedicated disposable test database.
+        // The caller removes it, including generated tables, even if the test process exits (see CONTRIBUTING.md).
         var connectionString = Environment.GetEnvironmentVariable("PostgreSql__ConnectionString");
         if (string.IsNullOrEmpty(connectionString))
         {
