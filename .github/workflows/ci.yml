@@ -76,15 +76,40 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-nuget-
 
-      - name: Verify release package identity guards
+      - name: Verify package and NativeAOT evidence guards
         if: matrix.os == 'ubuntu-latest' && matrix.framework == 'net10.0'
-        run: python3 -m unittest discover -s .github/scripts -p 'test_prepare_release.py' -v
+        run: python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v
 
       - name: Restore dependencies
         run: dotnet restore --verbosity minimal
 
       - name: Build solution
         run: dotnet build --configuration Release --no-restore --verbosity minimal
+
+      - name: Verify NativeAOT package consumer
+        if: matrix.os == 'ubuntu-latest' && matrix.framework == 'net10.0'
+        shell: bash
+        run: |
+          python3 .github/scripts/verify_nativeaot.py \
+            --source "$PWD" --commit "$(git rev-parse HEAD)" \
+            --output "$PWD/artifacts/nativeaot" \
+            --sdk "$(dotnet --version)" --tfm net10.0 --runtime 10.0.12 --rid linux-x64
+
+      - name: Upload NativeAOT consumer evidence
+        if: always() && matrix.os == 'ubuntu-latest' && matrix.framework == 'net10.0'
+        uses: actions/upload-artifact@v7
+        with:
+          name: nativeaot-consumer-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            artifacts/nativeaot/*.json
+            artifacts/nativeaot/*.log
+            artifacts/nativeaot/packages/*
+            artifacts/nativeaot/native/*
+            artifacts/nativeaot/consumer/*.*
+            artifacts/nativeaot/consumer/obj/project.assets.json
+            artifacts/nativeaot/consumer/obj/generated/**/*.cs
+            artifacts/nativeaot/consumer/obj/**/native/*.ilc.rsp
+          retention-days: 30
 
       - name: Run unit tests
         shell: bash
