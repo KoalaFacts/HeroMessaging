@@ -19,17 +19,21 @@ public class SqlServerSagaRepositoryTests : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
-        // Create and start SQL Server container
-        _sqlContainer = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest")
-            .WithPassword("YourStrong@Passw0rd")
-            .Build();
+        // External test databases are owned and cleaned up by the caller, as in the other storage fixtures.
+        var connectionString = Environment.GetEnvironmentVariable("SqlServer__ConnectionString");
+        if (string.IsNullOrEmpty(connectionString))
+        {
+            _sqlContainer = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest")
+                .WithPassword("YourStrong@Passw0rd")
+                .Build();
 
-        await _sqlContainer.StartAsync(TestContext.Current.CancellationToken);
+            await _sqlContainer.StartAsync(TestContext.Current.CancellationToken);
+            connectionString = _sqlContainer.GetConnectionString();
+        }
 
-        // Create storage options with container connection string
         _options = new SqlServerStorageOptions
         {
-            ConnectionString = _sqlContainer.GetConnectionString(),
+            ConnectionString = connectionString,
             Schema = "test",
             SagasTableName = $"Sagas_{Guid.NewGuid():N}",
             AutoCreateTables = true

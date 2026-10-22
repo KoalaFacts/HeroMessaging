@@ -19,17 +19,21 @@ public class PostgreSqlSagaRepositoryTests : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
-        // Create and start PostgreSQL container
-        _postgreSqlContainer = new PostgreSqlBuilder("postgres:17-alpine")
-            .WithPassword("postgres")
-            .Build();
+        // External test databases are owned and cleaned up by the caller, as in the other storage fixtures.
+        var connectionString = Environment.GetEnvironmentVariable("PostgreSql__ConnectionString");
+        if (string.IsNullOrEmpty(connectionString))
+        {
+            _postgreSqlContainer = new PostgreSqlBuilder("postgres:17-alpine")
+                .WithPassword("postgres")
+                .Build();
 
-        await _postgreSqlContainer.StartAsync(TestContext.Current.CancellationToken);
+            await _postgreSqlContainer.StartAsync(TestContext.Current.CancellationToken);
+            connectionString = _postgreSqlContainer.GetConnectionString();
+        }
 
-        // Create storage options with container connection string
         _options = new PostgreSqlStorageOptions
         {
-            ConnectionString = _postgreSqlContainer.GetConnectionString(),
+            ConnectionString = connectionString,
             Schema = "test",
             SagasTableName = $"sagas_{Guid.NewGuid():N}",
             AutoCreateTables = true
