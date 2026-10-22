@@ -10,6 +10,7 @@ from pathlib import Path
 import platform
 import re
 import shutil
+import signal
 import subprocess
 import xml.etree.ElementTree as ET
 
@@ -98,13 +99,24 @@ def verify(args):
         manifest["commands"].append({"argv": command, "cwd": str(cwd), "log": log.name, "exit_code": None})
         save()
         with log.open("w") as stream:
-            result = subprocess.run(command, cwd=cwd, stdout=stream, stderr=subprocess.STDOUT, env=env)
-        manifest["commands"][-1]["exit_code"] = result.returncode
-        save()
-        print(f"{name}: exit {result.returncode}", flush=True)
-        if check and result.returncode:
+            process = subprocess.Popen(command, cwd=cwd, stdout=stream, stderr=subprocess.STDOUT,
+                                       env=env, start_new_session=True)
+            try:
+                code = process.wait()
+            finally:
+                # Own the whole command group, including children that outlive timeout.
+                # These are disposable build/probe commands, with partial evidence retained.
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                process.wait()
+                manifest["commands"][-1]["exit_code"] = process.returncode
+                save()
+        print(f"{name}: exit {code}", flush=True)
+        if check and code:
             raise RuntimeError(f"{name} failed; see {log}")
-        return result.returncode, log.read_text()
+        return code, log.read_text()
 
     try:
         save()
@@ -163,6 +175,10 @@ def verify(args):
 
 
 if __name__ == "__main__":
+    def terminate(signum, frame):
+        raise SystemExit(128 + signum)
+
+    signal.signal(signal.SIGTERM, terminate)
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ("source", "output"):
         parser.add_argument(f"--{name}", type=Path, required=True)

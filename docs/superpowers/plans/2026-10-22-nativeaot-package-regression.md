@@ -20,10 +20,10 @@
 
 ## Tasks
 
-- [ ] Write focused failing guards for missing reusable verifier, identity mismatch and invalid native completion; reuse existing package fixtures.
-- [ ] Port the proven consumer and implement minimal orchestration/manifest, reusing package parsing.
-- [ ] Run guard red/green and actual JIT-negative / NativeAOT-positive execution from a clean committed source.
-- [ ] Wire the existing Ubuntu/net10 lane and document exact rerun commands and scope.
+- [x] Write focused failing guards for missing reusable verifier, identity mismatch and invalid native completion; reuse existing package fixtures.
+- [x] Port the proven consumer and implement minimal orchestration/manifest, reusing package parsing.
+- [x] Run guard red/green and actual JIT-negative / NativeAOT-positive execution from a clean committed source.
+- [x] Wire the existing Ubuntu/net10 lane and document exact rerun commands and scope.
 - [ ] Final strict solution build, all applicable local test frameworks, real AOT check, independent review, comment resolution.
 - [ ] Normal PR CI, normal merge, and final main AOT/CI evidence. No rerunning old performance PRs.
 

@@ -28,6 +28,9 @@ consumer package cache. `nativeaot-manifest.json` records command exit codes,
 SDK/runtime/TFM/RID/OS, package and resolved dependency hashes, generated source
 hashes, and the final ELF hash. `status: passed` is written only after actual
 execution succeeds. Logs, packages and partial evidence remain on failure.
+Build/probe commands have bounded timeouts and owned process groups. SIGINT or
+SIGTERM cleans those groups and records failure; forcibly killing the verifier
+itself with SIGKILL or losing the host is outside this cleanup guarantee.
 
 Coverage is intentionally narrow:
 

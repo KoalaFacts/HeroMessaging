@@ -24,6 +24,13 @@ services.AddSingleton(state);
 services.AddSingleton(storage);
 services.AddGeneratedHandlers();
 
+var registrations = services.Where(d => d.ServiceType == typeof(IEventHandler<ProbeEvent>)).ToArray();
+if (registrations.Length != 1 || registrations[0].Lifetime != ServiceLifetime.Transient)
+{
+    Console.Error.WriteLine("Generated handler registration must be exactly one transient descriptor.");
+    return 1;
+}
+
 await using (var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true }))
 {
     await using (var scope = provider.CreateAsyncScope())

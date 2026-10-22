@@ -1,9 +1,93 @@
 """Offline guards for real NativeAOT evidence; synthetic files are not AOT proof."""
 import importlib.util
+import json
+import os
 from pathlib import Path
+import shutil
+import signal
+import subprocess
+import sys
+import tempfile
+import time
 import unittest
 
 import test_prepare_release
+
+
+@unittest.skipUnless(sys.platform == "linux", "Linux process ownership regression")
+class NativeAotInterruptionTests(unittest.TestCase):
+    def check_interruption(self, interrupt):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source"
+            source.mkdir()
+            for name in ("verify_nativeaot.py", "prepare_release.py"):
+                shutil.copyfile(Path(__file__).with_name(name), source / name)
+            for command in (["git", "init", "-q"], ["git", "add", "."],
+                            ["git", "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid",
+                             "commit", "-qm", "Owned interruption fixture"]):
+                subprocess.run(command, cwd=source, check=True, capture_output=True)
+            commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=source, text=True).strip()
+            binary = root / "bin"
+            binary.mkdir()
+            ready = root / "ready.json"
+            child = root / "child.py"
+            child.write_text("import json, os, signal, time\nfrom pathlib import Path\n"
+                             "signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
+                             "Path(os.environ['TEST_READY']).write_text(json.dumps({'child': os.getpid(), "
+                             "'parent': os.getppid(), 'group': os.getpgrp()}))\ntime.sleep(60)\n")
+            fake = binary / "dotnet"
+            fake.write_text(f"#!{sys.executable}\nimport signal, subprocess, sys\n"
+                            "if '--version' in sys.argv:\n print('10.0.401'); sys.exit(0)\n"
+                            "signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
+                            f"subprocess.run([sys.executable, {str(child)!r}])\n")
+            fake.chmod(0o755)
+            env = dict(os.environ, PATH=str(binary) + os.pathsep + os.defpath, TEST_READY=str(ready),
+                       PYTHONDONTWRITEBYTECODE="1")
+            output = root / "evidence"
+            command = [sys.executable, str(source / "verify_nativeaot.py"), "--source", str(source),
+                       "--commit", commit, "--output", str(output), "--sdk", "10.0.401",
+                       "--tfm", "net10.0", "--runtime", "10.0.12", "--rid", "linux-x64"]
+            owned = None
+            with (root / "outer.log").open("w") as log:
+                process = subprocess.Popen(command, stdout=log, stderr=subprocess.STDOUT, env=env,
+                                           start_new_session=True)
+                try:
+                    deadline = time.monotonic() + 5
+                    while not ready.exists() and process.poll() is None and time.monotonic() < deadline:
+                        time.sleep(0.02)
+                    self.assertTrue(ready.exists(), (root / "outer.log").read_text())
+                    owned = json.loads(ready.read_text())
+                    process.send_signal(interrupt)
+                    code = process.wait(timeout=12)
+                    deadline = time.monotonic() + 2
+                    def alive(pid):
+                        status = Path(f"/proc/{pid}/stat")
+                        return status.exists() and status.read_text().split(") ", 1)[1].split()[0] != "Z"
+                    while any(alive(owned[key]) for key in ("parent", "child")) and time.monotonic() < deadline:
+                        time.sleep(0.02)
+                    live = [key for key in ("parent", "child") if alive(owned[key])]
+                    print(f"interrupt={interrupt.name} outer_exit={code} live_owned={live}", flush=True)
+                    self.assertNotEqual(0, code)
+                    self.assertEqual([], live, "Interruption left owned subprocesses alive")
+                    manifest = json.loads((output / "nativeaot-manifest.json").read_text())
+                    self.assertEqual("failed", manifest["status"])
+                    self.assertIsNotNone(manifest["commands"][0]["exit_code"])
+                finally:
+                    if owned:
+                        try:
+                            os.killpg(owned["group"], signal.SIGKILL)
+                        except ProcessLookupError:
+                            pass
+                    if process.poll() is None:
+                        process.kill()
+                    process.wait(timeout=5)
+
+    def test_keyboard_interrupt_cleans_owned_processes_and_records_failure(self):
+        self.check_interruption(signal.SIGINT)
+
+    def test_termination_cleans_owned_processes_and_records_failure(self):
+        self.check_interruption(signal.SIGTERM)
 
 
 class NativeAotEvidenceTests(unittest.TestCase):
