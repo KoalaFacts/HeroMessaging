@@ -28,7 +28,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16-alpine
+        image: postgres@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24 # 17.11
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -42,11 +42,11 @@ jobs:
           --health-retries 5
 
       sqlserver:
-        image: mcr.microsoft.com/mssql/server:2022-latest
+        image: mcr.microsoft.com/mssql/server@sha256:742481d1b1186cccc81220a1eaacef244ca8d0f7d19c8e5c70df8ae541ffbab2 # 2025 / 17.0.5015.4
         env:
           ACCEPT_EULA: Y
-          SA_PASSWORD: YourStrong@Passw0rd
-          MSSQL_PID: Developer
+          MSSQL_SA_PASSWORD: YourStrong@Passw0rd
+          MSSQL_PID: EnterpriseDeveloper
         ports:
           - 1433:1433
         options: >-
