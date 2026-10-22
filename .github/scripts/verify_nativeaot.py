@@ -24,6 +24,11 @@ def sha256(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def materialize_consumer(source, target):
+    shutil.copytree(source, target, ignore=shutil.ignore_patterns("bin", "obj"))
+    (target / "NativeAotConsumer.csproj.template").rename(target / "NativeAotConsumer.csproj")
+
+
 def validate_target(sdk, tfm, runtime, rid):
     if not all(re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", value) for value in (sdk, runtime)):
         raise ValueError("Exact stable SDK and runtime versions are required")
@@ -132,7 +137,9 @@ def verify(args):
                 "-p:IncludeSymbols=true", "-p:SymbolPackageFormat=snupkg"], source)
         manifest["packages"] = verify_packages(packages, version, commit)
         consumer = output / "consumer"
-        shutil.copytree(source / "tests" / "NativeAotConsumer", consumer, ignore=shutil.ignore_patterns("bin", "obj"))
+        template = source / "tests" / "NativeAotConsumer" / "NativeAotConsumer.csproj.template"
+        manifest["consumer_project_template"] = {"path": str(template.relative_to(source)), "sha256": sha256(template)}
+        materialize_consumer(template.parent, consumer)
         (consumer / "global.json").write_text(json.dumps({"sdk": {"version": args.sdk, "rollForward": "disable"}}))
         config = ET.Element("configuration")
         feeds = ET.SubElement(config, "packageSources")

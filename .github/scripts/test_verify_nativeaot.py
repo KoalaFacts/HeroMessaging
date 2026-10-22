@@ -107,6 +107,17 @@ class NativeAotEvidenceTests(unittest.TestCase):
         for ext in ("nupkg", "snupkg"):
             self.fixture.package("HeroMessaging.SourceGenerators", extension=ext)
 
+    def test_parameterized_consumer_is_materialized_outside_project_discovery(self):
+        source = Path(__file__).resolve().parents[2] / "tests" / "NativeAotConsumer"
+        self.assertEqual([], list(source.glob("*.csproj")),
+                         "Parameterized fixture must not be restored as a standalone repository project")
+        target = self.root / "consumer"
+        self.module.materialize_consumer(source, target)
+        self.assertEqual((source / "NativeAotConsumer.csproj.template").read_bytes(),
+                         (target / "NativeAotConsumer.csproj").read_bytes())
+        self.assertFalse((target / "NativeAotConsumer.csproj.template").exists())
+        self.assertEqual((source / "Program.cs").read_bytes(), (target / "Program.cs").read_bytes())
+
     def test_four_exact_packages_are_required(self):
         self.inventory()
         self.assertEqual(8, len(self.module.verify_packages(self.root, self.fixture.version, self.fixture.commit)))

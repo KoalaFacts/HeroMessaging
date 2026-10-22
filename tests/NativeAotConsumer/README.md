@@ -5,6 +5,13 @@ packages without project references. It publishes and executes a Linux x64
 NativeAOT ELF; a JIT run or compile-only result cannot pass. No package is
 published to a feed, no SDK is installed, and no external service is started.
 
+The parameterized project is stored as `NativeAotConsumer.csproj.template`.
+Only the verifier materializes it as a `.csproj` in its fresh owned output
+directory, with explicit TFM and exact local package version arguments. This
+keeps repository-wide standalone project discovery valid without fake default
+package identities or excluding production projects from dependency scanning.
+The manifest records the template hash and the identical materialized project hash.
+
 From a clean checkout with the stated SDK and native toolchain already available:
 
 ```bash
