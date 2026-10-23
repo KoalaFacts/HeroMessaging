@@ -49,6 +49,16 @@ Coverage is intentionally narrow:
 - Scope disposal calls the transient handler's `DisposeAsync` once; its ValueTask
   completes immediately. Suspended/cancelled cleanup is not exercised.
 
+The same generated registration entry point also supplies typed query dispatch
+for `QueryProcessor`, without constructing closed handler types at runtime.
+The consumer checks successful results, synchronous/asynchronous failure identity,
+cancellation token/task status, lock reuse, handler-owned exception wrappers and
+processor disposal. Existing manual handler registrations still use the dynamic
+fallback on JIT runtimes; for NativeAOT, use `AddGeneratedHandlers` with concrete
+query handlers and a provider implementing `IKeyedServiceProvider`, such as
+Microsoft.Extensions.DependencyInjection. This does not make reflection-based
+assembly scanning AOT-safe.
+
 EventBus dynamic routing, full messaging pipelines/receipts, other generators,
 RingBuffer algorithms, databases, external services and performance are outside
 this check. RingBuffer is installed as a transitive package, not exercised.

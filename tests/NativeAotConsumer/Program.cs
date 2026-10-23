@@ -22,6 +22,8 @@ IBasicMessageStorage storage = new InMemoryMessageStorage(clock);
 var services = new ServiceCollection();
 services.AddSingleton(state);
 services.AddSingleton(storage);
+services.AddSingleton<Func<QueryScenarios.ProbeQuery, CancellationToken, Task<string>>>(static (_, _) => throw new InvalidOperationException("Query scenario is not configured."));
+services.AddSingleton(new QueryScenarios.QueryState());
 services.AddGeneratedHandlers();
 
 var registrations = services.Where(d => d.ServiceType == typeof(IEventHandler<ProbeEvent>)).ToArray();
@@ -70,6 +72,8 @@ foreach (var assembly in new[] { typeof(InMemoryMessageStorage).Assembly, typeof
 Console.WriteLine($"NATIVE_AOT runtime={Environment.Version} framework={RuntimeInformation.FrameworkDescription} rid={RuntimeInformation.RuntimeIdentifier} dynamicCodeSupported={RuntimeFeature.IsDynamicCodeSupported} dynamicCodeCompiled={RuntimeFeature.IsDynamicCodeCompiled}");
 Console.WriteLine($"PASS generatedHandlers=1 handlerCalls={state.Calls} asyncDisposals={state.Disposals} storage=store/query/update/delete/expiry package={expectedIdentity}");
 Console.WriteLine("SCOPE: typed handler and in-memory storage on the recorded SDK/runtime/RID only; no EventBus dynamic routing, external services, or performance acceptance.");
+
+await QueryScenarios.RunAsync();
 
 Console.WriteLine("NATIVE_AOT_PASS");
 return 0;
