@@ -236,6 +236,36 @@ public class RabbitMqConsumerTests : IAsyncLifetime
         Assert.True(_consumer.IsActive);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task StartAsync_WhenBrokerSetupFails_RestoresInactiveState(bool failDuringConsume)
+    {
+        var failure = new InvalidOperationException("Simulated consumer startup failure");
+        if (failDuringConsume)
+        {
+            _mockChannel!.Setup(ch => ch.BasicConsumeAsync(
+                It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<string>(),
+                It.IsAny<bool>(), It.IsAny<bool>(),
+                It.IsAny<IDictionary<string, object?>>(),
+                It.IsAny<IAsyncBasicConsumer>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(failure);
+        }
+        else
+        {
+            _mockChannel!.Setup(ch => ch.BasicQosAsync(
+                It.IsAny<uint>(), It.IsAny<ushort>(),
+                It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(failure);
+        }
+
+        var actual = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _consumer!.StartAsync(TestContext.Current.CancellationToken));
+
+        Assert.Same(failure, actual);
+        Assert.False(_consumer!.IsActive);
+    }
+
     #endregion
 
     #region StopAsync Tests
