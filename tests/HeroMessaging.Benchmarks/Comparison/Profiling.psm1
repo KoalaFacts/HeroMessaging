@@ -33,6 +33,9 @@ function Assert-InProcessNativeSummary {
     if ($BatchSeconds.Count -ne 3 -or @($BatchSeconds | Where-Object { ![double]::IsFinite($_) -or $_ -le 0 }).Count -gt 0) {
         throw 'All three benchmark batch durations are required to verify native windows.'
     }
+    if (@($Summary.completeWindows).Count -ne $BatchSeconds.Count) {
+        throw 'Native diagnostics must contain a complete window for every measured benchmark batch.'
+    }
     $previousId = 0
     foreach ($window in $Summary.completeWindows) {
         $id = [double]$window.batchId
