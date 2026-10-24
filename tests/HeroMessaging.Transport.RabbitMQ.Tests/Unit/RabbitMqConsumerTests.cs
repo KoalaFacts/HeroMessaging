@@ -264,6 +264,7 @@ public class RabbitMqConsumerTests : IAsyncLifetime
 
         Assert.Same(failure, actual);
         Assert.False(_consumer!.IsActive);
+        await _consumer.StopAsync(TestContext.Current.CancellationToken);
     }
 
     #endregion
@@ -375,7 +376,7 @@ public class RabbitMqConsumerTests : IAsyncLifetime
         await _consumer!.DisposeAsync();
 
         // Assert
-        _mockTransport!.Verify(t => t.RemoveConsumer("test-consumer"), Times.Once);
+        _mockTransport!.Verify(t => t.RemoveConsumer(_consumer!), Times.Once);
     }
 
     [Fact]
@@ -781,7 +782,7 @@ public class RabbitMqConsumerTests : IAsyncLifetime
         await _consumer!.DisposeAsync();
 
         // Assert
-        _mockTransport!.Verify(t => t.RemoveConsumer("test-consumer"), Times.Once);
+        _mockTransport!.Verify(t => t.RemoveConsumer(_consumer!), Times.Once);
     }
 
     [Fact]
@@ -790,7 +791,7 @@ public class RabbitMqConsumerTests : IAsyncLifetime
         _mockChannel!.Setup(ch => ch.Dispose()).Throws(new InvalidOperationException("Dispose error"));
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => _consumer!.DisposeAsync().AsTask());
-        _mockTransport!.Verify(t => t.RemoveConsumer("test-consumer"), Times.Once);
+        _mockTransport!.Verify(t => t.RemoveConsumer(_consumer!), Times.Once);
         _consumer = null;
     }
 
