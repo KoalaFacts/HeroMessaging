@@ -244,7 +244,7 @@ public class ResilientUnitOfWorkTests : IAsyncLifetime
             x => x.Log(
                 LogLevel.Debug,
                 It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("Beginning transaction")),
+                It.Is<It.IsAnyType>((v, t) => v != null && (v.ToString() ?? string.Empty).Contains("Beginning transaction")),
                 It.IsAny<Exception>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);
@@ -299,7 +299,7 @@ public class ResilientUnitOfWorkTests : IAsyncLifetime
             x => x.Log(
                 LogLevel.Debug,
                 It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("Committing transaction")),
+                It.Is<It.IsAnyType>((v, t) => v != null && (v.ToString() ?? string.Empty).Contains("Committing transaction")),
                 It.IsAny<Exception>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);
@@ -354,7 +354,7 @@ public class ResilientUnitOfWorkTests : IAsyncLifetime
             x => x.Log(
                 LogLevel.Debug,
                 It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("Rolling back transaction")),
+                It.Is<It.IsAnyType>((v, t) => v != null && (v.ToString() ?? string.Empty).Contains("Rolling back transaction")),
                 It.IsAny<Exception>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);
@@ -413,7 +413,7 @@ public class ResilientUnitOfWorkTests : IAsyncLifetime
             x => x.Log(
                 LogLevel.Debug,
                 It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("Creating savepoint") && v.ToString()!.Contains(savepointName)),
+                It.Is<It.IsAnyType>((v, t) => v != null && (v.ToString() ?? string.Empty).Contains("Creating savepoint") && v != null && (v.ToString() ?? string.Empty).Contains(savepointName)),
                 It.IsAny<Exception>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);
@@ -472,7 +472,7 @@ public class ResilientUnitOfWorkTests : IAsyncLifetime
             x => x.Log(
                 LogLevel.Debug,
                 It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("Rolling back to savepoint") && v.ToString()!.Contains(savepointName)),
+                It.Is<It.IsAnyType>((v, t) => v != null && (v.ToString() ?? string.Empty).Contains("Rolling back to savepoint") && v != null && (v.ToString() ?? string.Empty).Contains(savepointName)),
                 It.IsAny<Exception>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);
@@ -661,7 +661,7 @@ public class ResilientUnitOfWorkTests : IAsyncLifetime
             x => x.Log(
                 LogLevel.Debug,
                 It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("Creating unit of work")),
+                It.Is<It.IsAnyType>((v, t) => v != null && (v.ToString() ?? string.Empty).Contains("Creating unit of work")),
                 It.IsAny<Exception>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);
@@ -700,7 +700,7 @@ public class ResilientUnitOfWorkTests : IAsyncLifetime
             x => x.Log(
                 LogLevel.Debug,
                 It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("Creating unit of work") && v.ToString()!.Contains("Snapshot")),
+                It.Is<It.IsAnyType>((v, t) => v != null && (v.ToString() ?? string.Empty).Contains("Creating unit of work") && v != null && (v.ToString() ?? string.Empty).Contains("Snapshot")),
                 It.IsAny<Exception>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);

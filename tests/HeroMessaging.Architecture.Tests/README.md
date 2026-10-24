@@ -81,13 +81,13 @@ Validates overall code organization:
 ### Command Line
 ```bash
 # Run all architecture tests
-dotnet test --filter Category=Architecture
+dotnet test --project tests/HeroMessaging.Architecture.Tests --filter-trait Category=Architecture
 
 # Run specific test class
-dotnet test --filter FullyQualifiedName~LayerDependencyTests
+dotnet test --project tests/HeroMessaging.Architecture.Tests --filter-class "*LayerDependencyTests"
 
 # Run in CI/CD
-dotnet test tests/HeroMessaging.ArchitectureTests --logger "trx;LogFileName=architecture-tests.xml"
+dotnet test --project tests/HeroMessaging.Architecture.Tests --report-trx --report-trx-filename architecture-tests.trx
 ```
 
 ### Visual Studio
@@ -106,7 +106,7 @@ Add to `.github/workflows/ci.yml`:
 
 ```yaml
 - name: Run Architecture Tests
-  run: dotnet test tests/HeroMessaging.ArchitectureTests --no-build --logger "trx"
+  run: dotnet test --project tests/HeroMessaging.Architecture.Tests --no-build --report-trx
 
 - name: Fail on Architecture Violations
   if: failure()
@@ -309,4 +309,4 @@ When adding new features to HeroMessaging:
 
 ## License
 
-Same as HeroMessaging project (MIT).
+Same as HeroMessaging project (Apache License, Version 2.0).

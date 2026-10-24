@@ -60,7 +60,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: |
             8.0.x
@@ -76,11 +76,40 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-nuget-
 
+      - name: Verify package and NativeAOT evidence guards
+        if: matrix.os == 'ubuntu-latest' && matrix.framework == 'net10.0'
+        run: python3 -m unittest discover -s .github/scripts -p 'test_*.py' -v
+
       - name: Restore dependencies
         run: dotnet restore --verbosity minimal
 
       - name: Build solution
         run: dotnet build --configuration Release --no-restore --verbosity minimal
+
+      - name: Verify NativeAOT package consumer
+        if: matrix.os == 'ubuntu-latest' && matrix.framework == 'net10.0'
+        shell: bash
+        run: |
+          python3 .github/scripts/verify_nativeaot.py \
+            --source "$PWD" --commit "$(git rev-parse HEAD)" \
+            --output "$PWD/artifacts/nativeaot" \
+            --sdk "$(dotnet --version)" --tfm net10.0 --runtime 10.0.12 --rid linux-x64
+
+      - name: Upload NativeAOT consumer evidence
+        if: always() && matrix.os == 'ubuntu-latest' && matrix.framework == 'net10.0'
+        uses: actions/upload-artifact@v7
+        with:
+          name: nativeaot-consumer-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            artifacts/nativeaot/*.json
+            artifacts/nativeaot/*.log
+            artifacts/nativeaot/packages/*
+            artifacts/nativeaot/native/*
+            artifacts/nativeaot/consumer/*.*
+            artifacts/nativeaot/consumer/obj/project.assets.json
+            artifacts/nativeaot/consumer/obj/generated/**/*.cs
+            artifacts/nativeaot/consumer/obj/**/native/*.ilc.rsp
+          retention-days: 30
 
       - name: Run unit tests
         shell: bash
@@ -96,19 +125,20 @@ jobs:
             test_args=(
               --configuration Release
               --no-build
-              --verbosity minimal
               --framework ${{ matrix.framework }}
-              --filter "Category!=Integration"
+              --filter-not-trait "Category=Integration"
               --results-directory "./test-results/$project_name"
-              --logger "trx;LogFileName=unit-tests-${{ matrix.os }}-${{ matrix.framework }}-$project_name.trx"
+              --report-trx
+              --report-trx-filename "unit-tests-${{ matrix.os }}-${{ matrix.framework }}-$project_name.trx"
+              --minimum-expected-tests 1
+              --no-progress
             )
 
             if [[ "$project_name" != "HeroMessaging.Architecture.Tests" ]]; then
-              test_args+=(--collect:"XPlat Code Coverage")
-              test_args+=(-- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura)
+              test_args+=(--coverlet --coverlet-output-format cobertura --coverlet-include "[HeroMessaging*]*")
             fi
 
-            dotnet test "$project" "${test_args[@]}"
+            dotnet test --project "$project" "${test_args[@]}"
           done
 
       - name: Upload test results
@@ -176,7 +206,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Cannot create performance baseline checkout.' }
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 10.0.x
 
@@ -193,7 +223,7 @@ jobs:
           ./candidate/tests/HeroMessaging.Benchmarks/Comparison/Compare-InProcess.ps1 `
             -BaselineRoot ./baseline -CandidateRoot ./candidate `
             -OutputDirectory ./inprocess-results `
-            -MinimumBatchSeconds 10 -MaximumMessages 10000000
+            -MinimumBatchSeconds 10 -MaximumMessages 20000000
 
       - name: Upload comparison evidence
         uses: actions/upload-artifact@v7
@@ -221,7 +251,7 @@ jobs:
           path: ./all-test-results
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 8.0.x
 
@@ -231,7 +261,7 @@ jobs:
       - name: Generate combined coverage report
         run: |
           # Check if any coverage files exist
-          if find ./all-test-results -name "coverage.cobertura.xml" -type f | grep -q .; then
+          if find ./all-test-results -name "coverage.cobertura*.xml" -type f | grep -q .; then
             echo "Found coverage files, generating report..."
             echo ""
             echo "Coverage filters:"
@@ -244,7 +274,7 @@ jobs:
             echo "   The 80% threshold accounts for both logic and data structures."
             echo ""
             reportgenerator \
-              -reports:"./all-test-results/**/coverage.cobertura.xml" \
+              -reports:"./all-test-results/**/coverage.cobertura*.xml" \
               -targetdir:"./coverage-report" \
               -reporttypes:"Html;Badges;TextSummary" \
               -classfilters:'-System.*;-Microsoft.*;-*Exception;-*Exception`*' \
@@ -336,7 +366,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: |
             8.0.x

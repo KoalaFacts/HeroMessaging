@@ -51,6 +51,13 @@ try {
     Assert-Equal 355556 (Get-InProcessCalibrationCount 256000 9 10 10000000 -Attempt 2)
     Assert-Equal 10000000 (Get-InProcessCalibrationCount 256000 0.01 10 10000000)
     Assert-Equal 10000000 (Get-InProcessCalibrationCount 10000000 10 10 10000000)
+    # A fast no-op batch can need more than 10M events to meet the unchanged 10-second gate.
+    # The larger bound must still reject calibration exhaustion and invalid input.
+    Assert-Equal 16666667 (Get-InProcessCalibrationCount 10000000 7.5 10 20000000)
+    Assert-Equal 20000000 (Get-InProcessCalibrationCount 10000000 1 10 20000000)
+    Assert-Equal 20000000 (Get-InProcessCalibrationCount 20000000 12.5 10 20000000)
+    Assert-Throws { Get-InProcessCalibrationCount 20000000 9 10 20000000 }
+    Assert-Throws { Get-InProcessCalibrationCount 20000001 9 10 20000000 }
     $laterBatch = New-Fixture @(23.4, 26.6, 26.9)
     $observation = Get-InProcessCalibrationObservation $laterBatch -Runs 3
     Assert-Equal 3 @($observation.batchSeconds).Count

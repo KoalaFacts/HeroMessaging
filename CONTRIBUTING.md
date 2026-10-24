@@ -95,8 +95,8 @@ Improve code quality while keeping all tests green:
 
 Ensure your changes maintain coverage standards:
 ```bash
-dotnet test --collect:"XPlat Code Coverage"
-reportgenerator -reports:**/coverage.cobertura.xml -targetdir:coverage-report
+dotnet test --project tests/HeroMessaging.Tests --filter-not-trait Category=Integration --coverlet --coverlet-output-format cobertura
+reportgenerator -reports:**/coverage.cobertura*.xml -targetdir:coverage-report
 ```
 
 **Coverage Requirements:**
@@ -223,6 +223,22 @@ Integration tests should:
 - Be isolated (can run in parallel without conflicts)
 - Complete within 2 minutes total
 
+The PostgreSQL and SQL Server Saga fixtures accept `PostgreSql__ConnectionString`
+and `SqlServer__ConnectionString`, respectively. These connections must point to
+a dedicated disposable test database owned by the caller, such as a CI service
+container. Each case creates a randomly named Saga table; these tables remain
+until the caller removes the database or service. Do not use a long-lived or
+shared database. Give each concurrent test runner its own database.
+
+The caller must arrange cleanup after success, failure, timeout, and test-process
+termination. Cleanup must outlive the test process; a `finally` block inside that
+process alone is insufficient. Without an external connection, each Saga fixture
+retains its existing per-case Testcontainers lifecycle.
+
+SQL Server storage and Saga integration tests share an xUnit collection so their
+initialization of the common `test` schema runs sequentially within one runner.
+This does not coordinate separate test processes.
+
 ## Performance Standards
 
 HeroMessaging has strict performance requirements:
@@ -293,7 +309,7 @@ See existing ADRs for examples:
 
 3. **Check coverage:**
    ```bash
-   dotnet test --collect:"XPlat Code Coverage"
+   dotnet test --project tests/HeroMessaging.Tests --filter-not-trait Category=Integration --coverlet --coverlet-output-format cobertura
    ```
 
 4. **Run benchmarks (if applicable):**

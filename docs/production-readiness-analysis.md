@@ -1760,7 +1760,7 @@ spec:
 | Outbox Pattern | ✅ Yes | ✅ Yes |
 | Rate Limiting | ❌ Missing | ✅ Built-in |
 | Monitoring | ✅ OpenTelemetry | ✅ Commercial tools |
-| Price | Free (MIT) | $995-$4,495/yr |
+| Price | Free (Apache 2.0) | $995-$4,495/yr |
 
 **Verdict**: HeroMessaging has 80% of NServiceBus features at 0% of the cost. Missing idempotency and rate limiting are critical gaps.
 
