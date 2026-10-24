@@ -8,6 +8,10 @@
 
 HeroMessaging is a modern, extensible messaging framework for .NET that provides in-process messaging, saga orchestration, CQRS support, and pluggable infrastructure for building distributed systems.
 
+### Competitive goals
+
+HeroMessaging aims to provide better performance, lower resource consumption, and a friendly public API for supported MassTransit replacement workloads. These are development goals, not measured superiority claims. The [replacement acceptance inventory](docs/masstransit-replacement-acceptance.md) tracks the functional, reliability, resource, and API requirements together with their evidence boundaries.
+
 ## Features
 
 - **Performance Benchmarks**: BenchmarkDotNet microbenchmarks for core processing paths
@@ -36,7 +40,7 @@ HeroMessaging is a modern, extensible messaging framework for .NET that provides
 - `HeroMessaging.Serialization.Protobuf` - Protocol Buffers support
 
 **Storage:**
-- `HeroMessaging.Storage.SqlServer` - SQL Server message/inbox/outbox/saga storage classes; see the [registration limitation](#storage-integration)
+- `HeroMessaging.Storage.SqlServer` - SQL Server message/inbox/outbox/saga storage classes; see [registration and supported scope](#storage-integration)
 - `HeroMessaging.Storage.PostgreSql` - PostgreSQL inbox/outbox/saga persistence
 
 **Transport:**
@@ -321,7 +325,26 @@ This transition saves a completed saga with `CurrentState == "Recorded"`. Reuse 
 
 ### Storage Integration
 
-The SQL Server provider contains message, inbox, outbox, dead-letter, and saga storage classes. Its current [builder registration helpers](src/HeroMessaging.Storage.SqlServer/ServiceCollectionExtensions.cs) require the builder to implement `IServiceCollection`, which `HeroMessagingBuilder` does not. They throw during registration, before connecting to a database. There is also no `UseSqlServerInbox` helper; the outbox and saga helpers accept `SqlServerStorageOptions`, not connection-string overloads. These helpers are not currently a working Quick Start configuration.
+The SQL Server provider contains message, inbox, outbox, dead-letter, and saga storage classes. Its [builder registration helpers](src/HeroMessaging.Storage.SqlServer/ServiceCollectionExtensions.cs) use the builder's `Services` collection. For example, register message storage, local outbox storage, and dead-letter storage with:
+
+```csharp
+using HeroMessaging.Abstractions.Configuration;
+using HeroMessaging.Storage.SqlServer;
+using Microsoft.Extensions.DependencyInjection;
+
+services.AddHeroMessaging(builder => builder
+    .WithMediator()
+    .WithEventBus()
+    .UseSqlServer(new SqlServerStorageOptions
+    {
+        ConnectionString = connectionString,
+        Schema = "dbo"
+    }));
+```
+
+Registration and service resolution do not connect to the database; storage operations do. `UseSqlServer(...)` registers the three storage services above. Add `UseSqlServerSagaRepository<OrderSaga>()` to the builder to use its registered SQL Server options for a saga repository; saga event routing still follows the [Saga example](#saga-orchestration-example).
+
+There is no `UseSqlServerInbox` helper. The specific outbox and saga helpers accept `SqlServerStorageOptions`, not connection-string overloads. SQL Server Outbox does not implement the PostgreSQL external confirmed-delivery/lease contract, and the registration tests do not establish database crash recovery or Saga concurrency safety. These remain separate [replacement acceptance requirements](docs/masstransit-replacement-acceptance.md).
 
 ### OpenTelemetry Integration
 
@@ -391,8 +414,18 @@ Run benchmarks:
 dotnet run --project tests/HeroMessaging.Benchmarks --configuration Release --framework net10.0
 ```
 
+The separate [MassTransit comparison](benchmarks/HeroMessaging.CompetitiveBenchmarks/README.md) pins MassTransit 8.5.12 and compares completed in-process command dispatch through both public APIs. Verify the workload before collecting measurements:
+
+```bash
+dotnet run --project benchmarks/HeroMessaging.CompetitiveBenchmarks --configuration Release --framework net10.0 -- --verify
+dotnet run --project benchmarks/HeroMessaging.CompetitiveBenchmarks --configuration Release --framework net10.0 --no-build -- --filter '*CommandDispatchBenchmarks*'
+```
+
+Its resource mode observes CPU, managed allocations, GC, process memory, and per-call latency in separate processes for each provider. See its README for commands, negative controls, and measurement limits. This first scenario has no broker or persistence; competitive performance and resource acceptance remain open until reproducible results satisfy the [acceptance requirements](docs/masstransit-replacement-acceptance.md#performance-and-resource-acceptance).
+
 ## Documentation
 
+- **[MassTransit Replacement Acceptance](docs/masstransit-replacement-acceptance.md)** - Reliability, performance, resource, and API requirements
 - **[Saga Orchestration Guide](docs/orchestration-pattern.md)** - Complete guide to saga patterns
 - **[Choreography Pattern](docs/choreography-pattern.md)** - Event-driven choreography documentation
 - **[Testing Guide](docs/testing-guide.md)** - Testing infrastructure and patterns
