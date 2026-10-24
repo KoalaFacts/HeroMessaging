@@ -13,10 +13,10 @@ function Get-InProcessBatchSeconds {
 }
 
 function Get-InProcessCalibrationCount {
-    param([ValidateRange(32, 10000000)][int]$CurrentCount,
+    param([ValidateRange(32, 20000000)][int]$CurrentCount,
         [Parameter(Mandatory)][double]$FastestSeconds,
         [ValidateRange(1, 30)][int]$MinimumBatchSeconds,
-        [ValidateRange(32, 10000000)][int]$MaximumMessages,
+        [ValidateRange(32, 20000000)][int]$MaximumMessages,
         [ValidateRange(1, 4)][int]$Attempt = 1)
     if (![double]::IsFinite($FastestSeconds) -or $FastestSeconds -le 0 -or $CurrentCount -gt $MaximumMessages) {
         throw 'Invalid calibration input.'

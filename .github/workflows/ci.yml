@@ -223,7 +223,7 @@ jobs:
           ./candidate/tests/HeroMessaging.Benchmarks/Comparison/Compare-InProcess.ps1 `
             -BaselineRoot ./baseline -CandidateRoot ./candidate `
             -OutputDirectory ./inprocess-results `
-            -MinimumBatchSeconds 10 -MaximumMessages 10000000
+            -MinimumBatchSeconds 10 -MaximumMessages 20000000
 
       - name: Upload comparison evidence
         uses: actions/upload-artifact@v7
