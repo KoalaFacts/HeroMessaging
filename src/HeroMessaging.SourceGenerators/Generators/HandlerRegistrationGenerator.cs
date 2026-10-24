@@ -66,7 +66,17 @@ public class HandlerRegistrationGenerator : IIncrementalGenerator
             TypeName = symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
             ClassName = symbol.Name,
             Namespace = symbol.ContainingNamespace.ToDisplayString(),
-            Interfaces = [.. handlerInterfaces.Select(i => i.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat))]
+            Interfaces = [.. handlerInterfaces.Select(i => i.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat))],
+            Queries = context.SemanticModel.Compilation.GetTypeByMetadataName("Microsoft.Extensions.DependencyInjection.IKeyedServiceProvider") is null
+                ? []
+                : [.. handlerInterfaces.Where(i => i.Name == "IQueryHandler" && i.Arity == 2 &&
+                        i.ContainingNamespace.ToDisplayString() == "HeroMessaging.Abstractions.Handlers")
+                    .Select(i => new QueryInfo
+                    {
+                        Interface = i.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                        Query = i.TypeArguments[0].ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                        Response = i.TypeArguments[1].ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
+                    })]
         };
     }
 
@@ -111,6 +121,16 @@ public class HandlerRegistrationGenerator : IIncrementalGenerator
             {
                 sb.AppendLine($"        services.AddTransient(typeof({interfaceType}), typeof({handler.TypeName}));");
             }
+
+            foreach (var query in handler.Queries)
+            {
+                sb.AppendLine($"        services.AddKeyedTransient<global::System.Func<object, global::System.Threading.CancellationToken, global::System.Threading.Tasks.Task<{query.Response}>>>(");
+                sb.AppendLine($"            (typeof(global::HeroMessaging.Abstractions.Handlers.IQueryHandler<,>), typeof({query.Query})), static (provider, _) =>");
+                sb.AppendLine("            {");
+                sb.AppendLine($"                var handler = provider.GetService<{query.Interface}>() ?? throw new global::System.InvalidOperationException(\"No handler found for query type \" + typeof({query.Query}).Name);");
+                sb.AppendLine($"                return (message, token) => handler.HandleAsync(({query.Query})message, token);");
+                sb.AppendLine("            });");
+            }
         }
 
         sb.AppendLine();
@@ -127,5 +147,13 @@ public class HandlerRegistrationGenerator : IIncrementalGenerator
         public string ClassName { get; set; } = string.Empty;
         public string Namespace { get; set; } = string.Empty;
         public string[] Interfaces { get; set; } = [];
+        public QueryInfo[] Queries { get; set; } = [];
+    }
+
+    private class QueryInfo
+    {
+        public string Interface { get; set; } = string.Empty;
+        public string Query { get; set; } = string.Empty;
+        public string Response { get; set; } = string.Empty;
     }
 }
