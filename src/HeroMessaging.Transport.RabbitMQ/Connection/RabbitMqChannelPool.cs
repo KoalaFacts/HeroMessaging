@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 
 namespace HeroMessaging.Transport.RabbitMQ.Connection;
 
@@ -13,6 +14,8 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
     private readonly IConnection _connection;
     private readonly ILogger<RabbitMqChannelPool> _logger;
     private readonly ConcurrentBag<PooledChannel> _channels = [];
+    // Weak keys prevent an abandoned externally disposed overflow channel from being retained by the pool.
+    private readonly ConditionalWeakTable<IChannel, TemporaryChannelMarker> _temporaryChannels = new();
     private readonly SemaphoreSlim _createChannelLock = new(1, 1);
     private readonly int _maxChannels;
     private readonly TimeSpan _channelLifetime;
@@ -83,7 +86,7 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
 
         // If pool is full, create a temporary channel (not pooled)
         _logger.LogWarning("Channel pool is full ({MaxChannels}). Creating temporary channel", _maxChannels);
-        return await CreateChannelAsync(cancellationToken).ConfigureAwait(false);
+        return await CreateChannelAsync(cancellationToken, pooled: false).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -93,6 +96,15 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
     {
         if (channel == null)
             return;
+
+        // Overflow channels are short-lived leases, never reusable pool capacity.
+        // Retain a weak marker so a duplicate return cannot accidentally pool a disposed channel.
+        if (_temporaryChannels.TryGetValue(channel, out var temporary))
+        {
+            if (temporary.TryMarkReleased())
+                channel.Dispose();
+            return;
+        }
 
         if (_disposed || !channel.IsOpen)
         {
@@ -111,7 +123,7 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
     /// <summary>
     /// Create a new channel
     /// </summary>
-    private async Task<IChannel> CreateChannelAsync(CancellationToken cancellationToken = default)
+    private async Task<IChannel> CreateChannelAsync(CancellationToken cancellationToken = default, bool pooled = true)
     {
         if (!_connection.IsOpen)
         {
@@ -123,10 +135,13 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
                 publisherConfirmationsEnabled: _publisherConfirmsEnabled,
                 publisherConfirmationTrackingEnabled: _publisherConfirmsEnabled),
             cancellationToken).ConfigureAwait(false);
-        Interlocked.Increment(ref _channelCount);
+        if (pooled)
+            Interlocked.Increment(ref _channelCount);
+        else
+            _temporaryChannels.Add(channel, new TemporaryChannelMarker());
 
-        _logger.LogDebug("Created new channel {ChannelNumber} (Total: {TotalChannels})",
-            channel.ChannelNumber, _channelCount);
+        _logger.LogDebug("Created {ChannelKind} channel {ChannelNumber} (Pooled count: {PooledChannels})",
+            pooled ? "pooled" : "temporary", channel.ChannelNumber, _channelCount);
 
         return channel;
     }
@@ -206,6 +221,13 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
             _createChannelLock.Release();
             _createChannelLock.Dispose();
         }
+    }
+
+    private sealed class TemporaryChannelMarker
+    {
+        private int _released;
+
+        public bool TryMarkReleased() => Interlocked.Exchange(ref _released, 1) == 0;
     }
 
     /// <summary>
