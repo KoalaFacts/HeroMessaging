@@ -198,7 +198,8 @@ public sealed class SqlServerBuilderRegistrationTests
     {
         var calls = 0;
 
-        Assert.Throws<ArgumentNullException>(() => ((IHeroMessagingBuilder)null!).UseSqlServer(ConnectionString, _ => calls++));
+        IHeroMessagingBuilder builder = null!;
+        Assert.Throws<ArgumentNullException>(() => builder.UseSqlServer(ConnectionString, _ => calls++));
 
         Assert.Equal(0, calls);
     }

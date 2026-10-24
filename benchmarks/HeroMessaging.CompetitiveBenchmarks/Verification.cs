@@ -10,21 +10,27 @@ internal static class Verification
         if (negativeControl is not ("none" or "missing-work" or "early-completion" or "missing-handler"))
             throw new ArgumentException("Unknown verification negative control.", nameof(negativeControl));
 
-        var results = new List<VerificationResult>();
-        foreach (var name in new[] { "hero", "masstransit" })
-        {
-            try
-            {
-                await VerifyProviderAsync(name, negativeControl).ConfigureAwait(false);
-                results.Add(new VerificationResult(name, true, "Count/checksum and gated asynchronous handler completion verified."));
-            }
-            catch (Exception exception)
-            {
-                results.Add(new VerificationResult(name, false, $"{exception.GetType().Name}: {exception.Message}"));
-            }
-        }
+        // Observe both attempts even if one fails, without hiding arbitrary exceptions
+        // behind a catch-all clause. This path runs only during harness verification.
+        var attempts = new[] { "hero", "masstransit" }
+            .Select(name => (Name: name, VerificationTask: VerifyProviderAsync(name, negativeControl)))
+            .ToArray();
 
-        return new VerificationReport(results.All(result => result.Verified), negativeControl, [.. results]);
+        await Task.WhenAll(attempts.Select(attempt => attempt.VerificationTask.ContinueWith(
+            static _ => { }, CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default))).ConfigureAwait(false);
+
+        var results = attempts.Select(attempt =>
+        {
+            if (attempt.VerificationTask.IsCompletedSuccessfully)
+                return new VerificationResult(attempt.Name, true, "Count/checksum and gated asynchronous handler completion verified.");
+
+            var exception = attempt.VerificationTask.Exception?.GetBaseException();
+            var detail = exception is null ? "Verification was cancelled." : $"{exception.GetType().Name}: {exception.Message}";
+            return new VerificationResult(attempt.Name, false, detail);
+        }).ToArray();
+
+        return new VerificationReport(results.All(result => result.Verified), negativeControl, results);
     }
 
     private static async Task VerifyProviderAsync(string name, string negativeControl)

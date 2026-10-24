@@ -37,10 +37,27 @@ internal static class Program
             return summaries.Length > 0 && summaries.All(summary => !summary.HasCriticalValidationErrors
                 && summary.Reports.All(report => report.Success)) ? 0 : 1;
         }
-        catch (Exception exception)
+        catch (ArgumentException exception)
         {
-            Console.Error.WriteLine($"Competitive benchmark failed: {exception}");
-            return 1;
+            return ReportFailure(exception);
         }
+        catch (InvalidOperationException exception)
+        {
+            return ReportFailure(exception);
+        }
+        catch (OperationCanceledException exception)
+        {
+            return ReportFailure(exception);
+        }
+        catch (IOException exception)
+        {
+            return ReportFailure(exception);
+        }
+    }
+
+    private static int ReportFailure(Exception exception)
+    {
+        Console.Error.WriteLine($"Competitive benchmark failed: {exception}");
+        return 1;
     }
 }

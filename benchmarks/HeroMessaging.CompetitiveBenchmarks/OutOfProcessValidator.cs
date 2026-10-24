@@ -8,11 +8,11 @@ internal sealed class OutOfProcessValidator : IValidator
 
     public IEnumerable<ValidationError> Validate(ValidationParameters validationParameters)
     {
-        foreach (var benchmark in validationParameters.Benchmarks)
+        foreach (var benchmark in validationParameters.Benchmarks.Where(benchmark =>
+            benchmark.Job.Infrastructure.TryGetToolchain(out var toolchain) && toolchain.IsInProcess))
         {
-            if (benchmark.Job.Infrastructure.TryGetToolchain(out var toolchain) && toolchain.IsInProcess)
-                yield return new ValidationError(true,
-                    "In-process toolchains are unsupported because cleanup failures may not produce a failing report. Use the default out-of-process toolchain.", benchmark);
+            yield return new ValidationError(true,
+                "In-process toolchains are unsupported because cleanup failures may not produce a failing report. Use the default out-of-process toolchain.", benchmark);
         }
     }
 }
