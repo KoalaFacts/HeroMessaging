@@ -353,6 +353,7 @@ public sealed class RabbitMqTransport : IConfirmedQueueTransport, IRabbitMqConsu
 
         RabbitMqConsumer? consumer = null;
         var registered = false;
+        var subscribedSuccessfully = false;
         try
         {
             // A failed QoS setup still leaves an acquired channel to dispose.
@@ -376,24 +377,27 @@ public sealed class RabbitMqTransport : IConfirmedQueueTransport, IRabbitMqConsu
             if (options.StartImmediately)
                 await consumer.StartAsync(cancellationToken).ConfigureAwait(false);
 
+            subscribedSuccessfully = true;
             return consumer;
         }
-        catch
+        finally
         {
-            try
+            if (!subscribedSuccessfully)
             {
-                if (registered)
-                    await consumer!.DisposeAsync().ConfigureAwait(false);
-                else
-                    channel.Dispose();
+                try
+                {
+                    if (registered)
+                        await consumer!.DisposeAsync().ConfigureAwait(false);
+                    else
+                        channel.Dispose();
+                }
+                catch (Exception cleanupError)
+                {
+                    // Do not replace the original startup or cancellation failure.
+                    _logger.LogWarning(cleanupError,
+                        "Failed cleaning up consumer {ConsumerId} after subscription failure", consumerId);
+                }
             }
-            catch (Exception cleanupError)
-            {
-                // Preserve the original startup/cancellation failure for the caller.
-                _logger.LogWarning(cleanupError,
-                    "Failed cleaning up consumer {ConsumerId} after subscription failure", consumerId);
-            }
-            throw;
         }
     }
 
