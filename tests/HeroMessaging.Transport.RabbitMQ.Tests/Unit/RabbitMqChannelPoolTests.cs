@@ -725,4 +725,59 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
     }
 
     #endregion
+
+    #region Temporary overflow capacity regressions
+
+    [Fact]
+    public async Task ReleaseChannel_WhenOverCapacity_ClosesTemporaryChannelInsteadOfPoolingIt()
+    {
+        await using var pool = new RabbitMqChannelPool(
+            MockConnection.Object, maxChannels: 1, TimeSpan.FromMinutes(5),
+            MockLogger.Object, TimeProvider.System);
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        var retainedChannel = await pool.AcquireChannelAsync(cancellationToken);
+        var overflowChannel = await pool.AcquireChannelAsync(cancellationToken);
+        Assert.NotSame(retainedChannel, overflowChannel);
+
+        pool.ReleaseChannel(overflowChannel);
+
+        var (total, available) = pool.GetStatistics();
+        Assert.Equal(1, total); // Overflow is not counted as retained pool capacity.
+        Assert.Equal(0, available); // The only retained channel is still borrowed.
+        _mockChannels[1].Verify(channel => channel.Dispose(), Times.Once);
+
+        pool.ReleaseChannel(retainedChannel);
+        Assert.Equal(1, pool.GetStatistics().Available);
+        var reacquired = await pool.AcquireChannelAsync(cancellationToken);
+        Assert.Same(retainedChannel, reacquired);
+        pool.ReleaseChannel(reacquired);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenPoolIsFull_DoesNotRetainTransientOperationChannel()
+    {
+        await using var pool = new RabbitMqChannelPool(
+            MockConnection.Object, maxChannels: 1, TimeSpan.FromMinutes(5),
+            MockLogger.Object, TimeProvider.System);
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        var retainedChannel = await pool.AcquireChannelAsync(cancellationToken);
+        IChannel? operationChannel = null;
+        await pool.ExecuteAsync(async channel =>
+        {
+            operationChannel = channel;
+            await Task.Yield();
+        }, cancellationToken);
+
+        Assert.NotNull(operationChannel);
+        Assert.NotSame(retainedChannel, operationChannel);
+        Assert.Equal((1, 0), pool.GetStatistics());
+        _mockChannels[1].Verify(channel => channel.Dispose(), Times.Once);
+
+        pool.ReleaseChannel(retainedChannel);
+        Assert.Equal((1, 1), pool.GetStatistics());
+    }
+
+    #endregion
 }
