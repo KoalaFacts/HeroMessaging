@@ -14,7 +14,7 @@ internal interface IRabbitMqConsumerHost
 {
     string Name { get; }
 
-    void RemoveConsumer(string consumerId);
+    void RemoveConsumer(RabbitMqConsumer consumer);
 }
 
 /// <summary>
@@ -129,6 +129,14 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
                 cancellationToken: cancellationToken).ConfigureAwait(false);
 
             _logger.LogInformation("Consumer {ConsumerId} started with tag {ConsumerTag}", ConsumerId, _consumerTag);
+        }
+        catch
+        {
+            // BasicQos/BasicConsume may fail after registration was attempted.
+            // Coordinate cleanup with StopCoreAsync rather than detaching
+            // callbacks while a delivery may still be draining.
+            _ = BeginStop();
+            throw;
         }
         finally
         {
@@ -265,7 +273,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
                 }
                 finally
                 {
-                    _transport.RemoveConsumer(ConsumerId);
+                    _transport.RemoveConsumer(this);
                 }
             }
         }
