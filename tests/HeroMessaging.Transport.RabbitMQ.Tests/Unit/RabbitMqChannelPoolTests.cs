@@ -862,6 +862,48 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
 
     #endregion
 
+    [Fact]
+    public async Task AcquireChannelAsync_ReusedChannelAfterShutdownStarts_DoesNotEscapeOrKeepCapacity()
+    {
+        await using var pool = new RabbitMqChannelPool(
+            MockConnection.Object, maxChannels: 1, TimeSpan.FromMinutes(5),
+            MockLogger.Object, TimeProvider.System);
+        var token = TestContext.Current.CancellationToken;
+
+        var channel = await pool.AcquireChannelAsync(token);
+        pool.ReleaseChannel(channel);
+
+        // Block the health check after the available channel has been removed
+        // from the bag and marked borrowed. Do not use timing-based sleeps.
+        var reachedHealthCheck = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var resumeHealthCheck = new ManualResetEventSlim(false);
+        _mockChannels[0].Setup(mock => mock.IsOpen).Returns(() =>
+        {
+            reachedHealthCheck.TrySetResult();
+            if (!resumeHealthCheck.Wait(TimeSpan.FromSeconds(10), token))
+                throw new TimeoutException("The channel health check did not resume.");
+            return true;
+        });
+
+        var pendingAcquire = Task.Run(() => pool.AcquireChannelAsync(token), token);
+        await reachedHealthCheck.Task.WaitAsync(TimeSpan.FromSeconds(10), token);
+
+        // The pool has no available channel to drain; the borrower is paused
+        // inside its health check when shutdown marks the pool disposed.
+        try
+        {
+            await pool.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(10), token);
+        }
+        finally
+        {
+            resumeHealthCheck.Set();
+        }
+
+        await Assert.ThrowsAsync<ObjectDisposedException>(() => pendingAcquire);
+        Assert.Equal((0, 0), pool.GetStatistics());
+        _mockChannels[0].Verify(mock => mock.Dispose(), Times.Once);
+    }
+
     #region Disposal during asynchronous channel creation regressions
 
     [Theory]
