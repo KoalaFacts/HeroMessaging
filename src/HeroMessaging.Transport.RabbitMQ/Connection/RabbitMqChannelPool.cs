@@ -18,7 +18,11 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
     private readonly ConditionalWeakTable<IChannel, TemporaryChannelMarker> _temporaryChannels = [];
     // Weak ownership keys avoid retaining channels that a consumer abandoned or disposed externally.
     private readonly ConditionalWeakTable<IChannel, RetainedChannelMarker> _retainedChannels = [];
+#if NET9_0_OR_GREATER
+    private readonly System.Threading.Lock _returnLock = new();
+#else
     private readonly object _returnLock = new();
+#endif
     private readonly SemaphoreSlim _createChannelLock = new(1, 1);
     private readonly int _maxChannels;
     private readonly TimeSpan _channelLifetime;
@@ -63,8 +67,22 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
 
             if (pooledChannel.IsHealthy && !pooledChannel.IsExpired)
             {
-                _logger.LogTrace("Reusing channel {ChannelNumber} from pool", pooledChannel.Channel.ChannelNumber);
-                return pooledChannel.Channel;
+                // The health check may await external state synchronously. Coordinate
+                // the final lease handoff with shutdown so a disposed pool cannot
+                // return a channel whose ownership has already been abandoned.
+                lock (_returnLock)
+                {
+                    if (!_disposed)
+                    {
+                        _logger.LogTrace("Reusing channel {ChannelNumber} from pool", pooledChannel.Channel.ChannelNumber);
+                        return pooledChannel.Channel;
+                    }
+
+                    if (TryRetirePooledChannel(pooledChannel.Channel))
+                        pooledChannel.Dispose();
+                }
+
+                throw new ObjectDisposedException(nameof(RabbitMqChannelPool));
             }
 
             _logger.LogDebug("Disposing unhealthy/expired channel {ChannelNumber}", pooledChannel.Channel.ChannelNumber);
