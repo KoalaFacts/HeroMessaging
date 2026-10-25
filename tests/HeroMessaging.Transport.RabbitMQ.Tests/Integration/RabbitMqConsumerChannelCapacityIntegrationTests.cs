@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Reflection;
 using HeroMessaging.Abstractions.Transport;
 using HeroMessaging.Transport.RabbitMQ.Connection;
+using RabbitMQ.Client.Exceptions;
 using Xunit;
 
 namespace HeroMessaging.Transport.RabbitMQ.Tests.Integration;
@@ -91,7 +92,12 @@ public sealed class RabbitMqConsumerChannelCapacityIntegrationTests : RabbitMqIn
         Assert.Equal((1, 0), pool.GetStatistics());
         try
         {
-            await borrowed.CloseAsync(cancellationToken: token);
+            // Passive declare of a unique missing queue forces a real broker
+            // channel.close (404), without releasing/disposal by its owner.
+            var failure = await Assert.ThrowsAsync<OperationInterruptedException>(
+                () => borrowed.QueueDeclarePassiveAsync($"missing-{Guid.NewGuid():N}", token));
+            Assert.NotNull(failure.ShutdownReason);
+            Assert.Equal((ushort)404, failure.ShutdownReason.ReplyCode);
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token);
             deadline.CancelAfter(TimeSpan.FromSeconds(5));
             while (pool.GetStatistics().Total != 0 && !deadline.IsCancellationRequested)
