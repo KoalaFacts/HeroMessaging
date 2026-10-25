@@ -24,6 +24,7 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
     private readonly object _returnLock = new();
 #endif
     private readonly SemaphoreSlim _createChannelLock = new(1, 1);
+    private Task? _disposeTask;
     private readonly int _maxChannels;
     private readonly TimeSpan _channelLifetime;
     private readonly TimeProvider _timeProvider;
@@ -272,17 +273,26 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
             throw new ObjectDisposedException(nameof(RabbitMqChannelPool));
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        // Coordinate returns with the final bag drain: no return can enqueue
-        // a channel after disposal has begun.
         lock (_returnLock)
         {
-            if (_disposed)
-                return;
-            _disposed = true;
-        }
+            // All callers must await the same in-flight cleanup. Merely seeing
+            // _disposed does not mean an outstanding async factory has drained.
+            if (_disposeTask is null)
+            {
+                _disposed = true;
+                // Publish the shared cleanup task under the return lock.
+                // Task.Run avoids running channel-disposal callbacks inline.
+                _disposeTask = Task.Run(DisposeCoreAsync);
+            }
 
+            return new ValueTask(_disposeTask);
+        }
+    }
+
+    private async Task DisposeCoreAsync()
+    {
         _logger.LogDebug("Disposing channel pool for connection {ConnectionId}", _connection.ClientProvidedName);
 
         await _createChannelLock.WaitAsync().ConfigureAwait(false);
@@ -298,10 +308,8 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
         }
         finally
         {
-            // Borrowers can already be queued on WaitAsync when disposal starts.
-            // Disposing this semaphore before those continuations resume strands them.
-            // Leave the managed gate alive: queued borrowers recheck _disposed after
-            // acquiring it and fail without allocating or returning channels.
+            // Borrowers already queued on WaitAsync must resume, observe _disposed,
+            // and fail without allocating a channel. Keep the managed gate alive.
             _createChannelLock.Release();
         }
     }
