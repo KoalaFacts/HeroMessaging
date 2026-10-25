@@ -1004,6 +1004,54 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
         }
     }
 
+    [Fact]
+    public async Task DisposeAsync_ConcurrentCall_WaitsForInFlightCleanup()
+    {
+        await using var pool = new RabbitMqChannelPool(
+            MockConnection.Object, maxChannels: 1, TimeSpan.FromMinutes(5),
+            MockLogger.Object, TimeProvider.System);
+        var token = TestContext.Current.CancellationToken;
+
+        var enteredFactory = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var completeFactory = new TaskCompletionSource<IChannel>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var created = new Mock<IChannel>();
+        created.Setup(channel => channel.IsOpen).Returns(true);
+        created.Setup(channel => channel.ChannelNumber).Returns(301);
+
+        MockConnection.Setup(connection => connection.CreateChannelAsync(
+                It.IsAny<CreateChannelOptions>(), It.IsAny<CancellationToken>()))
+            .Returns(() =>
+            {
+                enteredFactory.TrySetResult();
+                return completeFactory.Task;
+            });
+
+        var pendingAcquire = pool.AcquireChannelAsync(token);
+        await enteredFactory.Task.WaitAsync(TimeSpan.FromSeconds(10), token);
+
+        // The first disposal has marked the pool closed, but must wait for
+        // the in-flight creation to complete before it can finish cleaning up.
+        var firstDispose = pool.DisposeAsync().AsTask();
+        Assert.False(firstDispose.IsCompleted);
+        var secondDispose = pool.DisposeAsync().AsTask();
+        try
+        {
+            // A concurrent caller must not observe a completed DisposeAsync
+            // while the first caller is still waiting to release resources.
+            Assert.False(secondDispose.IsCompleted);
+        }
+        finally
+        {
+            completeFactory.TrySetResult(created.Object);
+            await firstDispose.WaitAsync(TimeSpan.FromSeconds(10), token);
+        }
+
+        await Assert.ThrowsAsync<ObjectDisposedException>(() => pendingAcquire);
+        await secondDispose.WaitAsync(TimeSpan.FromSeconds(10), token);
+        created.Verify(channel => channel.Dispose(), Times.Once);
+        Assert.Equal((0, 0), pool.GetStatistics());
+    }
+
     #region Disposal during asynchronous channel creation regressions
 
     [Theory]
