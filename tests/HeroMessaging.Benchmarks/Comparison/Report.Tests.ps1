@@ -44,16 +44,20 @@ try {
     Assert-Equal 3 @($parsed.samples).Count
     Assert-Equal 2 (Get-InProcessMedian @(1, 3))
     Assert-Equal 2 (Get-InProcessMedian @(1, 2, 3))
-    Assert-Equal 3200000 (Get-InProcessCalibrationCount 256000 1 10 10000000)
-    Assert-Equal 320000 (Get-InProcessCalibrationCount 256000 10 10 10000000)
-    Assert-Equal 256000 (Get-InProcessCalibrationCount 256000 12.5 10 10000000)
-    Assert-Equal 256000 (Get-InProcessCalibrationCount 256000 10 10 10000000 -Attempt 2)
-    Assert-Equal 355556 (Get-InProcessCalibrationCount 256000 9 10 10000000 -Attempt 2)
+    # The captured 2026-10-25 CPU run calibrated to 12.25s but later completed
+    # a real batch in 9.91s. Require 50% pilot headroom on every attempt,
+    # while retaining the separate strict 10-second measured-batch gate.
+    Assert-Equal 3840000 (Get-InProcessCalibrationCount 256000 1 10 10000000)
+    Assert-Equal 384000 (Get-InProcessCalibrationCount 256000 10 10 10000000)
+    Assert-Equal 307200 (Get-InProcessCalibrationCount 256000 12.5 10 10000000)
+    Assert-Equal 256000 (Get-InProcessCalibrationCount 256000 15 10 10000000)
+    Assert-Equal 384000 (Get-InProcessCalibrationCount 256000 10 10 10000000 -Attempt 2)
+    Assert-Equal 426667 (Get-InProcessCalibrationCount 256000 9 10 10000000 -Attempt 2)
     Assert-Equal 10000000 (Get-InProcessCalibrationCount 256000 0.01 10 10000000)
     Assert-Equal 10000000 (Get-InProcessCalibrationCount 10000000 10 10 10000000)
     # A fast no-op batch can need more than 10M events to meet the unchanged 10-second gate.
     # The larger bound must still reject calibration exhaustion and invalid input.
-    Assert-Equal 16666667 (Get-InProcessCalibrationCount 10000000 7.5 10 20000000)
+    Assert-Equal 20000000 (Get-InProcessCalibrationCount 10000000 7.5 10 20000000)
     Assert-Equal 20000000 (Get-InProcessCalibrationCount 10000000 1 10 20000000)
     Assert-Equal 20000000 (Get-InProcessCalibrationCount 20000000 12.5 10 20000000)
     Assert-Throws { Get-InProcessCalibrationCount 20000000 9 10 20000000 }
