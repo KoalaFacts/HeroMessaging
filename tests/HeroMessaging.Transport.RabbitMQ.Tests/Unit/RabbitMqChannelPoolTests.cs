@@ -779,5 +779,49 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
         Assert.Equal((1, 1), pool.GetStatistics());
     }
 
+    [Fact]
+    public async Task ReleaseChannel_TemporaryOverflowReturnedTwice_DisposesOnlyOnce()
+    {
+        await using var pool = new RabbitMqChannelPool(
+            MockConnection.Object, maxChannels: 1, TimeSpan.FromMinutes(5),
+            MockLogger.Object, TimeProvider.System);
+        var token = TestContext.Current.CancellationToken;
+
+        var retainedChannel = await pool.AcquireChannelAsync(token);
+        var overflowChannel = await pool.AcquireChannelAsync(token);
+
+        pool.ReleaseChannel(overflowChannel);
+        pool.ReleaseChannel(overflowChannel);
+
+        Assert.Equal((1, 0), pool.GetStatistics());
+        _mockChannels[1].Verify(channel => channel.Dispose(), Times.Once);
+
+        pool.ReleaseChannel(retainedChannel);
+        Assert.Equal((1, 1), pool.GetStatistics());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_TemporaryOverflowOperationFails_DisposesChannelAndPreservesError()
+    {
+        await using var pool = new RabbitMqChannelPool(
+            MockConnection.Object, maxChannels: 1, TimeSpan.FromMinutes(5),
+            MockLogger.Object, TimeProvider.System);
+        var token = TestContext.Current.CancellationToken;
+
+        var retainedChannel = await pool.AcquireChannelAsync(token);
+        var failure = new InvalidOperationException("Work failed");
+
+        var caught = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => pool.ExecuteAsync<int>(
+                _ => Task.FromException<int>(failure), token));
+
+        Assert.Same(failure, caught);
+        Assert.Equal((1, 0), pool.GetStatistics());
+        _mockChannels[1].Verify(channel => channel.Dispose(), Times.Once);
+
+        pool.ReleaseChannel(retainedChannel);
+        Assert.Equal((1, 1), pool.GetStatistics());
+    }
+
     #endregion
 }
