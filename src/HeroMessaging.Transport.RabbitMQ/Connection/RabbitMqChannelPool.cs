@@ -62,9 +62,17 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
         // duplicate bag entry must never hand out the same channel twice.
         while (_channels.TryTake(out var pooledChannel))
         {
-            if (!_retainedChannels.TryGetValue(pooledChannel.Channel, out var retained) ||
-                !retained.TryBorrow())
+            if (!_retainedChannels.TryGetValue(pooledChannel.Channel, out var retained))
                 continue;
+
+            if (!retained.TryBorrow())
+            {
+                // A broker-closed idle channel may already be retired by its
+                // shutdown callback, but its wrapper still needs disposal.
+                if (retained.IsRetired)
+                    RetireAndDispose(pooledChannel);
+                continue;
+            }
 
             if (pooledChannel.IsHealthy && !pooledChannel.IsExpired)
             {
@@ -79,16 +87,14 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
                         return pooledChannel.Channel;
                     }
 
-                    if (TryRetirePooledChannel(pooledChannel.Channel))
-                        pooledChannel.Dispose();
+                    RetireAndDispose(pooledChannel);
                 }
 
                 throw new ObjectDisposedException(nameof(RabbitMqChannelPool));
             }
 
             _logger.LogDebug("Disposing unhealthy/expired channel {ChannelNumber}", pooledChannel.Channel.ChannelNumber);
-            if (TryRetirePooledChannel(pooledChannel.Channel))
-                pooledChannel.Dispose();
+            RetireAndDispose(pooledChannel);
         }
 
         // Create new channel if under limit
@@ -147,7 +153,8 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
         {
             if (_disposed || !channel.IsOpen)
             {
-                if (TryRetirePooledChannel(channel))
+                TryRetirePooledChannel(channel);
+                if (retained.TryClaimDisposal())
                     channel.Dispose();
                 return;
             }
@@ -170,6 +177,24 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
 
         Interlocked.Decrement(ref _channelCount);
         return true;
+    }
+
+    // Channel shutdown can happen outside ReleaseChannel (notably when a
+    // long-lived consumer owns and closes its borrowed channel). Retire its
+    // counted lease without disposing from the RabbitMQ callback.
+    private Task OnChannelShutdownAsync(object sender, ShutdownEventArgs _)
+    {
+        if (sender is IChannel channel)
+            TryRetirePooledChannel(channel);
+        return Task.CompletedTask;
+    }
+
+    private void RetireAndDispose(PooledChannel pooledChannel)
+    {
+        TryRetirePooledChannel(pooledChannel.Channel);
+        if (_retainedChannels.TryGetValue(pooledChannel.Channel, out var retained) &&
+            retained.TryClaimDisposal())
+            pooledChannel.Dispose();
     }
 
     /// <summary>
@@ -201,6 +226,10 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
                 {
                     _retainedChannels.Add(channel, new RetainedChannelMarker());
                     Interlocked.Increment(ref _channelCount);
+                    // RabbitMQ raises this on both orderly CloseAsync and broker
+                    // shutdown. It is the accounting fallback for owned channels
+                    // that intentionally never return to the reusable bag.
+                    channel.ChannelShutdownAsync += OnChannelShutdownAsync;
                 }
                 else
                 {
@@ -300,8 +329,7 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
         {
             while (_channels.TryTake(out var pooledChannel))
             {
-                if (TryRetirePooledChannel(pooledChannel.Channel))
-                    pooledChannel.Dispose();
+                RetireAndDispose(pooledChannel);
             }
 
             _logger.LogDebug("Channel pool disposed. Remaining borrowed channels: {TotalChannels}", _channelCount);
@@ -318,6 +346,13 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
     {
         // 0: borrowed, 1: available, 2: retired. A retired channel never re-enters the bag.
         private int _state;
+        private int _disposalClaimed;
+
+        public bool IsRetired => Volatile.Read(ref _state) == 2;
+
+        // Shutdown can retire the count before the owner reaches its cleanup
+        // path. Resource disposal still happens once from that cleanup path.
+        public bool TryClaimDisposal() => Interlocked.Exchange(ref _disposalClaimed, 1) == 0;
 
         public bool TryReturn() => Interlocked.CompareExchange(ref _state, 1, 0) == 0;
 
