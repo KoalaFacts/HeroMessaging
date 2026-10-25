@@ -861,4 +861,51 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
     }
 
     #endregion
+
+    #region Disposal during asynchronous channel creation regressions
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AcquireChannelAsync_DisposedDuringChannelCreation_DoesNotEscapeOrKeepCapacity(bool overflow)
+    {
+        await using var pool = new RabbitMqChannelPool(
+            MockConnection.Object, maxChannels: 1, TimeSpan.FromMinutes(5),
+            MockLogger.Object, TimeProvider.System);
+        var token = TestContext.Current.CancellationToken;
+        IChannel? retained = overflow ? await pool.AcquireChannelAsync(token) : null;
+
+        var created = new Mock<IChannel>();
+        created.Setup(channel => channel.IsOpen).Returns(true);
+        created.Setup(channel => channel.ChannelNumber).Returns(123);
+
+        var enteredFactory = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var completeFactory = new TaskCompletionSource<IChannel>(TaskCreationOptions.RunContinuationsAsynchronously);
+        MockConnection.Setup(connection => connection.CreateChannelAsync(
+                It.IsAny<CreateChannelOptions>(), It.IsAny<CancellationToken>()))
+            .Returns(() =>
+            {
+                enteredFactory.TrySetResult(true);
+                return completeFactory.Task;
+            });
+
+        var pendingAcquire = pool.AcquireChannelAsync(token);
+        await enteredFactory.Task.WaitAsync(TimeSpan.FromSeconds(10), token);
+
+        // DisposeAsync sets _disposed before yielding for a pending creation.
+        var pendingDispose = pool.DisposeAsync().AsTask();
+        completeFactory.TrySetResult(created.Object);
+
+        await Assert.ThrowsAsync<ObjectDisposedException>(() => pendingAcquire);
+        await pendingDispose.WaitAsync(TimeSpan.FromSeconds(10), token);
+        created.Verify(channel => channel.Dispose(), Times.Once);
+
+        if (retained is not null)
+            pool.ReleaseChannel(retained);
+
+        Assert.Equal((0, 0), pool.GetStatistics());
+    }
+
+    #endregion
+
 }
