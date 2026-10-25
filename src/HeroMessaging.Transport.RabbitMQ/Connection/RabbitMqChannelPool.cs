@@ -15,7 +15,7 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
     private readonly ILogger<RabbitMqChannelPool> _logger;
     private readonly ConcurrentBag<PooledChannel> _channels = [];
     // Weak keys prevent an abandoned externally disposed overflow channel from being retained by the pool.
-    private readonly ConditionalWeakTable<IChannel, TemporaryChannelMarker> _temporaryChannels = new();
+    private readonly ConditionalWeakTable<IChannel, TemporaryChannelMarker> _temporaryChannels = [];
     private readonly SemaphoreSlim _createChannelLock = new(1, 1);
     private readonly int _maxChannels;
     private readonly TimeSpan _channelLifetime;
