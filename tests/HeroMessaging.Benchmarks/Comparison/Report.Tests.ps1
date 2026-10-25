@@ -62,6 +62,23 @@ try {
     Assert-Equal 20000000 (Get-InProcessCalibrationCount 20000000 12.5 10 20000000)
     Assert-Throws { Get-InProcessCalibrationCount 20000000 9 10 20000000 }
     Assert-Throws { Get-InProcessCalibrationCount 20000001 9 10 20000000 }
+    # Regression: proportional scaling to exactly 15s can asymptotically
+    # approach that acceptance boundary from below when each batch has fixed
+    # overhead. Four pilots must reach genuine >=15s headroom without easing
+    # the measured-batch >=10s guard or the four-attempt limit.
+    $calibrationCount = 500000
+    $converged = $false
+    for ($attempt = 1; $attempt -le 4; $attempt++) {
+        $pilotSeconds = 0.1 + ($calibrationCount / 250000.0)
+        $next = Get-InProcessCalibrationCount $calibrationCount $pilotSeconds 10 10000000 -Attempt $attempt
+        if ($next -eq $calibrationCount) {
+            if ($pilotSeconds -lt 15) { throw 'Calibration accepted a pilot below the required 15-second headroom.' }
+            $converged = $true
+            break
+        }
+        $calibrationCount = $next
+    }
+    if (!$converged) { throw 'Calibration failed to converge with fixed per-batch overhead in four attempts.' }
     $laterBatch = New-Fixture @(23.4, 26.6, 26.9)
     $observation = Get-InProcessCalibrationObservation $laterBatch -Runs 3
     Assert-Equal 3 @($observation.batchSeconds).Count
