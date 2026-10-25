@@ -171,6 +171,13 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
         _logger.LogTrace("Channel {ChannelNumber} returned to pool", channel.ChannelNumber);
     }
 
+    // Consumer-owned channels bypass the reusable bag. The broker shutdown
+    // notification may complete after disposal returns, so retire explicitly.
+    internal void RetireConsumerChannel(IChannel channel)
+    {
+        TryRetirePooledChannel(channel);
+    }
+
     private bool TryRetirePooledChannel(IChannel channel)
     {
         if (!_retainedChannels.TryGetValue(channel, out var retained) || !retained.TryRetire())

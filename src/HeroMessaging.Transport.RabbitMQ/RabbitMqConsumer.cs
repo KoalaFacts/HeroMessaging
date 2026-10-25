@@ -29,6 +29,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
     private readonly ILogger<RabbitMqConsumer> _logger;
     private readonly ITransportInstrumentation _instrumentation;
     private readonly TimeProvider _timeProvider;
+    private readonly Action<IChannel>? _retireOwnedChannel;
     private AsyncEventingBasicConsumer? _consumer;
     private string? _consumerTag;
     private long _messagesProcessed;
@@ -65,7 +66,8 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
         IRabbitMqConsumerHost transport,
         ILogger<RabbitMqConsumer> logger,
         TimeProvider timeProvider,
-        ITransportInstrumentation? instrumentation = null)
+        ITransportInstrumentation? instrumentation = null,
+        Action<IChannel>? retireOwnedChannel = null)
     {
         ConsumerId = string.IsNullOrEmpty(consumerId)
             ? throw new ArgumentNullException(nameof(consumerId))
@@ -80,6 +82,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         _instrumentation = instrumentation ?? NoOpTransportInstrumentation.Instance;
+        _retireOwnedChannel = retireOwnedChannel;
     }
 
     /// <summary>
@@ -265,7 +268,16 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
                 }
                 finally
                 {
-                    _transport.RemoveConsumer(ConsumerId);
+                    try
+                    {
+                        // Even if broker shutdown callbacks lag (or disposal
+                        // throws), the consumer must retire its borrowed lease.
+                        _retireOwnedChannel?.Invoke(_channel);
+                    }
+                    finally
+                    {
+                        _transport.RemoveConsumer(ConsumerId);
+                    }
                 }
             }
         }
