@@ -161,14 +161,32 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
                 publisherConfirmationsEnabled: _publisherConfirmsEnabled,
                 publisherConfirmationTrackingEnabled: _publisherConfirmsEnabled),
             cancellationToken).ConfigureAwait(false);
-        if (pooled)
+        // Channel creation may suspend while DisposeAsync marks the pool as
+        // disposed. Register a new lease atomically with that state change:
+        // a channel completed after shutdown begins must never escape.
+        bool disposedDuringCreation;
+        lock (_returnLock)
         {
-            _retainedChannels.Add(channel, new RetainedChannelMarker());
-            Interlocked.Increment(ref _channelCount);
+            disposedDuringCreation = _disposed;
+            if (!disposedDuringCreation)
+            {
+                if (pooled)
+                {
+                    _retainedChannels.Add(channel, new RetainedChannelMarker());
+                    Interlocked.Increment(ref _channelCount);
+                }
+                else
+                {
+                    _temporaryChannels.Add(channel, new TemporaryChannelMarker());
+                }
+            }
         }
-        else
+
+        if (disposedDuringCreation)
         {
-            _temporaryChannels.Add(channel, new TemporaryChannelMarker());
+            channel.Dispose();
+            throw new ObjectDisposedException(nameof(RabbitMqChannelPool),
+                "Channel pool was disposed during channel creation.");
         }
 
         _logger.LogDebug("Created {ChannelKind} channel {ChannelNumber} (Pooled count: {PooledChannels})",
