@@ -62,4 +62,48 @@ public sealed class RabbitMqConsumerChannelCapacityIntegrationTests : RabbitMqIn
         await Transport.SendConfirmedAsync(address, CreateTestEnvelope(), token);
         Assert.Equal((1, 1), pool.GetStatistics());
     }
+
+    [Fact]
+    public async Task BrokerClosedBorrowedChannel_RetiresCapacityBeforeOwnerReleasesIt()
+    {
+        var token = TestContext.Current.CancellationToken;
+        // Automatic recovery wraps the underlying broker channel; its shutdown
+        // event sender need not be the IChannel returned by CreateChannelAsync.
+        Assert.True(Options!.AutoReconnect);
+        Options.MaxChannelsPerConnection = 1;
+
+        var topology = new TransportTopology();
+        topology.AddQueue(new QueueDefinition { Name = CreateQueueName(), Durable = true });
+        await Transport!.ConfigureTopologyAsync(topology, token);
+
+        var poolsField = typeof(RabbitMqTransport).GetField(
+            "_channelPools", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(poolsField);
+        var pools = Assert.IsType<ConcurrentDictionary<string, RabbitMqChannelPool>>(
+            poolsField.GetValue(Transport));
+        var pool = Assert.Single(pools.Values);
+        Assert.Equal((1, 1), pool.GetStatistics());
+
+        // Model an active consumer-owned lease: it is not returned to the bag.
+        // A broker channel shutdown must release counted capacity even when the
+        // consumer has not yet called its explicit retirement callback.
+        var borrowed = await pool.AcquireChannelAsync(token);
+        Assert.Equal((1, 0), pool.GetStatistics());
+        try
+        {
+            await borrowed.CloseAsync(cancellationToken: token);
+            using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token);
+            deadline.CancelAfter(TimeSpan.FromSeconds(5));
+            while (pool.GetStatistics().Total != 0 && !deadline.IsCancellationRequested)
+                await Task.Delay(TimeSpan.FromMilliseconds(25), token);
+
+            Assert.Equal((0, 0), pool.GetStatistics());
+        }
+        finally
+        {
+            // Cleanup must not influence the assertion above.
+            pool.ReleaseChannel(borrowed);
+        }
+    }
+
 }
