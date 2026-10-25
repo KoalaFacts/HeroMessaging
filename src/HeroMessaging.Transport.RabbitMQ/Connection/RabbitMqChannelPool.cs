@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 
 namespace HeroMessaging.Transport.RabbitMQ.Connection;
 
@@ -13,13 +14,23 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
     private readonly IConnection _connection;
     private readonly ILogger<RabbitMqChannelPool> _logger;
     private readonly ConcurrentBag<PooledChannel> _channels = [];
+    // Weak keys prevent an abandoned externally disposed overflow channel from being retained by the pool.
+    private readonly ConditionalWeakTable<IChannel, TemporaryChannelMarker> _temporaryChannels = [];
+    // Weak ownership keys avoid retaining channels that a consumer abandoned or disposed externally.
+    private readonly ConditionalWeakTable<IChannel, RetainedChannelMarker> _retainedChannels = [];
+#if NET9_0_OR_GREATER
+    private readonly System.Threading.Lock _returnLock = new();
+#else
+    private readonly object _returnLock = new();
+#endif
     private readonly SemaphoreSlim _createChannelLock = new(1, 1);
+    private Task? _disposeTask;
     private readonly int _maxChannels;
     private readonly TimeSpan _channelLifetime;
     private readonly TimeProvider _timeProvider;
     private readonly bool _publisherConfirmsEnabled;
     private int _channelCount;
-    private bool _disposed;
+    private volatile bool _disposed;
 
     public RabbitMqChannelPool(
         IConnection connection,
@@ -47,21 +58,37 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
     {
         ThrowIfDisposed();
 
-        // Try to get an available channel from the pool
+        // Only one outstanding borrower may use a retained channel. A stale or
+        // duplicate bag entry must never hand out the same channel twice.
         while (_channels.TryTake(out var pooledChannel))
         {
+            if (!_retainedChannels.TryGetValue(pooledChannel.Channel, out var retained) ||
+                !retained.TryBorrow())
+                continue;
+
             if (pooledChannel.IsHealthy && !pooledChannel.IsExpired)
             {
-                _logger.LogTrace("Reusing channel {ChannelNumber} from pool", pooledChannel.Channel.ChannelNumber);
-                return pooledChannel.Channel;
+                // The health check may await external state synchronously. Coordinate
+                // the final lease handoff with shutdown so a disposed pool cannot
+                // return a channel whose ownership has already been abandoned.
+                lock (_returnLock)
+                {
+                    if (!_disposed)
+                    {
+                        _logger.LogTrace("Reusing channel {ChannelNumber} from pool", pooledChannel.Channel.ChannelNumber);
+                        return pooledChannel.Channel;
+                    }
+
+                    if (TryRetirePooledChannel(pooledChannel.Channel))
+                        pooledChannel.Dispose();
+                }
+
+                throw new ObjectDisposedException(nameof(RabbitMqChannelPool));
             }
-            else
-            {
-                // Channel is unhealthy or expired, dispose it
-                _logger.LogDebug("Disposing unhealthy/expired channel {ChannelNumber}", pooledChannel.Channel.ChannelNumber);
+
+            _logger.LogDebug("Disposing unhealthy/expired channel {ChannelNumber}", pooledChannel.Channel.ChannelNumber);
+            if (TryRetirePooledChannel(pooledChannel.Channel))
                 pooledChannel.Dispose();
-                Interlocked.Decrement(ref _channelCount);
-            }
         }
 
         // Create new channel if under limit
@@ -70,6 +97,9 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
             await _createChannelLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                // Shutdown may start while this acquisition is queued on the factory gate.
+                // Recheck after acquiring it so queued callers never start new work after disposal.
+                ThrowIfDisposed();
                 if (_channelCount < _maxChannels)
                 {
                     return await CreateChannelAsync(cancellationToken).ConfigureAwait(false);
@@ -81,9 +111,13 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
             }
         }
 
+        // A queued factory acquisition may have observed shutdown; the overflow path
+        // must not bypass the same disposal check.
+        ThrowIfDisposed();
+
         // If pool is full, create a temporary channel (not pooled)
         _logger.LogWarning("Channel pool is full ({MaxChannels}). Creating temporary channel", _maxChannels);
-        return await CreateChannelAsync(cancellationToken).ConfigureAwait(false);
+        return await CreateChannelAsync(cancellationToken, pooled: false).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -94,25 +128,56 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
         if (channel == null)
             return;
 
-        if (_disposed || !channel.IsOpen)
+        // Temporary overflow channels never become reusable pool capacity.
+        if (_temporaryChannels.TryGetValue(channel, out var temporary))
         {
-            if (!_disposed)
-                Interlocked.Decrement(ref _channelCount);
+            if (temporary.TryMarkReleased())
+                channel.Dispose();
+            return;
+        }
+
+        if (!_retainedChannels.TryGetValue(channel, out var retained))
+        {
+            // Unknown channels must never be adopted into the reusable pool.
             channel.Dispose();
             return;
         }
 
-        var pooledChannel = new PooledChannel(channel, _channelLifetime, _timeProvider);
-        _channels.Add(pooledChannel);
+        lock (_returnLock)
+        {
+            if (_disposed || !channel.IsOpen)
+            {
+                if (TryRetirePooledChannel(channel))
+                    channel.Dispose();
+                return;
+            }
+
+            // Idempotent returns prevent duplicate bag entries and concurrent
+            // use of one IChannel by multiple callers.
+            if (!retained.TryReturn())
+                return;
+
+            _channels.Add(new PooledChannel(channel, _channelLifetime, _timeProvider));
+        }
 
         _logger.LogTrace("Channel {ChannelNumber} returned to pool", channel.ChannelNumber);
+    }
+
+    private bool TryRetirePooledChannel(IChannel channel)
+    {
+        if (!_retainedChannels.TryGetValue(channel, out var retained) || !retained.TryRetire())
+            return false;
+
+        Interlocked.Decrement(ref _channelCount);
+        return true;
     }
 
     /// <summary>
     /// Create a new channel
     /// </summary>
-    private async Task<IChannel> CreateChannelAsync(CancellationToken cancellationToken = default)
+    private async Task<IChannel> CreateChannelAsync(CancellationToken cancellationToken = default, bool pooled = true)
     {
+        ThrowIfDisposed();
         if (!_connection.IsOpen)
         {
             throw new InvalidOperationException("Cannot create channel: connection is not open");
@@ -123,10 +188,36 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
                 publisherConfirmationsEnabled: _publisherConfirmsEnabled,
                 publisherConfirmationTrackingEnabled: _publisherConfirmsEnabled),
             cancellationToken).ConfigureAwait(false);
-        Interlocked.Increment(ref _channelCount);
+        // Channel creation may suspend while DisposeAsync marks the pool as
+        // disposed. Register a new lease atomically with that state change:
+        // a channel completed after shutdown begins must never escape.
+        bool disposedDuringCreation;
+        lock (_returnLock)
+        {
+            disposedDuringCreation = _disposed;
+            if (!disposedDuringCreation)
+            {
+                if (pooled)
+                {
+                    _retainedChannels.Add(channel, new RetainedChannelMarker());
+                    Interlocked.Increment(ref _channelCount);
+                }
+                else
+                {
+                    _temporaryChannels.Add(channel, new TemporaryChannelMarker());
+                }
+            }
+        }
 
-        _logger.LogDebug("Created new channel {ChannelNumber} (Total: {TotalChannels})",
-            channel.ChannelNumber, _channelCount);
+        if (disposedDuringCreation)
+        {
+            channel.Dispose();
+            throw new ObjectDisposedException(nameof(RabbitMqChannelPool),
+                "Channel pool was disposed during channel creation.");
+        }
+
+        _logger.LogDebug("Created {ChannelKind} channel {ChannelNumber} (Pooled count: {PooledChannels})",
+            pooled ? "pooled" : "temporary", channel.ChannelNumber, _channelCount);
 
         return channel;
     }
@@ -182,30 +273,64 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
             throw new ObjectDisposedException(nameof(RabbitMqChannelPool));
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        if (_disposed) return;
+        lock (_returnLock)
+        {
+            // All callers must await the same in-flight cleanup. Merely seeing
+            // _disposed does not mean an outstanding async factory has drained.
+            if (_disposeTask is null)
+            {
+                _disposed = true;
+                // Publish the shared cleanup task under the return lock.
+                // Task.Run avoids running channel-disposal callbacks inline.
+                _disposeTask = Task.Run(DisposeCoreAsync);
+            }
 
-        _disposed = true;
+            return new ValueTask(_disposeTask);
+        }
+    }
 
+    private async Task DisposeCoreAsync()
+    {
         _logger.LogDebug("Disposing channel pool for connection {ConnectionId}", _connection.ClientProvidedName);
 
         await _createChannelLock.WaitAsync().ConfigureAwait(false);
         try
         {
-            // Dispose all channels
             while (_channels.TryTake(out var pooledChannel))
             {
-                pooledChannel.Dispose();
+                if (TryRetirePooledChannel(pooledChannel.Channel))
+                    pooledChannel.Dispose();
             }
 
-            _logger.LogDebug("Channel pool disposed. Total channels created: {TotalChannels}", _channelCount);
+            _logger.LogDebug("Channel pool disposed. Remaining borrowed channels: {TotalChannels}", _channelCount);
         }
         finally
         {
+            // Borrowers already queued on WaitAsync must resume, observe _disposed,
+            // and fail without allocating a channel. Keep the managed gate alive.
             _createChannelLock.Release();
-            _createChannelLock.Dispose();
         }
+    }
+
+    private sealed class RetainedChannelMarker
+    {
+        // 0: borrowed, 1: available, 2: retired. A retired channel never re-enters the bag.
+        private int _state;
+
+        public bool TryReturn() => Interlocked.CompareExchange(ref _state, 1, 0) == 0;
+
+        public bool TryBorrow() => Interlocked.CompareExchange(ref _state, 0, 1) == 1;
+
+        public bool TryRetire() => Interlocked.Exchange(ref _state, 2) != 2;
+    }
+
+    private sealed class TemporaryChannelMarker
+    {
+        private int _released;
+
+        public bool TryMarkReleased() => Interlocked.Exchange(ref _released, 1) == 0;
     }
 
     /// <summary>
