@@ -96,6 +96,9 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
             await _createChannelLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                // Shutdown may start while this acquisition is queued on the factory gate.
+                // Recheck after acquiring it so queued callers never start new work after disposal.
+                ThrowIfDisposed();
                 if (_channelCount < _maxChannels)
                 {
                     return await CreateChannelAsync(cancellationToken).ConfigureAwait(false);
@@ -106,6 +109,10 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
                 _createChannelLock.Release();
             }
         }
+
+        // A queued factory acquisition may have observed shutdown; the overflow path
+        // must not bypass the same disposal check.
+        ThrowIfDisposed();
 
         // If pool is full, create a temporary channel (not pooled)
         _logger.LogWarning("Channel pool is full ({MaxChannels}). Creating temporary channel", _maxChannels);
@@ -169,6 +176,7 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
     /// </summary>
     private async Task<IChannel> CreateChannelAsync(CancellationToken cancellationToken = default, bool pooled = true)
     {
+        ThrowIfDisposed();
         if (!_connection.IsOpen)
         {
             throw new InvalidOperationException("Cannot create channel: connection is not open");
@@ -290,8 +298,11 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
         }
         finally
         {
+            // Borrowers can already be queued on WaitAsync when disposal starts.
+            // Disposing this semaphore before those continuations resume strands them.
+            // Leave the managed gate alive: queued borrowers recheck _disposed after
+            // acquiring it and fail without allocating or returning channels.
             _createChannelLock.Release();
-            _createChannelLock.Dispose();
         }
     }
 
