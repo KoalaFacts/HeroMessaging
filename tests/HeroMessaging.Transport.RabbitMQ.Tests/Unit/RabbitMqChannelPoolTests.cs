@@ -1098,4 +1098,58 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
 
     #endregion
 
+
+    #region Consumer-owned channel lease retirement regressions
+
+    [Fact]
+    public async Task RetireConsumerChannel_ConcurrentCallbacks_RetiresBorrowedCapacityOnlyOnce()
+    {
+        await using var pool = new RabbitMqChannelPool(
+            MockConnection.Object, maxChannels: 1, TimeSpan.FromMinutes(5),
+            MockLogger.Object, TimeProvider.System);
+        var token = TestContext.Current.CancellationToken;
+
+        var ownedChannel = await pool.AcquireChannelAsync(token);
+        Assert.Equal((1, 0), pool.GetStatistics());
+
+        // The consumer may retire its lease explicitly while a broker-shutdown
+        // callback races to retire the same lease. Both paths must be idempotent.
+        _mockChannels[0].Setup(channel => channel.IsOpen).Returns(false);
+        ownedChannel.Dispose();
+        var retirements = Enumerable.Range(0, 16)
+            .Select(_ => Task.Run(() => pool.RetireConsumerChannel(ownedChannel), token));
+        await Task.WhenAll(retirements);
+
+        Assert.Equal((0, 0), pool.GetStatistics());
+        var replacement = await pool.AcquireChannelAsync(token);
+        Assert.NotSame(ownedChannel, replacement);
+        Assert.Equal((1, 0), pool.GetStatistics());
+
+        pool.ReleaseChannel(replacement);
+        Assert.Equal((1, 1), pool.GetStatistics());
+        _mockChannels[0].Verify(channel => channel.Dispose(), Times.Once);
+    }
+
+    [Fact]
+    public async Task RetireConsumerChannel_AfterPoolShutdown_DrainsBorrowedCapacityWithoutDoubleDisposal()
+    {
+        await using var pool = new RabbitMqChannelPool(
+            MockConnection.Object, maxChannels: 1, TimeSpan.FromMinutes(5),
+            MockLogger.Object, TimeProvider.System);
+        var channel = await pool.AcquireChannelAsync(TestContext.Current.CancellationToken);
+
+        // A borrowed consumer channel cannot be drained from the reusable bag.
+        await pool.DisposeAsync();
+        Assert.Equal((1, 0), pool.GetStatistics());
+
+        pool.RetireConsumerChannel(channel);
+        pool.RetireConsumerChannel(channel);
+        pool.ReleaseChannel(channel);
+        pool.ReleaseChannel(channel);
+
+        Assert.Equal((0, 0), pool.GetStatistics());
+        _mockChannels[0].Verify(mock => mock.Dispose(), Times.Once);
+    }
+
+    #endregion
 }
