@@ -904,6 +904,106 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
         _mockChannels[0].Verify(mock => mock.Dispose(), Times.Once);
     }
 
+    [Fact]
+    public async Task AcquireChannelAsync_DisposeQueuedBeforeMultipleWaiters_DoesNotStrandBorrowers()
+    {
+        await using var pool = new RabbitMqChannelPool(
+            MockConnection.Object, maxChannels: 3, TimeSpan.FromMinutes(5),
+            MockLogger.Object, TimeProvider.System);
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        var token = cancellation.Token;
+
+        var first = await pool.AcquireChannelAsync(token);
+        var second = await pool.AcquireChannelAsync(token);
+        pool.ReleaseChannel(first);
+        pool.ReleaseChannel(second);
+
+        // Pause both reused-channel health checks while a third acquisition
+        // holds the factory semaphore. Neither paused borrower owns the semaphore yet.
+        using var resumeHealthChecks = new ManualResetEventSlim(false);
+        var bothChecking = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var bothRetired = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var checks = 0;
+        var retirements = 0;
+        foreach (var mock in _mockChannels.Take(2))
+        {
+            mock.Setup(channel => channel.IsOpen).Returns(() =>
+            {
+                if (Interlocked.Increment(ref checks) == 2)
+                    bothChecking.TrySetResult();
+                if (!resumeHealthChecks.Wait(TimeSpan.FromSeconds(10), token))
+                    throw new TimeoutException("A paused channel health check did not resume.");
+                return false; // Both borrowed channels are retired before waiting for creation.
+            });
+            mock.Setup(channel => channel.Dispose()).Callback(() =>
+            {
+                if (Interlocked.Increment(ref retirements) == 2)
+                    bothRetired.TrySetResult();
+            });
+        }
+
+        var borrowerA = Task.Run(() => pool.AcquireChannelAsync(token), token);
+        var borrowerB = Task.Run(() => pool.AcquireChannelAsync(token), token);
+        var factoryEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var finishFactory = new TaskCompletionSource<IChannel>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var created = new Mock<IChannel>();
+        created.Setup(channel => channel.IsOpen).Returns(true);
+        created.Setup(channel => channel.ChannelNumber).Returns(123);
+
+        try
+        {
+            await bothChecking.Task.WaitAsync(TimeSpan.FromSeconds(10), token);
+
+            MockConnection.Setup(connection => connection.CreateChannelAsync(
+                    It.IsAny<CreateChannelOptions>(), It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    factoryEntered.TrySetResult();
+                    return finishFactory.Task;
+                });
+
+            // C holds the semaphore inside its async factory, then Dispose (D)
+            // queues ahead of the two resumed borrowers. The old implementation
+            // released and disposed the semaphore with borrowers still waiting.
+            var creating = pool.AcquireChannelAsync(token);
+            await factoryEntered.Task.WaitAsync(TimeSpan.FromSeconds(10), token);
+            var disposing = pool.DisposeAsync().AsTask();
+            Assert.False(disposing.IsCompleted);
+
+            resumeHealthChecks.Set();
+            await bothRetired.Task.WaitAsync(TimeSpan.FromSeconds(10), token);
+            await Task.Yield(); // Let both retirees enqueue behind the pending dispose.
+
+            finishFactory.SetResult(created.Object);
+            await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+            {
+                await creating.WaitAsync(TimeSpan.FromSeconds(10), token);
+            });
+            await disposing.WaitAsync(TimeSpan.FromSeconds(10), token);
+
+            foreach (var borrower in new[] { borrowerA, borrowerB })
+            {
+                await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+                {
+                    await borrower.WaitAsync(TimeSpan.FromSeconds(5), token);
+                });
+            }
+
+            Assert.Equal((0, 0), pool.GetStatistics());
+            MockConnection.Verify(connection => connection.CreateChannelAsync(
+                It.IsAny<CreateChannelOptions>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
+            created.Verify(channel => channel.Dispose(), Times.Once);
+            _mockChannels[0].Verify(channel => channel.Dispose(), Times.Once);
+            _mockChannels[1].Verify(channel => channel.Dispose(), Times.Once);
+        }
+        finally
+        {
+            resumeHealthChecks.Set();
+            finishFactory.TrySetResult(created.Object);
+            cancellation.Cancel(); // Also release pending waiters when testing the RED implementation.
+        }
+    }
+
     #region Disposal during asynchronous channel creation regressions
 
     [Theory]
