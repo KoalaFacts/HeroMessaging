@@ -51,8 +51,8 @@ try {
     Assert-Equal 384000 (Get-InProcessCalibrationCount 256000 10 10 10000000)
     Assert-Equal 307200 (Get-InProcessCalibrationCount 256000 12.5 10 10000000)
     Assert-Equal 256000 (Get-InProcessCalibrationCount 256000 15 10 10000000)
-    Assert-Equal 384000 (Get-InProcessCalibrationCount 256000 10 10 10000000 -Attempt 2)
-    Assert-Equal 426667 (Get-InProcessCalibrationCount 256000 9 10 10000000 -Attempt 2)
+    Assert-Equal 409600 (Get-InProcessCalibrationCount 256000 10 10 10000000 -Attempt 2)
+    Assert-Equal 455112 (Get-InProcessCalibrationCount 256000 9 10 10000000 -Attempt 2)
     Assert-Equal 10000000 (Get-InProcessCalibrationCount 256000 0.01 10 10000000)
     Assert-Equal 10000000 (Get-InProcessCalibrationCount 10000000 10 10 10000000)
     # A fast no-op batch can need more than 10M events to meet the unchanged 10-second gate.

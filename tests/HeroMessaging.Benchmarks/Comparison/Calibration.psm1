@@ -22,15 +22,17 @@ function Get-InProcessCalibrationCount {
         throw 'Invalid calibration input.'
     }
     # The fastest pilot can run more slowly than a later measured batch.
-    # Require 50% calibration headroom on every attempt; do not weaken the
-    # measured-batch minimum or the requirement for complete steady windows.
+    # Require 50% pilot headroom. On later attempts, add a small reserve
+    # so fixed per-batch overhead cannot asymptotically approach the 15-second
+    # acceptance threshold from below. Measured-batch validity is unchanged.
     if ($FastestSeconds -ge $MinimumBatchSeconds * 1.5) { return $CurrentCount }
     if ($CurrentCount -eq $MaximumMessages) {
         if ($FastestSeconds -ge $MinimumBatchSeconds) { return $CurrentCount }
         throw 'Calibration reached MaximumMessages before MinimumBatchSeconds. Increase the bound or use a shorter explicit sampling duration.'
     }
     # Use the faster revision, with headroom; measured batches still enforce the minimum.
-    $scaled = [Math]::Ceiling($CurrentCount * ($MinimumBatchSeconds / $FastestSeconds) * 1.5)
+    $targetHeadroom = if ($Attempt -eq 1) { 1.5 } else { 1.6 }
+    $scaled = [Math]::Ceiling($CurrentCount * ($MinimumBatchSeconds / $FastestSeconds) * $targetHeadroom)
     return [int][Math]::Min($MaximumMessages, [Math]::Max($CurrentCount + 1, $scaled))
 }
 
