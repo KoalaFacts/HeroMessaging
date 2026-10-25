@@ -823,5 +823,42 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
         Assert.Equal((1, 1), pool.GetStatistics());
     }
 
+    [Fact]
+    public async Task ReleaseChannel_PooledChannelReturnedTwice_DoesNotDuplicateAnAvailableLease()
+    {
+        await using var pool = new RabbitMqChannelPool(
+            MockConnection.Object, maxChannels: 2, TimeSpan.FromMinutes(5),
+            MockLogger.Object, TimeProvider.System);
+        var token = TestContext.Current.CancellationToken;
+
+        var original = await pool.AcquireChannelAsync(token);
+        pool.ReleaseChannel(original);
+        pool.ReleaseChannel(original);
+
+        Assert.Equal((1, 1), pool.GetStatistics());
+
+        var first = await pool.AcquireChannelAsync(token);
+        var second = await pool.AcquireChannelAsync(token);
+        Assert.NotSame(first, second);
+        pool.ReleaseChannel(first);
+        pool.ReleaseChannel(second);
+    }
+
+    [Fact]
+    public async Task ReleaseChannel_ClosedPooledChannelReturnedTwice_RetiresOnlyOnce()
+    {
+        await using var pool = new RabbitMqChannelPool(
+            MockConnection.Object, maxChannels: 1, TimeSpan.FromMinutes(5),
+            MockLogger.Object, TimeProvider.System);
+        var channel = await pool.AcquireChannelAsync(TestContext.Current.CancellationToken);
+        _mockChannels[0].Setup(ch => ch.IsOpen).Returns(false);
+
+        pool.ReleaseChannel(channel);
+        pool.ReleaseChannel(channel);
+
+        Assert.Equal((0, 0), pool.GetStatistics());
+        _mockChannels[0].Verify(ch => ch.Dispose(), Times.Once);
+    }
+
     #endregion
 }
