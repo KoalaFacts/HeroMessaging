@@ -62,9 +62,17 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
         // duplicate bag entry must never hand out the same channel twice.
         while (_channels.TryTake(out var pooledChannel))
         {
-            if (!_retainedChannels.TryGetValue(pooledChannel.Channel, out var retained) ||
-                !retained.TryBorrow())
+            if (!_retainedChannels.TryGetValue(pooledChannel.Channel, out var retained))
                 continue;
+
+            if (!retained.TryBorrow())
+            {
+                // A broker-closed idle channel may already be retired by its
+                // shutdown callback, but its wrapper still needs disposal.
+                if (retained.IsRetired)
+                    RetireAndDispose(pooledChannel);
+                continue;
+            }
 
             if (pooledChannel.IsHealthy && !pooledChannel.IsExpired)
             {
@@ -79,16 +87,14 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
                         return pooledChannel.Channel;
                     }
 
-                    if (TryRetirePooledChannel(pooledChannel.Channel))
-                        pooledChannel.Dispose();
+                    RetireAndDispose(pooledChannel);
                 }
 
                 throw new ObjectDisposedException(nameof(RabbitMqChannelPool));
             }
 
             _logger.LogDebug("Disposing unhealthy/expired channel {ChannelNumber}", pooledChannel.Channel.ChannelNumber);
-            if (TryRetirePooledChannel(pooledChannel.Channel))
-                pooledChannel.Dispose();
+            RetireAndDispose(pooledChannel);
         }
 
         // Create new channel if under limit
@@ -147,7 +153,8 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
         {
             if (_disposed || !channel.IsOpen)
             {
-                if (TryRetirePooledChannel(channel))
+                TryRetirePooledChannel(channel);
+                if (retained.TryClaimDisposal())
                     channel.Dispose();
                 return;
             }
@@ -155,7 +162,13 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
             // Idempotent returns prevent duplicate bag entries and concurrent
             // use of one IChannel by multiple callers.
             if (!retained.TryReturn())
+            {
+                // RabbitMQ automatic recovery may reopen a borrowed channel after
+                // broker shutdown retired its lease. It must not escape disposal.
+                if (retained.IsRetired && retained.TryClaimDisposal())
+                    channel.Dispose();
                 return;
+            }
 
             _channels.Add(new PooledChannel(channel, _channelLifetime, _timeProvider));
         }
@@ -163,13 +176,43 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
         _logger.LogTrace("Channel {ChannelNumber} returned to pool", channel.ChannelNumber);
     }
 
+    // Consumer-owned channels bypass the reusable bag. The broker shutdown
+    // notification may complete after disposal returns, so retire explicitly.
+    internal void RetireConsumerChannel(IChannel channel)
+    {
+        TryRetirePooledChannel(channel);
+    }
+
     private bool TryRetirePooledChannel(IChannel channel)
     {
-        if (!_retainedChannels.TryGetValue(channel, out var retained) || !retained.TryRetire())
+        return _retainedChannels.TryGetValue(channel, out var retained) &&
+            TryRetirePooledChannel(retained);
+    }
+
+    private bool TryRetirePooledChannel(RetainedChannelMarker retained)
+    {
+        if (!retained.TryRetire())
             return false;
 
         Interlocked.Decrement(ref _channelCount);
         return true;
+    }
+
+    // AutorecoveringChannel forwards shutdown subscriptions to its inner
+    // channel, so event sender is not necessarily the registered outer IChannel.
+    // Retire the original counted marker without disposing from the callback.
+    private Task OnChannelShutdownAsync(RetainedChannelMarker retained)
+    {
+        TryRetirePooledChannel(retained);
+        return Task.CompletedTask;
+    }
+
+    private void RetireAndDispose(PooledChannel pooledChannel)
+    {
+        TryRetirePooledChannel(pooledChannel.Channel);
+        if (_retainedChannels.TryGetValue(pooledChannel.Channel, out var retained) &&
+            retained.TryClaimDisposal())
+            pooledChannel.Dispose();
     }
 
     /// <summary>
@@ -199,8 +242,12 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
             {
                 if (pooled)
                 {
-                    _retainedChannels.Add(channel, new RetainedChannelMarker());
+                    var retained = new RetainedChannelMarker();
+                    _retainedChannels.Add(channel, retained);
                     Interlocked.Increment(ref _channelCount);
+                    // The shutdown sender may be RabbitMQ's inner channel during
+                    // automatic recovery. Bind the counted outer channel's marker.
+                    channel.ChannelShutdownAsync += (_, _) => OnChannelShutdownAsync(retained);
                 }
                 else
                 {
@@ -300,8 +347,7 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
         {
             while (_channels.TryTake(out var pooledChannel))
             {
-                if (TryRetirePooledChannel(pooledChannel.Channel))
-                    pooledChannel.Dispose();
+                RetireAndDispose(pooledChannel);
             }
 
             _logger.LogDebug("Channel pool disposed. Remaining borrowed channels: {TotalChannels}", _channelCount);
@@ -318,6 +364,13 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
     {
         // 0: borrowed, 1: available, 2: retired. A retired channel never re-enters the bag.
         private int _state;
+        private int _disposalClaimed;
+
+        public bool IsRetired => Volatile.Read(ref _state) == 2;
+
+        // Shutdown can retire the count before the owner reaches its cleanup
+        // path. Resource disposal still happens once from that cleanup path.
+        public bool TryClaimDisposal() => Interlocked.Exchange(ref _disposalClaimed, 1) == 0;
 
         public bool TryReturn() => Interlocked.CompareExchange(ref _state, 1, 0) == 0;
 
