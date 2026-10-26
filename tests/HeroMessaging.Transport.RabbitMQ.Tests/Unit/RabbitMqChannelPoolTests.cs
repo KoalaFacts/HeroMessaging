@@ -1151,5 +1151,34 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
         _mockChannels[0].Verify(mock => mock.Dispose(), Times.Once);
     }
 
+    [Fact]
+    public async Task ReleaseChannel_RetiredBorrowerRecoveredBeforeReturn_DisposesWrapperExactlyOnce()
+    {
+        await using var pool = new RabbitMqChannelPool(
+            MockConnection.Object, maxChannels: 1, TimeSpan.FromMinutes(5),
+            MockLogger.Object, TimeProvider.System);
+        var token = TestContext.Current.CancellationToken;
+        var borrowed = await pool.AcquireChannelAsync(token);
+        Assert.Equal((1, 0), pool.GetStatistics());
+
+        // The broker shutdown callback retires this same retained marker.
+        // With automatic recovery, the outer IChannel may reopen before the
+        // publisher reaches its finally/ReleaseChannel path.
+        _mockChannels[0].Setup(channel => channel.IsOpen).Returns(false);
+        pool.RetireConsumerChannel(borrowed);
+        Assert.Equal((0, 0), pool.GetStatistics());
+        _mockChannels[0].Setup(channel => channel.IsOpen).Returns(true);
+
+        pool.ReleaseChannel(borrowed);
+        pool.ReleaseChannel(borrowed);
+        Assert.Equal((0, 0), pool.GetStatistics());
+        _mockChannels[0].Verify(channel => channel.Dispose(), Times.Once);
+
+        var replacement = await pool.AcquireChannelAsync(token);
+        Assert.NotSame(borrowed, replacement);
+        pool.ReleaseChannel(replacement);
+        Assert.Equal((1, 1), pool.GetStatistics());
+    }
+
     #endregion
 }
