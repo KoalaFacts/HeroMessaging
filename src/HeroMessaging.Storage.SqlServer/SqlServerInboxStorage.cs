@@ -169,6 +169,7 @@ public class SqlServerInboxStorage : IInboxStorage, IInboxClaimStorage
             var sql = options.RequireIdempotency
                 ? $"""
                     INSERT INTO {_tableName} (Id, MessageType, Payload, Source, Status, ReceivedAt, RequireIdempotency, DeduplicationWindowMinutes)
+                    OUTPUT INSERTED.Id
                     SELECT @Id, @MessageType, @Payload, @Source, @Status, @ReceivedAt, @RequireIdempotency, @DeduplicationWindowMinutes
                     WHERE NOT EXISTS (
                         SELECT 1 FROM {_tableName} WITH (UPDLOCK, HOLDLOCK) WHERE Id = @Id
@@ -190,9 +191,18 @@ public class SqlServerInboxStorage : IInboxStorage, IInboxClaimStorage
             command.Parameters.Add("@RequireIdempotency", SqlDbType.Bit).Value = options.RequireIdempotency;
             command.Parameters.Add("@DeduplicationWindowMinutes", SqlDbType.Int).Value = (object?)options.DeduplicationWindow?.TotalMinutes ?? DBNull.Value;
 
-            var inserted = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-            if (inserted == 0 && options.RequireIdempotency)
-                return null;
+            if (options.RequireIdempotency)
+            {
+                // ExecuteNonQueryAsync returns -1 under SET NOCOUNT ON, even when
+                // the guarded insert admits no row. OUTPUT is independent of it.
+                var insertedId = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+                if (insertedId is null)
+                    return null;
+            }
+            else
+            {
+                await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
 
             return new InboxEntry
             {
