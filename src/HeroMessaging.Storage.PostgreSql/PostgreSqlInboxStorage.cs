@@ -409,7 +409,7 @@ public class PostgreSqlInboxStorage : IInboxStorage, IInboxClaimStorage
                 SELECT id, message_type, payload, source, status, received_at, processed_at, error, require_idempotency, deduplication_window_minutes
                 FROM {_tableName}
                 {whereClause}
-                ORDER BY received_at DESC
+                ORDER BY received_at ASC, id ASC
                 LIMIT @limit
                 """;
 

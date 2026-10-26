@@ -413,7 +413,7 @@ public class SqlServerInboxStorage : IInboxStorage, IInboxClaimStorage
                 SELECT Id, MessageType, Payload, Source, Status, ReceivedAt, ProcessedAt, Error, RequireIdempotency, DeduplicationWindowMinutes
                 FROM {_tableName}
                 {whereClause}
-                ORDER BY ReceivedAt DESC
+                ORDER BY ReceivedAt ASC, Id ASC
                 OFFSET 0 ROWS
                 FETCH NEXT @Limit ROWS ONLY
                 """;
