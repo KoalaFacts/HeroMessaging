@@ -35,7 +35,7 @@ public sealed class SqlServerInboxDeduplicationWindowTests : SqlServerIntegratio
             correlationId: null,
             causationId: null,
             content: "duplicate must not overwrite",
-            metadata: new Dictionary<string, object>());
+            metadata: []);
 
         try
         {
@@ -88,7 +88,7 @@ public sealed class SqlServerInboxDeduplicationWindowTests : SqlServerIntegratio
         {
             var results = await Task.WhenAll(Enumerable.Range(0, 12)
                 .Select(_ => storage.AddAsync(message, intakeOptions, token)));
-            Assert.Single(results.Where(entry => entry is not null));
+            Assert.Single(results, entry => entry is not null);
             var retained = Assert.IsType<InboxEntry>(
                 await storage.GetAsync(message.MessageId.ToString(), token));
             Assert.Equal(InboxStatus.Pending, retained.Status);
