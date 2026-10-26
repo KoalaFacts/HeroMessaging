@@ -89,6 +89,7 @@ public sealed class InMemoryInboxStorageTests
         Assert.NotNull(first);
         Assert.Null(second);
         var stored = await storage.GetAsync(messageId.ToString(), TestContext.Current.CancellationToken);
+        Assert.NotNull(stored);
         Assert.Same(first, stored);
         Assert.Equal(InboxStatus.Pending, stored.Status);
         Assert.Same(original, stored.Message);
@@ -138,7 +139,7 @@ public sealed class InMemoryInboxStorageTests
         start.SetResult();
         var results = await Task.WhenAll(sends);
 
-        var admitted = Assert.Single(results.Where(entry => entry is not null));
+        var admitted = Assert.Single(results, entry => entry is not null);
         Assert.NotNull(admitted);
         Assert.Same(admitted, await storage.GetAsync(messageId.ToString(), TestContext.Current.CancellationToken));
         Assert.Equal(InboxStatus.Pending, admitted.Status);
