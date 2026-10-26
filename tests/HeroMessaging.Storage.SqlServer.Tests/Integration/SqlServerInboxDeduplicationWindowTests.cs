@@ -103,4 +103,50 @@ public sealed class SqlServerInboxDeduplicationWindowTests : SqlServerIntegratio
             await command.ExecuteNonQueryAsync(CancellationToken.None);
         }
     }
+
+    [Fact]
+    public async Task AddAsync_SharedConnectionWithNoCountOn_DoesNotAdmitRetainedDuplicate()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var options = new SqlServerStorageOptions
+        {
+            ConnectionString = ConnectionString,
+            Schema = "dbo",
+            InboxTableName = $"InboxNoCount_{Guid.NewGuid():N}"
+        };
+        await using var connection = new SqlConnection(ConnectionString);
+        await connection.OpenAsync(token);
+        await using (var noCount = new SqlCommand("SET NOCOUNT ON", connection))
+            await noCount.ExecuteNonQueryAsync(token);
+
+        var storage = new SqlServerInboxStorage(options, TimeProvider.System,
+            new DefaultJsonSerializer(new DefaultBufferPoolManager()),
+            new SqlServerConnectionProvider(connection));
+        var original = TestMessageBuilder.CreateValidMessage("original shared-connection work");
+        var duplicate = new TestMessage(
+            messageId: original.MessageId,
+            timestamp: original.Timestamp,
+            correlationId: null,
+            causationId: null,
+            content: "must not be admitted",
+            metadata: []);
+        var intakeOptions = new InboxOptions { RequireIdempotency = true };
+
+        try
+        {
+            Assert.NotNull(await storage.AddAsync(original, intakeOptions, token));
+            Assert.Null(await storage.AddAsync(duplicate, intakeOptions, token));
+
+            var retained = Assert.IsType<InboxEntry>(
+                await storage.GetAsync(original.MessageId.ToString(), token));
+            Assert.Equal(InboxStatus.Pending, retained.Status);
+            Assert.Equal("original shared-connection work", retained.Message.GetTestContent());
+        }
+        finally
+        {
+            await using var dropTable = new SqlCommand(
+                $"DROP TABLE IF EXISTS [dbo].[{options.InboxTableName}]", connection);
+            await dropTable.ExecuteNonQueryAsync(CancellationToken.None);
+        }
+    }
 }
