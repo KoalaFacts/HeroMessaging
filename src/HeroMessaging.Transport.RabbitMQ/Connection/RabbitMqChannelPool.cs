@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
-using RabbitMQ.Client.Events;
 using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 
@@ -180,20 +179,25 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
 
     private bool TryRetirePooledChannel(IChannel channel)
     {
-        if (!_retainedChannels.TryGetValue(channel, out var retained) || !retained.TryRetire())
+        return _retainedChannels.TryGetValue(channel, out var retained) &&
+            TryRetirePooledChannel(retained);
+    }
+
+    private bool TryRetirePooledChannel(RetainedChannelMarker retained)
+    {
+        if (!retained.TryRetire())
             return false;
 
         Interlocked.Decrement(ref _channelCount);
         return true;
     }
 
-    // Channel shutdown can happen outside ReleaseChannel (notably when a
-    // long-lived consumer owns and closes its borrowed channel). Retire its
-    // counted lease without disposing from the RabbitMQ callback.
-    private Task OnChannelShutdownAsync(object sender, ShutdownEventArgs _)
+    // AutorecoveringChannel forwards shutdown subscriptions to its inner
+    // channel, so event sender is not necessarily the registered outer IChannel.
+    // Retire the original counted marker without disposing from the callback.
+    private Task OnChannelShutdownAsync(RetainedChannelMarker retained)
     {
-        if (sender is IChannel channel)
-            TryRetirePooledChannel(channel);
+        TryRetirePooledChannel(retained);
         return Task.CompletedTask;
     }
 
@@ -232,12 +236,12 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
             {
                 if (pooled)
                 {
-                    _retainedChannels.Add(channel, new RetainedChannelMarker());
+                    var retained = new RetainedChannelMarker();
+                    _retainedChannels.Add(channel, retained);
                     Interlocked.Increment(ref _channelCount);
-                    // RabbitMQ raises this on both orderly CloseAsync and broker
-                    // shutdown. It is the accounting fallback for owned channels
-                    // that intentionally never return to the reusable bag.
-                    channel.ChannelShutdownAsync += OnChannelShutdownAsync;
+                    // The shutdown sender may be RabbitMQ's inner channel during
+                    // automatic recovery. Bind the counted outer channel's marker.
+                    channel.ChannelShutdownAsync += (_, _) => OnChannelShutdownAsync(retained);
                 }
                 else
                 {
