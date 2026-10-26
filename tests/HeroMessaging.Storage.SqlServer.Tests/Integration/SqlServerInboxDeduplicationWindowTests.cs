@@ -149,4 +149,98 @@ public sealed class SqlServerInboxDeduplicationWindowTests : SqlServerIntegratio
             await dropTable.ExecuteNonQueryAsync(CancellationToken.None);
         }
     }
+
+    [Fact]
+    public async Task AddAsync_ExistingTableWithInsertAuditTrigger_AdmitsOnceAndPreservesPendingWork()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var suffix = Guid.NewGuid().ToString("N");
+        var inboxTable = $"InboxTriggered_{suffix}";
+        var auditTable = $"InboxAudit_{suffix}";
+        var triggerName = $"InboxAuditTrigger_{suffix}";
+        var options = new SqlServerStorageOptions
+        {
+            ConnectionString = ConnectionString,
+            Schema = "dbo",
+            InboxTableName = inboxTable
+        };
+        var serializer = new DefaultJsonSerializer(new DefaultBufferPoolManager());
+        var setupStorage = new SqlServerInboxStorage(options, TimeProvider.System, serializer);
+
+        try
+        {
+            // Initialize a real table before installing a trigger, like an
+            // externally managed table where AutoCreateTables is disabled.
+            var seed = TestMessageBuilder.CreateValidMessage("initialize existing table");
+            Assert.NotNull(await setupStorage.AddAsync(seed, new InboxOptions(), token));
+
+            await using (var connection = new SqlConnection(ConnectionString))
+            {
+                await connection.OpenAsync(token);
+                await using (var createAudit = new SqlCommand(
+                    $"CREATE TABLE [dbo].[{auditTable}] (MessageId NVARCHAR(100) NOT NULL)", connection))
+                    await createAudit.ExecuteNonQueryAsync(token);
+
+                // SQL Server requires CREATE TRIGGER to be the first statement
+                // in its batch. The trigger performs actual audit persistence.
+                await using var createTrigger = new SqlCommand($"""
+                    CREATE TRIGGER [dbo].[{triggerName}]
+                    ON [dbo].[{inboxTable}]
+                    AFTER INSERT
+                    AS
+                    BEGIN
+                        SET NOCOUNT ON;
+                        INSERT INTO [dbo].[{auditTable}] (MessageId)
+                        SELECT Id FROM inserted;
+                    END
+                    """, connection);
+                await createTrigger.ExecuteNonQueryAsync(token);
+            }
+
+            var externalOptions = new SqlServerStorageOptions
+            {
+                ConnectionString = ConnectionString,
+                Schema = "dbo",
+                InboxTableName = inboxTable,
+                AutoCreateTables = false
+            };
+            var storage = new SqlServerInboxStorage(externalOptions, TimeProvider.System, serializer);
+            var intakeOptions = new InboxOptions { RequireIdempotency = true };
+            var original = TestMessageBuilder.CreateValidMessage("audited durable work");
+            var duplicate = new TestMessage(
+                messageId: original.MessageId,
+                timestamp: original.Timestamp,
+                correlationId: null,
+                causationId: null,
+                content: "duplicate must not be stored or audited",
+                metadata: []);
+
+            Assert.NotNull(await storage.AddAsync(original, intakeOptions, token));
+            Assert.Null(await storage.AddAsync(duplicate, intakeOptions, token));
+
+            var retained = Assert.IsType<InboxEntry>(
+                await storage.GetAsync(original.MessageId.ToString(), token));
+            Assert.Equal(InboxStatus.Pending, retained.Status);
+            Assert.Equal("audited durable work", retained.Message.GetTestContent());
+
+            await using var auditConnection = new SqlConnection(ConnectionString);
+            await auditConnection.OpenAsync(token);
+            await using var auditCount = new SqlCommand(
+                $"SELECT COUNT(*) FROM [dbo].[{auditTable}] WHERE MessageId = @MessageId", auditConnection);
+            auditCount.Parameters.Add("@MessageId", System.Data.SqlDbType.NVarChar, 100)
+                .Value = original.MessageId.ToString();
+            Assert.Equal(1, Assert.IsType<int>(await auditCount.ExecuteScalarAsync(token)));
+        }
+        finally
+        {
+            await using var connection = new SqlConnection(ConnectionString);
+            await connection.OpenAsync(CancellationToken.None);
+            await using var cleanup = new SqlCommand($"""
+                DROP TABLE IF EXISTS [dbo].[{inboxTable}];
+                DROP TABLE IF EXISTS [dbo].[{auditTable}];
+                """, connection);
+            await cleanup.ExecuteNonQueryAsync(CancellationToken.None);
+        }
+    }
+
 }
