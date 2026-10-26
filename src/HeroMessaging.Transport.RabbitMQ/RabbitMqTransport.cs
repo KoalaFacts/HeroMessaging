@@ -368,7 +368,8 @@ public sealed class RabbitMqTransport : IConfirmedQueueTransport, IRabbitMqConsu
                 this,
                 _loggerFactory.CreateLogger<RabbitMqConsumer>(),
                 _timeProvider,
-                _instrumentation);
+                _instrumentation,
+                channelPool.RetireConsumerChannel);
 
             if (!_consumers.TryAdd(consumerId, consumer))
                 throw new InvalidOperationException($"Consumer '{consumerId}' already exists");

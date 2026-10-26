@@ -725,4 +725,460 @@ public class RabbitMqChannelPoolTests : IAsyncLifetime
     }
 
     #endregion
+
+    #region Temporary overflow capacity regressions
+
+    [Fact]
+    public async Task ReleaseChannel_WhenOverCapacity_ClosesTemporaryChannelInsteadOfPoolingIt()
+    {
+        await using var pool = new RabbitMqChannelPool(
+            MockConnection.Object, maxChannels: 1, TimeSpan.FromMinutes(5),
+            MockLogger.Object, TimeProvider.System);
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        var retainedChannel = await pool.AcquireChannelAsync(cancellationToken);
+        var overflowChannel = await pool.AcquireChannelAsync(cancellationToken);
+        Assert.NotSame(retainedChannel, overflowChannel);
+
+        pool.ReleaseChannel(overflowChannel);
+
+        var (total, available) = pool.GetStatistics();
+        Assert.Equal(1, total); // Overflow is not counted as retained pool capacity.
+        Assert.Equal(0, available); // The only retained channel is still borrowed.
+        _mockChannels[1].Verify(channel => channel.Dispose(), Times.Once);
+
+        pool.ReleaseChannel(retainedChannel);
+        Assert.Equal(1, pool.GetStatistics().Available);
+        var reacquired = await pool.AcquireChannelAsync(cancellationToken);
+        Assert.Same(retainedChannel, reacquired);
+        pool.ReleaseChannel(reacquired);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenPoolIsFull_DoesNotRetainTransientOperationChannel()
+    {
+        await using var pool = new RabbitMqChannelPool(
+            MockConnection.Object, maxChannels: 1, TimeSpan.FromMinutes(5),
+            MockLogger.Object, TimeProvider.System);
+        var cancellationToken = TestContext.Current.CancellationToken;
+
+        var retainedChannel = await pool.AcquireChannelAsync(cancellationToken);
+        IChannel? operationChannel = null;
+        await pool.ExecuteAsync(async channel =>
+        {
+            operationChannel = channel;
+            await Task.Yield();
+        }, cancellationToken);
+
+        Assert.NotNull(operationChannel);
+        Assert.NotSame(retainedChannel, operationChannel);
+        Assert.Equal((1, 0), pool.GetStatistics());
+        _mockChannels[1].Verify(channel => channel.Dispose(), Times.Once);
+
+        pool.ReleaseChannel(retainedChannel);
+        Assert.Equal((1, 1), pool.GetStatistics());
+    }
+
+    [Fact]
+    public async Task ReleaseChannel_TemporaryOverflowReturnedTwice_DisposesOnlyOnce()
+    {
+        await using var pool = new RabbitMqChannelPool(
+            MockConnection.Object, maxChannels: 1, TimeSpan.FromMinutes(5),
+            MockLogger.Object, TimeProvider.System);
+        var token = TestContext.Current.CancellationToken;
+
+        var retainedChannel = await pool.AcquireChannelAsync(token);
+        var overflowChannel = await pool.AcquireChannelAsync(token);
+
+        pool.ReleaseChannel(overflowChannel);
+        pool.ReleaseChannel(overflowChannel);
+
+        Assert.Equal((1, 0), pool.GetStatistics());
+        _mockChannels[1].Verify(channel => channel.Dispose(), Times.Once);
+
+        pool.ReleaseChannel(retainedChannel);
+        Assert.Equal((1, 1), pool.GetStatistics());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_TemporaryOverflowOperationFails_DisposesChannelAndPreservesError()
+    {
+        await using var pool = new RabbitMqChannelPool(
+            MockConnection.Object, maxChannels: 1, TimeSpan.FromMinutes(5),
+            MockLogger.Object, TimeProvider.System);
+        var token = TestContext.Current.CancellationToken;
+
+        var retainedChannel = await pool.AcquireChannelAsync(token);
+        var failure = new InvalidOperationException("Work failed");
+
+        var caught = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => pool.ExecuteAsync<int>(
+                _ => Task.FromException<int>(failure), token));
+
+        Assert.Same(failure, caught);
+        Assert.Equal((1, 0), pool.GetStatistics());
+        _mockChannels[1].Verify(channel => channel.Dispose(), Times.Once);
+
+        pool.ReleaseChannel(retainedChannel);
+        Assert.Equal((1, 1), pool.GetStatistics());
+    }
+
+    [Fact]
+    public async Task ReleaseChannel_PooledChannelReturnedTwice_DoesNotDuplicateAnAvailableLease()
+    {
+        await using var pool = new RabbitMqChannelPool(
+            MockConnection.Object, maxChannels: 2, TimeSpan.FromMinutes(5),
+            MockLogger.Object, TimeProvider.System);
+        var token = TestContext.Current.CancellationToken;
+
+        var original = await pool.AcquireChannelAsync(token);
+        pool.ReleaseChannel(original);
+        pool.ReleaseChannel(original);
+
+        Assert.Equal((1, 1), pool.GetStatistics());
+
+        var first = await pool.AcquireChannelAsync(token);
+        var second = await pool.AcquireChannelAsync(token);
+        Assert.NotSame(first, second);
+        pool.ReleaseChannel(first);
+        pool.ReleaseChannel(second);
+    }
+
+    [Fact]
+    public async Task ReleaseChannel_ClosedPooledChannelReturnedTwice_RetiresOnlyOnce()
+    {
+        await using var pool = new RabbitMqChannelPool(
+            MockConnection.Object, maxChannels: 1, TimeSpan.FromMinutes(5),
+            MockLogger.Object, TimeProvider.System);
+        var channel = await pool.AcquireChannelAsync(TestContext.Current.CancellationToken);
+        _mockChannels[0].Setup(ch => ch.IsOpen).Returns(false);
+
+        pool.ReleaseChannel(channel);
+        pool.ReleaseChannel(channel);
+
+        Assert.Equal((0, 0), pool.GetStatistics());
+        _mockChannels[0].Verify(ch => ch.Dispose(), Times.Once);
+    }
+
+    #endregion
+
+    [Fact]
+    public async Task AcquireChannelAsync_ReusedChannelAfterShutdownStarts_DoesNotEscapeOrKeepCapacity()
+    {
+        await using var pool = new RabbitMqChannelPool(
+            MockConnection.Object, maxChannels: 1, TimeSpan.FromMinutes(5),
+            MockLogger.Object, TimeProvider.System);
+        var token = TestContext.Current.CancellationToken;
+
+        var channel = await pool.AcquireChannelAsync(token);
+        pool.ReleaseChannel(channel);
+
+        // Block the health check after the available channel has been removed
+        // from the bag and marked borrowed. Do not use timing-based sleeps.
+        var reachedHealthCheck = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var resumeHealthCheck = new ManualResetEventSlim(false);
+        _mockChannels[0].Setup(mock => mock.IsOpen).Returns(() =>
+        {
+            reachedHealthCheck.TrySetResult();
+            if (!resumeHealthCheck.Wait(TimeSpan.FromSeconds(10), token))
+                throw new TimeoutException("The channel health check did not resume.");
+            return true;
+        });
+
+        var pendingAcquire = Task.Run(() => pool.AcquireChannelAsync(token), token);
+        await reachedHealthCheck.Task.WaitAsync(TimeSpan.FromSeconds(10), token);
+
+        // The pool has no available channel to drain; the borrower is paused
+        // inside its health check when shutdown marks the pool disposed.
+        try
+        {
+            await pool.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(10), token);
+        }
+        finally
+        {
+            resumeHealthCheck.Set();
+        }
+
+        await Assert.ThrowsAsync<ObjectDisposedException>(() => pendingAcquire);
+        Assert.Equal((0, 0), pool.GetStatistics());
+        _mockChannels[0].Verify(mock => mock.Dispose(), Times.Once);
+    }
+
+    [Fact]
+    public async Task AcquireChannelAsync_DisposeQueuedBeforeMultipleWaiters_DoesNotStrandBorrowers()
+    {
+        await using var pool = new RabbitMqChannelPool(
+            MockConnection.Object, maxChannels: 3, TimeSpan.FromMinutes(5),
+            MockLogger.Object, TimeProvider.System);
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        var token = cancellation.Token;
+
+        var first = await pool.AcquireChannelAsync(token);
+        var second = await pool.AcquireChannelAsync(token);
+        pool.ReleaseChannel(first);
+        pool.ReleaseChannel(second);
+
+        // Pause both reused-channel health checks while a third acquisition
+        // holds the factory semaphore. Neither paused borrower owns the semaphore yet.
+        using var resumeHealthChecks = new ManualResetEventSlim(false);
+        var bothChecking = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var bothRetired = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var checks = 0;
+        var retirements = 0;
+        foreach (var mock in _mockChannels.Take(2))
+        {
+            mock.Setup(channel => channel.IsOpen).Returns(() =>
+            {
+                if (Interlocked.Increment(ref checks) == 2)
+                    bothChecking.TrySetResult();
+                if (!resumeHealthChecks.Wait(TimeSpan.FromSeconds(10), token))
+                    throw new TimeoutException("A paused channel health check did not resume.");
+                return false; // Both borrowed channels are retired before waiting for creation.
+            });
+            mock.Setup(channel => channel.Dispose()).Callback(() =>
+            {
+                if (Interlocked.Increment(ref retirements) == 2)
+                    bothRetired.TrySetResult();
+            });
+        }
+
+        var borrowerA = Task.Run(() => pool.AcquireChannelAsync(token), token);
+        var borrowerB = Task.Run(() => pool.AcquireChannelAsync(token), token);
+        var factoryEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var finishFactory = new TaskCompletionSource<IChannel>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var created = new Mock<IChannel>();
+        created.Setup(channel => channel.IsOpen).Returns(true);
+        created.Setup(channel => channel.ChannelNumber).Returns(123);
+
+        try
+        {
+            await bothChecking.Task.WaitAsync(TimeSpan.FromSeconds(10), token);
+
+            MockConnection.Setup(connection => connection.CreateChannelAsync(
+                    It.IsAny<CreateChannelOptions>(), It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    factoryEntered.TrySetResult();
+                    return finishFactory.Task;
+                });
+
+            // C holds the semaphore inside its async factory, then Dispose (D)
+            // queues ahead of the two resumed borrowers. The old implementation
+            // released and disposed the semaphore with borrowers still waiting.
+            var creating = pool.AcquireChannelAsync(token);
+            await factoryEntered.Task.WaitAsync(TimeSpan.FromSeconds(10), token);
+            var disposing = pool.DisposeAsync().AsTask();
+            Assert.False(disposing.IsCompleted);
+
+            resumeHealthChecks.Set();
+            await bothRetired.Task.WaitAsync(TimeSpan.FromSeconds(10), token);
+            await Task.Yield(); // Let both retirees enqueue behind the pending dispose.
+
+            finishFactory.SetResult(created.Object);
+            await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+            {
+                await creating.WaitAsync(TimeSpan.FromSeconds(10), token);
+            });
+            await disposing.WaitAsync(TimeSpan.FromSeconds(10), token);
+
+            foreach (var borrower in new[] { borrowerA, borrowerB })
+            {
+                await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+                {
+                    await borrower.WaitAsync(TimeSpan.FromSeconds(5), token);
+                });
+            }
+
+            Assert.Equal((0, 0), pool.GetStatistics());
+            MockConnection.Verify(connection => connection.CreateChannelAsync(
+                It.IsAny<CreateChannelOptions>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
+            created.Verify(channel => channel.Dispose(), Times.Once);
+            _mockChannels[0].Verify(channel => channel.Dispose(), Times.Once);
+            _mockChannels[1].Verify(channel => channel.Dispose(), Times.Once);
+        }
+        finally
+        {
+            resumeHealthChecks.Set();
+            finishFactory.TrySetResult(created.Object);
+            cancellation.Cancel(); // Also release pending waiters when testing the RED implementation.
+        }
+    }
+
+    [Fact]
+    public async Task DisposeAsync_ConcurrentCall_WaitsForInFlightCleanup()
+    {
+        await using var pool = new RabbitMqChannelPool(
+            MockConnection.Object, maxChannels: 1, TimeSpan.FromMinutes(5),
+            MockLogger.Object, TimeProvider.System);
+        var token = TestContext.Current.CancellationToken;
+
+        var enteredFactory = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var completeFactory = new TaskCompletionSource<IChannel>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var created = new Mock<IChannel>();
+        created.Setup(channel => channel.IsOpen).Returns(true);
+        created.Setup(channel => channel.ChannelNumber).Returns(301);
+
+        MockConnection.Setup(connection => connection.CreateChannelAsync(
+                It.IsAny<CreateChannelOptions>(), It.IsAny<CancellationToken>()))
+            .Returns(() =>
+            {
+                enteredFactory.TrySetResult();
+                return completeFactory.Task;
+            });
+
+        var pendingAcquire = pool.AcquireChannelAsync(token);
+        await enteredFactory.Task.WaitAsync(TimeSpan.FromSeconds(10), token);
+
+        // The first disposal has marked the pool closed, but must wait for
+        // the in-flight creation to complete before it can finish cleaning up.
+        var firstDispose = pool.DisposeAsync().AsTask();
+        Assert.False(firstDispose.IsCompleted);
+        var secondDispose = pool.DisposeAsync().AsTask();
+        try
+        {
+            // A concurrent caller must not observe a completed DisposeAsync
+            // while the first caller is still waiting to release resources.
+            Assert.False(secondDispose.IsCompleted);
+        }
+        finally
+        {
+            completeFactory.TrySetResult(created.Object);
+            await firstDispose.WaitAsync(TimeSpan.FromSeconds(10), token);
+        }
+
+        await Assert.ThrowsAsync<ObjectDisposedException>(() => pendingAcquire);
+        await secondDispose.WaitAsync(TimeSpan.FromSeconds(10), token);
+        created.Verify(channel => channel.Dispose(), Times.Once);
+        Assert.Equal((0, 0), pool.GetStatistics());
+    }
+
+    #region Disposal during asynchronous channel creation regressions
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AcquireChannelAsync_DisposedDuringChannelCreation_DoesNotEscapeOrKeepCapacity(bool overflow)
+    {
+        await using var pool = new RabbitMqChannelPool(
+            MockConnection.Object, maxChannels: 1, TimeSpan.FromMinutes(5),
+            MockLogger.Object, TimeProvider.System);
+        var token = TestContext.Current.CancellationToken;
+        IChannel? retained = overflow ? await pool.AcquireChannelAsync(token) : null;
+
+        var created = new Mock<IChannel>();
+        created.Setup(channel => channel.IsOpen).Returns(true);
+        created.Setup(channel => channel.ChannelNumber).Returns(123);
+
+        var enteredFactory = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var completeFactory = new TaskCompletionSource<IChannel>(TaskCreationOptions.RunContinuationsAsynchronously);
+        MockConnection.Setup(connection => connection.CreateChannelAsync(
+                It.IsAny<CreateChannelOptions>(), It.IsAny<CancellationToken>()))
+            .Returns(() =>
+            {
+                enteredFactory.TrySetResult(true);
+                return completeFactory.Task;
+            });
+
+        var pendingAcquire = pool.AcquireChannelAsync(token);
+        await enteredFactory.Task.WaitAsync(TimeSpan.FromSeconds(10), token);
+
+        // DisposeAsync sets _disposed before yielding for a pending creation.
+        var pendingDispose = pool.DisposeAsync().AsTask();
+        completeFactory.TrySetResult(created.Object);
+
+        await Assert.ThrowsAsync<ObjectDisposedException>(() => pendingAcquire);
+        await pendingDispose.WaitAsync(TimeSpan.FromSeconds(10), token);
+        created.Verify(channel => channel.Dispose(), Times.Once);
+
+        if (retained is not null)
+            pool.ReleaseChannel(retained);
+
+        Assert.Equal((0, 0), pool.GetStatistics());
+    }
+
+    #endregion
+
+
+    #region Consumer-owned channel lease retirement regressions
+
+    [Fact]
+    public async Task RetireConsumerChannel_ConcurrentCallbacks_RetiresBorrowedCapacityOnlyOnce()
+    {
+        await using var pool = new RabbitMqChannelPool(
+            MockConnection.Object, maxChannels: 1, TimeSpan.FromMinutes(5),
+            MockLogger.Object, TimeProvider.System);
+        var token = TestContext.Current.CancellationToken;
+
+        var ownedChannel = await pool.AcquireChannelAsync(token);
+        Assert.Equal((1, 0), pool.GetStatistics());
+
+        // The consumer may retire its lease explicitly while a broker-shutdown
+        // callback races to retire the same lease. Both paths must be idempotent.
+        _mockChannels[0].Setup(channel => channel.IsOpen).Returns(false);
+        ownedChannel.Dispose();
+        var retirements = Enumerable.Range(0, 16)
+            .Select(_ => Task.Run(() => pool.RetireConsumerChannel(ownedChannel), token));
+        await Task.WhenAll(retirements);
+
+        Assert.Equal((0, 0), pool.GetStatistics());
+        var replacement = await pool.AcquireChannelAsync(token);
+        Assert.NotSame(ownedChannel, replacement);
+        Assert.Equal((1, 0), pool.GetStatistics());
+
+        pool.ReleaseChannel(replacement);
+        Assert.Equal((1, 1), pool.GetStatistics());
+        _mockChannels[0].Verify(channel => channel.Dispose(), Times.Once);
+    }
+
+    [Fact]
+    public async Task RetireConsumerChannel_AfterPoolShutdown_DrainsBorrowedCapacityWithoutDoubleDisposal()
+    {
+        await using var pool = new RabbitMqChannelPool(
+            MockConnection.Object, maxChannels: 1, TimeSpan.FromMinutes(5),
+            MockLogger.Object, TimeProvider.System);
+        var channel = await pool.AcquireChannelAsync(TestContext.Current.CancellationToken);
+
+        // A borrowed consumer channel cannot be drained from the reusable bag.
+        await pool.DisposeAsync();
+        Assert.Equal((1, 0), pool.GetStatistics());
+
+        pool.RetireConsumerChannel(channel);
+        pool.RetireConsumerChannel(channel);
+        pool.ReleaseChannel(channel);
+        pool.ReleaseChannel(channel);
+
+        Assert.Equal((0, 0), pool.GetStatistics());
+        _mockChannels[0].Verify(mock => mock.Dispose(), Times.Once);
+    }
+
+    [Fact]
+    public async Task ReleaseChannel_RetiredBorrowerRecoveredBeforeReturn_DisposesWrapperExactlyOnce()
+    {
+        await using var pool = new RabbitMqChannelPool(
+            MockConnection.Object, maxChannels: 1, TimeSpan.FromMinutes(5),
+            MockLogger.Object, TimeProvider.System);
+        var token = TestContext.Current.CancellationToken;
+        var borrowed = await pool.AcquireChannelAsync(token);
+        Assert.Equal((1, 0), pool.GetStatistics());
+
+        // The broker shutdown callback retires this same retained marker.
+        // With automatic recovery, the outer IChannel may reopen before the
+        // publisher reaches its finally/ReleaseChannel path.
+        _mockChannels[0].Setup(channel => channel.IsOpen).Returns(false);
+        pool.RetireConsumerChannel(borrowed);
+        Assert.Equal((0, 0), pool.GetStatistics());
+        _mockChannels[0].Setup(channel => channel.IsOpen).Returns(true);
+
+        pool.ReleaseChannel(borrowed);
+        pool.ReleaseChannel(borrowed);
+        Assert.Equal((0, 0), pool.GetStatistics());
+        _mockChannels[0].Verify(channel => channel.Dispose(), Times.Once);
+
+        var replacement = await pool.AcquireChannelAsync(token);
+        Assert.NotSame(borrowed, replacement);
+        pool.ReleaseChannel(replacement);
+        Assert.Equal((1, 1), pool.GetStatistics());
+    }
+
+    #endregion
 }
