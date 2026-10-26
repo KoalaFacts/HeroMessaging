@@ -162,7 +162,13 @@ internal sealed class RabbitMqChannelPool : IAsyncDisposable
             // Idempotent returns prevent duplicate bag entries and concurrent
             // use of one IChannel by multiple callers.
             if (!retained.TryReturn())
+            {
+                // RabbitMQ automatic recovery may reopen a borrowed channel after
+                // broker shutdown retired its lease. It must not escape disposal.
+                if (retained.IsRetired && retained.TryClaimDisposal())
+                    channel.Dispose();
                 return;
+            }
 
             _channels.Add(new PooledChannel(channel, _channelLifetime, _timeProvider));
         }
