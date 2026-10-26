@@ -168,12 +168,14 @@ public class SqlServerInboxStorage : IInboxStorage, IInboxClaimStorage
             // pre-check can race another writer or miss an older retained row.
             var sql = options.RequireIdempotency
                 ? $"""
+                    DECLARE @AdmittedIds TABLE (Id NVARCHAR(100) NOT NULL);
                     INSERT INTO {_tableName} (Id, MessageType, Payload, Source, Status, ReceivedAt, RequireIdempotency, DeduplicationWindowMinutes)
-                    OUTPUT INSERTED.Id
+                    OUTPUT INSERTED.Id INTO @AdmittedIds (Id)
                     SELECT @Id, @MessageType, @Payload, @Source, @Status, @ReceivedAt, @RequireIdempotency, @DeduplicationWindowMinutes
                     WHERE NOT EXISTS (
                         SELECT 1 FROM {_tableName} WITH (UPDLOCK, HOLDLOCK) WHERE Id = @Id
-                    )
+                    );
+                    SELECT Id FROM @AdmittedIds;
                     """
                 : $"""
                     INSERT INTO {_tableName} (Id, MessageType, Payload, Source, Status, ReceivedAt, RequireIdempotency, DeduplicationWindowMinutes)
@@ -193,8 +195,8 @@ public class SqlServerInboxStorage : IInboxStorage, IInboxClaimStorage
 
             if (options.RequireIdempotency)
             {
-                // ExecuteNonQueryAsync returns -1 under SET NOCOUNT ON, even when
-                // the guarded insert admits no row. OUTPUT is independent of it.
+                // OUTPUT INTO plus a final SELECT reports actual admission under
+                // SET NOCOUNT ON and with enabled INSERT triggers on the target table.
                 var insertedId = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
                 if (insertedId is null)
                     return null;
