@@ -130,6 +130,53 @@ public sealed class LocalOutboxInFlightTests
         Assert.Equal(2, Volatile.Read(ref claimCalls));
     }
 
+    [Fact]
+    public async Task HighPriorityPublish_AfterProcessorStops_DoesNotStrandPersistedLocalEntry()
+    {
+        var message = new TestCommand();
+        var options = new OutboxOptions { Priority = 10 };
+        var entry = new OutboxEntry
+        {
+            Id = Guid.NewGuid().ToString(),
+            Message = message,
+            Options = options,
+            Status = OutboxStatus.Pending
+        };
+        var pendingVisible = false;
+        var storage = new Mock<IOutboxStorage>();
+        storage.Setup(value => value.AddAsync(message, options, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(entry);
+        storage.Setup(value => value.GetPendingAsync(100, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => pendingVisible
+                ? new List<OutboxEntry> { entry }
+                : new List<OutboxEntry>());
+
+        using var services = new ServiceCollection().BuildServiceProvider();
+        await using var processor = new PollableLocalOutboxProcessor(storage.Object, services);
+
+        // Start with no pending rows, then complete the processing block.
+        // An accepted durable write after shutdown cannot be queued in that block.
+        await processor.StartAsync(TestContext.Current.CancellationToken);
+        await processor.StopAsync(TestContext.Current.CancellationToken);
+
+        pendingVisible = true;
+        await processor.PublishToOutboxAsync(message, options, TestContext.Current.CancellationToken);
+
+        // Re-reading a persisted Pending row must be possible after an immediate
+        // submission was declined. Returning false from SendAsync is not an exception.
+        var retryable = await processor.PollOnceAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(entry.Id, Assert.Single(retryable).Entry.Id);
+        storage.Verify(value => value.AddAsync(message, options, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    private sealed class PollableLocalOutboxProcessor(
+        IOutboxStorage storage, IServiceProvider services)
+        : OutboxProcessor(storage, services, NullLogger<OutboxProcessor>.Instance, TimeProvider.System)
+    {
+        public Task<IEnumerable<OutboxWorkItem>> PollOnceAsync(CancellationToken cancellationToken)
+            => PollForWorkItemsAsync(cancellationToken);
+    }
+
     private sealed class PollableOutboxProcessor(
         IExternalOutboxStorage storage, IServiceProvider services, TimeProvider timeProvider)
         : OutboxProcessor(storage, services, NullLogger<OutboxProcessor>.Instance, timeProvider,
