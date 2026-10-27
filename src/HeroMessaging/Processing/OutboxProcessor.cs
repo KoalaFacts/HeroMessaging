@@ -221,6 +221,9 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOu
         {
             _fastExternalPoll = false;
             Interlocked.Decrement(ref _externalClaimsInFlight);
+            // These local rows were never submitted when the external claim failed.
+            foreach (var item in work)
+                _localInFlight.TryRemove(item.Entry.Id, out _);
             throw;
         }
     }
