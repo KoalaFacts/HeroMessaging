@@ -93,16 +93,13 @@ public sealed class LocalOutboxInFlightTests
         var storage = new Mock<IExternalOutboxStorage>();
         storage.SetupGet(value => value.SupportsExternalClaims).Returns(true);
         storage.Setup(value => value.GetLocalPendingAsync(100, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(() => (IEnumerable<OutboxEntry>)new[]
+            .ReturnsAsync(() => [new OutboxEntry
             {
-                new OutboxEntry
-                {
-                    Id = entryId,
-                    Message = command,
-                    Options = new OutboxOptions(),
-                    Status = OutboxStatus.Pending
-                }
-            });
+                Id = entryId,
+                Message = command,
+                Options = new OutboxOptions(),
+                Status = OutboxStatus.Pending
+            }]);
         storage.Setup(value => value.ClaimExternalAsync(1, It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
             .Returns(() =>
             {
@@ -228,8 +225,8 @@ public sealed class LocalOutboxInFlightTests
             .ReturnsAsync(entry);
         storage.Setup(value => value.GetPendingAsync(100, It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => pendingVisible
-                ? new List<OutboxEntry> { entry }
-                : new List<OutboxEntry>());
+                ? [entry]
+                : []);
 
         using var services = new ServiceCollection().BuildServiceProvider();
         await using var processor = new PollableLocalOutboxProcessor(storage.Object, services);
@@ -259,7 +256,7 @@ public sealed class LocalOutboxInFlightTests
         storage.Setup(value => value.GetPendingAsync(100, It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => Interlocked.Increment(ref reads) == 1
                 ? EnumerateThenFail(entry)
-                : new[] { entry });
+                : [entry]);
 
         using var services = new ServiceCollection().BuildServiceProvider();
         await using var processor = new PollableLocalOutboxProcessor(storage.Object, services);
@@ -284,7 +281,7 @@ public sealed class LocalOutboxInFlightTests
         storage.Setup(value => value.GetLocalPendingAsync(100, It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => Interlocked.Increment(ref reads) == 1
                 ? EnumerateThenFail(entry)
-                : new[] { entry });
+                : [entry]);
 
         using var services = new ServiceCollection().BuildServiceProvider();
         await using var processor = new PollableOutboxProcessor(storage.Object, services, TimeProvider.System);
