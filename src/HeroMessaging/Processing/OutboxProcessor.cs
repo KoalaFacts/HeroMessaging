@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Configuration;
 using HeroMessaging.Abstractions.Messages;
@@ -24,6 +25,7 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOu
     private bool _stopTimedOut;
     private readonly int _maxExternalDeliveries;
     private int _externalClaimsInFlight;
+    private readonly ConcurrentDictionary<string, byte> _localInFlight = new();
     private bool _fastExternalPoll; // Latched for the current poll, even if a delivery finishes before delay selection.
     private long _lastLocalPoll;
     private bool _hasPolledLocal;
@@ -75,9 +77,17 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOu
         var entry = await _outboxStorage.AddAsync(message, options, cancellationToken);
 
         // Trigger immediate processing for high priority messages
-        if (options.Destination is null && options.Priority > 5)
+        if (options.Destination is null && options.Priority > 5 && _localInFlight.TryAdd(entry.Id, 0))
         {
-            await SubmitWorkItemAsync(new OutboxWorkItem(entry), cancellationToken);
+            try
+            {
+                await SubmitWorkItemAsync(new OutboxWorkItem(entry), cancellationToken);
+            }
+            catch
+            {
+                _localInFlight.TryRemove(entry.Id, out _);
+                throw;
+            }
         }
     }
     /// <summary>
@@ -170,7 +180,8 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOu
         if (_externalStorage is null)
         {
             var pending = await _outboxStorage.GetPendingAsync(100, cancellationToken);
-            return pending.Select(static entry => new OutboxWorkItem(entry));
+            return pending.Where(entry => _localInFlight.TryAdd(entry.Id, 0))
+                .Select(static entry => new OutboxWorkItem(entry)).ToArray();
         }
 
         var shouldPollLocal = !_hasPolledLocal || TimeProvider.GetElapsedTime(_lastLocalPoll) >= LocalPollInterval;
@@ -178,7 +189,8 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOu
         if (shouldPollLocal)
         {
             var local = await _externalStorage.GetLocalPendingAsync(100, cancellationToken);
-            work.AddRange(local.Select(static entry => new OutboxWorkItem(entry)));
+            work.AddRange(local.Where(entry => _localInFlight.TryAdd(entry.Id, 0))
+                .Select(static entry => new OutboxWorkItem(entry)));
             _lastLocalPoll = TimeProvider.GetTimestamp();
             _hasPolledLocal = true;
         }
@@ -236,13 +248,25 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOu
             return;
         }
 
-        if (!string.IsNullOrEmpty(entry.Options.Destination))
+        try
         {
-            await _outboxStorage.MarkFailedAsync(entry.Id, "External outbox destinations are not supported.");
-            Logger.LogError("Outbox entry {EntryId} has an unsupported external destination", entry.Id);
-            return;
-        }
+            if (!string.IsNullOrEmpty(entry.Options.Destination))
+            {
+                await _outboxStorage.MarkFailedAsync(entry.Id, "External outbox destinations are not supported.");
+                Logger.LogError("Outbox entry {EntryId} has an unsupported external destination", entry.Id);
+                return;
+            }
 
+            await ProcessLocalAsync(entry);
+        }
+        finally
+        {
+            _localInFlight.TryRemove(entry.Id, out _);
+        }
+    }
+
+    private async Task ProcessLocalAsync(OutboxEntry entry)
+    {
         try
         {
             // Mark as processing to prevent duplicate processing
