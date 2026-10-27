@@ -183,8 +183,9 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOu
         if (_externalStorage is null)
         {
             var pending = await _outboxStorage.GetPendingAsync(100, cancellationToken);
-            return [.. pending.Where(entry => _localInFlight.TryAdd(entry.Id, 0))
-                .Select(static entry => new OutboxWorkItem(entry))];
+            List<OutboxWorkItem> localWork = [];
+            AddLocalWorkItems(pending, localWork);
+            return localWork;
         }
 
         var shouldPollLocal = !_hasPolledLocal || TimeProvider.GetElapsedTime(_lastLocalPoll) >= LocalPollInterval;
@@ -192,8 +193,7 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOu
         if (shouldPollLocal)
         {
             var local = await _externalStorage.GetLocalPendingAsync(100, cancellationToken);
-            work.AddRange(local.Where(entry => _localInFlight.TryAdd(entry.Id, 0))
-                .Select(static entry => new OutboxWorkItem(entry)));
+            AddLocalWorkItems(local, work);
             _lastLocalPoll = TimeProvider.GetTimestamp();
             _hasPolledLocal = true;
         }
@@ -230,6 +230,34 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOu
             throw;
         }
     }
+    /// <summary>
+    /// Reserve local IDs only for a completed enumeration. A storage provider may
+    /// return a deferred iterator that throws after yielding one or more entries.
+    /// </summary>
+    private void AddLocalWorkItems(IEnumerable<OutboxEntry> entries, List<OutboxWorkItem> work)
+    {
+        var initialCount = work.Count;
+        var enumerationCompleted = false;
+        try
+        {
+            foreach (var entry in entries)
+            {
+                if (_localInFlight.TryAdd(entry.Id, 0))
+                    work.Add(new OutboxWorkItem(entry));
+            }
+
+            enumerationCompleted = true;
+        }
+        finally
+        {
+            if (!enumerationCompleted)
+            {
+                for (var index = initialCount; index < work.Count; index++)
+                    _localInFlight.TryRemove(work[index].Entry.Id, out _);
+            }
+        }
+    }
+
     /// <summary>
     /// Executes process work item async.
     /// </summary>
