@@ -100,6 +100,15 @@ public abstract class PollingBackgroundServiceBase<TWorkItem> : IAsyncDisposable
     }
 
     /// <summary>
+    /// Attempts immediate admission while preserving the existing submission API.
+    /// </summary>
+    /// <returns>Whether the processing block accepted the work item.</returns>
+    protected Task<bool> TrySubmitWorkItemAsync(TWorkItem workItem, CancellationToken cancellationToken = default)
+    {
+        return _processingBlock.SendAsync(workItem, cancellationToken);
+    }
+
+    /// <summary>
     /// Main polling loop that retrieves work items and submits them for processing
     /// </summary>
     private async Task RunPollingLoop(CancellationToken cancellationToken)

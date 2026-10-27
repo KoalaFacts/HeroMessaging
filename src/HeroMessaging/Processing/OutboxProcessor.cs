@@ -81,7 +81,10 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOu
         {
             try
             {
-                await SubmitWorkItemAsync(new OutboxWorkItem(entry), cancellationToken);
+                // The write is already durable. A completed block can decline admission
+                // without throwing; leave the Pending row eligible for a later worker.
+                if (!await TrySubmitWorkItemAsync(new OutboxWorkItem(entry), cancellationToken))
+                    _localInFlight.TryRemove(entry.Id, out _);
             }
             catch
             {
