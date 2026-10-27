@@ -249,6 +249,60 @@ public sealed class LocalOutboxInFlightTests
         storage.Verify(value => value.AddAsync(message, options, It.IsAny<CancellationToken>()), Times.Once);
     }
 
+
+    [Fact]
+    public async Task DeferredPendingEnumerationFailure_ReleasesReservedLocalEntry()
+    {
+        var entry = new OutboxEntry { Message = new TestCommand() };
+        var reads = 0;
+        var storage = new Mock<IOutboxStorage>();
+        storage.Setup(value => value.GetPendingAsync(100, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => Interlocked.Increment(ref reads) == 1
+                ? EnumerateThenFail(entry)
+                : new[] { entry });
+
+        using var services = new ServiceCollection().BuildServiceProvider();
+        await using var processor = new PollableLocalOutboxProcessor(storage.Object, services);
+
+        // A storage implementation may return a deferred enumerable: its second
+        // MoveNext can fail after an earlier row was already reserved locally.
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => processor.PollOnceAsync(TestContext.Current.CancellationToken));
+
+        var retryable = await processor.PollOnceAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(entry.Id, Assert.Single(retryable).Entry.Id);
+        Assert.Equal(2, Volatile.Read(ref reads));
+    }
+
+    [Fact]
+    public async Task DeferredExternalStorageLocalEnumerationFailure_ReleasesReservedLocalEntry()
+    {
+        var entry = new OutboxEntry { Message = new TestCommand() };
+        var reads = 0;
+        var storage = new Mock<IExternalOutboxStorage>();
+        storage.SetupGet(value => value.SupportsExternalClaims).Returns(false);
+        storage.Setup(value => value.GetLocalPendingAsync(100, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => Interlocked.Increment(ref reads) == 1
+                ? EnumerateThenFail(entry)
+                : new[] { entry });
+
+        using var services = new ServiceCollection().BuildServiceProvider();
+        await using var processor = new PollableOutboxProcessor(storage.Object, services, TimeProvider.System);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => processor.PollOnceAsync(TestContext.Current.CancellationToken));
+
+        var retryable = await processor.PollOnceAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(entry.Id, Assert.Single(retryable).Entry.Id);
+        Assert.Equal(2, Volatile.Read(ref reads));
+    }
+
+    private static IEnumerable<OutboxEntry> EnumerateThenFail(OutboxEntry entry)
+    {
+        yield return entry;
+        throw new InvalidOperationException("Deferred outbox enumeration failed");
+    }
+
     private sealed class PollableLocalOutboxProcessor(
         IOutboxStorage storage, IServiceProvider services)
         : OutboxProcessor(storage, services, NullLogger<OutboxProcessor>.Instance, TimeProvider.System)
