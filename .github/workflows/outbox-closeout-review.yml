@@ -85,6 +85,7 @@ jobs:
           set -euo pipefail
           npm install --prefix "$RUNNER_TEMP/outbox-review-cli" @github/copilot@1.0.104 --no-audit --no-fund
           "$RUNNER_TEMP/outbox-review-cli/node_modules/.bin/copilot" --version > "$RUNNER_TEMP/outbox-review-evidence/cli-version.txt"
+          "$RUNNER_TEMP/outbox-review-cli/node_modules/.bin/copilot" --help > "$RUNNER_TEMP/outbox-review-evidence/cli-help.txt"
 
       - name: Run bounded read-only independent review
         shell: bash
@@ -122,7 +123,7 @@ jobs:
             --available-tools=view,grep,glob --allow-tool=read \
             --deny-tool=write --deny-tool=shell --deny-tool=url \
             --disable-builtin-mcps --no-custom-instructions --no-ask-user \
-            --no-auto-update --no-remote --no-remote-export \
+            --no-auto-update --sync-session=off --disable-client-telemetry \
             --no-color --stream=off --silent \
             -p "$(cat "$RUNNER_TEMP/outbox-review-evidence/prompt.txt")" \
             > "$RUNNER_TEMP/outbox-review-evidence/review-response.txt" \
