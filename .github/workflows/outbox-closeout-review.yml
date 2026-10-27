@@ -119,12 +119,13 @@ jobs:
           timeout --signal=TERM --kill-after=30s 12m \
             "$RUNNER_TEMP/outbox-review-cli/node_modules/.bin/copilot" \
             -C "$RUNNER_TEMP/outbox-review-input" \
-            --model="$REVIEW_MODEL" --max-ai-credits=5 \
+            --model="$REVIEW_MODEL" --max-ai-credits=30 \
             --available-tools=view,grep,glob --allow-tool=read \
             --deny-tool=write --deny-tool=shell --deny-tool=url \
             --disable-builtin-mcps --no-custom-instructions --no-ask-user \
             --no-auto-update --sync-session=off --disable-client-telemetry \
             --no-color --stream=off --silent \
+            --usage-output-file="$RUNNER_TEMP/outbox-review-evidence/usage.json" \
             -p "$(cat "$RUNNER_TEMP/outbox-review-evidence/prompt.txt")" \
             > "$RUNNER_TEMP/outbox-review-evidence/review-response.txt" \
             2> "$RUNNER_TEMP/outbox-review-evidence/review-stderr.txt"
