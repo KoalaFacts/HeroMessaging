@@ -131,6 +131,86 @@ public sealed class LocalOutboxInFlightTests
     }
 
     [Fact]
+    public async Task HighPriorityPublish_WhilePollingReadsTheSamePendingRow_DispatchesOnlyOnce()
+    {
+        var message = new TestCommand();
+        var options = new OutboxOptions { Priority = 10 };
+        var entryId = Guid.NewGuid().ToString();
+        var pending = 1;
+        var pollCount = 0;
+        var dispatchCount = 0;
+        var handlerEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var repeatedPoll = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseHandler = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var storage = new Mock<IOutboxStorage>();
+        storage.Setup(value => value.AddAsync(message, options, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new OutboxEntry
+            {
+                Id = entryId,
+                Message = message,
+                Options = options,
+                Status = OutboxStatus.Pending
+            });
+        storage.Setup(value => value.GetPendingAsync(100, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() =>
+            {
+                if (Interlocked.Increment(ref pollCount) >= 3)
+                    repeatedPoll.TrySetResult();
+
+                // Each poll sees a fresh persisted snapshot while the fast-path
+                // handler remains blocked; no in-memory Status change can hide it.
+                return Volatile.Read(ref pending) == 1
+                    ? [new OutboxEntry
+                    {
+                        Id = entryId,
+                        Message = message,
+                        Options = options,
+                        Status = OutboxStatus.Pending
+                    }]
+                    : [];
+            });
+        storage.Setup(value => value.MarkProcessedAsync(entryId, It.IsAny<CancellationToken>()))
+            .Callback<string, CancellationToken>((_, _) => Volatile.Write(ref pending, 0))
+            .ReturnsAsync(true);
+
+        var messaging = new Mock<IHeroMessaging>();
+        messaging.Setup(value => value.SendAsync(It.IsAny<ICommand>(), It.IsAny<CancellationToken>()))
+            .Returns(async (ICommand _, CancellationToken _) =>
+            {
+                if (Interlocked.Increment(ref dispatchCount) == 1)
+                {
+                    handlerEntered.TrySetResult();
+                    await releaseHandler.Task;
+                }
+            });
+
+        using var services = new ServiceCollection()
+            .AddSingleton(messaging.Object)
+            .BuildServiceProvider();
+        await using var processor = new OutboxProcessor(storage.Object, services,
+            NullLogger<OutboxProcessor>.Instance, TimeProvider.System);
+
+        try
+        {
+            // Submit before starting the poller so the priority path owns the ID.
+            await processor.PublishToOutboxAsync(message, options, TestContext.Current.CancellationToken);
+            await handlerEntered.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            await processor.StartAsync(TestContext.Current.CancellationToken);
+            await repeatedPoll.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        }
+        finally
+        {
+            releaseHandler.TrySetResult();
+            await processor.StopAsync(TestContext.Current.CancellationToken);
+        }
+
+        Assert.Equal(1, Volatile.Read(ref dispatchCount));
+        storage.Verify(value => value.AddAsync(message, options, It.IsAny<CancellationToken>()), Times.Once);
+        storage.Verify(value => value.MarkProcessedAsync(entryId, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
     public async Task HighPriorityPublish_AfterProcessorStops_DoesNotStrandPersistedLocalEntry()
     {
         var message = new TestCommand();
