@@ -180,8 +180,8 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOu
         if (_externalStorage is null)
         {
             var pending = await _outboxStorage.GetPendingAsync(100, cancellationToken);
-            return pending.Where(entry => _localInFlight.TryAdd(entry.Id, 0))
-                .Select(static entry => new OutboxWorkItem(entry)).ToArray();
+            return [.. pending.Where(entry => _localInFlight.TryAdd(entry.Id, 0))
+                .Select(static entry => new OutboxWorkItem(entry))];
         }
 
         var shouldPollLocal = !_hasPolledLocal || TimeProvider.GetElapsedTime(_lastLocalPoll) >= LocalPollInterval;
