@@ -1,0 +1,2 @@
+<!-- Standalone package consumer: do not inherit the repository's library TFMs or package metadata. -->
+<Project />

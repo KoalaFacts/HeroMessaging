@@ -322,7 +322,7 @@ dotnet test --filter "FullyQualifiedName~MessageIdKeyGeneratorTests" --verbosity
 dotnet test --filter "FullyQualifiedName~MessageIdKeyGeneratorTests" --verbosity normal
 
 # 4. Verify coverage
-dotnet test --collect:"XPlat Code Coverage" --filter "FullyQualifiedName~MessageIdKeyGeneratorTests"
+dotnet test --coverlet --coverlet-output-format cobertura --filter "FullyQualifiedName~MessageIdKeyGeneratorTests"
 ```
 
 **Success Criteria**:
@@ -611,7 +611,7 @@ dotnet test --filter "FullyQualifiedName~InMemoryIdempotencyStoreTests" --verbos
 dotnet test --filter "FullyQualifiedName~InMemoryIdempotencyStoreTests" --verbosity normal
 
 # 4. Verify coverage
-dotnet test --collect:"XPlat Code Coverage" --filter "FullyQualifiedName~InMemoryIdempotencyStoreTests"
+dotnet test --coverlet --coverlet-output-format cobertura --filter "FullyQualifiedName~InMemoryIdempotencyStoreTests"
 reportgenerator -reports:**/coverage.cobertura.xml -targetdir:coverage-report
 
 # 5. Check coverage report
@@ -871,7 +871,7 @@ dotnet test --filter "FullyQualifiedName~IdempotencyDecoratorTests" --verbosity 
 dotnet test --filter "FullyQualifiedName~IdempotencyDecoratorTests" --verbosity normal
 
 # 4. Verify coverage (target: 90%+)
-dotnet test --collect:"XPlat Code Coverage" --filter "FullyQualifiedName~IdempotencyDecoratorTests"
+dotnet test --coverlet --coverlet-output-format cobertura --filter "FullyQualifiedName~IdempotencyDecoratorTests"
 ```
 
 **Success Criteria**:
@@ -931,7 +931,7 @@ public bool IsIdempotentFailure(Exception exception) => exception switch
 # Full validation suite
 dotnet build
 dotnet test --filter Category=Unit
-dotnet test --collect:"XPlat Code Coverage"
+dotnet test --coverlet --coverlet-output-format cobertura
 reportgenerator -reports:**/coverage.cobertura.xml -targetdir:coverage-report
 ```
 

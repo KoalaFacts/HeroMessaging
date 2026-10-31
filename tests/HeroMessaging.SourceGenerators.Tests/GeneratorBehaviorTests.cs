@@ -178,6 +178,60 @@ public class GeneratorBehaviorTests
     public class HandlerRegistration
     {
         [Fact]
+        public void QueryRegistration_CompilesAndRunsWithoutKeyedDependencyInjection()
+        {
+            const string source = """
+                namespace Microsoft.Extensions.DependencyInjection
+                {
+                    public interface IServiceCollection { }
+                    public sealed class ServiceCollection : IServiceCollection { public int Count; }
+                    public static class Extensions
+                    {
+                        public static IServiceCollection AddTransient(this IServiceCollection services, System.Type service, System.Type implementation)
+                        {
+                            if (service != typeof(HeroMessaging.Abstractions.Handlers.IQueryHandler<Sample.Query, int>) ||
+                                implementation != typeof(Sample.Handler)) throw new System.InvalidOperationException();
+                            ((ServiceCollection)services).Count++;
+                            return services;
+                        }
+                    }
+                }
+                namespace HeroMessaging.Abstractions.Handlers
+                {
+                    public interface IQueryHandler<TQuery, TResponse> { }
+                }
+                namespace Sample
+                {
+                    public sealed class Query { }
+                    public sealed class Handler : HeroMessaging.Abstractions.Handlers.IQueryHandler<Query, int> { }
+                    public static class Probe
+                    {
+                        public static int Run()
+                        {
+                            var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
+                            GeneratedHandlerRegistrationExtensions.AddGeneratedHandlers(services);
+                            return services.Count;
+                        }
+                    }
+                }
+                """;
+            var references = References.Where(reference => reference.Display is not null &&
+                new[] { "System.Private.CoreLib.dll", "System.Runtime.dll", "netstandard.dll" }
+                    .Contains(Path.GetFileName(reference.Display), StringComparer.Ordinal));
+            var compilation = CSharpCompilation.Create("LegacyDiQueryProbe", [CSharpSyntaxTree.ParseText(source, cancellationToken: TestContext.Current.CancellationToken)], references,
+                new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+            var driver = CSharpGeneratorDriver.Create(new HandlerRegistrationGenerator().AsSourceGenerator());
+            driver.RunGeneratorsAndUpdateCompilation(compilation, out var output, out var diagnostics, TestContext.Current.CancellationToken);
+            Assert.DoesNotContain(diagnostics, diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
+            using var bytes = new MemoryStream();
+            var result = output.Emit(bytes, cancellationToken: TestContext.Current.CancellationToken);
+            Assert.True(result.Success, string.Join("\n", result.Diagnostics));
+            var assembly = System.Reflection.Assembly.Load(bytes.ToArray());
+            var method = assembly.GetType("Sample.Probe", throwOnError: true)!.GetMethod("Run")!;
+            Assert.Equal(1, Assert.IsType<int>(method.Invoke(null, null)));
+        }
+
+        [Fact]
         public void RegistersConcreteHandlersOnly()
         {
             var generated = Generate(new HandlerRegistrationGenerator(), """

@@ -46,6 +46,43 @@ public class RabbitMqErrorScenarioIntegrationTests : RabbitMqIntegrationTestBase
     }
 
     [Fact]
+    public async Task SubscribeAsync_WhenQueueIsMissing_ReleasesConsumerIdForRetry()
+    {
+        var queueName = CreateQueueName();
+        var address = new TransportAddress(queueName, TransportAddressType.Queue);
+        var options = new ConsumerOptions { ConsumerId = Guid.NewGuid().ToString("N") };
+
+        var error = await Assert.ThrowsAsync<OperationInterruptedException>(
+            () => Transport!.SubscribeAsync(
+                address,
+                static (_, _, _) => Task.CompletedTask,
+                options,
+                TestContext.Current.CancellationToken));
+
+        Assert.Equal((ushort)404, error.ShutdownReason?.ReplyCode);
+        Assert.Equal(0, (await Transport!.GetHealthAsync(TestContext.Current.CancellationToken)).ActiveConsumers);
+
+        var topology = new TransportTopology();
+        topology.AddQueue(new QueueDefinition { Name = queueName, Durable = true });
+        await Transport.ConfigureTopologyAsync(topology, TestContext.Current.CancellationToken);
+
+        var received = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var consumer = await Transport.SubscribeAsync(
+            address,
+            (_, _, _) =>
+            {
+                received.TrySetResult(true);
+                return Task.CompletedTask;
+            },
+            options,
+            TestContext.Current.CancellationToken);
+
+        await Transport.SendAsync(address, CreateTestEnvelope(), TestContext.Current.CancellationToken);
+        await received.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        Assert.Equal(1, (await Transport.GetHealthAsync(TestContext.Current.CancellationToken)).ActiveConsumers);
+    }
+
+    [Fact]
     public async Task SendAsync_WithLargeMessage_HandlesCorrectly()
     {
         // Arrange

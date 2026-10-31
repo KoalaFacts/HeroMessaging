@@ -236,6 +236,37 @@ public class RabbitMqConsumerTests : IAsyncLifetime
         Assert.True(_consumer.IsActive);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task StartAsync_WhenBrokerSetupFails_RestoresInactiveState(bool failDuringConsume)
+    {
+        var failure = new InvalidOperationException("Simulated consumer startup failure");
+        if (failDuringConsume)
+        {
+            _mockChannel!.Setup(ch => ch.BasicConsumeAsync(
+                It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<string>(),
+                It.IsAny<bool>(), It.IsAny<bool>(),
+                It.IsAny<IDictionary<string, object?>>(),
+                It.IsAny<IAsyncBasicConsumer>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(failure);
+        }
+        else
+        {
+            _mockChannel!.Setup(ch => ch.BasicQosAsync(
+                It.IsAny<uint>(), It.IsAny<ushort>(),
+                It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(failure);
+        }
+
+        var actual = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _consumer!.StartAsync(TestContext.Current.CancellationToken));
+
+        Assert.Same(failure, actual);
+        Assert.False(_consumer!.IsActive);
+        await _consumer.StopAsync(TestContext.Current.CancellationToken);
+    }
+
     #endregion
 
     #region StopAsync Tests
@@ -345,7 +376,7 @@ public class RabbitMqConsumerTests : IAsyncLifetime
         await _consumer!.DisposeAsync();
 
         // Assert
-        _mockTransport!.Verify(t => t.RemoveConsumer("test-consumer"), Times.Once);
+        _mockTransport!.Verify(t => t.RemoveConsumer(_consumer!), Times.Once);
     }
 
     [Fact]
@@ -366,7 +397,7 @@ public class RabbitMqConsumerTests : IAsyncLifetime
             x => x.Log(
                 LogLevel.Warning,
                 It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("Error disposing channel")),
+                It.Is<It.IsAnyType>((v, t) => v != null && (v.ToString() ?? string.Empty).Contains("Error disposing channel")),
                 It.IsAny<Exception>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);
@@ -751,7 +782,7 @@ public class RabbitMqConsumerTests : IAsyncLifetime
         await _consumer!.DisposeAsync();
 
         // Assert
-        _mockTransport!.Verify(t => t.RemoveConsumer("test-consumer"), Times.Once);
+        _mockTransport!.Verify(t => t.RemoveConsumer(_consumer!), Times.Once);
     }
 
     [Fact]
@@ -760,7 +791,7 @@ public class RabbitMqConsumerTests : IAsyncLifetime
         _mockChannel!.Setup(ch => ch.Dispose()).Throws(new InvalidOperationException("Dispose error"));
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => _consumer!.DisposeAsync().AsTask());
-        _mockTransport!.Verify(t => t.RemoveConsumer("test-consumer"), Times.Once);
+        _mockTransport!.Verify(t => t.RemoveConsumer(_consumer!), Times.Once);
         _consumer = null;
     }
 

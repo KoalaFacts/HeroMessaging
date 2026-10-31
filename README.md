@@ -4,9 +4,13 @@
 
 [![Build Status](https://github.com/KoalaFacts/HeroMessaging/workflows/CI/badge.svg)](https://github.com/KoalaFacts/HeroMessaging/actions)
 [![NuGet](https://img.shields.io/nuget/v/HeroMessaging.svg)](https://www.nuget.org/packages/HeroMessaging/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 
 HeroMessaging is a modern, extensible messaging framework for .NET that provides in-process messaging, saga orchestration, CQRS support, and pluggable infrastructure for building distributed systems.
+
+### Competitive goals
+
+HeroMessaging aims to provide better performance, lower resource consumption, and a friendly public API for supported MassTransit replacement workloads. These are development goals, not measured superiority claims. The [replacement acceptance inventory](docs/masstransit-replacement-acceptance.md) tracks the functional, reliability, resource, and API requirements together with their evidence boundaries.
 
 ## Features
 
@@ -22,7 +26,7 @@ HeroMessaging is a modern, extensible messaging framework for .NET that provides
 - **Message Processing**: In-memory message bus with async/await support
 - **Inbox/Outbox Pattern**: Storage-backed local processing and PostgreSQL-to-RabbitMQ external queue delivery
 - **Saga Orchestration**: State machine-based long-running process coordination
-- **Compensation Framework**: Automatic rollback support for distributed transactions
+- **Compensation Framework**: Primitives for application-managed recovery actions
 - **Timeout Handling**: Background monitoring for saga timeouts
 - **Rate Limiting**: Token bucket algorithm for throughput control and backpressure
 - **OpenTelemetry Integration**: Built-in observability and distributed tracing
@@ -36,7 +40,7 @@ HeroMessaging is a modern, extensible messaging framework for .NET that provides
 - `HeroMessaging.Serialization.Protobuf` - Protocol Buffers support
 
 **Storage:**
-- `HeroMessaging.Storage.SqlServer` - SQL Server inbox/outbox/saga persistence
+- `HeroMessaging.Storage.SqlServer` - SQL Server message/inbox/outbox/saga storage classes; see [registration and supported scope](#storage-integration)
 - `HeroMessaging.Storage.PostgreSql` - PostgreSQL inbox/outbox/saga persistence
 
 **Transport:**
@@ -73,111 +77,63 @@ If `PostgreSqlStorageOptions.AutoCreateTables` is `false`, provision the outbox 
 
 ### Source Generators
 
-**Reduce boilerplate by 80-95%** with Roslyn source generators that generate code at compile-time:
+The separate `HeroMessaging.SourceGenerators` analyzer package generates code at compile time. Generator availability does not imply that every generated integration is compatible with the current runtime APIs:
 
 - **Message Validator Generator** - Auto-generate validation from data annotations
 - **Message Builder Generator** - Fluent builders for test data creation
 - **Sophisticated Test Data Builder** - Advanced test builders with auto-randomization & object mothers
-- **Idempotency Key Generator** - Deterministic deduplication keys
-- **Handler Registration Generator** - Auto-discover and register all handlers
-- **Saga DSL Generator** - Declarative state machine definitions
-- **Method Logging Generator** - Auto-generate entry/exit/duration/error logging
-- **Metrics Instrumentation Generator** - Auto-generate OpenTelemetry metrics
+- **Idempotency Key Generator** - Experimental; its generated transport-context access is not aligned with the current runtime API
+- **Handler Registration Generator** - Discover handlers declared in explicit namespaces
+- **Saga DSL Generator** - Experimental; its generated base-class contract is not aligned with the current runtime API
+- **Method Logging Generator** - Experimental; conflicts with the metrics generator on attributed partial methods
+- **Metrics Instrumentation Generator** - Experimental; conflicts with the logging generator on attributed partial methods
 - **Contract Testing Generator** - Auto-generate backward compatibility tests
 
 **Quick Example:**
 
+Install the separate analyzer package:
+
+```bash
+dotnet add package HeroMessaging.SourceGenerators
+```
+
+Define the message in `CreateOrderCommand.cs` with an explicit namespace. The current builder leaves generated fields uninitialized; reference-type properties can produce nullable warnings, so this example uses value types:
+
 ```csharp
-// Define message with attributes
+using System.ComponentModel.DataAnnotations;
+using HeroMessaging.SourceGeneration;
+
+namespace Orders;
+
 [GenerateValidator]
 [GenerateBuilder]
-[GenerateIdempotencyKey(nameof(OrderId))]
 public record CreateOrderCommand
 {
-    [Required]
-    [StringLength(50, MinimumLength = 5)]
-    public string OrderId { get; init; } = string.Empty;
+    public Guid OrderId { get; init; }
 
     [Range(0.01, 1000000)]
     public decimal Amount { get; init; }
 }
+```
 
-// Use generated code
+Use the generated builder and validator in `Program.cs`:
+
+```csharp
+using Orders;
+
 var command = CreateOrderCommandBuilder.New()
-    .WithOrderId("ORD-12345")
+    .WithOrderId(Guid.NewGuid())
     .WithAmount(299.99m)
     .Build();
 
 var validationResult = CreateOrderCommandValidator.Validate(command);
-var idempotencyKey = command.GetIdempotencyKey();
 ```
 
-**Saga DSL Example:**
+The current runtime exposes non-generic `SagaBase` and the fluent `StateMachineBuilder<TSaga>` API. Use the [Saga Orchestration Example](#saga-orchestration-example) below. The experimental Saga DSL generator emits overrides and members absent from that base class. The idempotency generator emits access to nonexistent `MessageContext.Message` and does not implement the current `IIdempotencyKeyGenerator.GenerateKey(IMessage, ProcessingContext)` contract; it does not generate a `GetIdempotencyKey()` extension method.
 
-```csharp
-[GenerateSaga]
-public partial class OrderSaga : SagaBase<OrderSagaData>
-{
-    [InitialState]
-    [SagaState("Created")]
-    public class Created
-    {
-        [On<OrderCreatedEvent>]
-        public async Task OnOrderCreated(OrderCreatedEvent evt)
-        {
-            Data.OrderId = evt.OrderId;
-            TransitionTo("PaymentPending");
-        }
-    }
+The logging and metrics generators both select attributed partial methods without filtering for their respective attributes. Loading the analyzer package can therefore generate duplicate implementations even when only one of these attributes is used. These integrations currently fail compilation; they are not working combined logging/metrics examples.
 
-    [SagaState("PaymentPending")]
-    public class PaymentPending
-    {
-        [On<PaymentProcessedEvent>]
-        public async Task OnPaymentProcessed(PaymentProcessedEvent evt)
-        {
-            Complete();
-        }
-
-        [OnTimeout(300)]
-        public async Task OnTimeout() => Fail("Payment timeout");
-
-        [Compensate]
-        public async Task RefundPayment()
-        {
-            // Compensation logic
-        }
-    }
-}
-```
-
-**Logging & Metrics Example:**
-
-```csharp
-// Eliminate 90% of logging/metrics boilerplate
-[LogMethod(LogLevel.Information)]
-[InstrumentMethod(InstrumentationType.Counter | InstrumentationType.Histogram,
-    MetricName = "orders.processed")]
-public partial Task<Order> ProcessOrderAsync(string orderId, decimal amount);
-
-// Implementation in Core method - generator adds logging & metrics automatically
-private async partial Task<Order> ProcessOrderCore(string orderId, decimal amount)
-{
-    var order = new Order { OrderId = orderId, Amount = amount };
-    await _repository.SaveAsync(order);
-    return order;
-}
-
-// Generated code automatically includes:
-// - Entry/exit logging with parameters
-// - Duration tracking
-// - Error logging with stack traces
-// - OpenTelemetry metrics (counter + histogram)
-// - Distributed tracing spans
-// - Exception tagging
-```
-
-📖 **[Complete Source Generators Usage Guide](src/HeroMessaging.SourceGenerators/USAGE.md)**
+The [Source Generators Usage Guide](src/HeroMessaging.SourceGenerators/USAGE.md) contains additional designs and examples, including these incompatible integrations. Check generated output against the current runtime APIs before adopting those examples.
 
 ## Quick Start
 
@@ -185,7 +141,11 @@ private async partial Task<Order> ProcessOrderCore(string orderId, decimal amoun
 
 ```bash
 dotnet add package HeroMessaging
+dotnet add package Microsoft.Extensions.DependencyInjection
 ```
+
+The standalone example below uses the dependency injection package to build its
+service provider with `BuildServiceProvider()`.
 
 For additional capabilities:
 ```bash
@@ -214,6 +174,7 @@ using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Events;
 using HeroMessaging.Abstractions.Handlers;
 using Microsoft.Extensions.DependencyInjection;
+using Orders;
 
 var services = new ServiceCollection();
 
@@ -223,7 +184,14 @@ services.AddTransient<IEventHandler<OrderCreatedEvent>, OrderCreatedHandler>();
 
 #### 2. Define Messages and Handlers
 
+Place these types in a separate file. An explicit namespace also allows the optional handler-registration generator to process them:
+
 ```csharp
+using HeroMessaging.Abstractions.Events;
+using HeroMessaging.Abstractions.Handlers;
+
+namespace Orders;
+
 public sealed record OrderCreatedEvent : IEvent
 {
     public Guid MessageId { get; init; } = Guid.NewGuid();
@@ -283,46 +251,52 @@ that can deadlock. Receipt tracking has opt-in allocation and coordination costs
 
 ### Saga Orchestration Example
 
+This minimal single-transition definition reuses `OrderCreatedEvent` from Basic Usage. It follows the current [state-machine builder tests](tests/HeroMessaging.Tests/Unit/Orchestration/StateMachineBuilderTests.cs); it is not a complete payment/shipping workflow.
+
 ```csharp
-// Define saga state
-public class OrderSaga : SagaBase
+using HeroMessaging.Abstractions.Sagas;
+using HeroMessaging.Orchestration;
+using Orders;
+
+public sealed class OrderSaga : SagaBase
 {
     public Guid OrderId { get; set; }
     public decimal TotalAmount { get; set; }
-    public string State { get; set; } = "Pending";
 }
 
-// Build state machine
 public static class OrderSagaStateMachine
 {
-    public static StateMachine<OrderSaga> Build()
+    public static StateMachineDefinition<OrderSaga> Build()
     {
-        return new StateMachineBuilder<OrderSaga>()
-            .Initially(b => b
-                .When<OrderCreatedEvent>()
-                .Then((saga, evt) =>
-                {
-                    saga.OrderId = evt.OrderId;
-                    saga.TotalAmount = evt.Amount;
-                })
-                .TransitionTo("PaymentPending"))
+        var builder = new StateMachineBuilder<OrderSaga>();
+        builder.Initially()
+            .When(new Event<OrderCreatedEvent>(nameof(OrderCreatedEvent)))
+            .Then(context =>
+            {
+                context.Instance.OrderId = context.Data.OrderId;
+                context.Instance.TotalAmount = context.Data.Amount;
+            })
+            .TransitionTo(new State("Recorded"))
+            .Finalize();
 
-            .During("PaymentPending", b => b
-                .When<PaymentProcessedEvent>()
-                .Then((saga, evt) => { /* Process payment */ })
-                .TransitionTo("PaymentComplete"))
-
-            .During("PaymentComplete", b => b
-                .When<OrderShippedEvent>()
-                .Then((saga, evt) => { /* Ship order */ })
-                .TransitionTo("Completed")
-                .Finalize())
-
-            .Build();
+        return builder.Build();
     }
 }
+```
 
-// Register saga
+For a standalone service collection, also install `Microsoft.Extensions.Logging`:
+
+```bash
+dotnet add package Microsoft.Extensions.Logging
+```
+
+Register logging, the definition, and the development-only in-memory repository during service configuration, before building the service provider:
+
+```csharp
+using HeroMessaging.Abstractions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+
+services.AddLogging();
 services.AddHeroMessaging(builder =>
 {
     builder.AddSaga<OrderSaga>(OrderSagaStateMachine.Build);
@@ -330,36 +304,70 @@ services.AddHeroMessaging(builder =>
 });
 ```
 
-### Storage Integration
+Registration supplies the state machine, orchestrator, repository, and `TimeProvider`. It does not itself route events to a saga; application event handlers must invoke `SagaOrchestrator<OrderSaga>.ProcessAsync` with an event carrying the intended saga correlation ID (a non-empty GUID string in `CorrelationId`). See [SagaOrchestrator](src/HeroMessaging/Orchestration/SagaOrchestrator.cs) for that API.
+
+For example, after building `serviceProvider`, process one event in a scope:
 
 ```csharp
-using HeroMessaging.Storage.SqlServer;
+using HeroMessaging.Orchestration;
 
-services.AddHeroMessaging(builder =>
+await using var scope = serviceProvider.CreateAsyncScope();
+var orchestrator = scope.ServiceProvider.GetRequiredService<SagaOrchestrator<OrderSaga>>();
+await orchestrator.ProcessAsync(new OrderCreatedEvent
 {
-    builder.UseSqlServerInbox("Server=localhost;Database=HeroMessaging;...");
-    builder.UseSqlServerOutbox("Server=localhost;Database=HeroMessaging;...");
-    builder.UseSqlServerSagaRepository<OrderSaga>("Server=localhost;Database=HeroMessaging;...");
+    CorrelationId = Guid.NewGuid().ToString(),
+    OrderId = Guid.NewGuid(),
+    Amount = 99.99m
 });
 ```
 
-### OpenTelemetry Integration
+This transition saves a completed saga with `CurrentState == "Recorded"`. Reuse the intended saga's correlation ID for related events; an absent, invalid, or empty GUID is ignored by the orchestrator.
+
+### Storage Integration
+
+The SQL Server provider contains message, inbox, outbox, dead-letter, and saga storage classes. Its [builder registration helpers](src/HeroMessaging.Storage.SqlServer/ServiceCollectionExtensions.cs) use the builder's `Services` collection. For example, register message storage, local outbox storage, and dead-letter storage with:
 
 ```csharp
-using HeroMessaging.Observability.OpenTelemetry;
+using HeroMessaging.Abstractions.Configuration;
+using HeroMessaging.Storage.SqlServer;
+using Microsoft.Extensions.DependencyInjection;
 
-services.AddOpenTelemetry()
-    .WithTracing(builder => builder
-        .AddHeroMessagingInstrumentation()
-        .AddOtlpExporter());
+services.AddHeroMessaging(builder => builder
+    .WithMediator()
+    .WithEventBus()
+    .UseSqlServer(new SqlServerStorageOptions
+    {
+        ConnectionString = connectionString,
+        Schema = "dbo"
+    }));
 ```
+
+Registration and service resolution do not connect to the database; storage operations do. `UseSqlServer(...)` registers the three storage services above. Add `UseSqlServerSagaRepository<OrderSaga>()` to the builder to use its registered SQL Server options for a saga repository; saga event routing still follows the [Saga example](#saga-orchestration-example).
+
+There is no `UseSqlServerInbox` helper. The specific outbox and saga helpers accept `SqlServerStorageOptions`, not connection-string overloads. SQL Server Outbox does not implement the PostgreSQL external confirmed-delivery/lease contract, and the registration tests do not establish database crash recovery or Saga concurrency safety. These remain separate [replacement acceptance requirements](docs/masstransit-replacement-acceptance.md).
+
+### OpenTelemetry Integration
+
+Install `HeroMessaging.Observability.OpenTelemetry` and register instrumentation before building the service provider:
+
+```csharp
+using HeroMessaging.Abstractions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+
+services.AddHeroMessaging(builder =>
+    builder.AddOpenTelemetryInstrumentation(options =>
+        options.ServiceName = "Orders"));
+```
+
+This registers trace sources, meters, and transport instrumentation. For a manually assembled message-processing pipeline, add `.UseOpenTelemetry()` to `MessageProcessingPipelineBuilder`. Exporters are configured separately through `options.ConfigureTracing(...)` and `options.ConfigureMetrics(...)`, with the corresponding exporter package installed; the snippet above does not export telemetry.
 
 ### Rate Limiting
 
-Control message processing throughput to protect downstream systems and comply with API quotas:
+Register the limiter before building the service provider:
 
 ```csharp
 using HeroMessaging.Policies;
+using HeroMessaging.Abstractions.Policies;
 using Microsoft.Extensions.DependencyInjection;
 
 // Configure rate limiting
@@ -373,14 +381,21 @@ services.AddSingleton<IRateLimiter>(sp => new TokenBucketRateLimiter(
         EnableScoping = true      // Per-message-type limiting
     },
     TimeProvider.System));
+```
 
-// Add to processing pipeline
+After all service registrations, build the provider as in Basic Usage. For an application-supplied `IMessageProcessor coreProcessor`, wrap it in a manual pipeline:
+
+```csharp
+using HeroMessaging.Processing;
+
 var pipeline = new MessageProcessingPipelineBuilder(serviceProvider)
     .UseLogging()
     .UseRateLimiting()  // Add rate limiting decorator
     .UseRetry()
     .Build(coreProcessor);
 ```
+
+Call this pipeline's `ProcessAsync` to apply the limiter. Creating it does not replace the EventBus pipeline. If the service provider was built before the limiter was registered, `UseRateLimiting()` will not find it and skips that decorator.
 
 **Rate Limiting Behaviors:**
 - `Reject`: Immediately fail when rate limit exceeded (fail-fast)
@@ -399,8 +414,18 @@ Run benchmarks:
 dotnet run --project tests/HeroMessaging.Benchmarks --configuration Release --framework net10.0
 ```
 
+The separate [MassTransit comparison](benchmarks/HeroMessaging.CompetitiveBenchmarks/README.md) pins MassTransit 8.5.12 and compares completed in-process command dispatch through both public APIs. Verify the workload before collecting measurements:
+
+```bash
+dotnet run --project benchmarks/HeroMessaging.CompetitiveBenchmarks --configuration Release --framework net10.0 -- --verify
+dotnet run --project benchmarks/HeroMessaging.CompetitiveBenchmarks --configuration Release --framework net10.0 --no-build -- --filter '*CommandDispatchBenchmarks*'
+```
+
+Its resource mode observes CPU, managed allocations, GC, process memory, and per-call latency in separate processes for each provider. See its README for commands, negative controls, and measurement limits. This first scenario has no broker or persistence; competitive performance and resource acceptance remain open until reproducible results satisfy the [acceptance requirements](docs/masstransit-replacement-acceptance.md#performance-and-resource-acceptance).
+
 ## Documentation
 
+- **[MassTransit Replacement Acceptance](docs/masstransit-replacement-acceptance.md)** - Reliability, performance, resource, and API requirements
 - **[Saga Orchestration Guide](docs/orchestration-pattern.md)** - Complete guide to saga patterns
 - **[Choreography Pattern](docs/choreography-pattern.md)** - Event-driven choreography documentation
 - **[Testing Guide](docs/testing-guide.md)** - Testing infrastructure and patterns
@@ -411,7 +436,7 @@ dotnet run --project tests/HeroMessaging.Benchmarks --configuration Release --fr
 
 ### Prerequisites
 
-- .NET 10 SDK (to build every target framework)
+- .NET 10 SDK with Roslyn 5.9 or later (verified with SDK 10.0.401; builds every target framework)
 - Docker (for integration tests)
 
 ### Building
@@ -421,23 +446,23 @@ dotnet run --project tests/HeroMessaging.Benchmarks --configuration Release --fr
 dotnet restore
 dotnet build
 
-# Run tests
+# Run tests with Microsoft.Testing.Platform (selected by global.json)
 dotnet test
 
 # Run specific test categories
-dotnet test --filter Category=Unit
-dotnet test --filter Category=Integration
+dotnet test --filter-trait "Category=Unit"
+dotnet test --filter-trait "Category=Integration"
 
 # Generate coverage report
-dotnet test --collect:"XPlat Code Coverage"
-reportgenerator -reports:**/coverage.cobertura.xml -targetdir:coverage-report
+dotnet test --project tests/HeroMessaging.Tests --filter-not-trait Category=Integration --coverlet --coverlet-output-format cobertura
+reportgenerator -reports:**/coverage.cobertura*.xml -targetdir:coverage-report
 ```
 
 ### Code Quality
 
 HeroMessaging maintains high standards:
-- **Test Coverage**: 80%+ (100% for public APIs)
-- **Performance Regression Detection**: <10% tolerance
+- **Test Coverage**: CI checks at least 80% aggregate line coverage; 100% public API coverage is a contributor goal
+- **Performance Comparison**: CI validates measurements and reports differences; percentage changes are informational, not a hard regression gate
 - **Cross-Platform CI**: Windows, Linux, macOS
 - **Multi-Framework**: net8.0, net9.0, net10.0
 
@@ -468,7 +493,7 @@ See [CHANGELOG.md](CHANGELOG.md) for version history and migration guides.
 
 ## License
 
-HeroMessaging is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+HeroMessaging is licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for details.
 
 ## Acknowledgments
 

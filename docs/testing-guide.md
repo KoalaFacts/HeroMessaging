@@ -37,12 +37,12 @@ The HeroMessaging library includes a comprehensive test suite designed to ensure
 dotnet test
 
 # Run specific category
-dotnet test --filter Category=Unit
-dotnet test --filter Category=Integration
-dotnet test --filter Category=Contract
+dotnet test --filter-trait "Category=Unit"
+dotnet test --filter-trait "Category=Integration"
+dotnet test --filter-trait "Category=Contract"
 
 # Run with coverage
-dotnet test --collect:"XPlat Code Coverage"
+dotnet test --project tests/HeroMessaging.Tests --filter-not-trait Category=Integration --coverlet --coverlet-output-format cobertura
 
 # Run benchmarks
 dotnet run --project tests/HeroMessaging.Benchmarks -c Release
@@ -51,7 +51,7 @@ dotnet run --project tests/HeroMessaging.Benchmarks -c Release
 ### Framework-Specific Testing
 ```bash
 # Test on specific .NET version
-dotnet test --framework net6.0
+dotnet test --framework net9.0
 dotnet test --framework net8.0
 dotnet test --framework net10.0
 
@@ -63,7 +63,7 @@ pwsh tests/validate-cross-platform.ps1
 Tests are designed to run in parallel for faster feedback:
 ```bash
 # Run with maximum parallelism
-dotnet test --parallel --max-parallel-threads 8
+dotnet test --max-parallel-test-modules 8
 ```
 
 ## Test Development (TDD Workflow)
@@ -89,7 +89,7 @@ public async Task ProcessMessage_WithValidInput_ShouldSucceed()
 
 ### 2. Run Test (Should Fail)
 ```bash
-dotnet test --filter "FullyQualifiedName~ProcessMessage_WithValidInput"
+dotnet test --filter-method "*ProcessMessage_WithValidInput*"
 ```
 
 ### 3. Implement Feature
@@ -97,7 +97,7 @@ Write minimal code to make the test pass.
 
 ### 4. Run Test (Should Pass)
 ```bash
-dotnet test --filter "FullyQualifiedName~ProcessMessage_WithValidInput"
+dotnet test --filter-method "*ProcessMessage_WithValidInput*"
 ```
 
 ### 5. Refactor
@@ -108,10 +108,10 @@ Improve code quality while keeping tests green.
 ### Generate Coverage Report
 ```bash
 # Collect coverage data
-dotnet test --collect:"XPlat Code Coverage" --results-directory ./TestResults
+dotnet test --project tests/HeroMessaging.Tests --filter-not-trait Category=Integration --coverlet --coverlet-output-format cobertura --results-directory ./TestResults
 
 # Generate HTML report
-reportgenerator -reports:"TestResults/**/coverage.cobertura.xml" \
+reportgenerator -reports:"TestResults/**/coverage.cobertura*.xml" \
                 -targetdir:"coveragereport" \
                 -reporttypes:Html
 ```
@@ -172,14 +172,14 @@ act -j test -e '{"matrix":{"dotnet":["8.0"]}}'
 #### Tests Timing Out
 ```bash
 # Increase timeout for slow tests
-dotnet test --blame-hang-timeout 5m
+dotnet test --timeout 5m
 ```
 
 #### Flaky Tests
 ```bash
 # Run test multiple times to identify flakiness
 for i in {1..10}; do
-    dotnet test --filter "FullyQualifiedName~FlakyTest"
+    dotnet test --filter-method "*FlakyTest*"
 done
 ```
 
@@ -195,14 +195,14 @@ docker container prune -f
 ### Debug Output
 ```bash
 # Enable detailed logging (will build automatically)
-dotnet test --logger:"console;verbosity=detailed"
+dotnet test --output Detailed
 
 # Capture diagnostic data
-dotnet test --diag:testlog.txt
+dotnet test --diagnostic --diagnostic-output-directory ./TestLogs
 
 # For faster iterations when debugging specific tests
 dotnet build  # Build once
-dotnet test --no-build --filter "FullyQualifiedName~YourTestName" --logger:"console;verbosity=detailed"
+dotnet test --no-build --filter-method "*YourTestName*" --output Detailed
 ```
 
 ## Test Utilities

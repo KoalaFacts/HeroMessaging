@@ -157,19 +157,16 @@ public class PostgreSqlInboxStorage : IInboxStorage, IInboxClaimStorage
             var messageId = message.MessageId.ToString();
             var now = _timeProvider.GetUtcNow();
 
-            // Check for duplicates if idempotency is required
-            if (options.RequireIdempotency)
-            {
-                var isDuplicate = await IsDuplicateAsync(messageId, options.DeduplicationWindow, cancellationToken).ConfigureAwait(false);
-                if (isDuplicate)
-                {
-                    return null; // Message already exists
-                }
-            }
+            // Idempotent admission must be atomic with the retained database
+            // primary key; a windowed pre-check alone races another writer.
+            var conflictClause = options.RequireIdempotency
+                ? "ON CONFLICT (id) DO NOTHING"
+                : string.Empty;
 
             var sql = $"""
                 INSERT INTO {_tableName} (id, message_type, payload, source, status, received_at, require_idempotency, deduplication_window_minutes)
                 VALUES (@id, @message_type, @payload::jsonb, @source, @status, @received_at, @require_idempotency, @deduplication_window_minutes)
+                {conflictClause}
                 """;
 
             using var command = new NpgsqlCommand(sql, connection, transaction);
@@ -183,7 +180,9 @@ public class PostgreSqlInboxStorage : IInboxStorage, IInboxClaimStorage
             command.Parameters.AddWithValue("require_idempotency", options.RequireIdempotency);
             command.Parameters.AddWithValue("deduplication_window_minutes", (object?)options.DeduplicationWindow?.TotalMinutes ?? DBNull.Value);
 
-            await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            var inserted = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            if (inserted == 0 && options.RequireIdempotency)
+                return null;
 
             return new InboxEntry
             {
@@ -409,7 +408,7 @@ public class PostgreSqlInboxStorage : IInboxStorage, IInboxClaimStorage
                 SELECT id, message_type, payload, source, status, received_at, processed_at, error, require_idempotency, deduplication_window_minutes
                 FROM {_tableName}
                 {whereClause}
-                ORDER BY received_at DESC
+                ORDER BY received_at ASC, id ASC
                 LIMIT @limit
                 """;
 
