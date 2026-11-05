@@ -445,7 +445,7 @@ builder
 - Independent teams
 - High scalability needs
 
-**When to Use Orchestration (Coming in Phase 2):**
+**When to Use Orchestration ([guide](orchestration-pattern.md)):**
 - 5+ step workflows with complex branching
 - Need for centralized monitoring
 - Compensation transactions required
@@ -461,7 +461,7 @@ See [`tests/HeroMessaging.Tests/Integration/ChoreographyWorkflowTests.cs`](../te
 
 ## Next Steps
 
-- **Phase 2: Orchestration** - Learn about saga pattern and process managers (coming soon)
+- **[Orchestration](orchestration-pattern.md)** - Saga pattern and process managers
 - **OpenTelemetry Integration** - See how correlation integrates with distributed tracing
 - **Error Handling** - Configure dead letter queues and retry policies
 - **Testing Workflows** - Write integration tests for choreography patterns

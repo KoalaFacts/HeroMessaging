@@ -278,7 +278,7 @@ Architecture tests are fast:
 - [NetArchTest.Rules Documentation](https://github.com/BenMorris/NetArchTest)
 - [Clean Architecture Principles](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
 - [Dependency Rule](https://martinfowler.com/articles/injection.html)
-- [HeroMessaging Architecture Guide](../../docs/architecture.md)
+- [Architecture Decision Records](../../docs/README.md#architecture-decision-records)
 
 ## Troubleshooting
 

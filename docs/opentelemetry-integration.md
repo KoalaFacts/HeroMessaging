@@ -73,7 +73,7 @@ Static API for creating activities and recording metrics (already existed, now f
 
 ### Unit Tests
 
-**Location:** `tests/HeroMessaging.Observability.OpenTelemetry.Tests/OpenTelemetryDecoratorTests.cs`
+**Location:** `tests/HeroMessaging.Observability.OpenTelemetry.Tests/Unit/OpenTelemetryDecoratorTests.cs`
 
 **Test Cases:**
 1. `ProcessAsync_SuccessfulProcessing_CreatesActivityWithCorrectTags` - Verifies activity creation with proper tags
@@ -90,7 +90,7 @@ Static API for creating activities and recording metrics (already existed, now f
 
 ### Integration Tests
 
-**Location:** `tests/HeroMessaging.Observability.OpenTelemetry.Tests/OpenTelemetryIntegrationTests.cs`
+**Location:** `tests/HeroMessaging.Observability.OpenTelemetry.Tests/Integration/OpenTelemetryIntegrationTests.cs`
 
 **Test Cases:**
 1. `ProcessAsync_WithPipeline_CreatesTracesAndMetrics` - End-to-end pipeline test
@@ -227,7 +227,7 @@ The integration follows OpenTelemetry semantic conventions for messaging systems
 
 ## Compatibility
 
-- **.NET Versions:** net6.0, net7.0, net8.0, net9.0
+- **.NET Versions:** net8.0, net9.0, net10.0
 - **OpenTelemetry Spec:** Compatible with OTLP 1.0
 
 ## Future Enhancements
@@ -282,8 +282,8 @@ options.ConfigureTracing(tracing =>
 ## References
 
 - [OpenTelemetry .NET Documentation](https://opentelemetry.io/docs/instrumentation/net/)
-- [HeroMessaging Architecture](./ARCHITECTURE.md)
-- [Testing Guidelines](../CLAUDE.md#testing-excellence)
+- [Transport Abstraction ADR](adr/0002-transport-abstraction-layer.md)
+- [Testing Guide](testing-guide.md)
 
 ## Version History
 

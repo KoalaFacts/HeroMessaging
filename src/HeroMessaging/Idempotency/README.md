@@ -6,12 +6,12 @@ The idempotency framework enables exactly-once processing semantics for at-least
 
 ## Status
 
-**Phase 1 Complete** (2025-11-07):
 - ✅ Core abstractions and interfaces
 - ✅ Default implementation with in-memory storage
-- ✅ Comprehensive unit test coverage (84 tests passing)
-- ⏳ Configuration API (Phase 2)
-- ⏳ SQL Server / PostgreSQL storage adapters (Phase 2)
+- ✅ Unit test coverage
+- ✅ Configuration API (`builder.WithIdempotency(...)`) registers the policy, key generator, store and an `IdempotencyDecorator` factory
+- ⏳ Pipeline integration: the decorator is not yet added to the processing pipeline automatically
+- ✅ SQL Server / PostgreSQL storage (`AddSqlServerIdempotencyStore`, `AddPostgreSqlIdempotencyStore`) with integration tests
 
 ## Core Concepts
 
@@ -191,10 +191,10 @@ Request → [1] ValidationDecorator      ← Validate first
 
 **Current**:
 - `InMemoryIdempotencyStore` - Thread-safe, TTL-based expiration
+- `SqlServerIdempotencyStore` (`HeroMessaging.Storage.SqlServer`) - register with `services.AddSqlServerIdempotencyStore(...)`
+- `PostgreSqlIdempotencyStore` (`HeroMessaging.Storage.PostgreSql`) - register with `services.AddPostgreSqlIdempotencyStore(...)`
 
-**Planned (Phase 2)**:
-- SQL Server: Persistent storage with indexed queries
-- PostgreSQL: Persistent storage with JSON support
+**Planned**:
 - Redis: Distributed cache with automatic TTL
 
 ## Performance Characteristics
@@ -214,7 +214,7 @@ Request → [1] ValidationDecorator      ← Validate first
 ## Testing
 
 ### Unit Tests
-84 comprehensive unit tests covering:
+Unit tests cover:
 - Policy configuration and customization
 - Exception classification for all known types
 - Key generation consistency and formats
@@ -243,14 +243,11 @@ dotnet test --filter "Category=Unit&FullyQualifiedName~Idempotency"
 
 ## Roadmap
 
-### Phase 2: Integration (In Progress)
-- Configuration API with fluent builder
-- SQL Server storage adapter
-- PostgreSQL storage adapter
-- Integration tests
-- Telemetry and logging
+### Next: Pipeline integration
+- Insert `IdempotencyDecorator` into the processing pipeline when `WithIdempotency` is configured
 
 ### Phase 3: Advanced Features
+- Idempotency-specific telemetry
 - Content hash key generator (SHA256-based)
 - Composite key generator (multi-factor)
 - Concurrency handling (processing locks)

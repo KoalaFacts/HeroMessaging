@@ -441,5 +441,4 @@ builder.InState("AwaitingPayment")  // Enhanced
 ## See Also
 
 - [Orchestration Pattern Guide](orchestration-pattern.md)
-- [Saga Pattern Overview](saga-pattern.md)
-- [State Machine Testing](testing-state-machines.md)
+- [Saga Patterns ADR](adr/0004-saga-patterns.md)
