@@ -424,14 +424,15 @@ public sealed class RabbitMqTransport : IConfirmedQueueTransport, IRabbitMqConsu
     /// <para>
     /// Messages are counted as <see cref="DeadLetterReplayResult.Unresolved"/> and moved to the back of the
     /// dead-letter queue (republished with confirmation, not requeued, so a quorum queue's delivery limit never
-    /// drops them) when their <c>x-death</c> history names no queue, names the dead-letter queue itself, or names a
+    /// drops them; in a priority queue they keep their priority) when their <c>x-death</c> history names no queue, names the dead-letter queue itself, or names a
     /// queue that no longer routes (deleted or renamed). Replay those with <see cref="DeadLetterReplayOptions.TargetQueue"/>.
     /// An explicit target that does not route throws <see cref="QueueDeliveryException"/> and leaves every message
     /// not yet replayed in the dead-letter queue.
     /// </para>
     /// <para>
     /// Delivery is at least once: if the process stops, the connection drops or the confirmation times out after
-    /// the broker accepted the copy, the dead-letter copy stays too and a later call replays it again. Handlers
+    /// the broker accepted the copy, the dead-letter copy stays too and a later call replays it again. The same
+    /// windows can leave an unresolved message twice in the dead-letter queue. Handlers
     /// must tolerate duplicates, as they already must for redelivery.
     /// </para>
     /// <para>
@@ -485,6 +486,7 @@ public sealed class RabbitMqTransport : IConfirmedQueueTransport, IRabbitMqConsu
             // Take the whole batch before publishing anything, so a replayed message that fails again and returns
             // (ahead of older messages in a priority queue) cannot be fetched twice by this call.
             var batch = new List<(BasicGetResult Message, string Target)>();
+            var unresolvedHeld = new List<BasicGetResult>();
             var depth = await GetQueueDepthAsync(channel, deadLetterQueue.Name, cancellationToken).ConfigureAwait(false);
             for (long taken = 0; taken < depth && batch.Count < options.MaxMessages; taken++)
             {
@@ -499,9 +501,15 @@ public sealed class RabbitMqTransport : IConfirmedQueueTransport, IRabbitMqConsu
                 }
                 else
                 {
-                    await MoveToBackAsync(channel, deadLetterQueue.Name, message).ConfigureAwait(false);
-                    unresolved++;
+                    // Held until the fetch ends: moved now, a high-priority copy would be fetched again at once.
+                    unresolvedHeld.Add(message);
                 }
+            }
+
+            foreach (var message in unresolvedHeld)
+            {
+                await MoveToBackAsync(channel, deadLetterQueue.Name, message).ConfigureAwait(false);
+                unresolved++;
             }
 
             foreach (var (message, target) in batch)
@@ -523,20 +531,25 @@ public sealed class RabbitMqTransport : IConfirmedQueueTransport, IRabbitMqConsu
         }
         finally
         {
-            if (!settled && channel.IsOpen)
+            try
             {
-                // Closing the channel returns the unacknowledged message to the dead-letter queue.
-                try
+                if (!settled && channel.IsOpen)
                 {
-                    await channel.CloseAsync(CancellationToken.None).ConfigureAwait(false);
-                }
-                catch (Exception closeError) when (closeError is AlreadyClosedException or OperationInterruptedException or IOException or TimeoutException or OperationCanceledException)
-                {
-                    _logger.LogWarning(closeError, "Could not close the replay channel for {DeadLetterQueue}", deadLetterQueue.Name);
+                    // Closing the channel returns every unacknowledged message to the dead-letter queue.
+                    try
+                    {
+                        await channel.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                    }
+                    catch (Exception closeError) when (closeError is AlreadyClosedException or OperationInterruptedException or IOException or TimeoutException or OperationCanceledException or ObjectDisposedException)
+                    {
+                        _logger.LogWarning(closeError, "Could not close the replay channel for {DeadLetterQueue}", deadLetterQueue.Name);
+                    }
                 }
             }
-
-            channelPool.ReleaseChannel(channel);
+            finally
+            {
+                channelPool.ReleaseChannel(channel);
+            }
         }
 
         return new DeadLetterReplayResult(replayed, unresolved);
@@ -577,7 +590,8 @@ public sealed class RabbitMqTransport : IConfirmedQueueTransport, IRabbitMqConsu
     {
         var properties = new BasicProperties(message.BasicProperties)
         {
-            Headers = DeadLetterReplayHeaders.WithoutDeliveryCount(message.BasicProperties.Headers)
+            Headers = DeadLetterReplayHeaders.WithoutDeliveryCount(message.BasicProperties.Headers),
+            UserId = null
         };
         await PublishMessageAsync(channel, string.Empty, deadLetterQueue, properties, message.Body, CancellationToken.None, requireRoute: true)
             .ConfigureAwait(false);

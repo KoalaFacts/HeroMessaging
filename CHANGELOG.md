@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **RabbitMQ dead-letter replay**: `RabbitMqTransport.ReplayDeadLettersAsync(deadLetterQueue, DeadLetterReplayOptions?)` moves retained messages back to the queue that rejected them (from `x-death`) or to `TargetQueue`. Each message is removed from the dead-letter queue only after a publisher-confirmed, mandatory-routed copy; a failure leaves it retained (at least once: a crash, connection loss or confirm timeout after the broker accepted the copy can duplicate it). Messages whose source queue is unknown or gone stay retained (moved to the back of the dead-letter queue). The copy drops `x-delivery-count` (fresh retry budget) and carries a `hero-replay-count` header. Returns `DeadLetterReplayResult(Replayed, Unresolved)`.
+- **RabbitMQ dead-letter replay**: `RabbitMqTransport.ReplayDeadLettersAsync(deadLetterQueue, DeadLetterReplayOptions?)` moves retained messages back to the queue that rejected them (from `x-death`) or to `TargetQueue`. Each message is removed from the dead-letter queue only after a publisher-confirmed, mandatory-routed copy; a failure leaves it retained (at least once: a crash, connection loss or confirm timeout after the broker accepted the copy can duplicate it). Messages whose source queue is unknown or gone stay retained (republished to the dead-letter queue, keeping their priority). The copy drops `x-delivery-count` (fresh retry budget) and carries a `hero-replay-count` header. Returns `DeadLetterReplayResult(Replayed, Unresolved)`.
 
 #### Saga Orchestration System
 - **State Machine DSL**: Fluent API for defining saga state machines with `StateMachineBuilder`

@@ -380,6 +380,40 @@ public sealed class RabbitMqDeadLetterReplayIntegrationTests : RabbitMqIntegrati
     }
 
     [Fact]
+    public async Task ReplayDeadLetters_FromPriorityQueue_UnresolvedHighPriorityMessageDoesNotHideTheRest()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var deadLetterQueue = CreateQueueName();
+        var targetQueue = CreateQueueName();
+        var topology = new TransportTopology();
+        topology.AddQueue(new QueueDefinition { Name = deadLetterQueue, Durable = true, MaxPriority = 10 });
+        topology.AddQueue(new QueueDefinition { Name = targetQueue, Durable = true });
+        await Transport!.ConfigureTopologyAsync(topology, token);
+        var history = new Dictionary<string, object?>
+        {
+            ["x-death"] = new List<object> { new Dictionary<string, object?> { ["queue"] = targetQueue, ["reason"] = "rejected", ["count"] = 1L } }
+        };
+        await using (var connection = await ConnectAsync())
+        await using (var channel = await connection.CreateChannelAsync(cancellationToken: token))
+        {
+            await channel.BasicPublishAsync(string.Empty, deadLetterQueue, false,
+                new BasicProperties { MessageId = "unresolved", Priority = 9, Persistent = true }, new byte[] { 1 }, token);
+            foreach (var id in new[] { "a", "b" })
+            {
+                await channel.BasicPublishAsync(string.Empty, deadLetterQueue, false,
+                    new BasicProperties { MessageId = id, Priority = 1, Persistent = true, Headers = history }, new byte[] { 1 }, token);
+            }
+        }
+        await WaitForMessageCountAsync(deadLetterQueue, 3);
+
+        var result = await Transport.ReplayDeadLettersAsync(TransportAddress.Queue(deadLetterQueue), cancellationToken: token);
+
+        Assert.Equal(new DeadLetterReplayResult(2, 1), result);
+        Assert.Equal(2u, await GetMessageCountAsync(targetQueue));
+        Assert.Equal(1u, await WaitForMessageCountAsync(deadLetterQueue, 1));
+    }
+
+    [Fact]
     public async Task ReplayDeadLetters_FromEmptyQueue_ReplaysNothing()
     {
         var token = TestContext.Current.CancellationToken;
