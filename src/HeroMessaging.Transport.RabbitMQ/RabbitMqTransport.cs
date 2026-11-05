@@ -408,29 +408,62 @@ public sealed class RabbitMqTransport : IConfirmedQueueTransport, IRabbitMqConsu
     /// </summary>
     /// <param name="deadLetterQueue">The queue bound to the work queue's dead-letter exchange.</param>
     /// <param name="options">Replay limits and target; <see langword="null"/> uses the defaults.</param>
-    /// <param name="cancellationToken">Stops taking further messages. A message already being replayed is settled first.</param>
-    /// <returns>How many messages were replayed and how many were left in place because their source queue is unknown.</returns>
+    /// <param name="cancellationToken">
+    /// Stops the replay. Messages already replayed stay replayed; the others stay in the dead-letter queue and
+    /// <see cref="OperationCanceledException"/> is thrown.
+    /// </param>
+    /// <returns>How many messages were replayed and how many were left in place.</returns>
     /// <remarks>
-    /// Each message is published to the target queue with mandatory routing and a publisher confirmation, and is
-    /// removed from the dead-letter queue only after the broker confirms it. A message whose publish fails stays in
-    /// the dead-letter queue and the failure is thrown (an unroutable target throws <see cref="QueueDeliveryException"/>).
-    /// Delivery is at least once: if the process stops between the confirmation and the removal, the message is
-    /// replayed again by the next call, so handlers must tolerate duplicates as they already must for redelivery.
-    /// The replayed copy keeps its body, properties and <c>x-death</c> history, drops the broker's
-    /// <c>x-delivery-count</c> so it starts with the consumer's full retry budget, and carries a
-    /// <c>hero-replay-count</c> header counting replays. Messages with no <c>x-death</c> history (for example
-    /// placed in the queue by hand) are returned to the dead-letter queue and reported as unresolved.
+    /// <para>
+    /// A call takes at most the number of messages the dead-letter queue held when it started (and at most
+    /// <see cref="DeadLetterReplayOptions.MaxMessages"/>), so messages that fail again and return during the call
+    /// are not replayed twice. Each message is published to its target queue with mandatory routing and a publisher
+    /// confirmation, and is removed from the dead-letter queue only after the broker confirms it.
+    /// </para>
+    /// <para>
+    /// Messages are left in the dead-letter queue and counted as <see cref="DeadLetterReplayResult.Unresolved"/> when
+    /// they carry no <c>x-death</c> history, when that history names the dead-letter queue itself, or when the queue
+    /// it names no longer routes (deleted or renamed). Replay those with <see cref="DeadLetterReplayOptions.TargetQueue"/>.
+    /// An explicit target that does not route throws <see cref="QueueDeliveryException"/> and leaves every message
+    /// not yet replayed in the dead-letter queue.
+    /// </para>
+    /// <para>
+    /// Delivery is at least once: if the process stops, the connection drops or the confirmation times out after
+    /// the broker accepted the copy, the dead-letter copy stays too and a later call replays it again. Handlers
+    /// must tolerate duplicates, as they already must for redelivery.
+    /// </para>
+    /// <para>
+    /// The copy keeps the body, properties and <c>x-death</c> history, drops the broker's <c>x-delivery-count</c> so
+    /// it starts with the consumer's full retry budget, drops <c>UserId</c> (the broker would reject a copy claiming
+    /// another user) and carries a <c>hero-replay-count</c> header counting replays.
+    /// </para>
     /// </remarks>
+    /// <exception cref="ArgumentException">The dead-letter queue name is blank, or the target is blank or is the dead-letter queue.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><see cref="DeadLetterReplayOptions.MaxMessages"/> is not positive.</exception>
     /// <exception cref="InvalidOperationException">The transport is not connected, or publisher confirms are disabled.</exception>
+    /// <exception cref="QueueDeliveryException">The explicit <see cref="DeadLetterReplayOptions.TargetQueue"/> does not route.</exception>
+    /// <exception cref="TimeoutException">The broker did not confirm a copy within <see cref="RabbitMqTransportOptions.PublisherConfirmTimeout"/>.</exception>
     public async Task<DeadLetterReplayResult> ReplayDeadLettersAsync(
         TransportAddress deadLetterQueue,
         DeadLetterReplayOptions? options = null,
         CancellationToken cancellationToken = default)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(deadLetterQueue.Name, nameof(deadLetterQueue));
         options ??= new DeadLetterReplayOptions();
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(options.MaxMessages, nameof(options));
-        if (options.TargetQueue is not null)
-            ArgumentException.ThrowIfNullOrWhiteSpace(options.TargetQueue, nameof(options));
+        if (options.MaxMessages <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(options), options.MaxMessages, "DeadLetterReplayOptions.MaxMessages must be positive; it bounds the messages taken per call.");
+        }
+
+        if (options.TargetQueue is not null &&
+            (string.IsNullOrWhiteSpace(options.TargetQueue) || options.TargetQueue == deadLetterQueue.Name))
+        {
+            throw new ArgumentException(
+                "DeadLetterReplayOptions.TargetQueue must name a queue other than the dead-letter queue, or be null to use each message's x-death source queue.",
+                nameof(options));
+        }
+
         if (!_options.UsePublisherConfirms)
         {
             throw new InvalidOperationException(
@@ -442,41 +475,32 @@ public sealed class RabbitMqTransport : IConfirmedQueueTransport, IRabbitMqConsu
         var channelPool = await GetOrCreateChannelPoolAsync(cancellationToken).ConfigureAwait(false);
         var channel = await channelPool.AcquireChannelAsync(cancellationToken).ConfigureAwait(false);
         var replayed = 0;
-        var unresolved = new List<ulong>();
+        var heldBack = new List<ulong>();
         var settled = false;
         try
         {
-            while (replayed + unresolved.Count < options.MaxMessages && !cancellationToken.IsCancellationRequested)
+            var declared = await channel.QueueDeclarePassiveAsync(deadLetterQueue.Name, cancellationToken).ConfigureAwait(false);
+            var limit = (int)Math.Min(declared.MessageCount, (uint)options.MaxMessages);
+            while (replayed + heldBack.Count < limit)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var message = await channel.BasicGetAsync(deadLetterQueue.Name, autoAck: false, cancellationToken).ConfigureAwait(false);
                 if (message is null)
                     break;
 
-                var target = options.TargetQueue ?? DeadLetterReplayHeaders.ResolveSourceQueue(message.BasicProperties.Headers);
-                if (target is null)
+                if (await TryReplayAsync(channel, deadLetterQueue.Name, options.TargetQueue, message).ConfigureAwait(false))
+                {
+                    await channel.BasicAckAsync(message.DeliveryTag, multiple: false, CancellationToken.None).ConfigureAwait(false);
+                    replayed++;
+                }
+                else
                 {
                     // Hold it unacknowledged so this call does not fetch it again; it is returned below.
-                    unresolved.Add(message.DeliveryTag);
-                    _logger.LogWarning(
-                        "Leaving message {MessageId} in {DeadLetterQueue}: it has no x-death history naming its source queue. Replay it with DeadLetterReplayOptions.TargetQueue",
-                        message.BasicProperties.MessageId, deadLetterQueue.Name);
-                    continue;
+                    heldBack.Add(message.DeliveryTag);
                 }
-
-                var properties = new BasicProperties(message.BasicProperties)
-                {
-                    Headers = DeadLetterReplayHeaders.PrepareHeaders(message.BasicProperties.Headers)
-                };
-                await PublishMessageAsync(channel, string.Empty, target, properties, message.Body, CancellationToken.None, requireRoute: true)
-                    .ConfigureAwait(false);
-                await channel.BasicAckAsync(message.DeliveryTag, multiple: false, CancellationToken.None).ConfigureAwait(false);
-                replayed++;
-                _logger.LogInformation(
-                    "Replayed message {MessageId} from {DeadLetterQueue} to {Queue}",
-                    message.BasicProperties.MessageId, deadLetterQueue.Name, target);
             }
 
-            foreach (var deliveryTag in unresolved)
+            foreach (var deliveryTag in heldBack)
                 await channel.BasicNackAsync(deliveryTag, multiple: false, requeue: true, CancellationToken.None).ConfigureAwait(false);
 
             settled = true;
@@ -499,7 +523,41 @@ public sealed class RabbitMqTransport : IConfirmedQueueTransport, IRabbitMqConsu
             channelPool.ReleaseChannel(channel);
         }
 
-        return new DeadLetterReplayResult(replayed, unresolved.Count);
+        return new DeadLetterReplayResult(replayed, heldBack.Count);
+    }
+
+    private async Task<bool> TryReplayAsync(IChannel channel, string deadLetterQueue, string? explicitTarget, BasicGetResult message)
+    {
+        var messageId = message.BasicProperties.MessageId;
+        var target = explicitTarget ?? DeadLetterReplayHeaders.ResolveSourceQueue(message.BasicProperties.Headers);
+        if (target is null || target == deadLetterQueue)
+        {
+            _logger.LogWarning(
+                "Leaving message {MessageId} in {DeadLetterQueue}: its x-death history names no other source queue. Replay it with DeadLetterReplayOptions.TargetQueue",
+                messageId, deadLetterQueue);
+            return false;
+        }
+
+        var properties = new BasicProperties(message.BasicProperties)
+        {
+            Headers = DeadLetterReplayHeaders.PrepareHeaders(message.BasicProperties.Headers),
+            UserId = null
+        };
+        try
+        {
+            await PublishMessageAsync(channel, string.Empty, target, properties, message.Body, CancellationToken.None, requireRoute: true)
+                .ConfigureAwait(false);
+        }
+        catch (QueueDeliveryException ex) when (explicitTarget is null)
+        {
+            _logger.LogWarning(ex,
+                "Leaving message {MessageId} in {DeadLetterQueue}: its source queue {Queue} does not route (deleted or renamed?). Replay it with DeadLetterReplayOptions.TargetQueue",
+                messageId, deadLetterQueue, target);
+            return false;
+        }
+
+        _logger.LogInformation("Replayed message {MessageId} from {DeadLetterQueue} to {Queue}", messageId, deadLetterQueue, target);
+        return true;
     }
 
     /// <inheritdoc/>

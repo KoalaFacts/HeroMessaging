@@ -10,6 +10,8 @@ namespace HeroMessaging.Transport.RabbitMQ.Tests.Integration;
 [Trait("Category", "Integration")]
 public sealed class RabbitMqDeadLetterReplayIntegrationTests : RabbitMqIntegrationTestBase
 {
+    private readonly Dictionary<string, string> _deadLetterExchanges = [];
+
     private static readonly ConsumerOptions RejectAtOnce = new()
     {
         MessageRetryPolicy = new RetryPolicy { MaxAttempts = 0 }
@@ -50,6 +52,7 @@ public sealed class RabbitMqDeadLetterReplayIntegrationTests : RabbitMqIntegrati
                 var original = sent.Single(e => e.MessageId == envelope.MessageId);
                 Assert.Equal(original.Body.ToArray(), envelope.Body.ToArray());
                 Assert.Equal(original.CorrelationId, envelope.CorrelationId);
+                Assert.Equal(original.ContentType, envelope.ContentType);
                 Assert.Equal(0, envelope.DeliveryCount);
                 Assert.Equal(1L, envelope.Headers[DeadLetterReplayHeaders.ReplayCountHeader]);
                 Assert.True(envelope.Headers.ContainsKey("x-death"), "Failure history must survive replay.");
@@ -191,6 +194,63 @@ public sealed class RabbitMqDeadLetterReplayIntegrationTests : RabbitMqIntegrati
     }
 
     [Fact]
+    public async Task ReplayDeadLetters_WhenSourceQueueWasDeleted_LeavesItRetainedAndReplaysTheRest()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var (deletedQueue, deadLetterQueue) = await CreateDeadLetteredQueueAsync();
+        var otherQueue = CreateQueueName();
+        var topology = new TransportTopology();
+        topology.AddQueue(new QueueDefinition { Name = otherQueue, Durable = true, DeadLetterExchange = _deadLetterExchanges[deadLetterQueue], DeadLetterRoutingKey = "failed" });
+        await Transport!.ConfigureTopologyAsync(topology, token);
+        await DeadLetterAsync(deletedQueue, deadLetterQueue, [CreateTestEnvelope()]);
+        await DeadLetterAsync(otherQueue, deadLetterQueue, [CreateTestEnvelope()], expectedTotal: 2);
+        await DeleteQueueAsync(deletedQueue);
+
+        var result = await Transport.ReplayDeadLettersAsync(TransportAddress.Queue(deadLetterQueue), cancellationToken: token);
+
+        Assert.Equal(1, result.Replayed);
+        Assert.Equal(1, result.Unresolved);
+        Assert.Equal(1u, await GetMessageCountAsync(otherQueue));
+        Assert.Equal(1u, await WaitForMessageCountAsync(deadLetterQueue, 1));
+    }
+
+    [Fact]
+    public async Task ReplayDeadLetters_WhenTheMessageFailsAgain_CanBeReplayedAgain()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var (workQueue, deadLetterQueue) = await CreateDeadLetteredQueueAsync();
+        await DeadLetterAsync(workQueue, deadLetterQueue, [CreateTestEnvelope()]);
+        Assert.Equal(1, (await Transport!.ReplayDeadLettersAsync(TransportAddress.Queue(deadLetterQueue), cancellationToken: token)).Replayed);
+        await DeadLetterAsync(workQueue, deadLetterQueue, []);
+
+        var second = await Transport.ReplayDeadLettersAsync(TransportAddress.Queue(deadLetterQueue), cancellationToken: token);
+
+        Assert.Equal(1, second.Replayed);
+        var received = new TaskCompletionSource<TransportEnvelope>(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var consumer = await Transport.SubscribeAsync(TransportAddress.Queue(workQueue), (envelope, _, _) =>
+        {
+            received.TrySetResult(envelope);
+            return Task.CompletedTask;
+        }, cancellationToken: token);
+        var envelope = await received.Task.WaitAsync(TimeSpan.FromSeconds(10), token);
+        Assert.Equal(2L, envelope.Headers[DeadLetterReplayHeaders.ReplayCountHeader]);
+    }
+
+    [Fact]
+    public async Task ReplayDeadLetters_WhenAlreadyCancelled_ThrowsAndKeepsMessagesRetained()
+    {
+        var (workQueue, deadLetterQueue) = await CreateDeadLetteredQueueAsync();
+        await DeadLetterAsync(workQueue, deadLetterQueue, [CreateTestEnvelope()]);
+        using var cancelled = new CancellationTokenSource();
+        await cancelled.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Transport!.ReplayDeadLettersAsync(
+            TransportAddress.Queue(deadLetterQueue), cancellationToken: cancelled.Token));
+
+        Assert.Equal(1u, await WaitForMessageCountAsync(deadLetterQueue, 1));
+    }
+
+    [Fact]
     public async Task ReplayDeadLetters_FromEmptyQueue_ReplaysNothing()
     {
         var token = TestContext.Current.CancellationToken;
@@ -225,10 +285,11 @@ public sealed class RabbitMqDeadLetterReplayIntegrationTests : RabbitMqIntegrati
             Arguments = quorum ? new Dictionary<string, object> { ["x-queue-type"] = "quorum" } : null
         });
         await Transport!.ConfigureTopologyAsync(topology, TestContext.Current.CancellationToken);
+        _deadLetterExchanges[deadLetterQueue] = deadLetterExchange;
         return (workQueue, deadLetterQueue);
     }
 
-    private async Task DeadLetterAsync(string workQueue, string deadLetterQueue, IReadOnlyList<TransportEnvelope> envelopes)
+    private async Task DeadLetterAsync(string workQueue, string deadLetterQueue, IReadOnlyList<TransportEnvelope> envelopes, uint? expectedTotal = null)
     {
         var token = TestContext.Current.CancellationToken;
         await using var failing = await Transport!.SubscribeAsync(
@@ -238,7 +299,7 @@ public sealed class RabbitMqDeadLetterReplayIntegrationTests : RabbitMqIntegrati
             token);
         foreach (var envelope in envelopes)
             await Transport.SendAsync(TransportAddress.Queue(workQueue), envelope, token);
-        await WaitForMessageCountAsync(deadLetterQueue, (uint)envelopes.Count);
+        await WaitForMessageCountAsync(deadLetterQueue, expectedTotal ?? (uint)Math.Max(envelopes.Count, 1));
     }
 
     private async Task<uint> WaitForMessageCountAsync(string queue, uint expected)
@@ -253,6 +314,21 @@ public sealed class RabbitMqDeadLetterReplayIntegrationTests : RabbitMqIntegrati
 
     private async Task<uint> GetMessageCountAsync(string queue)
     {
+        await using var connection = await ConnectAsync();
+        await using var channel = await connection.CreateChannelAsync(cancellationToken: TestContext.Current.CancellationToken);
+        var declared = await channel.QueueDeclarePassiveAsync(queue, TestContext.Current.CancellationToken);
+        return declared.MessageCount;
+    }
+
+    private async Task DeleteQueueAsync(string queue)
+    {
+        await using var connection = await ConnectAsync();
+        await using var channel = await connection.CreateChannelAsync(cancellationToken: TestContext.Current.CancellationToken);
+        await channel.QueueDeleteAsync(queue, cancellationToken: TestContext.Current.CancellationToken);
+    }
+
+    private Task<IConnection> ConnectAsync()
+    {
         var factory = new ConnectionFactory
         {
             HostName = Options!.Host,
@@ -260,9 +336,6 @@ public sealed class RabbitMqDeadLetterReplayIntegrationTests : RabbitMqIntegrati
             UserName = Options.UserName!,
             Password = Options.Password!
         };
-        await using var connection = await factory.CreateConnectionAsync(TestContext.Current.CancellationToken);
-        await using var channel = await connection.CreateChannelAsync(cancellationToken: TestContext.Current.CancellationToken);
-        var declared = await channel.QueueDeclarePassiveAsync(queue, TestContext.Current.CancellationToken);
-        return declared.MessageCount;
+        return factory.CreateConnectionAsync(TestContext.Current.CancellationToken);
     }
 }

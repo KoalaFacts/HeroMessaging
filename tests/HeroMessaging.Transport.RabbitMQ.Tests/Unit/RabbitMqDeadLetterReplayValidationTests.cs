@@ -55,6 +55,28 @@ public sealed class RabbitMqDeadLetterReplayValidationTests
     }
 
     [Fact]
+    public async Task ReplayDeadLettersAsync_WithTargetEqualToTheDeadLetterQueue_ThrowsArgumentException()
+    {
+        await using var transport = CreateTransport(usePublisherConfirms: true);
+
+        await Assert.ThrowsAsync<ArgumentException>(() => transport.ReplayDeadLettersAsync(
+            TransportAddress.Queue("orders-dlq"),
+            new DeadLetterReplayOptions { TargetQueue = "orders-dlq" },
+            TestContext.Current.CancellationToken));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    public async Task ReplayDeadLettersAsync_WithBlankDeadLetterQueue_ThrowsArgumentException(string queue)
+    {
+        await using var transport = CreateTransport(usePublisherConfirms: true);
+
+        await Assert.ThrowsAsync<ArgumentException>(() => transport.ReplayDeadLettersAsync(
+            new TransportAddress(queue), cancellationToken: TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
     public void DeadLetterReplayOptions_Defaults_ReplayUpToOneHundredToTheSourceQueue()
     {
         var options = new DeadLetterReplayOptions();
