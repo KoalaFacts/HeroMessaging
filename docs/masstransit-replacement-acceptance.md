@@ -114,7 +114,7 @@ Work order for the first replacement route. Status: todo, in progress (PR), done
 | ID | Item | Moves | Status | Evidence |
 | --- | --- | --- | --- | --- |
 | R0 | Green main: the scheduled Build and Test run failed from 2026-11-04 because the NativeAOT consumer pinned runtime 10.0.12, whose `Microsoft.DotNet.ILCompiler` pack gained advisory GHSA-p3jp-9v83-76w9 (NU1903 as error). CI now passes the newest installed 10.0.x runtime. | F02 evidence job | done (PR #140) | Reproduced NU1903 locally with 10.0.12. PR #140 CI run 42057116267, Unit Tests (ubuntu-latest, net10.0): SDK 10.0.402, runtime 10.0.14 from the runner's installed set, `NativeAOT consumer passed`; also passed locally with SDK 10.0.403 / runtime 10.0.14. |
-| D0 | First docs housekeeping: fold finished plans and one-off analyses into their live pages and delete them; fix stale facts; add the docs checker. | — | todo | |
+| D0 | First docs housekeeping: fold finished plans and one-off analyses into their live pages and delete them; fix stale facts; add the docs checker. | — | in progress (docs/housekeeping-2026-11-06) | Markdown files 59 → 48, bytes 862,027 → about 619,000; `check-docs` 16 tests; 69 problems on the previous main, 0 after. |
 | R1 | RabbitMQ direct-consumer retries/redelivery: attempt limit and backoff govern failure; terminal disposition; retry state across redelivery. | F09 | todo | |
 | R2 | Dead letters and replay: retained destination with failure context, safe replay, operator procedure. | F10 | todo | |
 | R3 | PostgreSQL Outbox: commit/rollback with business state, competing workers, lease expiry/fencing, process death around broker confirmation. | F06 | todo | |
@@ -127,6 +127,7 @@ Work order for the first replacement route. Status: todo, in progress (PR), done
 | R10 | Saga state plus outgoing work. | F14 | todo | |
 | R11 | SQL Server external Outbox. | F12 | todo | |
 | R12 | Equivalent-work benchmarks against MassTransit with resource use; negative results recorded. | P01–P05 | todo | |
+| R13 | Idempotency in the pipeline: `WithIdempotency` registers an `IdempotencyDecorator` factory that nothing inserts into processing, so configuring it does not deduplicate (found in D0). | F18 | todo | |
 
 ## Result record
 
