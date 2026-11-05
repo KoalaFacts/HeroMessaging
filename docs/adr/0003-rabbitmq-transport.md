@@ -315,6 +315,20 @@ channel.QueueBind(queue, exchange, routingKey, arguments);
 
 ---
 
+### TD-7: Dead-Letter Replay (2026-11-06)
+
+**Decision**: `RabbitMqTransport.ReplayDeadLettersAsync(deadLetterQueue, options)` moves retained messages from a dead-letter queue back to the queue that rejected them, for operators to run after the cause is fixed. It is an explicit call, not a background process.
+
+- The source queue is the first (most recent) `x-death` entry's `queue`, falling back to `x-first-death-queue`; `DeadLetterReplayOptions.TargetQueue` overrides it. A message with neither (for example placed in the queue by hand) is held unacknowledged until the call ends, then returned to the dead-letter queue and counted in `DeadLetterReplayResult.Unresolved`.
+- Each message is fetched with `basic.get` (manual acknowledgement), published to the default exchange with mandatory routing and a publisher confirmation, and acknowledged on the dead-letter queue only after the confirmation. Publisher confirms are therefore required. An unroutable target throws `QueueDeliveryException`; any failure closes the replay channel, which returns every unacknowledged message to the dead-letter queue. Messages already replayed stay replayed.
+- Delivery is at least once: a process stop between the confirmation and the acknowledgement leaves both copies, and the next call replays the dead-letter copy again.
+- The replayed copy keeps the body, properties and `x-death` history, drops the broker's `x-delivery-count` and increments a `hero-replay-count` header. Dropping `x-delivery-count` matters for quorum dead-letter queues: a message returned to one by a failed replay comes back with `x-delivery-count`, which the consumer (TD-6) would otherwise count against the replayed message's new retry budget.
+- `MaxMessages` (default 100) bounds the messages taken per call, including unresolved ones, so replaying into a queue that dead-letters into the same dead-letter queue cannot loop.
+
+**Consequence**: retained failures can be replayed without broker plugins or hand-written shovels. The consumer's exception is not yet attached to the dead-lettered message; the broker's `x-death` (queue, reason, time, count) and the consumer's error log (message ID, queue, exception) are the failure context. Integration (RabbitMQ 3.13): `RabbitMqDeadLetterReplayIntegrationTests` (7 tests); unit: `DeadLetterReplayHeadersTests`, `RabbitMqDeadLetterReplayValidationTests`.
+
+---
+
 ## Architectural Consequences
 
 ### Positive Consequences
