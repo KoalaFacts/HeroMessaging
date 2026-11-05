@@ -340,12 +340,19 @@ jobs:
           # Check test results first
           UNIT_TESTS_PASSED="${{ needs.unit-tests.result }}"
           INTEGRATION_TESTS_PASSED="${{ needs.integration-tests.result }}"
+          DOCS_CHECK_PASSED="${{ needs.docs-check.result }}"
 
           echo "Unit tests: $UNIT_TESTS_PASSED"
           echo "Integration tests: $INTEGRATION_TESTS_PASSED"
+          echo "Documentation check: $DOCS_CHECK_PASSED"
 
           if [[ "$UNIT_TESTS_PASSED" != "success" || "$INTEGRATION_TESTS_PASSED" != "success" ]]; then
             echo "❌ Unit or integration tests failed"
+            exit 1
+          fi
+
+          if [[ "$DOCS_CHECK_PASSED" != "success" ]]; then
+            echo "❌ Documentation check failed (run: node .github/scripts/check-docs.ts)"
             exit 1
           fi
 
