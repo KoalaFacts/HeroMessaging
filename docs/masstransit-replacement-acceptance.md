@@ -107,6 +107,27 @@ The initial comparator has a verification mode, a managed-allocation microbenchm
 | A09 | Migration guidance | Demonstrate a complete MassTransit-to-HeroMessaging consumer flow, including wire/topology changes and persisted work. |
 | A10 | Compatibility | Publish API changes and upgrade guidance; benchmark helpers introduce no production dependency on the competitor. |
 
+## Roadmap
+
+Work order for the first replacement route. Status: todo, in progress (PR), done (PR), or blocked (reason; owner decision). A row moves an acceptance row's status above only with the evidence that status requires. Per-run notes live in the PR bodies.
+
+| ID | Item | Moves | Status | Evidence |
+| --- | --- | --- | --- | --- |
+| R0 | Green main: the scheduled Build and Test run failed from 2026-11-04 because the NativeAOT consumer pinned runtime 10.0.12, whose `Microsoft.DotNet.ILCompiler` pack gained advisory GHSA-p3jp-9v83-76w9 (NU1903 as error). CI now passes the newest installed 10.0.x runtime. | F02 evidence job | in progress (fix/ci-nativeaot-runtime-advisory-20261106) | Reproduced NU1903 locally with 10.0.12; consumer restore, publish and execute pass with SDK 10.0.403 / runtime 10.0.14 (`NATIVE_AOT_PASS`). |
+| D0 | First docs housekeeping: fold finished plans and one-off analyses into their live pages and delete them; fix stale facts; add the docs checker. | — | todo | |
+| R1 | RabbitMQ direct-consumer retries/redelivery: attempt limit and backoff govern failure; terminal disposition; retry state across redelivery. | F09 | todo | |
+| R2 | Dead letters and replay: retained destination with failure context, safe replay, operator procedure. | F10 | todo | |
+| R3 | PostgreSQL Outbox: commit/rollback with business state, competing workers, lease expiry/fencing, process death around broker confirmation. | F06 | todo | |
+| R4 | Transactional external publish on top of R3. | F07 | todo | |
+| R5 | Durable Inbox: persist-before-ACK, duplicates, multi-host ownership, crash recovery, retention/poison policy. | F08 | todo | |
+| R6 | Two-process reliability harness (separate OS processes killed at declared points, business ledger) running R3–R5 in hosted CI. | F06–F08 | todo | |
+| R7 | Consumer testing API. | F24 | todo | |
+| R8 | Remote request/response. | F16 | todo | |
+| R9 | Persistent scheduling. | F17 | todo | |
+| R10 | Saga state plus outgoing work. | F14 | todo | |
+| R11 | SQL Server external Outbox. | F12 | todo | |
+| R12 | Equivalent-work benchmarks against MassTransit with resource use; negative results recorded. | P01–P05 | todo | |
+
 ## Result record
 
 Each accepted scenario must link to:
