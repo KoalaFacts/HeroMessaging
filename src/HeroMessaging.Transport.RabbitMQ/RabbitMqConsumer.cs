@@ -34,6 +34,8 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
     private string? _consumerTag;
     private long _messagesProcessed;
     private long _messagesFailed;
+    private long _messagesDeadLettered;
+    private readonly ConsumerRetryAttempts _retryAttempts = new();
     private int _inFlightDeliveries;
     private TaskCompletionSource? _deliveriesDrained;
     private TaskCompletionSource? _consumerUnregistered;
@@ -227,6 +229,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
         {
             MessagesProcessed = _messagesProcessed,
             MessagesFailed = _messagesFailed,
+            MessagesDeadLettered = Interlocked.Read(ref _messagesDeadLettered),
             AverageProcessingDuration = TimeSpan.Zero // Could track with stopwatch
         };
     }
@@ -410,6 +413,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
 
         var startTime = _timeProvider.GetTimestamp();
         Activity? activity = null;
+        var previousRetries = _retryAttempts.GetPreviousRetries(messageId, ea.BasicProperties.Headers);
 
         try
         {
@@ -425,6 +429,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
 
             var envelope = new TransportEnvelope
             {
+                DeliveryCount = previousRetries,
                 MessageId = messageId,
                 CorrelationId = ea.BasicProperties.CorrelationId,
                 ContentType = ea.BasicProperties.ContentType ?? "application/octet-stream",
@@ -479,6 +484,8 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
                 DeadLetter = async (reason, ct) =>
                 {
                     await SettleAsync(false, ct).ConfigureAwait(false);
+                    Interlocked.Increment(ref _messagesDeadLettered);
+                    _retryAttempts.Clear(messageId);
                     _instrumentation.AddEvent(activity, "deadletter",
                     [
                         new KeyValuePair<string, object?>("reason", reason ?? "unknown")
@@ -498,6 +505,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
                 await SettleAsync(null, CancellationToken.None).ConfigureAwait(false);
 
             Interlocked.Increment(ref _messagesProcessed);
+            _retryAttempts.Clear(messageId);
 
             // Record successful operation
             var durationMs = _timeProvider.GetElapsedTime(startTime).TotalMilliseconds;
@@ -517,12 +525,45 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
             _logger.LogError(ex, "Error processing message {MessageId} from {Queue}", messageId, Source.Name);
 
             if (Volatile.Read(ref dispositionStarted) == 0)
-                await SettleAsync(_options.RequeueOnFailure, CancellationToken.None).ConfigureAwait(false);
+                await SettleFailureAsync(SettleAsync, messageId, previousRetries).ConfigureAwait(false);
         }
         finally
         {
             activity?.Dispose();
         }
+    }
+
+    /// <summary>
+    /// Applies <see cref="ConsumerOptions.MessageRetryPolicy"/> to a handler failure: requeue after the policy's
+    /// backoff while attempts remain, otherwise reject without requeue so a configured dead-letter exchange retains it.
+    /// </summary>
+    private async Task SettleFailureAsync(
+        Func<bool?, CancellationToken, TimeSpan?, Task> settle,
+        string messageId,
+        int retries)
+    {
+        if (_options.RequeueOnFailure)
+        {
+            var policy = _options.MessageRetryPolicy;
+            var nextRetry = retries + 1;
+            if (policy.ShouldRetry(nextRetry))
+            {
+                _retryAttempts.Record(messageId, nextRetry);
+                var delay = policy.CalculateDelay(nextRetry);
+                _logger.LogWarning(
+                    "Retrying message {MessageId} from {Queue}: retry {Retry} of {MaxAttempts} after {Delay}",
+                    messageId, Source.Name, nextRetry, policy.MaxAttempts, delay);
+                await settle(true, CancellationToken.None, delay).ConfigureAwait(false);
+                return;
+            }
+        }
+
+        _retryAttempts.Clear(messageId);
+        Interlocked.Increment(ref _messagesDeadLettered);
+        _logger.LogError(
+            "Rejecting message {MessageId} from {Queue} without requeue after {Retries} retries; it is retained only if the queue has a dead-letter exchange",
+            messageId, Source.Name, retries);
+        await settle(false, CancellationToken.None, null).ConfigureAwait(false);
     }
 
     private async Task WaitForDeferDelayAsync(TimeSpan delay, Task stopRequested, CancellationToken cancellationToken)

@@ -299,6 +299,21 @@ channel.QueueBind(queue, exchange, routingKey, arguments);
 
 ---
 
+### TD-6: Consumer Retry Policy on Handler Failure (2026-11-06)
+
+**Decision**: `ConsumerOptions.MessageRetryPolicy` governs RabbitMQ direct-consumer handler failures; the earlier immediate, unbounded requeue is replaced.
+
+- With `RequeueOnFailure = true` (default), the consumer computes retry *n* = previous retries + 1. While `RetryPolicy.ShouldRetry(n)` holds it waits `CalculateDelay(n)` in process (the delivery stays unacknowledged and holds a prefetch slot, as `DeferAsync` does) and then NACKs with requeue. Stopping the consumer during the wait requeues at once.
+- When retries are exhausted, or with `RequeueOnFailure = false`, it NACKs without requeue and counts `MessagesDeadLettered`. The broker retains the message only if the queue has a dead-letter exchange (`QueueDefinition.DeadLetterExchange`); otherwise RabbitMQ discards it.
+- `MaxAttempts` counts retries after the first delivery: `0` never retries, `-1` retries forever. `TransportEnvelope.DeliveryCount` exposes previous retries to handlers.
+- Retry state: a broker `x-delivery-count` header (quorum queues) is used when present and survives consumer restarts. Classic queues carry no count, so the consumer keeps one per message ID in memory (bounded, 10,000 entries, oldest evicted). That count resets when the consumer restarts or the message is consumed by another consumer, so on classic queues `MaxAttempts` bounds retries per consumer instance, not globally. Messages without a message ID cannot be counted on classic queues.
+- `InboxTransportSubscription` overrides the policy to infinite retries with the configured backoff: an Inbox write failure must never drop a delivery.
+- This is separate from Outbox retries (`OutboxOptions.MaxRetries`), which count failed publishes from the PostgreSQL Outbox to the broker.
+
+**Consequence**: a default consumer now dead-letters a persistently failing message after 3 retries (5 s, 10 s, 20 s) instead of redelivering it forever; configure a dead-letter exchange to keep it. Unit tests: `RabbitMqConsumerRetryPolicyTests`; integration: `RabbitMqErrorScenarioIntegrationTests.Consumer_WhenHandlerKeepsFailing_RetriesWithBackoffThenDeadLetters`.
+
+---
+
 ## Architectural Consequences
 
 ### Positive Consequences
@@ -370,6 +385,7 @@ channel.QueueBind(queue, exchange, routingKey, arguments);
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | 2025-10-27 | Claude Code | Initial ADR for RabbitMQ transport |
+| 1.1 | 2026-11-06 | HeroMessaging maintainers | TD-6 consumer retry policy |
 
 ---
 

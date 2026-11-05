@@ -44,6 +44,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Comprehensive code examples in tests
 
 ### Changed
+- **RabbitMQ consumer retries**: `ConsumerOptions.MessageRetryPolicy` now governs handler failures. A failing delivery is requeued after the policy's backoff until its retries are used up, then rejected without requeue (retained only with a dead-letter exchange) and counted in `ConsumerMetrics.MessagesDeadLettered`. Previously it was requeued immediately and indefinitely. Inbox transport subscriptions keep retrying indefinitely, now with backoff.
+- **In-memory consumer**: `RetryPolicy.MaxAttempts = -1` now retries indefinitely, as documented, instead of dead-lettering at once.
 - **SagaBase**: CreatedAt and UpdatedAt timestamps now set by repository (not in constructor)
 - **Package Dependencies**:
   - Added `Microsoft.Bcl.TimeProvider` for netstandard2.0, net6.0, net7.0
