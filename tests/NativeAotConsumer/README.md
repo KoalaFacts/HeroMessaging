@@ -18,7 +18,7 @@ From a clean checkout with the stated SDK and native toolchain already available
 python3 .github/scripts/verify_nativeaot.py \
   --source "$PWD" --commit "$(git rev-parse HEAD)" \
   --output "$PWD/artifacts/nativeaot-local" \
-  --sdk 10.0.401 --tfm net10.0 --runtime 10.0.12 --rid linux-x64
+  --sdk 10.0.403 --tfm net10.0 --runtime 10.0.14 --rid linux-x64
 ```
 
 Use a new output directory each time. The command rejects dirty/mismatched
