@@ -6,8 +6,8 @@ namespace HeroMessaging.Transport.RabbitMQ;
 public sealed record DeadLetterReplayOptions
 {
     /// <summary>
-    /// Maximum number of dead-lettered messages to take from the queue in one call, including messages left in
-    /// place because their source queue is unknown. Must be positive. Default: 100.
+    /// Maximum number of messages to replay in one call. Messages left in place (unresolved) do not count against
+    /// it. Must be positive. Default: 100.
     /// </summary>
     public int MaxMessages { get; init; } = 100;
 

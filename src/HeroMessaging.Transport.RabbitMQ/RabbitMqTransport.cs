@@ -415,8 +415,8 @@ public sealed class RabbitMqTransport : IConfirmedQueueTransport, IRabbitMqConsu
     /// <returns>How many messages were replayed and how many were left in place.</returns>
     /// <remarks>
     /// <para>
-    /// A call takes at most the number of messages the dead-letter queue held when it started (and at most
-    /// <see cref="DeadLetterReplayOptions.MaxMessages"/>), so messages that fail again and return during the call
+    /// A call looks at most at the number of messages the dead-letter queue held when it started and replays at most
+    /// <see cref="DeadLetterReplayOptions.MaxMessages"/>, so messages that fail again and return during the call
     /// are not replayed twice. Each message is published to its target queue with mandatory routing and a publisher
     /// confirmation, and is removed from the dead-letter queue only after the broker confirms it.
     /// </para>
@@ -440,7 +440,8 @@ public sealed class RabbitMqTransport : IConfirmedQueueTransport, IRabbitMqConsu
     /// </remarks>
     /// <exception cref="ArgumentException">The dead-letter queue name is blank, or the target is blank or is the dead-letter queue.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><see cref="DeadLetterReplayOptions.MaxMessages"/> is not positive.</exception>
-    /// <exception cref="InvalidOperationException">The transport is not connected, or publisher confirms are disabled.</exception>
+    /// <exception cref="InvalidOperationException">The transport is not connected, publisher confirms are disabled, or the dead-letter queue does not exist.</exception>
+    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled; messages not yet replayed stay in the dead-letter queue.</exception>
     /// <exception cref="QueueDeliveryException">The explicit <see cref="DeadLetterReplayOptions.TargetQueue"/> does not route.</exception>
     /// <exception cref="TimeoutException">The broker did not confirm a copy within <see cref="RabbitMqTransportOptions.PublisherConfirmTimeout"/>.</exception>
     public async Task<DeadLetterReplayResult> ReplayDeadLettersAsync(
@@ -479,9 +480,8 @@ public sealed class RabbitMqTransport : IConfirmedQueueTransport, IRabbitMqConsu
         var settled = false;
         try
         {
-            var declared = await channel.QueueDeclarePassiveAsync(deadLetterQueue.Name, cancellationToken).ConfigureAwait(false);
-            var limit = (int)Math.Min(declared.MessageCount, (uint)options.MaxMessages);
-            while (replayed + heldBack.Count < limit)
+            var depth = await GetQueueDepthAsync(channel, deadLetterQueue.Name, cancellationToken).ConfigureAwait(false);
+            while (replayed < options.MaxMessages && replayed + heldBack.Count < depth)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var message = await channel.BasicGetAsync(deadLetterQueue.Name, autoAck: false, cancellationToken).ConfigureAwait(false);
@@ -524,6 +524,20 @@ public sealed class RabbitMqTransport : IConfirmedQueueTransport, IRabbitMqConsu
         }
 
         return new DeadLetterReplayResult(replayed, heldBack.Count);
+    }
+
+    private static async Task<long> GetQueueDepthAsync(IChannel channel, string queue, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var declared = await channel.QueueDeclarePassiveAsync(queue, cancellationToken).ConfigureAwait(false);
+            return declared.MessageCount;
+        }
+        catch (OperationInterruptedException ex) when (ex.ShutdownReason?.ReplyCode == 404)
+        {
+            throw new InvalidOperationException(
+                $"Dead-letter queue '{queue}' does not exist. Check the name against the work queue's dead-letter exchange binding.", ex);
+        }
     }
 
     private async Task<bool> TryReplayAsync(IChannel channel, string deadLetterQueue, string? explicitTarget, BasicGetResult message)

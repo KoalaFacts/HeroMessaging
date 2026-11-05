@@ -1,4 +1,5 @@
 using HeroMessaging.Abstractions.Transport;
+using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 using Xunit;
 
@@ -11,6 +12,12 @@ namespace HeroMessaging.Transport.RabbitMQ.Tests.Integration;
 public sealed class RabbitMqDeadLetterReplayIntegrationTests : RabbitMqIntegrationTestBase
 {
     private readonly Dictionary<string, string> _deadLetterExchanges = [];
+    private readonly WarningHook _warnings = new();
+
+    public RabbitMqDeadLetterReplayIntegrationTests()
+    {
+        LoggerFactory = _warnings;
+    }
 
     private static readonly ConsumerOptions RejectAtOnce = new()
     {
@@ -221,7 +228,7 @@ public sealed class RabbitMqDeadLetterReplayIntegrationTests : RabbitMqIntegrati
         var (workQueue, deadLetterQueue) = await CreateDeadLetteredQueueAsync();
         await DeadLetterAsync(workQueue, deadLetterQueue, [CreateTestEnvelope()]);
         Assert.Equal(1, (await Transport!.ReplayDeadLettersAsync(TransportAddress.Queue(deadLetterQueue), cancellationToken: token)).Replayed);
-        await DeadLetterAsync(workQueue, deadLetterQueue, []);
+        await WaitForFailureAgainAsync(workQueue, deadLetterQueue);
 
         var second = await Transport.ReplayDeadLettersAsync(TransportAddress.Queue(deadLetterQueue), cancellationToken: token);
 
@@ -248,6 +255,54 @@ public sealed class RabbitMqDeadLetterReplayIntegrationTests : RabbitMqIntegrati
             TransportAddress.Queue(deadLetterQueue), cancellationToken: cancelled.Token));
 
         Assert.Equal(1u, await WaitForMessageCountAsync(deadLetterQueue, 1));
+    }
+
+    [Fact]
+    public async Task ReplayDeadLetters_WhenCancelledMidReplay_ThrowsAndReturnsHeldMessages()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var (workQueue, deadLetterQueue) = await CreateDeadLetteredQueueAsync();
+        await Transport!.SendAsync(TransportAddress.Queue(deadLetterQueue), CreateTestEnvelope("placed by hand"), token);
+        await WaitForMessageCountAsync(deadLetterQueue, 1);
+        await DeadLetterAsync(workQueue, deadLetterQueue, [CreateTestEnvelope()], expectedTotal: 2);
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(token);
+        _warnings.OnWarning = cancellation.Cancel;
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Transport.ReplayDeadLettersAsync(
+            TransportAddress.Queue(deadLetterQueue), cancellationToken: cancellation.Token));
+
+        Assert.Equal(2u, await WaitForMessageCountAsync(deadLetterQueue, 2));
+        Assert.Equal(0u, await GetMessageCountAsync(workQueue));
+    }
+
+    [Fact]
+    public async Task ReplayDeadLetters_UnresolvedMessagesAhead_DoNotUseUpMaxMessages()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var (workQueue, deadLetterQueue) = await CreateDeadLetteredQueueAsync();
+        await Transport!.SendAsync(TransportAddress.Queue(deadLetterQueue), CreateTestEnvelope("placed by hand"), token);
+        await Transport.SendAsync(TransportAddress.Queue(deadLetterQueue), CreateTestEnvelope("placed by hand"), token);
+        await WaitForMessageCountAsync(deadLetterQueue, 2);
+        await DeadLetterAsync(workQueue, deadLetterQueue, [CreateTestEnvelope()], expectedTotal: 3);
+
+        var result = await Transport.ReplayDeadLettersAsync(
+            TransportAddress.Queue(deadLetterQueue),
+            new DeadLetterReplayOptions { MaxMessages = 1 },
+            token);
+
+        Assert.Equal(new DeadLetterReplayResult(1, 2), result);
+        Assert.Equal(1u, await GetMessageCountAsync(workQueue));
+    }
+
+    [Fact]
+    public async Task ReplayDeadLetters_WhenDeadLetterQueueIsMissing_ThrowsActionableError()
+    {
+        var missing = CreateQueueName();
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => Transport!.ReplayDeadLettersAsync(
+            TransportAddress.Queue(missing), cancellationToken: TestContext.Current.CancellationToken));
+
+        Assert.Contains(missing, error.Message);
     }
 
     [Fact]
@@ -289,6 +344,9 @@ public sealed class RabbitMqDeadLetterReplayIntegrationTests : RabbitMqIntegrati
         return (workQueue, deadLetterQueue);
     }
 
+    private Task WaitForFailureAgainAsync(string workQueue, string deadLetterQueue) =>
+        DeadLetterAsync(workQueue, deadLetterQueue, [], expectedTotal: 1);
+
     private async Task DeadLetterAsync(string workQueue, string deadLetterQueue, IReadOnlyList<TransportEnvelope> envelopes, uint? expectedTotal = null)
     {
         var token = TestContext.Current.CancellationToken;
@@ -299,7 +357,7 @@ public sealed class RabbitMqDeadLetterReplayIntegrationTests : RabbitMqIntegrati
             token);
         foreach (var envelope in envelopes)
             await Transport.SendAsync(TransportAddress.Queue(workQueue), envelope, token);
-        await WaitForMessageCountAsync(deadLetterQueue, expectedTotal ?? (uint)Math.Max(envelopes.Count, 1));
+        await WaitForMessageCountAsync(deadLetterQueue, expectedTotal ?? (uint)envelopes.Count);
     }
 
     private async Task<uint> WaitForMessageCountAsync(string queue, uint expected)
@@ -337,5 +395,30 @@ public sealed class RabbitMqDeadLetterReplayIntegrationTests : RabbitMqIntegrati
             Password = Options.Password!
         };
         return factory.CreateConnectionAsync(TestContext.Current.CancellationToken);
+    }
+
+    private sealed class WarningHook : ILoggerFactory, ILogger
+    {
+        public Action? OnWarning { get; set; }
+
+        public ILogger CreateLogger(string categoryName) => this;
+
+        public void AddProvider(ILoggerProvider provider)
+        {
+        }
+
+        public void Dispose()
+        {
+        }
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => logLevel == LogLevel.Warning;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+        {
+            if (logLevel == LogLevel.Warning && formatter(state, exception).StartsWith("Leaving message", StringComparison.Ordinal))
+                OnWarning?.Invoke();
+        }
     }
 }
