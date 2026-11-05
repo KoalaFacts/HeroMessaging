@@ -232,13 +232,88 @@ public sealed class RabbitMqConsumerRetryPolicyTests
         Assert.Equal(1, nacks.Count(static nack => !nack.Item2));
     }
 
+    [Fact]
+    public async Task ProcessMessage_FailureAfterMaxAttempts_WithErrorQueue_MovesItWithFailureContextAndAcks()
+    {
+        var fixture = new RetryFixture(static (_, _, _) => throw new InvalidOperationException("poison"), Options(maxAttempts: 0));
+        BasicProperties? moved = null;
+        fixture.Host.Setup(h => h.TryMoveToErrorQueueAsync("test-queue", It.IsAny<BasicProperties>(), It.IsAny<ReadOnlyMemory<byte>>()))
+            .Callback<string, BasicProperties, ReadOnlyMemory<byte>>((_, properties, _) => moved = properties)
+            .ReturnsAsync(true);
+        await using var consumer = fixture.Consumer;
+        await consumer.StartAsync(TestContext.Current.CancellationToken);
+
+        await fixture.DeliverAsync(7, TestContext.Current.CancellationToken, headers: new Dictionary<string, object?> { ["tenant"] = "a" });
+
+        Assert.Equal(7UL, await fixture.NextAckAsync());
+        Assert.False(fixture.HasNack);
+        Assert.NotNull(moved);
+        Assert.Equal("message-1", moved.MessageId);
+        Assert.Equal("a", moved.Headers!["tenant"]);
+        Assert.Equal("test-queue", moved.Headers[FaultHeaders.Queue]);
+        Assert.Equal("test-consumer", moved.Headers[FaultHeaders.Consumer]);
+        Assert.Equal(0L, moved.Headers[FaultHeaders.Retries]);
+        Assert.Equal("System.InvalidOperationException", moved.Headers[FaultHeaders.ExceptionType]);
+        Assert.Equal("poison", moved.Headers[FaultHeaders.ExceptionMessage]);
+        Assert.Equal(1, consumer.GetMetrics().MessagesDeadLettered);
+    }
+
+    [Fact]
+    public async Task ProcessMessage_FailureAfterMaxAttempts_WhenErrorQueueMoveFails_RejectsWithoutRequeue()
+    {
+        var fixture = new RetryFixture(static (_, _, _) => throw new InvalidOperationException("poison"), Options(maxAttempts: 0));
+        fixture.Host.Setup(h => h.TryMoveToErrorQueueAsync(It.IsAny<string>(), It.IsAny<BasicProperties>(), It.IsAny<ReadOnlyMemory<byte>>()))
+            .ThrowsAsync(new TimeoutException("confirm"));
+        await using var consumer = fixture.Consumer;
+        await consumer.StartAsync(TestContext.Current.CancellationToken);
+
+        await fixture.DeliverAsync(3, TestContext.Current.CancellationToken);
+
+        Assert.Equal((3UL, false), await fixture.NextNackAsync());
+        Assert.Equal(1, consumer.GetMetrics().MessagesDeadLettered);
+    }
+
+    [Fact]
+    public async Task ProcessMessage_WithRetriesRemaining_DoesNotUseTheErrorQueue()
+    {
+        var fixture = new RetryFixture(static (_, _, _) => throw new InvalidOperationException("boom"), Options(maxAttempts: 1));
+        await using var consumer = fixture.Consumer;
+        await consumer.StartAsync(TestContext.Current.CancellationToken);
+
+        await fixture.DeliverAsync(1, TestContext.Current.CancellationToken);
+
+        Assert.Equal((1UL, true), await fixture.NextNackAsync());
+        fixture.Host.Verify(h => h.TryMoveToErrorQueueAsync(It.IsAny<string>(), It.IsAny<BasicProperties>(), It.IsAny<ReadOnlyMemory<byte>>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task DeadLetterAsync_WithErrorQueue_RecordsTheReasonAndAcks()
+    {
+        var fixture = new RetryFixture(static (_, context, ct) => context.DeadLetterAsync("invalid payload", ct), Options(maxAttempts: 3) with { AutoAcknowledge = false });
+        BasicProperties? moved = null;
+        fixture.Host.Setup(h => h.TryMoveToErrorQueueAsync("test-queue", It.IsAny<BasicProperties>(), It.IsAny<ReadOnlyMemory<byte>>()))
+            .Callback<string, BasicProperties, ReadOnlyMemory<byte>>((_, properties, _) => moved = properties)
+            .ReturnsAsync(true);
+        await using var consumer = fixture.Consumer;
+        await consumer.StartAsync(TestContext.Current.CancellationToken);
+
+        await fixture.DeliverAsync(4, TestContext.Current.CancellationToken);
+
+        Assert.Equal(4UL, await fixture.NextAckAsync());
+        Assert.Equal("invalid payload", moved!.Headers![FaultHeaders.Reason]);
+        Assert.False(moved.Headers.ContainsKey(FaultHeaders.ExceptionType));
+        Assert.Equal(1, consumer.GetMetrics().MessagesDeadLettered);
+    }
+
     private sealed class RetryFixture
     {
         private readonly System.Threading.Channels.Channel<(ulong Tag, bool Requeue)> _nacks =
             System.Threading.Channels.Channel.CreateUnbounded<(ulong, bool)>();
+        private readonly System.Threading.Channels.Channel<ulong> _acks = System.Threading.Channels.Channel.CreateUnbounded<ulong>();
         private IAsyncBasicConsumer? _basicConsumer;
 
         internal Mock<IChannel> Channel { get; } = new();
+        internal Mock<IRabbitMqConsumerHost> Host { get; } = new();
         internal RabbitMqConsumer Consumer { get; }
         internal bool HasNack => _nacks.Reader.Count > 0;
 
@@ -255,8 +330,6 @@ public sealed class RabbitMqConsumerRetryPolicyTests
                 .Callback<string, bool, string, bool, bool, IDictionary<string, object?>, IAsyncBasicConsumer, CancellationToken>(
                     (_, _, _, _, _, _, basicConsumer, _) => _basicConsumer = basicConsumer)
                 .ReturnsAsync("test-tag");
-            Channel.Setup(ch => ch.BasicAckAsync(It.IsAny<ulong>(), false, It.IsAny<CancellationToken>()))
-                .Returns(ValueTask.CompletedTask);
             Channel.Setup(ch => ch.BasicNackAsync(It.IsAny<ulong>(), false, It.IsAny<bool>(), It.IsAny<CancellationToken>()))
                 .Callback<ulong, bool, bool, CancellationToken>((tag, _, requeue, _) => _nacks.Writer.TryWrite((tag, requeue)))
                 .Returns(ValueTask.CompletedTask);
@@ -265,10 +338,14 @@ public sealed class RabbitMqConsumerRetryPolicyTests
             Channel.Setup(ch => ch.CloseAsync(It.IsAny<ushort>(), It.IsAny<string>(),
                 It.IsAny<bool>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
-            var host = new Mock<IRabbitMqConsumerHost>();
-            host.SetupGet(h => h.Name).Returns("RabbitMQ");
+            Channel.Setup(ch => ch.BasicAckAsync(It.IsAny<ulong>(), false, It.IsAny<CancellationToken>()))
+                .Callback<ulong, bool, CancellationToken>((tag, _, _) => _acks.Writer.TryWrite(tag))
+                .Returns(ValueTask.CompletedTask);
+            Host.SetupGet(h => h.Name).Returns("RabbitMQ");
+            Host.Setup(h => h.TryMoveToErrorQueueAsync(It.IsAny<string>(), It.IsAny<BasicProperties>(), It.IsAny<ReadOnlyMemory<byte>>()))
+                .ReturnsAsync(false);
             Consumer = new RabbitMqConsumer("test-consumer", TransportAddress.Queue("test-queue"),
-                Channel.Object, handler, options with { ConcurrentMessageLimit = concurrentMessageLimit }, host.Object,
+                Channel.Object, handler, options with { ConcurrentMessageLimit = concurrentMessageLimit }, Host.Object,
                 Mock.Of<ILogger<RabbitMqConsumer>>(), TimeProvider.System);
         }
 
@@ -276,6 +353,10 @@ public sealed class RabbitMqConsumerRetryPolicyTests
             IDictionary<string, object?>? headers = null, string? messageId = "message-1") => _basicConsumer!.HandleBasicDeliverAsync(
             "test-tag", deliveryTag, redelivered, string.Empty, "test-queue",
             new BasicProperties { MessageId = messageId, Headers = headers }, new byte[] { 1 }, cancellationToken);
+
+        internal async Task<ulong> NextAckAsync() =>
+            await _acks.Reader.ReadAsync(TestContext.Current.CancellationToken).AsTask()
+                .WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         internal async Task<(ulong, bool)> NextNackAsync() =>
             await _nacks.Reader.ReadAsync(TestContext.Current.CancellationToken).AsTask()

@@ -14,6 +14,12 @@ internal interface IRabbitMqConsumerHost
 {
     string Name { get; }
 
+    /// <summary>
+    /// Publishes a failed message to <paramref name="sourceQueue"/>'s error queue and waits for the broker's
+    /// confirmation. Returns <see langword="false"/> when no error queue is configured or the copy was not confirmed.
+    /// </summary>
+    Task<bool> TryMoveToErrorQueueAsync(string sourceQueue, BasicProperties properties, ReadOnlyMemory<byte> body);
+
     void RemoveConsumer(RabbitMqConsumer consumer);
 }
 
@@ -483,7 +489,9 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
                 },
                 DeadLetter = async (reason, ct) =>
                 {
-                    await SettleAsync(false, ct).ConfigureAwait(false);
+                    ct.ThrowIfCancellationRequested();
+                    var disposition = await MoveToErrorQueueOrRejectAsync(ea, previousRetries ?? 0, exception: null, reason).ConfigureAwait(false);
+                    await SettleAsync(disposition, ct).ConfigureAwait(false);
                     Interlocked.Increment(ref _messagesDeadLettered);
                     _retryAttempts.Clear(messageId);
                     _instrumentation.AddEvent(activity, "deadletter",
@@ -525,7 +533,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
             _logger.LogError(ex, "Error processing message {MessageId} from {Queue}", messageId, Source.Name);
 
             if (Volatile.Read(ref dispositionStarted) == 0)
-                await SettleFailureAsync(SettleAsync, messageId, previousRetries, ea.Redelivered).ConfigureAwait(false);
+                await SettleFailureAsync(SettleAsync, ea, previousRetries, ex).ConfigureAwait(false);
         }
         finally
         {
@@ -538,15 +546,17 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
     /// backoff while retries remain, otherwise reject without requeue so a configured dead-letter exchange retains it.
     /// </summary>
     /// <param name="settle">Settles the delivery once (requeue flag, cancellation, delay).</param>
-    /// <param name="messageId">Broker message ID; empty when the publisher set none.</param>
+    /// <param name="ea">The failed delivery.</param>
     /// <param name="previousRetries">Known earlier retries, or <see langword="null"/> when they cannot be counted.</param>
-    /// <param name="redelivered">Broker redelivered flag for this delivery.</param>
+    /// <param name="exception">The handler failure.</param>
     private async Task SettleFailureAsync(
         Func<bool?, CancellationToken, TimeSpan?, Task> settle,
-        string messageId,
+        BasicDeliverEventArgs ea,
         int? previousRetries,
-        bool redelivered)
+        Exception exception)
     {
+        var messageId = ea.BasicProperties.MessageId ?? string.Empty;
+        var redelivered = ea.Redelivered;
         var policy = _options.MessageRetryPolicy;
         var retries = previousRetries ?? (redelivered ? 1 : 0);
         if (_options.RequeueOnFailure)
@@ -570,11 +580,45 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
         }
 
         _retryAttempts.Clear(messageId);
-        _logger.LogError(
-            "Rejecting message {MessageId} from {Queue} without requeue after {Retries} retries. RabbitMQ keeps it only if the queue has a dead-letter exchange (QueueDefinition.DeadLetterExchange); raise ConsumerOptions.MessageRetryPolicy.MaxAttempts to retry longer",
-            messageId, Source.Name, retries);
-        await settle(false, CancellationToken.None, null).ConfigureAwait(false);
+        var disposition = await MoveToErrorQueueOrRejectAsync(ea, retries, exception, reason: null).ConfigureAwait(false);
+        if (disposition is not null)
+        {
+            _logger.LogError(
+                "Rejecting message {MessageId} from {Queue} without requeue after {Retries} retries. RabbitMQ keeps it only if the queue has a dead-letter exchange (QueueDefinition.DeadLetterExchange) or RabbitMqTransportOptions.ErrorQueueSuffix names an existing error queue; raise ConsumerOptions.MessageRetryPolicy.MaxAttempts to retry longer",
+                messageId, Source.Name, retries);
+        }
+
+        await settle(disposition, CancellationToken.None, null).ConfigureAwait(false);
         Interlocked.Increment(ref _messagesDeadLettered);
+    }
+
+    /// <summary>
+    /// Publishes a copy with failure headers to the error queue (when configured) and returns the disposition for the
+    /// original delivery: <see langword="null"/> (acknowledge) once the copy is confirmed, otherwise
+    /// <see langword="false"/> (reject without requeue).
+    /// </summary>
+    private async Task<bool?> MoveToErrorQueueOrRejectAsync(BasicDeliverEventArgs ea, int retries, Exception? exception, string? reason)
+    {
+        var properties = new BasicProperties(ea.BasicProperties)
+        {
+            Headers = FaultHeaders.Create(ea.BasicProperties.Headers, Source.Name, ConsumerId, retries, _timeProvider.GetUtcNow(), exception, reason)
+        };
+        try
+        {
+            if (await _transport.TryMoveToErrorQueueAsync(Source.Name, properties, ea.Body).ConfigureAwait(false))
+            {
+                _logger.LogWarning("Moved message {MessageId} from {Queue} to its error queue", ea.BasicProperties.MessageId, Source.Name);
+                return null;
+            }
+        }
+        catch (Exception moveError) when (moveError is not OutOfMemoryException)
+        {
+            _logger.LogWarning(moveError,
+                "Could not move message {MessageId} from {Queue} to its error queue; rejecting it instead",
+                ea.BasicProperties.MessageId, Source.Name);
+        }
+
+        return false;
     }
 
     private async Task WaitForDeferDelayAsync(TimeSpan delay, Task stopRequested, CancellationToken cancellationToken)

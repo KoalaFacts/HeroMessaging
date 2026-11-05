@@ -187,6 +187,16 @@ public class RabbitMqTransportOptions : TransportOptionsBase
     /// Channel lifetime before expiration and recreation (default: 5 minutes)
     /// </summary>
     public TimeSpan ChannelLifetime { get; set; } = TimeSpan.FromMinutes(5);
+
+    /// <summary>
+    /// Suffix naming each consumer's error queue (for example <c>"_error"</c> moves failures from <c>orders</c> to
+    /// <c>orders_error</c>). When set, a message whose retries are used up, or that a handler dead-letters, is
+    /// published to that queue with failure headers (<c>hero-fault-*</c>: source queue, exception type and message,
+    /// retries, time, consumer) and then acknowledged. The error queue must already exist and publisher confirms must
+    /// be enabled; otherwise, or if the copy cannot be confirmed, the message is rejected without requeue as when this
+    /// is <see langword="null"/> (default), and only a dead-letter exchange on the queue keeps it.
+    /// </summary>
+    public string? ErrorQueueSuffix { get; set; }
 }
 
 /// <summary>

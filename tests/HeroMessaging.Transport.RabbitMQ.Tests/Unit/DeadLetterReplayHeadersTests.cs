@@ -23,6 +23,34 @@ public sealed class DeadLetterReplayHeadersTests
     }
 
     [Fact]
+    public void ResolveSourceQueue_PrefersTheFaultQueueOverDeathHistory()
+    {
+        var headers = new Dictionary<string, object?>
+        {
+            ["hero-fault-queue"] = Encoding.UTF8.GetBytes("orders"),
+            ["x-death"] = new List<object> { Death("older", "rejected") }
+        };
+
+        Assert.Equal("orders", DeadLetterReplayHeaders.ResolveSourceQueue(headers));
+    }
+
+    [Fact]
+    public void PrepareHeaders_RemovesFaultContext()
+    {
+        var headers = new Dictionary<string, object?>
+        {
+            ["hero-fault-queue"] = "orders",
+            ["hero-fault-exception-type"] = "System.InvalidOperationException",
+            ["tenant"] = "a"
+        };
+
+        var prepared = DeadLetterReplayHeaders.PrepareHeaders(headers);
+
+        Assert.DoesNotContain(prepared.Keys, static key => key.StartsWith("hero-fault-", StringComparison.Ordinal));
+        Assert.Equal("a", prepared["tenant"]);
+    }
+
+    [Fact]
     public void ResolveSourceQueue_AcceptsStringValues()
     {
         var headers = new Dictionary<string, object?>
