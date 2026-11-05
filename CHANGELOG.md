@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **RabbitMQ error queues with failure context**: set `RabbitMqTransportOptions.ErrorQueueSuffix` (for example `"_error"`) to move a message whose retries are used up, or that a handler dead-letters, to `<queue><suffix>` with `hero-fault-*` headers (source queue, exception type and message or reason, retries, time, consumer). The original is acknowledged only after a publisher-confirmed copy; a missing error queue falls back to rejecting it as before. `ReplayDeadLettersAsync` replays error queues to their source queue.
 - **RabbitMQ dead-letter replay**: `RabbitMqTransport.ReplayDeadLettersAsync(deadLetterQueue, DeadLetterReplayOptions?)` moves retained messages back to the queue that rejected them (from `x-death`) or to `TargetQueue`. Each message is removed from the dead-letter queue only after a publisher-confirmed, mandatory-routed copy; a failure leaves it retained (at least once: a crash, connection loss or confirm timeout after the broker accepted the copy can duplicate it). Messages whose source queue is unknown or gone stay retained (moved to the back of the dead-letter queue). The copy drops `x-delivery-count` (fresh retry budget) and carries a `hero-replay-count` header. Returns `DeadLetterReplayResult(Replayed, Unresolved)`.
 
 #### Saga Orchestration System

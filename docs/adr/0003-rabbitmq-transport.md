@@ -324,7 +324,21 @@ channel.QueueBind(queue, exchange, routingKey, arguments);
 - Delivery is at least once: a process stop, connection loss or confirmation timeout after the broker accepted the copy leaves the dead-letter copy too, and a later call replays it again.
 - The replayed copy keeps the body, properties and `x-death` history, drops `UserId` (the broker rejects a copy claiming another user), drops the broker's `x-delivery-count` and increments a `hero-replay-count` header. Dropping `x-delivery-count` matters for quorum dead-letter queues: a message returned to one by a failed replay comes back with `x-delivery-count`, which the consumer (TD-6) would otherwise count against the replayed message's new retry budget. RabbitMQ removes a per-message `expiration` when dead-lettering (kept as `original-expiration` in `x-death`), so the copy has no TTL.
 
-**Consequence**: retained failures can be replayed without broker plugins or hand-written shovels. The consumer's exception is not yet attached to the dead-lettered message; the broker's `x-death` (queue, reason, time, count) and the consumer's error log (message ID, queue, exception) are the failure context. Integration (RabbitMQ 3.13): `RabbitMqDeadLetterReplayIntegrationTests` (15 tests); unit: `DeadLetterReplayHeadersTests`, `RabbitMqDeadLetterReplayValidationTests`.
+**Consequence**: retained failures can be replayed without broker plugins or hand-written shovels. Failure context is the broker's `x-death` (queue, reason, time, count), or the `hero-fault-*` headers when an error queue is configured (TD-8). Integration (RabbitMQ 3.13): `RabbitMqDeadLetterReplayIntegrationTests` (17 tests, two of them for TD-8); unit: `DeadLetterReplayHeadersTests`, `RabbitMqDeadLetterReplayValidationTests`.
+
+---
+
+### TD-8: Error Queue with Failure Context (2026-11-06)
+
+**Decision**: `RabbitMqTransportOptions.ErrorQueueSuffix` (default `null`) names a per-queue error queue (`orders` + `"_error"` = `orders_error`). When it is set, a terminal handler failure (retries used up, `RequeueOnFailure = false`) or a handler's `DeadLetterAsync(reason)` publishes a copy to that queue and then acknowledges the original, instead of rejecting it.
+
+- The copy keeps the body, properties and headers, drops `x-delivery-count`, replaces any earlier `hero-fault-*` headers and adds `hero-fault-queue` (source queue), `hero-fault-consumer`, `hero-fault-retries`, `hero-fault-time` (UTC, ISO 8601), and either `hero-fault-exception-type` and `hero-fault-exception-message` (truncated to 4,096 characters) or `hero-fault-reason`.
+- The copy is published with mandatory routing and a publisher confirmation; the original is acknowledged only after the confirmation. If the error queue does not exist, publisher confirms are disabled, or the copy is not confirmed, the original is rejected without requeue as before, so a dead-letter exchange still keeps it. A confirmation timeout after the broker accepted the copy can leave the copy and a dead-lettered original.
+- The error queue is not declared automatically; declare it with the topology like any queue.
+- `ReplayDeadLettersAsync` reads `hero-fault-queue` before `x-death`, so an error queue replays like a dead-letter queue, and removes the `hero-fault-*` headers from the replayed copy.
+- Additive public API: a new settable property on `RabbitMqTransportOptions`; no signature changes.
+
+**Consequence**: operators see why a message failed without searching logs, matching MassTransit's `_error` queues. Unit: `FaultHeadersTests`, `RabbitMqConsumerRetryPolicyTests` (error-queue cases); integration (RabbitMQ 3.13): `RabbitMqDeadLetterReplayIntegrationTests.ErrorQueue_KeepsFailureContextAndReplaysToTheSourceQueue`, `ErrorQueue_WhenMissing_FallsBackToTheDeadLetterExchange`.
 
 ---
 
