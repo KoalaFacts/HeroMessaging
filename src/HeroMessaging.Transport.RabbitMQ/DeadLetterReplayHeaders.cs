@@ -44,13 +44,20 @@ internal static class DeadLetterReplayHeaders
     /// </summary>
     internal static Dictionary<string, object?> PrepareHeaders(IDictionary<string, object?>? headers)
     {
-        var prepared = headers is null
-            ? new Dictionary<string, object?>(StringComparer.Ordinal)
-            : new Dictionary<string, object?>(headers, StringComparer.Ordinal);
-        prepared.Remove(ConsumerRetryAttempts.BrokerDeliveryCountHeader);
+        var prepared = WithoutDeliveryCount(headers);
         var previous = prepared.TryGetValue(ReplayCountHeader, out var value) ? AsCount(value) : 0;
         prepared[ReplayCountHeader] = previous + 1;
         return prepared;
+    }
+
+    /// <summary>Copies the headers without the broker's <c>x-delivery-count</c>.</summary>
+    internal static Dictionary<string, object?> WithoutDeliveryCount(IDictionary<string, object?>? headers)
+    {
+        var copy = headers is null
+            ? new Dictionary<string, object?>(StringComparer.Ordinal)
+            : new Dictionary<string, object?>(headers, StringComparer.Ordinal);
+        copy.Remove(ConsumerRetryAttempts.BrokerDeliveryCountHeader);
+        return copy;
     }
 
     private static string? AsText(object? value) => value switch

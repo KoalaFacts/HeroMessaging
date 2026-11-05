@@ -5,7 +5,7 @@ namespace HeroMessaging.Transport.RabbitMQ;
 /// </summary>
 /// <param name="Replayed">Messages confirmed by the broker on the target queue and then removed from the dead-letter queue.</param>
 /// <param name="Unresolved">
-/// Messages left in the dead-letter queue because their <c>x-death</c> history names no source queue other than the
+/// Messages kept in the dead-letter queue (moved to its back) because their <c>x-death</c> history names no source queue other than the
 /// dead-letter queue, or names a queue that no longer routes. Replay them with <see cref="DeadLetterReplayOptions.TargetQueue"/>.
 /// </param>
 public readonly record struct DeadLetterReplayResult(int Replayed, int Unresolved);

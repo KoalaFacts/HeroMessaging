@@ -78,8 +78,7 @@ public sealed class RabbitMqDeadLetterReplayIntegrationTests : RabbitMqIntegrati
             MessageRetryPolicy = new RetryPolicy { MaxAttempts = 2, InitialDelay = TimeSpan.FromMilliseconds(20) }
         };
         var firstRun = new List<int>();
-        var deadLettered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        await using (var failing = await Transport!.SubscribeAsync(TransportAddress.Queue(workQueue), (envelope, _, _) =>
+        await using (await Transport!.SubscribeAsync(TransportAddress.Queue(workQueue), (envelope, _, _) =>
         {
             lock (firstRun)
                 firstRun.Add(envelope.DeliveryCount);
@@ -258,7 +257,7 @@ public sealed class RabbitMqDeadLetterReplayIntegrationTests : RabbitMqIntegrati
     }
 
     [Fact]
-    public async Task ReplayDeadLetters_WhenCancelledMidReplay_ThrowsAndReturnsHeldMessages()
+    public async Task ReplayDeadLetters_WhenCancelledMidReplay_ThrowsAndKeepsUnreplayedMessages()
     {
         var token = TestContext.Current.CancellationToken;
         var (workQueue, deadLetterQueue) = await CreateDeadLetteredQueueAsync();
@@ -303,6 +302,81 @@ public sealed class RabbitMqDeadLetterReplayIntegrationTests : RabbitMqIntegrati
             TransportAddress.Queue(missing), cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Contains(missing, error.Message);
+    }
+
+    [Fact]
+    public async Task ReplayDeadLetters_UnresolvedOnQuorumQueue_IsNotChargedAgainstTheDeliveryLimit()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var (_, deadLetterQueue) = await CreateDeadLetteredQueueAsync(quorum: true);
+        await Transport!.SendAsync(TransportAddress.Queue(deadLetterQueue), CreateTestEnvelope("placed by hand"), token);
+        await WaitForMessageCountAsync(deadLetterQueue, 1);
+
+        for (var call = 0; call < 3; call++)
+        {
+            var result = await Transport.ReplayDeadLettersAsync(TransportAddress.Queue(deadLetterQueue), cancellationToken: token);
+            Assert.Equal(new DeadLetterReplayResult(0, 1), result);
+            await WaitForMessageCountAsync(deadLetterQueue, 1);
+        }
+
+        await using var connection = await ConnectAsync();
+        await using var channel = await connection.CreateChannelAsync(cancellationToken: token);
+        var retained = await channel.BasicGetAsync(deadLetterQueue, autoAck: false, token);
+        Assert.NotNull(retained);
+        var deliveryCount = retained.BasicProperties.Headers?.TryGetValue("x-delivery-count", out var value) == true ? Convert.ToInt64(value, System.Globalization.CultureInfo.InvariantCulture) : 0L;
+        Assert.Equal(0L, deliveryCount);
+    }
+
+    [Fact]
+    public async Task ReplayDeadLetters_FromPriorityQueue_ReplaysEachMessageOnceWhenOneFailsAgainAtOnce()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var deadLetterExchange = CreateExchangeName();
+        var deadLetterQueue = CreateQueueName();
+        var expiringQueue = CreateQueueName();
+        var topology = new TransportTopology();
+        topology.AddExchange(new ExchangeDefinition { Name = deadLetterExchange, Type = HeroMessaging.Abstractions.Transport.ExchangeType.Direct, Durable = true });
+        topology.AddQueue(new QueueDefinition { Name = deadLetterQueue, Durable = true, MaxPriority = 10 });
+        topology.AddBinding(new BindingDefinition { SourceExchange = deadLetterExchange, Destination = deadLetterQueue, RoutingKey = "failed" });
+        // Every message replayed here is dead-lettered straight back, keeping its high priority.
+        topology.AddQueue(new QueueDefinition
+        {
+            Name = expiringQueue,
+            Durable = true,
+            MessageTtl = TimeSpan.Zero,
+            DeadLetterExchange = deadLetterExchange,
+            DeadLetterRoutingKey = "failed"
+        });
+        await Transport!.ConfigureTopologyAsync(topology, token);
+        await using (var connection = await ConnectAsync())
+        await using (var channel = await connection.CreateChannelAsync(cancellationToken: token))
+        {
+            foreach (var (id, priority) in new[] { ("high", (byte)9), ("low", (byte)1) })
+            {
+                var properties = new BasicProperties { MessageId = id, Priority = priority, Persistent = true };
+                await channel.BasicPublishAsync(string.Empty, deadLetterQueue, false, properties, new byte[] { 1 }, token);
+            }
+        }
+        await WaitForMessageCountAsync(deadLetterQueue, 2);
+
+        var result = await Transport.ReplayDeadLettersAsync(
+            TransportAddress.Queue(deadLetterQueue),
+            new DeadLetterReplayOptions { TargetQueue = expiringQueue },
+            token);
+
+        Assert.Equal(2, result.Replayed);
+        await WaitForMessageCountAsync(deadLetterQueue, 2);
+        await using var check = await ConnectAsync();
+        await using var reader = await check.CreateChannelAsync(cancellationToken: token);
+        var returned = new List<(string? Id, object? Replays)>();
+        for (var i = 0; i < 2; i++)
+        {
+            var message = await reader.BasicGetAsync(deadLetterQueue, autoAck: true, token);
+            Assert.NotNull(message);
+            returned.Add((message.BasicProperties.MessageId, message.BasicProperties.Headers?[DeadLetterReplayHeaders.ReplayCountHeader]));
+        }
+        Assert.Equal(["high", "low"], returned.Select(static r => r.Id).Order());
+        Assert.All(returned, static r => Assert.Equal(1L, r.Replays));
     }
 
     [Fact]
