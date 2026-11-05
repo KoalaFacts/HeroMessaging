@@ -39,8 +39,9 @@ public static class InboxTransportSubscription
         {
             AutoAcknowledge = false,
             RequeueOnFailure = true,
-            // Inbox intake failures (for example storage unavailable) must never drop a delivery:
-            // keep requeueing, with the configured backoff between attempts.
+            // Inbox intake failures (for example storage unavailable) must not reject a delivery:
+            // keep requeueing, with the configured backoff between attempts. A RabbitMQ quorum queue's
+            // own delivery limit still applies; disable or raise it for Inbox queues.
             MessageRetryPolicy = new RetryPolicy
             {
                 MaxAttempts = -1,

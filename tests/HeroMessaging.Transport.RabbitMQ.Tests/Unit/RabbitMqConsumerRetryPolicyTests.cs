@@ -24,7 +24,7 @@ public sealed class RabbitMqConsumerRetryPolicyTests
     };
 
     [Fact]
-    public async Task HandlerFailure_WithAttemptsRemaining_WaitsBackoffBeforeRequeue()
+    public async Task ProcessMessage_FailureWithRetriesRemaining_WaitsBackoffBeforeRequeue()
     {
         var fixture = new RetryFixture(static (_, _, _) => throw new InvalidOperationException("boom"),
             Options(maxAttempts: 3, initialDelay: TimeSpan.FromMilliseconds(300)));
@@ -41,7 +41,7 @@ public sealed class RabbitMqConsumerRetryPolicyTests
     }
 
     [Fact]
-    public async Task HandlerFailure_AfterMaxAttempts_DeadLettersWithoutRequeue()
+    public async Task ProcessMessage_FailureAfterMaxAttempts_RejectsWithoutRequeue()
     {
         var deliveryCounts = new List<int>();
         var fixture = new RetryFixture((envelope, _, _) =>
@@ -68,7 +68,7 @@ public sealed class RabbitMqConsumerRetryPolicyTests
     }
 
     [Fact]
-    public async Task HandlerFailure_UsesBrokerDeliveryCountAcrossRedelivery()
+    public async Task ProcessMessage_BrokerDeliveryCountHeader_GovernsRetriesAcrossRedelivery()
     {
         var observed = -1;
         var fixture = new RetryFixture((envelope, _, _) =>
@@ -90,7 +90,7 @@ public sealed class RabbitMqConsumerRetryPolicyTests
     }
 
     [Fact]
-    public async Task SuccessfulDelivery_ClearsRetryState()
+    public async Task ProcessMessage_AfterSuccess_ResetsRetryCount()
     {
         var calls = 0;
         var fixture = new RetryFixture((_, _, _) =>
@@ -113,7 +113,7 @@ public sealed class RabbitMqConsumerRetryPolicyTests
     }
 
     [Fact]
-    public async Task HandlerFailure_WithInfiniteAttempts_AlwaysRequeues()
+    public async Task ProcessMessage_FailureWithUnlimitedAttempts_AlwaysRequeues()
     {
         var fixture = new RetryFixture(static (_, _, _) => throw new InvalidOperationException("down"),
             Options(maxAttempts: -1));
@@ -130,7 +130,7 @@ public sealed class RabbitMqConsumerRetryPolicyTests
     }
 
     [Fact]
-    public async Task HandlerFailure_WithZeroAttempts_DeadLettersFirstFailure()
+    public async Task ProcessMessage_FailureWithZeroAttempts_RejectsFirstFailure()
     {
         var fixture = new RetryFixture(static (_, _, _) => throw new InvalidOperationException("poison"),
             Options(maxAttempts: 0, initialDelay: TimeSpan.FromMinutes(1)));
@@ -144,7 +144,7 @@ public sealed class RabbitMqConsumerRetryPolicyTests
     }
 
     [Fact]
-    public async Task HandlerFailure_WithRequeueDisabled_RejectsImmediatelyWithoutBackoff()
+    public async Task ProcessMessage_FailureWithRequeueDisabled_RejectsWithoutBackoff()
     {
         var fixture = new RetryFixture(static (_, _, _) => throw new InvalidOperationException("poison"),
             Options(maxAttempts: 3, initialDelay: TimeSpan.FromMinutes(1), requeueOnFailure: false));
@@ -176,7 +176,7 @@ public sealed class RabbitMqConsumerRetryPolicyTests
     }
 
     [Fact]
-    public async Task ExplicitDeadLetter_IsCountedInMetrics()
+    public async Task DeadLetterAsync_FromHandler_CountsDeadLetteredMessage()
     {
         var fixture = new RetryFixture(static (_, context, ct) => context.DeadLetterAsync("invalid", ct),
             Options(maxAttempts: 3));
@@ -189,6 +189,49 @@ public sealed class RabbitMqConsumerRetryPolicyTests
         Assert.Equal(1, consumer.GetMetrics().MessagesDeadLettered);
     }
 
+    [Fact]
+    public async Task ProcessMessage_FailureWithoutMessageIdOnRedelivery_RejectsInsteadOfLooping()
+    {
+        var fixture = new RetryFixture(static (_, _, _) => throw new InvalidOperationException("poison"),
+            Options(maxAttempts: 3));
+        await using var consumer = fixture.Consumer;
+        await consumer.StartAsync(TestContext.Current.CancellationToken);
+
+        await fixture.DeliverAsync(1, TestContext.Current.CancellationToken, messageId: null);
+        Assert.Equal((1UL, true), await fixture.NextNackAsync());
+        await fixture.DeliverAsync(2, TestContext.Current.CancellationToken, redelivered: true, messageId: null);
+
+        Assert.Equal((2UL, false), await fixture.NextNackAsync());
+        Assert.Equal(1, consumer.GetMetrics().MessagesDeadLettered);
+    }
+
+    [Fact]
+    public async Task ProcessMessage_ConcurrentFailuresOfSameMessageId_CountEachRetry()
+    {
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var entered = 0;
+        var bothEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var fixture = new RetryFixture(async (_, _, _) =>
+        {
+            if (Interlocked.Increment(ref entered) == 2)
+                bothEntered.TrySetResult();
+            await release.Task;
+            throw new InvalidOperationException("duplicate copies fail together");
+        }, Options(maxAttempts: 1), concurrentMessageLimit: 2);
+        await using var consumer = fixture.Consumer;
+        await consumer.StartAsync(TestContext.Current.CancellationToken);
+
+        var first = fixture.DeliverAsync(1, TestContext.Current.CancellationToken);
+        var second = fixture.DeliverAsync(2, TestContext.Current.CancellationToken);
+        await bothEntered.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        release.TrySetResult();
+        await Task.WhenAll(first, second).WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        var nacks = new[] { await fixture.NextNackAsync(), await fixture.NextNackAsync() };
+        Assert.Equal(1, nacks.Count(static nack => nack.Item2));
+        Assert.Equal(1, nacks.Count(static nack => !nack.Item2));
+    }
+
     private sealed class RetryFixture
     {
         private readonly System.Threading.Channels.Channel<(ulong Tag, bool Requeue)> _nacks =
@@ -199,7 +242,7 @@ public sealed class RabbitMqConsumerRetryPolicyTests
         internal RabbitMqConsumer Consumer { get; }
         internal bool HasNack => _nacks.Reader.Count > 0;
 
-        internal RetryFixture(Func<TransportEnvelope, MessageContext, CancellationToken, Task> handler, ConsumerOptions options)
+        internal RetryFixture(Func<TransportEnvelope, MessageContext, CancellationToken, Task> handler, ConsumerOptions options, int concurrentMessageLimit = 1)
         {
             Channel.Setup(ch => ch.IsOpen).Returns(true);
             Channel.Setup(ch => ch.BasicQosAsync(
@@ -225,14 +268,14 @@ public sealed class RabbitMqConsumerRetryPolicyTests
             var host = new Mock<IRabbitMqConsumerHost>();
             host.SetupGet(h => h.Name).Returns("RabbitMQ");
             Consumer = new RabbitMqConsumer("test-consumer", TransportAddress.Queue("test-queue"),
-                Channel.Object, handler, options, host.Object,
+                Channel.Object, handler, options with { ConcurrentMessageLimit = concurrentMessageLimit }, host.Object,
                 Mock.Of<ILogger<RabbitMqConsumer>>(), TimeProvider.System);
         }
 
         internal Task DeliverAsync(ulong deliveryTag, CancellationToken cancellationToken, bool redelivered = false,
-            IDictionary<string, object?>? headers = null) => _basicConsumer!.HandleBasicDeliverAsync(
+            IDictionary<string, object?>? headers = null, string? messageId = "message-1") => _basicConsumer!.HandleBasicDeliverAsync(
             "test-tag", deliveryTag, redelivered, string.Empty, "test-queue",
-            new BasicProperties { MessageId = "message-1", Headers = headers }, new byte[] { 1 }, cancellationToken);
+            new BasicProperties { MessageId = messageId, Headers = headers }, new byte[] { 1 }, cancellationToken);
 
         internal async Task<(ulong, bool)> NextNackAsync() =>
             await _nacks.Reader.ReadAsync(TestContext.Current.CancellationToken).AsTask()

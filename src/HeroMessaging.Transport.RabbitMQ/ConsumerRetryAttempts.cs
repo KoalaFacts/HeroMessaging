@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace HeroMessaging.Transport.RabbitMQ;
 
 /// <summary>
@@ -5,8 +7,9 @@ namespace HeroMessaging.Transport.RabbitMQ;
 /// </summary>
 /// <remarks>
 /// RabbitMQ classic queues do not count redeliveries, so a requeued message carries no attempt number.
-/// The count is kept per consumer by message ID, bounded by <paramref name="capacity"/> with oldest-first eviction.
-/// A broker-supplied <c>x-delivery-count</c> header (quorum queues) takes precedence and survives consumer restarts.
+/// The count is kept per consumer by message ID (copies with the same ID share it), bounded by
+/// <paramref name="capacity"/> with least-recently-recorded eviction. A broker-supplied <c>x-delivery-count</c>
+/// header (quorum queues) is used as a floor and survives consumer restarts.
 /// </remarks>
 internal sealed class ConsumerRetryAttempts(int capacity = ConsumerRetryAttempts.DefaultCapacity)
 {
@@ -18,37 +21,61 @@ internal sealed class ConsumerRetryAttempts(int capacity = ConsumerRetryAttempts
 #else
     private readonly object _lock = new();
 #endif
-    private readonly Dictionary<string, int> _counts = new(StringComparer.Ordinal);
-    private readonly Queue<string> _order = new();
+    private readonly Dictionary<string, LinkedListNode<(string MessageId, int Retries)>> _entries = new(StringComparer.Ordinal);
+    private readonly LinkedList<(string MessageId, int Retries)> _order = new();
 
-    /// <summary>Returns the number of earlier failed deliveries known for the message.</summary>
-    internal int GetPreviousRetries(string messageId, IDictionary<string, object?>? headers)
+    /// <summary>Number of tracked message IDs.</summary>
+    internal int Count
     {
-        var local = 0;
-        if (messageId.Length > 0)
+        get
         {
             lock (_lock)
-                _counts.TryGetValue(messageId, out local);
+                return _entries.Count;
         }
-
-        return Math.Max(local, ReadBrokerDeliveryCount(headers));
     }
 
-    internal void Record(string messageId, int retries)
+    /// <summary>
+    /// Returns the number of earlier failed deliveries known for the message, or <see langword="null"/> when
+    /// neither a message ID nor a broker count is available.
+    /// </summary>
+    internal int? GetPreviousRetries(string messageId, IDictionary<string, object?>? headers)
     {
+        var broker = ReadBrokerDeliveryCount(headers);
         if (messageId.Length == 0)
-            return;
+            return broker;
 
         lock (_lock)
         {
-            if (!_counts.ContainsKey(messageId))
+            var local = _entries.TryGetValue(messageId, out var node) ? node.Value.Retries : 0;
+            return Math.Max(local, broker ?? 0);
+        }
+    }
+
+    /// <summary>
+    /// Atomically records one more retry for the message and returns the new retry number.
+    /// </summary>
+    internal int Increment(string messageId, int previousRetries)
+    {
+        lock (_lock)
+        {
+            if (_entries.TryGetValue(messageId, out var node))
             {
-                while (_order.Count >= capacity && _order.TryDequeue(out var oldest))
-                    _counts.Remove(oldest);
-                _order.Enqueue(messageId);
+                var next = Math.Max(node.Value.Retries, previousRetries) + 1;
+                _order.Remove(node);
+                node.Value = (messageId, next);
+                _order.AddLast(node);
+                return next;
             }
 
-            _counts[messageId] = retries;
+            while (_entries.Count >= capacity && _order.First is { } oldest)
+            {
+                _order.RemoveFirst();
+                _entries.Remove(oldest.Value.MessageId);
+            }
+
+            var retries = previousRetries + 1;
+            _entries[messageId] = _order.AddLast((messageId, retries));
+            return retries;
         }
     }
 
@@ -58,25 +85,28 @@ internal sealed class ConsumerRetryAttempts(int capacity = ConsumerRetryAttempts
             return;
 
         lock (_lock)
-            _counts.Remove(messageId);
+        {
+            if (_entries.Remove(messageId, out var node))
+                _order.Remove(node);
+        }
     }
 
-    private static int ReadBrokerDeliveryCount(IDictionary<string, object?>? headers)
+    private static int? ReadBrokerDeliveryCount(IDictionary<string, object?>? headers)
     {
         if (headers is null || !headers.TryGetValue(BrokerDeliveryCountHeader, out var value))
-            return 0;
+            return null;
 
-        var count = value switch
+        long? count = value switch
         {
             long number => number,
             int number => number,
             short number => number,
             byte number => number,
-            byte[] text when long.TryParse(System.Text.Encoding.UTF8.GetString(text), out var parsed) => parsed,
-            string text when long.TryParse(text, out var parsed) => parsed,
-            _ => 0L
+            byte[] text when long.TryParse(System.Text.Encoding.UTF8.GetString(text), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) => parsed,
+            string text when long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) => parsed,
+            _ => null
         };
 
-        return (int)Math.Clamp(count, 0L, int.MaxValue);
+        return count is { } known ? (int)Math.Clamp(known, 0L, int.MaxValue) : null;
     }
 }

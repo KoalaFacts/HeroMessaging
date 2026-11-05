@@ -128,7 +128,7 @@ public readonly record struct TransportEnvelope
     public TransportAddress? FaultAddress { get; init; }
 
     /// <summary>
-    /// Number of delivery attempts
+    /// Number of earlier deliveries of this message that ended in a requeue (retries, and for some transports deferrals), as far as the consumer knows; 0 on the first delivery.
     /// </summary>
     public int DeliveryCount { get; init; }
 

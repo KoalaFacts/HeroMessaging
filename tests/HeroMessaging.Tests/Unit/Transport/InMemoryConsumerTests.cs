@@ -595,8 +595,11 @@ public class InMemoryConsumerTests : IDisposable
         await DeliverMessage(consumer, CreateTestEnvelope());
         await fifthAttempt.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
-        // Assert
+        // Assert: unlimited retries never dead-letter while running, and stopping still completes.
         Assert.Equal(0, consumer.GetMetrics().MessagesDeadLettered);
+        await consumer.StopAsync(TestContext.Current.CancellationToken)
+            .WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        Assert.Equal(1, consumer.GetMetrics().MessagesDeadLettered);
 
         await consumer.DisposeAsync();
     }

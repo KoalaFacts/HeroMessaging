@@ -209,6 +209,69 @@ public class RabbitMqErrorScenarioIntegrationTests : RabbitMqIntegrationTestBase
     }
 
     [Fact]
+    public async Task Consumer_OnQuorumQueueAfterConsumerRestart_ContinuesRetryCountThenDeadLetters()
+    {
+        // Arrange: a quorum queue supplies x-delivery-count, so a new consumer continues the count.
+        var queueName = CreateQueueName();
+        var dlxName = CreateExchangeName();
+        var dlqName = CreateQueueName();
+        var topology = new TransportTopology();
+        topology.AddExchange(new ExchangeDefinition { Name = dlxName, Type = ExchangeType.Direct, Durable = true });
+        topology.AddQueue(new QueueDefinition { Name = dlqName, Durable = true });
+        topology.AddBinding(new BindingDefinition { SourceExchange = dlxName, Destination = dlqName, RoutingKey = "failed" });
+        topology.AddQueue(new QueueDefinition
+        {
+            Name = queueName,
+            Durable = true,
+            DeadLetterExchange = dlxName,
+            DeadLetterRoutingKey = "failed",
+            Arguments = new Dictionary<string, object> { ["x-queue-type"] = "quorum" }
+        });
+        await Transport!.ConfigureTopologyAsync(topology, cancellationToken: TestContext.Current.CancellationToken);
+
+        var options = new ConsumerOptions
+        {
+            MessageRetryPolicy = new RetryPolicy { MaxAttempts = 2, InitialDelay = TimeSpan.FromMinutes(5) }
+        };
+        var firstFailed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var first = await Transport.SubscribeAsync(TransportAddress.Queue(queueName), (_, _, _) =>
+        {
+            firstFailed.TrySetResult();
+            throw new InvalidOperationException("Simulated poison message");
+        }, options, TestContext.Current.CancellationToken);
+        var deadLettered = new TaskCompletionSource<TransportEnvelope>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var dlqConsumer = await Transport.SubscribeAsync(TransportAddress.Queue(dlqName), (envelope, _, _) =>
+        {
+            deadLettered.TrySetResult(envelope);
+            return Task.CompletedTask;
+        }, cancellationToken: TestContext.Current.CancellationToken);
+
+        // Act: the first consumer fails once and stops during its backoff, which requeues the delivery.
+        await Transport.SendAsync(TransportAddress.Queue(queueName), CreateTestEnvelope(), cancellationToken: TestContext.Current.CancellationToken);
+        await firstFailed.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        await first.DisposeAsync();
+
+        var counts = new List<int>();
+        var second = await Transport.SubscribeAsync(TransportAddress.Queue(queueName), (envelope, _, _) =>
+        {
+            lock (counts)
+                counts.Add(envelope.DeliveryCount);
+            throw new InvalidOperationException("Simulated poison message");
+        }, options with { MessageRetryPolicy = new RetryPolicy { MaxAttempts = 2, InitialDelay = TimeSpan.FromMilliseconds(50) } },
+            TestContext.Current.CancellationToken);
+        var retained = await deadLettered.Task.WaitAsync(TimeSpan.FromSeconds(15), TestContext.Current.CancellationToken);
+
+        // Assert: the restarted consumer saw the broker count and stopped after MaxAttempts retries in total.
+        lock (counts)
+            Assert.Equal([1, 2], counts);
+        Assert.True(retained.Headers.ContainsKey("x-death"));
+        Assert.Equal(1, second.GetMetrics().MessagesDeadLettered);
+
+        await second.DisposeAsync();
+        await dlqConsumer.DisposeAsync();
+    }
+
+    [Fact]
     public async Task Consumer_WhenHandlerThrows_NacksAndRequeues()
     {
         // Arrange

@@ -429,7 +429,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
 
             var envelope = new TransportEnvelope
             {
-                DeliveryCount = previousRetries,
+                DeliveryCount = previousRetries ?? (ea.Redelivered ? 1 : 0),
                 MessageId = messageId,
                 CorrelationId = ea.BasicProperties.CorrelationId,
                 ContentType = ea.BasicProperties.ContentType ?? "application/octet-stream",
@@ -525,7 +525,7 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
             _logger.LogError(ex, "Error processing message {MessageId} from {Queue}", messageId, Source.Name);
 
             if (Volatile.Read(ref dispositionStarted) == 0)
-                await SettleFailureAsync(SettleAsync, messageId, previousRetries).ConfigureAwait(false);
+                await SettleFailureAsync(SettleAsync, messageId, previousRetries, ea.Redelivered).ConfigureAwait(false);
         }
         finally
         {
@@ -535,35 +535,45 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
 
     /// <summary>
     /// Applies <see cref="ConsumerOptions.MessageRetryPolicy"/> to a handler failure: requeue after the policy's
-    /// backoff while attempts remain, otherwise reject without requeue so a configured dead-letter exchange retains it.
+    /// backoff while retries remain, otherwise reject without requeue so a configured dead-letter exchange retains it.
     /// </summary>
+    /// <param name="settle">Settles the delivery once (requeue flag, cancellation, delay).</param>
+    /// <param name="messageId">Broker message ID; empty when the publisher set none.</param>
+    /// <param name="previousRetries">Known earlier retries, or <see langword="null"/> when they cannot be counted.</param>
+    /// <param name="redelivered">Broker redelivered flag for this delivery.</param>
     private async Task SettleFailureAsync(
         Func<bool?, CancellationToken, TimeSpan?, Task> settle,
         string messageId,
-        int retries)
+        int? previousRetries,
+        bool redelivered)
     {
+        var policy = _options.MessageRetryPolicy;
+        var retries = previousRetries ?? (redelivered ? 1 : 0);
         if (_options.RequeueOnFailure)
         {
-            var policy = _options.MessageRetryPolicy;
-            var nextRetry = retries + 1;
-            if (policy.ShouldRetry(nextRetry))
+            // Without a message ID or broker count a redelivery cannot be counted: allow one retry, then reject,
+            // so a finite policy can never loop forever.
+            var untrackable = previousRetries is null && redelivered && policy.MaxAttempts != -1;
+            var nextRetry = previousRetries is { } known && messageId.Length > 0
+                ? _retryAttempts.Increment(messageId, known)
+                : retries + 1;
+            if (!untrackable && policy.ShouldRetry(nextRetry))
             {
-                _retryAttempts.Record(messageId, nextRetry);
                 var delay = policy.CalculateDelay(nextRetry);
                 _logger.LogWarning(
                     "Retrying message {MessageId} from {Queue}: retry {Retry} of {MaxAttempts} after {Delay}",
-                    messageId, Source.Name, nextRetry, policy.MaxAttempts, delay);
+                    messageId, Source.Name, nextRetry, policy.MaxAttempts == -1 ? "unlimited" : policy.MaxAttempts, delay);
                 await settle(true, CancellationToken.None, delay).ConfigureAwait(false);
                 return;
             }
         }
 
         _retryAttempts.Clear(messageId);
-        Interlocked.Increment(ref _messagesDeadLettered);
         _logger.LogError(
-            "Rejecting message {MessageId} from {Queue} without requeue after {Retries} retries; it is retained only if the queue has a dead-letter exchange",
+            "Rejecting message {MessageId} from {Queue} without requeue after {Retries} retries. RabbitMQ keeps it only if the queue has a dead-letter exchange (QueueDefinition.DeadLetterExchange); raise ConsumerOptions.MessageRetryPolicy.MaxAttempts to retry longer",
             messageId, Source.Name, retries);
         await settle(false, CancellationToken.None, null).ConfigureAwait(false);
+        Interlocked.Increment(ref _messagesDeadLettered);
     }
 
     private async Task WaitForDeferDelayAsync(TimeSpan delay, Task stopRequested, CancellationToken cancellationToken)
