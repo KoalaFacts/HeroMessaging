@@ -559,7 +559,8 @@ internal sealed class RabbitMqConsumer : ITransportConsumer
                 : retries + 1;
             if (!untrackable && policy.ShouldRetry(nextRetry))
             {
-                var delay = policy.CalculateDelay(nextRetry);
+                // Never let a misconfigured policy (for example a negative MaxDelay) leave the delivery unsettled.
+                var delay = policy.CalculateDelay(nextRetry) is var calculated && calculated > TimeSpan.Zero ? calculated : TimeSpan.Zero;
                 _logger.LogWarning(
                     "Retrying message {MessageId} from {Queue}: retry {Retry} of {MaxAttempts} after {Delay}",
                     messageId, Source.Name, nextRetry, policy.MaxAttempts == -1 ? "unlimited" : policy.MaxAttempts, delay);

@@ -18,6 +18,23 @@ public class RetryPolicyTests
             Assert.Equal(TimeSpan.FromSeconds(5), policy.CalculateDelay(3));
         }
 
+        [Theory]
+        [InlineData(0, 1025, 0)]
+        [InlineData(0, int.MaxValue, 0)]
+        [InlineData(100, 1025, 60_000)]
+        [InlineData(100, int.MaxValue, 60_000)]
+        public void CalculateDelay_VeryHighAttempt_StaysFiniteAndClamped(int initialMs, int attempt, int expectedMs)
+        {
+            var policy = new RetryPolicy
+            {
+                InitialDelay = TimeSpan.FromMilliseconds(initialMs),
+                MaxDelay = TimeSpan.FromMinutes(1),
+                UseExponentialBackoff = true
+            };
+
+            Assert.Equal(TimeSpan.FromMilliseconds(expectedMs), policy.CalculateDelay(attempt));
+        }
+
         [Fact]
         public void LinearDelayDoesNotGrow()
         {
