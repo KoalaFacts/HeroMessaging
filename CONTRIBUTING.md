@@ -27,7 +27,7 @@ This project adheres to a code of conduct that we expect all contributors to fol
 
 ### Prerequisites
 
-- .NET 6.0 SDK or higher
+- .NET 10 SDK (`global.json` pins 10.0.402 with `latestPatch` roll-forward); .NET 8 and 9 runtimes to run every test target
 - Git
 - Docker (for integration tests)
 - Your favorite IDE (Visual Studio, VS Code, Rider)
@@ -183,6 +183,7 @@ Use traits to categorize tests:
 ```csharp
 [Trait("Category", "Unit")]        // Fast, isolated tests (<30s total)
 [Trait("Category", "Integration")] // Database/service integration (<2min total)
+[Trait("Category", "Architecture")] // Architecture rules (NetArchTest)
 [Trait("Category", "Contract")]    // API contract validation
 [Trait("Category", "Performance")] // Performance benchmarks
 ```
@@ -194,7 +195,7 @@ Follow the **Arrange-Act-Assert** pattern:
 ```csharp
 [Fact]
 [Trait("Category", "Unit")]
-public void SagaOrchestrator_WhenEventReceived_ShouldTransitionState()
+public async Task SagaOrchestrator_WhenEventReceived_ShouldTransitionState()
 {
     // Arrange
     var saga = new TestSaga { State = "Initial" };
@@ -202,7 +203,7 @@ public void SagaOrchestrator_WhenEventReceived_ShouldTransitionState()
     var orchestrator = new SagaOrchestrator<TestSaga>(/* deps */);
 
     // Act
-    await orchestrator.HandleAsync(saga, evt);
+    await orchestrator.ProcessAsync(evt);
 
     // Assert
     Assert.Equal("NextState", saga.State);
@@ -317,6 +318,13 @@ See existing ADRs for examples:
    dotnet run --project tests/HeroMessaging.Benchmarks --configuration Release
    ```
 
+5. **Check documentation (Node 24+), when Markdown changes:**
+   ```bash
+   node --test .github/scripts/check-docs.test.ts
+   node .github/scripts/check-docs.ts
+   ```
+   It fails on broken relative links or anchors, Markdown files missing from [docs/README.md](docs/README.md), and repository paths named in inline code that do not exist.
+
 ### PR Guidelines
 
 1. **Title Format:**
@@ -347,11 +355,11 @@ See existing ADRs for examples:
 
 All PRs must pass:
 - **Build**: No errors or warnings
-- **Tests**: All categories (Unit, Integration, Contract)
+- **Tests**: Unit and Architecture tests on every OS/framework lane, Integration tests via `run-integration-tests.yml`
 - **Coverage**: Meets 80% threshold
 - **Performance**: No regression >10%
 - **Cross-Platform**: Windows, Linux, macOS
-- **Multi-Framework**: netstandard2.0, net6.0, net7.0, net8.0, net9.0
+- **Multi-Framework**: net8.0, net9.0, net10.0
 
 ## Architecture Decisions
 
@@ -362,6 +370,9 @@ HeroMessaging uses a plugin architecture to isolate concerns:
 ```
 HeroMessaging (Core)
 ├── HeroMessaging.Abstractions (Contracts)
+├── HeroMessaging.RingBuffer (Ring buffer primitives)
+├── HeroMessaging.SourceGenerators (Roslyn generators)
+├── HeroMessaging.Security (Security Plugin)
 ├── HeroMessaging.Storage.* (Storage Plugins)
 ├── HeroMessaging.Serialization.* (Serialization Plugins)
 ├── HeroMessaging.Transport.* (Transport Plugins)
@@ -377,13 +388,11 @@ HeroMessaging (Core)
 ### Multi-Framework Support
 
 HeroMessaging supports multiple .NET versions:
-- netstandard2.0 (broad compatibility)
-- net6.0 (LTS)
-- net7.0 (STS)
 - net8.0 (LTS)
 - net9.0 (STS)
+- net10.0 (LTS)
 
-Use conditional compilation and polyfills (PolySharp) for API differences.
+`HeroMessaging.SourceGenerators` targets netstandard2.0 (Roslyn requirement) and uses PolySharp polyfills. Use conditional compilation for API differences between the runtime targets.
 
 ## Getting Help
 

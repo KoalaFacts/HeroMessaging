@@ -18,11 +18,9 @@ The HeroMessaging library includes a comprehensive test suite designed to ensure
 - **Coverage Goal**: Complete workflow validation
 - **Location**: `tests/HeroMessaging.Tests/Integration/`
 
-### Contract Tests
-- **Scope**: Public API validation
-- **Target Time**: < 30 seconds
-- **Coverage Goal**: 100% of public APIs
-- **Location**: `tests/HeroMessaging.Contract.Tests/`
+### Architecture Tests
+- **Scope**: Dependency and layering rules (NetArchTest), trait `Category=Architecture`
+- **Location**: `tests/HeroMessaging.Architecture.Tests/`
 
 ### Performance Benchmarks
 - **Scope**: Latency and throughput validation
@@ -39,7 +37,6 @@ dotnet test
 # Run specific category
 dotnet test --filter-trait "Category=Unit"
 dotnet test --filter-trait "Category=Integration"
-dotnet test --filter-trait "Category=Contract"
 
 # Run with coverage
 dotnet test --project tests/HeroMessaging.Tests --filter-not-trait Category=Integration --coverlet --coverlet-output-format cobertura
@@ -54,9 +51,6 @@ dotnet run --project tests/HeroMessaging.Benchmarks -c Release
 dotnet test --framework net9.0
 dotnet test --framework net8.0
 dotnet test --framework net10.0
-
-# Cross-platform validation
-pwsh tests/validate-cross-platform.ps1
 ```
 
 ### Parallel Execution
@@ -76,7 +70,7 @@ public async Task ProcessMessage_WithValidInput_ShouldSucceed()
 {
     // Arrange
     var processor = new MessageProcessor();
-    var message = TestMessageBuilder.Create().Build();
+    var message = TestMessageBuilder.CreateValidMessage();
 
     // Act
     var result = await processor.ProcessAsync(message);
@@ -151,18 +145,16 @@ dotnet run -c Release --project tests/HeroMessaging.Benchmarks --no-build -- --e
 ## CI/CD Integration
 
 ### GitHub Actions Workflows
-- **test.yml**: Cross-platform test execution
-- **coverage.yml**: Coverage analysis and reporting
-- **performance.yml**: Performance benchmark validation
-- **test-matrix.yml**: Multi-framework testing
+- **ci.yml** (Build and Test): unit-test matrix (Ubuntu/Windows/macOS × net8.0/net9.0/net10.0), NativeAOT package consumer, in-process performance comparison, coverage and quality gates, release package build
+- **run-integration-tests.yml**: PostgreSQL, SQL Server and RabbitMQ integration tests (called from ci.yml)
+- **codeql.yml**, **security-scan.yml**: CodeQL and dependency/secret scanning
+- **profile-inprocess.yml**: native in-process profiling (manual)
+- **create-release.yml**, **publish-nuget.yml**: release and publishing (maintainers only)
 
 ### Running CI Locally
 ```bash
 # Simulate CI test run
-act -j test
-
-# Run with specific .NET version
-act -j test -e '{"matrix":{"dotnet":["8.0"]}}'
+act -j unit-tests
 ```
 
 ## Troubleshooting
@@ -209,31 +201,27 @@ dotnet test --no-build --filter-method "*YourTestName*" --output Detailed
 
 ### TestMessageBuilder
 ```csharp
-var message = TestMessageBuilder.Create()
-    .WithId(Guid.NewGuid())
-    .WithPayload("test data")
-    .WithMetadata("key", "value")
-    .Build();
+// tests/HeroMessaging.Tests.Shared/TestMessageBuilder.cs
+var message = TestMessageBuilder.CreateValidMessage(content: "test data", correlationId: "corr-1");
 ```
 
 ### PluginTestBase
 ```csharp
-public class MyPluginTests : PluginTestBase<IMyPlugin>
+// tests/HeroMessaging.Tests/Infrastructure/PluginTestBase.cs
+public class MyPluginTests(ITestOutputHelper output) : PluginTestBase<IMyPlugin>(output)
 {
-    protected override void ConfigureTestServices(IServiceCollection services)
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task Plugin_Starts()
     {
-        services.AddSingleton<IMyPlugin, MyPlugin>();
+        var plugin = await CreatePluginAsync<MyPlugin>();
+        Assert.NotNull(plugin);
     }
 }
 ```
 
-### Database Test Containers
-```csharp
-await using var container = new PostgreSqlTestContainer();
-await container.StartAsync();
-var connectionString = container.ConnectionString;
-// Run tests with database
-```
+### Database services
+Integration tests use real PostgreSQL, SQL Server and RabbitMQ services; the connection settings are in [CONTRIBUTING.md](../CONTRIBUTING.md#integration-tests).
 
 ## Best Practices
 

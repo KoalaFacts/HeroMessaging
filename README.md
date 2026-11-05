@@ -69,6 +69,8 @@ builder.WithEventBus(options =>
 
 `MaxDegreeOfParallelism` and `BoundedCapacity` must be positive. Set `MaxPooledEnvelopes` to zero to disable pooling.
 
+`HeroMessaging.RingBuffer`, a direct dependency of `HeroMessaging`, provides Disruptor-style sequencers, wait strategies and a batch event processor. `UseChannelQueue(...)` and `UseRingBufferQueue(...)` currently only register `InMemoryQueueOptions`; no runtime component reads those options yet, so they do not change in-memory queue behaviour.
+
 If `PostgreSqlStorageOptions.AutoCreateTables` is `false`, provision the outbox table using the current `PostgreSqlOutboxStorage` schema before starting a worker. In particular, external delivery requires `retry_delay_ms BIGINT`, `lease_token UUID`, and `lease_expires_at TIMESTAMPTZ` in addition to the existing outbox columns and indexes. No old-schema migration is provided because this feature has not been released.
 
 **Observability:**
@@ -425,6 +427,8 @@ Its resource mode observes CPU, managed allocations, GC, process memory, and per
 
 ## Documentation
 
+The full index of guides, ADRs, package and test READMEs, and retained evidence is [docs/README.md](docs/README.md).
+
 - **[MassTransit Replacement Acceptance](docs/masstransit-replacement-acceptance.md)** - Reliability, performance, resource, and API requirements
 - **[Saga Orchestration Guide](docs/orchestration-pattern.md)** - Complete guide to saga patterns
 - **[Choreography Pattern](docs/choreography-pattern.md)** - Event-driven choreography documentation
@@ -436,7 +440,7 @@ Its resource mode observes CPU, managed allocations, GC, process memory, and per
 
 ### Prerequisites
 
-- .NET 10 SDK with Roslyn 5.9 or later (verified with SDK 10.0.401; builds every target framework)
+- .NET 10 SDK with Roslyn 5.9 or later (`global.json` pins 10.0.402 with `latestPatch` roll-forward; builds every target framework)
 - Docker (for integration tests)
 
 ### Building

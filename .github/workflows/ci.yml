@@ -151,6 +151,26 @@ jobs:
             ./test-results/**/*.xml
           retention-days: 7
 
+  docs-check:
+    name: Documentation Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Test docs checker
+        run: node --test .github/scripts/check-docs.test.ts
+
+      - name: Check docs links and index
+        run: node .github/scripts/check-docs.ts
+
   integration-tests:
     uses: ./.github/workflows/run-integration-tests.yml
 

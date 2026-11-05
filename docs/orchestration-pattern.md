@@ -600,7 +600,7 @@ var staleSagas = await repository.FindStaleAsync(TimeSpan.FromHours(1));
 
 ## Examples
 
-See `tests/HeroMessaging.Tests/Examples/OrderSagaExample.cs` for a complete implementation.
+See `tests/HeroMessaging.Tests.Shared/Sagas/OrderSagaFixture.cs` for a complete order saga used by the tests.
 
 ## References
 

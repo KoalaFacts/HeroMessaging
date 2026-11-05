@@ -15,6 +15,8 @@ Tests use xUnit with Microsoft.Testing.Platform. The runner is selected in the r
 - `HeroMessaging.Observability.*.Tests`: health checks and OpenTelemetry.
 - `HeroMessaging.SourceGenerators.Tests`: generated code and diagnostics.
 - `HeroMessaging.Tests.Shared`: shared helpers; this is not an executable test project.
+- `HeroMessaging.Benchmarks`: BenchmarkDotNet microbenchmarks and in-process comparison; not a test project ([README](HeroMessaging.Benchmarks/README.md)).
+- `NativeAotConsumer`: packaged NativeAOT consumer check run by CI ([README](NativeAotConsumer/README.md)).
 
 ## Running tests
 
@@ -32,15 +34,15 @@ dotnet test --project tests/HeroMessaging.Tests --framework net10.0 --filter-not
 dotnet test --filter-trait Category=Integration --minimum-expected-tests 0 --ignore-exit-code 8
 
 # Produce TRX and Cobertura reports
-dotnet test --project tests/HeroMessaging.Tests --filter-not-trait Category=Integration --filter-not-trait Category=Integration --report-trx --coverlet --coverlet-output-format cobertura
+dotnet test --project tests/HeroMessaging.Tests --filter-not-trait Category=Integration --report-trx --coverlet --coverlet-output-format cobertura
 
 reportgenerator '-reports:**/coverage.cobertura*.xml' -targetdir:coverage-report
 ```
 
 Architecture tests run without coverage instrumentation because they inspect assembly metadata. CI collects coverage from the other test projects.
 
-Shared test properties register the TRX and Coverlet MTP extensions only for executable `.Tests` projects. CI runs each supported framework separately and retains the 80% coverage requirement. See [the testing guide](../docs/testing-guide.md) for service configuration and test conventions.
+Shared test properties register the TRX and Coverlet MTP extensions only for executable `.Tests` projects. CI runs each supported framework separately and retains the 80% coverage requirement. See [the testing guide](../docs/testing-guide.md) for test conventions and [CONTRIBUTING.md](../CONTRIBUTING.md#integration-tests) for integration service configuration.
 
 ## Adding tests
 
-Place tests in the matching project and use `[Trait("Category", "Unit")]` or `[Trait("Category", "Integration")]`. Reuse `HeroMessaging.Tests.Shared` helpers where appropriate. Keep tests independent and preserve the existing coverage requirements.
+Place tests in the matching project and use `[Trait("Category", "Unit")]`, `[Trait("Category", "Integration")]` or `[Trait("Category", "Architecture")]`. Reuse `HeroMessaging.Tests.Shared` helpers where appropriate. Keep tests independent and preserve the existing coverage requirements.
