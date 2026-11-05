@@ -18,8 +18,15 @@ From a clean checkout with the stated SDK and native toolchain already available
 python3 .github/scripts/verify_nativeaot.py \
   --source "$PWD" --commit "$(git rev-parse HEAD)" \
   --output "$PWD/artifacts/nativeaot-local" \
-  --sdk 10.0.401 --tfm net10.0 --runtime 10.0.12 --rid linux-x64
+  --sdk "$(dotnet --version)" --tfm net10.0 --rid linux-x64 \
+  --runtime "$(dotnet --list-runtimes | awk '$1 == "Microsoft.NETCore.App" && $2 ~ /^10\.0\.[0-9]+$/ { print $2 }' | sort -V | tail -n 1)"
 ```
+
+This passes the newest installed stable `Microsoft.NETCore.App` 10.0.x patch;
+CI derives it the same way. Restore treats NuGet
+vulnerability warnings as errors, so an older patch whose
+`Microsoft.DotNet.ILCompiler` pack has a published advisory fails with NU1903
+(10.0.12 did from November 2026, GHSA-p3jp-9v83-76w9).
 
 Use a new output directory each time. The command rejects dirty/mismatched
 source and an unexpected SDK. For a future GA validation, explicitly select the
