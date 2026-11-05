@@ -6,7 +6,7 @@ We actively support the following versions of HeroMessaging with security update
 
 | Version | Supported          | .NET Target Frameworks |
 | ------- | ------------------ | ---------------------- |
-| 1.x     | :white_check_mark: | netstandard2.0, net6.0, net7.0, net8.0, net9.0 |
+| 1.x     | :white_check_mark: | net8.0, net9.0, net10.0 |
 | < 1.0   | :x:                | Pre-release versions not supported |
 
 ## Reporting a Vulnerability

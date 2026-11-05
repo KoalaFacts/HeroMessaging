@@ -1,152 +1,45 @@
-# HeroMessaging Documentation
+# HeroMessaging documentation index
 
-This directory contains comprehensive documentation for HeroMessaging.
+Every Markdown document in the repository is listed here once. Start with the [main README](../README.md) for the overview and quick start. `node .github/scripts/check-docs.ts` fails when a document is linked from neither this index nor the main README, a relative link or anchor is broken, or a repository path named in inline code does not exist (dated records are exempt from the path check only).
 
-## Quick Links
+## Users (current)
 
-### User Documentation
-- **[Batch Processing Guide](batch-processing-guide.md)** - High-throughput batch processing configuration and usage (NEW)
-- **[Saga Orchestration Pattern](orchestration-pattern.md)** - Complete guide to implementing sagas with state machines
-- **[Choreography Pattern](choreography-pattern.md)** - Event-driven choreography for distributed systems
-- **[OpenTelemetry Integration](opentelemetry-integration.md)** - Distributed tracing and observability setup
-- **[Builder API Guide](builder-api-guide.md)** - Fluent API for configuring HeroMessaging
+- [MassTransit replacement acceptance](masstransit-replacement-acceptance.md) — replacement requirements, evidence status and the work roadmap.
+- [Batch processing guide](batch-processing-guide.md) — configuring and using batch processing.
+- [Saga orchestration pattern](orchestration-pattern.md) — sagas with state machines.
+- [Choreography pattern](choreography-pattern.md) — event-driven coordination without an orchestrator.
+- [State machine builder API](builder-api-guide.md) — saga state-machine builder extensions.
+- [OpenTelemetry integration](opentelemetry-integration.md) — tracing and metrics setup.
+- [Idempotency](../src/HeroMessaging/Idempotency/README.md) — idempotency framework usage and storage.
+- [Source generators](../src/HeroMessaging.SourceGenerators/README.md) — generator package overview and compatibility limits; extended [usage](../src/HeroMessaging.SourceGenerators/USAGE.md) and [examples](../src/HeroMessaging.SourceGenerators/Examples/README.md) (2025 material; see the package README for what the runtime supports).
+- [Competitive benchmarks](../benchmarks/HeroMessaging.CompetitiveBenchmarks/README.md) — in-process comparison with MassTransit.
+- Security policy — supported versions and vulnerability reporting: [.github/SECURITY.md](../.github/SECURITY.md) (the one GitHub displays) and [SECURITY.md](../SECURITY.md) (an older, differently worded policy at the root).
 
-### Developer Documentation
-- **[Testing Guide](testing-guide.md)** - Testing infrastructure, patterns, and guidelines
-- **[Architecture Decision Records (ADRs)](adr/)** - Design decisions and rationale
+## Contributors and maintainers (current)
 
-## Architecture Decision Records
+- [Contributing guide](../CONTRIBUTING.md) — workflow, standards and integration-test services.
+- [Development guidelines](../CLAUDE.md) — binding rules for contributors and AI assistants.
+- [Testing guide](testing-guide.md) — test layout, patterns and CI.
+- [Test projects](../tests/README.md) — test project list and commands.
+- [Architecture tests](../tests/HeroMessaging.Architecture.Tests/README.md) — enforced architecture rules.
+- [Benchmarks](../tests/HeroMessaging.Benchmarks/README.md) — microbenchmarks and same-harness in-process comparison.
+- [NativeAOT package consumer](../tests/NativeAotConsumer/README.md) — packaged NativeAOT check run in CI.
+- [Release package preparation](release-package-preparation.md) — how release packages are built and verified.
+- [Environment protection](../.github/ENVIRONMENT_PROTECTION.md), [package signing](../.github/PACKAGE_SIGNING.md), [GitHub Advanced Security](../.github/GITHUB_ADVANCED_SECURITY.md), [security scan review](../.github/SECURITY_SCAN_REVIEW.md) — repository security and publishing setup.
+- [Changelog](../CHANGELOG.md) — release history and unreleased changes.
 
-ADRs document significant architectural decisions:
+## Architecture decision records
 
-- **[0001-message-scheduling.md](adr/0001-message-scheduling.md)** - Message scheduling approach
-- **[0002-transport-abstraction-layer.md](adr/0002-transport-abstraction-layer.md)** - Transport abstraction design
-- **[0003-rabbitmq-transport.md](adr/0003-rabbitmq-transport.md)** - RabbitMQ integration decisions
-- **[0004-saga-patterns.md](adr/0004-saga-patterns.md)** - Saga patterns (orchestration vs choreography)
-- **[0005-idempotency-framework.md](adr/0005-idempotency-framework.md)** - Idempotency framework design
-- **[0006-rate-limiting.md](adr/0006-rate-limiting.md)** - Rate limiting approach
-- **[0007-batch-processing.md](adr/0007-batch-processing.md)** - Batch processing framework (NEW)
+- [0001 Message scheduling](adr/0001-message-scheduling.md)
+- [0002 Transport abstraction layer](adr/0002-transport-abstraction-layer.md)
+- [0003 RabbitMQ transport](adr/0003-rabbitmq-transport.md)
+- [0004 Saga patterns](adr/0004-saga-patterns.md)
+- [0005 Idempotency framework](adr/0005-idempotency-framework.md)
+- [0006 Rate limiting](adr/0006-rate-limiting.md)
+- [0007 Batch processing](adr/0007-batch-processing.md)
 
-## Getting Started
+## Historical records and evidence (kept unchanged)
 
-New to HeroMessaging? Start here:
-
-1. **[Main README](../README.md)** - Project overview and quick start
-2. **[Contributing Guide](../CONTRIBUTING.md)** - Development workflow and standards
-3. **[Testing Guide](testing-guide.md)** - Testing approach and infrastructure
-
-## Pattern Guides
-
-### Saga Orchestration
-
-The saga pattern coordinates long-running distributed transactions:
-
-```csharp
-// Define saga
-public class OrderSaga : SagaBase
-{
-    public Guid OrderId { get; set; }
-    public string State { get; set; } = "Pending";
-}
-
-// Build state machine
-var stateMachine = new StateMachineBuilder<OrderSaga>()
-    .Initially(b => b
-        .When<OrderCreatedEvent>()
-        .Then((saga, evt) => saga.OrderId = evt.OrderId)
-        .TransitionTo("Processing"))
-    .Build();
-
-// Register
-services.AddHeroMessaging(builder =>
-{
-    builder.AddSaga<OrderSaga>(OrderSagaStateMachine.Build);
-    builder.UseInMemorySagaRepository<OrderSaga>();
-});
-```
-
-See [orchestration-pattern.md](orchestration-pattern.md) for complete guide.
-
-### Event Choreography
-
-Event-driven coordination without a central orchestrator:
-
-```csharp
-public class OrderCreatedHandler : IEventHandler<OrderCreatedEvent>
-{
-    private readonly IHeroMessaging _messaging;
-
-    public OrderCreatedHandler(IHeroMessaging messaging) => _messaging = messaging;
-
-    public async Task HandleAsync(OrderCreatedEvent evt, CancellationToken ct = default)
-    {
-        // Process order, publish more events
-        await _messaging.PublishAsync(new PaymentRequested(evt.OrderId), ct);
-    }
-}
-```
-
-See [choreography-pattern.md](choreography-pattern.md) for complete guide.
-
-### Batch Processing
-
-High-throughput message processing with automatic batching:
-
-```csharp
-// Configure batching
-services.AddHeroMessaging(builder =>
-{
-    builder.WithBatchProcessing(batch =>
-    {
-        batch.Enable().UseBalancedProfile();
-        // Automatic 20-40% throughput improvement
-    });
-});
-
-// Use batch API
-var commands = orders.Select(o => new ProcessOrderCommand { OrderId = o.Id }).ToList();
-var results = await messaging.SendBatchAsync(commands);
-```
-
-See [batch-processing-guide.md](batch-processing-guide.md) for complete guide.
-
-## Observability
-
-### OpenTelemetry
-
-HeroMessaging integrates with OpenTelemetry for distributed tracing:
-
-```csharp
-services.AddOpenTelemetry()
-    .WithTracing(builder => builder
-        .AddHeroMessagingInstrumentation()
-        .AddOtlpExporter());
-```
-
-See [opentelemetry-integration.md](opentelemetry-integration.md) for setup details.
-
-## Testing
-
-HeroMessaging includes comprehensive testing infrastructure:
-
-- **Unit Tests**: Fast, isolated tests with 80%+ coverage
-- **Integration Tests**: Database and service integration
-- **Performance Benchmarks**: BenchmarkDotNet for performance validation
-- **Contract Tests**: API contract validation
-
-See [testing-guide.md](testing-guide.md) for testing patterns and infrastructure.
-
-## Contributing Documentation
-
-When adding documentation:
-
-1. **User Guides**: Add to `docs/` root (e.g., `new-feature-guide.md`)
-2. **Architecture Decisions**: Add to `docs/adr/` with sequential numbering
-3. **API Documentation**: Use XML comments on public APIs
-4. **Examples**: Include code examples in test project
-
-See [CONTRIBUTING.md](../CONTRIBUTING.md) for full guidelines.
-
-## Archive
-
-Historical analysis and refactoring documents are in [archive/](archive/).
+- [Native evidence audit, 2026-10-17](native-evidence-audit-2026-10-17.md) — native profiling evidence decision.
+- Code-quality audit, 2025-11-28: [summary](audit/quality-summary.md), [plan](audit/code-quality-audit-plan.md), [generators](audit/generators-audit.md), [PostgreSQL](audit/postgresql-audit.md), [RabbitMQ](audit/rabbitmq-audit.md), [security](audit/security-audit.md), [SQL Server](audit/sqlserver-audit.md).
+- Benchmark results: [in-process allocations](../tests/HeroMessaging.Benchmarks/results/2026-09-30-inprocess-allocations.md), [in-process concurrent](../tests/HeroMessaging.Benchmarks/results/2026-09-30-inprocess-concurrent.md), [CPU scheduling](../tests/HeroMessaging.Benchmarks/results/2026-09-30-inprocess-cpu-scheduling.md), [publish receipt fast path](../tests/HeroMessaging.Benchmarks/results/2026-09-30-publish-receipt-fast-path.md), [channel dispatch experiment](../tests/HeroMessaging.Benchmarks/results/2026-10-01-channel-dispatch-experiment.md).

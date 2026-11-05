@@ -119,7 +119,7 @@ Settings → Code security → Code scanning
 
 **Custom Configuration:**
 
-Create `.github/codeql/codeql-config.yml`:
+Create a `codeql-config.yml` file in a new `codeql` folder under `.github`:
 ```yaml
 name: "HeroMessaging CodeQL Config"
 queries:

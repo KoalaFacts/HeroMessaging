@@ -1,6 +1,6 @@
 # HeroMessaging Development Guidelines for Claude Code
 
-Development guidelines for Claude Code and AI assistants. Last updated: 2025-11-07
+Development guidelines for Claude Code and AI assistants. Last updated: 2026-11-06
 
 ## Constitutional Principles
 1. **Code Quality & Maintainability**: SOLID principles, clear naming, low complexity
@@ -11,7 +11,7 @@ Development guidelines for Claude Code and AI assistants. Last updated: 2025-11-
 6. **Task Verification Protocol**: Every task must be verified before marking as finished
 
 ## Active Technologies
-- **Language**: C# 12, .NET multi-target (net8.0, net9.0, net10.0)
+- **Language**: C# 14 (`LangVersion` 14.0 in Directory.Build.props), .NET multi-target (net8.0, net9.0, net10.0); the source generator targets netstandard2.0 with `LangVersion` latest
 - **Testing**: Xunit.v3, BenchmarkDotNet, Coverlet, ReportGenerator
 - **Build**: MSBuild, Directory.Build.props for shared configuration
 - **CI/CD**: GitHub Actions with cross-platform matrix testing
@@ -22,15 +22,23 @@ Development guidelines for Claude Code and AI assistants. Last updated: 2025-11-
 src/
 ├── HeroMessaging/                          # Core library
 ├── HeroMessaging.Abstractions/             # Interfaces and contracts
-├── HeroMessaging.Storage.{Provider}/       # Storage plugins
-├── HeroMessaging.Serialization.{Format}/   # Serialization plugins
-└── HeroMessaging.Observability.{Tool}/     # Observability plugins
+├── HeroMessaging.RingBuffer/               # Ring buffer primitives
+├── HeroMessaging.SourceGenerators/         # Roslyn source generators
+├── HeroMessaging.Security/                 # Security plugin
+├── HeroMessaging.Transport.RabbitMQ/       # RabbitMQ transport
+├── HeroMessaging.Storage.{Provider}/       # Storage plugins (PostgreSql, SqlServer)
+├── HeroMessaging.Serialization.{Format}/   # Serialization plugins (Json, MessagePack, Protobuf)
+└── HeroMessaging.Observability.{Tool}/     # Observability plugins (OpenTelemetry, HealthChecks)
 
 tests/
-├── HeroMessaging.Tests/                    # Unit and integration tests
+├── HeroMessaging.Tests/                    # Core unit and integration tests
+├── HeroMessaging.{Package}.Tests/          # Per-package tests
+├── HeroMessaging.Architecture.Tests/       # Architecture rules
+├── HeroMessaging.Tests.Shared/             # Shared test helpers
 ├── HeroMessaging.Benchmarks/               # Performance benchmarks
-├── HeroMessaging.Contract.Tests/           # API contract tests
-└── Plugin.Tests/                           # Plugin-specific tests
+└── NativeAotConsumer/                      # Packaged NativeAOT consumer check
+
+benchmarks/HeroMessaging.CompetitiveBenchmarks/  # MassTransit comparison
 
 .github/workflows/                          # CI/CD automation
 ```
@@ -70,13 +78,14 @@ dotnet test --framework net10.0
 - **Extension Classes**: `ExtensionsTo{TargetType}` in target namespace
 - **Test Classes**: `{ClassUnderTest}Tests` with descriptive test method names
 - **Benchmark Classes**: `{Feature}Benchmarks` with `[Benchmark]` methods
-- **Categories**: Use `[Trait("Category", "Unit|Integration|Contract|Performance")]`
+- **Categories**: Use `[Trait("Category", "Unit|Integration|Architecture|Contract|Performance")]`
 - **Private Instance Fields**: `_camelCase` (e.g., `_logger`, `_messageStore`)
 - **Static Readonly Fields**: `PascalCase` (e.g., `DefaultOptions`, `EmptyResult`)
 - **Constants**: `PascalCase` (e.g., `DefaultMaxDecompressedSize`, `Send`)
 
 ### Code Organization
-- **Primary Constructors**: Use C# 12 syntax for services and decorators
+- **Primary Constructors**: Use primary-constructor syntax for services and decorators
+- **Lock fields**: Use `System.Threading.Lock` under `#if NET9_0_OR_GREATER` and `object` otherwise; prefer `params ReadOnlySpan<T>` for new `params` APIs
 - **Plugin Architecture**: Separate packages for different concerns
 - **Decorator Pattern**: For cross-cutting concerns (logging, retry, metrics)
 - **Builder Pattern**: Fluent configuration APIs
@@ -168,8 +177,8 @@ public async Task EndToEnd_WithRealDependencies_WorksCorrectly()
 The idempotency framework provides exactly-once semantics for at-least-once delivery scenarios through response caching. It's implemented as a decorator in the processing pipeline.
 
 ### Implementation Status
-- **Phase 1 (Complete)**: Core abstractions, in-memory storage, unit tests (84 passing)
-- **Phase 2 (Pending)**: Configuration API, SQL/PostgreSQL storage, integration tests
+- **Phase 1 (Complete)**: Core abstractions, in-memory storage, unit tests
+- **Phase 2 (Partial)**: Configuration API (`WithIdempotency`) and SQL Server/PostgreSQL storage exist with integration tests; `WithIdempotency` registers an `IdempotencyDecorator` factory but nothing adds the decorator to the processing pipeline yet, so it does not deduplicate on its own
 - **Phase 3 (Planned)**: Advanced key generators, concurrency handling, benchmarks
 - **Phase 4 (Planned)**: Documentation, samples, performance optimization
 
@@ -228,10 +237,10 @@ The `DefaultIdempotencyPolicy.IsIdempotentFailure()` classifies exceptions:
 - Cons: Hash computation overhead (~0.1ms)
 
 ### Testing Guidelines
-- **Unit Tests**: 100% coverage for all public APIs (84 tests currently passing)
+- **Unit Tests**: 100% coverage for all public APIs
 - **FakeTimeProvider**: Use `Microsoft.Extensions.Time.Testing.FakeTimeProvider` for deterministic TTL testing
 - **Concurrency Tests**: Verify thread-safety of storage operations
-- **Integration Tests** (Phase 2): End-to-end pipeline tests with real handlers
+- **Integration Tests**: End-to-end pipeline tests with real handlers
 
 ### Code Examples
 ```csharp
@@ -257,27 +266,27 @@ var decorator = new IdempotencyDecorator(
 var result = await decorator.ProcessAsync(message, context, cancellationToken);
 ```
 
-### Future Configuration API (Phase 2)
+### Configuration API
 ```csharp
-// Planned fluent API (not yet implemented)
 services.AddHeroMessaging(builder =>
 {
     builder.WithIdempotency(idempotency =>
     {
         idempotency
-            .UseSqlServerStore(connectionString)
+            .UseInMemoryStore()
             .WithSuccessTtl(TimeSpan.FromDays(7))
             .WithFailureTtl(TimeSpan.FromHours(1))
-            .CacheIdempotentFailures();
+            .WithFailureCaching(true);
     });
 });
 ```
+For durable storage, call `services.AddSqlServerIdempotencyStore(...)` or `services.AddPostgreSqlIdempotencyStore(...)` before `WithIdempotency`; the builder registers its defaults with `TryAdd`. The builder registers a `Func<IMessageProcessor, IdempotencyDecorator>` factory; the decorator is not yet inserted into the pipeline automatically.
 
 ### Architecture Documentation
 See [ADR 0005: Idempotency Framework](docs/adr/0005-idempotency-framework.md) for comprehensive architecture decisions, trade-offs, and implementation plan.
 
 ## Recent Changes
-1. **Idempotency Framework (Phase 1)**: Core abstractions, in-memory storage, and 84 unit tests (2025-11-07)
+1. **Idempotency Framework (Phase 1)**: Core abstractions, in-memory storage and unit tests (2025-11-07)
 2. **Test Suite Implementation**: Comprehensive testing infrastructure with 80%+ coverage
 3. **Performance Benchmarking**: BenchmarkDotNet integration with regression detection
 4. **Cross-Platform CI**: GitHub Actions matrix testing across all supported platforms
