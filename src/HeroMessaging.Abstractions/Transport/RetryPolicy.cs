@@ -46,7 +46,11 @@ public class RetryPolicy
         if (!UseExponentialBackoff)
             return InitialDelay;
 
-        // Exponential backoff: InitialDelay * 2^(attemptNumber-1)
+        // A zero initial delay stays zero; avoids 0 * infinity = NaN for very high attempt numbers.
+        if (InitialDelay <= TimeSpan.Zero)
+            return TimeSpan.Zero;
+
+        // Exponential backoff: InitialDelay * 2^(attemptNumber-1); an overflow to infinity clamps to MaxDelay.
         var multiplier = Math.Pow(2, attemptNumber - 1);
         var exponentialDelayMs = InitialDelay.TotalMilliseconds * multiplier;
         var clampedDelayMs = Math.Min(exponentialDelayMs, MaxDelay.TotalMilliseconds);

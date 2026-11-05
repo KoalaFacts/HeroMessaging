@@ -33,10 +33,23 @@ public static class InboxTransportSubscription
         if (!inboxOptions.RequireIdempotency)
             throw new ArgumentException("Inbox transport subscriptions require idempotency.", nameof(inboxOptions));
 
-        var options = (consumerOptions ?? ConsumerOptions.Default) with
+        var baseOptions = consumerOptions ?? ConsumerOptions.Default;
+        var retry = baseOptions.MessageRetryPolicy;
+        var options = baseOptions with
         {
             AutoAcknowledge = false,
-            RequeueOnFailure = true
+            RequeueOnFailure = true,
+            // Inbox intake failures (for example storage unavailable) must not reject a delivery:
+            // keep requeueing, with the configured backoff between attempts. A RabbitMQ quorum queue's
+            // own delivery limit still applies; disable or raise it for Inbox queues.
+            MessageRetryPolicy = new RetryPolicy
+            {
+                MaxAttempts = -1,
+                InitialDelay = retry.InitialDelay,
+                MaxDelay = retry.MaxDelay,
+                UseExponentialBackoff = retry.UseExponentialBackoff,
+                AttemptTimeout = retry.AttemptTimeout
+            }
         };
 
         return transport.SubscribeAsync(source, async (envelope, context, token) =>

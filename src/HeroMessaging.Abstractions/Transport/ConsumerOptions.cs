@@ -31,12 +31,15 @@ public record ConsumerOptions
     public bool AutoAcknowledge { get; init; } = true;
 
     /// <summary>
-    /// Whether to requeue messages on failure
+    /// Whether to requeue messages when the handler fails. When true, <see cref="MessageRetryPolicy"/>
+    /// limits the retries and sets the backoff; when false, a failed message is rejected at once.
     /// </summary>
     public bool RequeueOnFailure { get; init; } = true;
 
     /// <summary>
-    /// Retry policy for failed message processing
+    /// Retry policy for failed message processing. <see cref="RetryPolicy.MaxAttempts"/> counts retries after the
+    /// first delivery (0 = none, -1 = unlimited); when they are exhausted the message is rejected without requeue,
+    /// so the broker keeps it only if a dead-letter destination is configured.
     /// </summary>
     public RetryPolicy MessageRetryPolicy { get; init; } = new()
     {

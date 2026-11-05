@@ -565,6 +565,46 @@ public class InMemoryConsumerTests : IDisposable
     }
 
     [Fact]
+    public async Task ProcessMessage_WithInfiniteRetryPolicy_KeepsRetrying()
+    {
+        // Arrange
+        var attempts = 0;
+        var fifthAttempt = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var handler = new Func<TransportEnvelope, MessageContext, CancellationToken, Task>(
+            (env, ctx, ct) =>
+            {
+                if (Interlocked.Increment(ref attempts) == 5)
+                    fifthAttempt.TrySetResult(true);
+
+                return Task.FromException(new InvalidOperationException("Test error"));
+            });
+
+        var options = new ConsumerOptions
+        {
+            ConsumerId = "test-consumer",
+            AutoAcknowledge = true,
+            ConcurrentMessageLimit = 10,
+            StartImmediately = false,
+            MessageRetryPolicy = new RetryPolicy { MaxAttempts = -1, InitialDelay = TimeSpan.FromMilliseconds(1), UseExponentialBackoff = false }
+        };
+
+        var consumer = CreateConsumer(handler, options: options, timeProvider: TimeProvider.System);
+        await consumer.StartAsync(cancellationToken: TestContext.Current.CancellationToken);
+
+        // Act
+        await DeliverMessage(consumer, CreateTestEnvelope());
+        await fifthAttempt.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        // Assert: unlimited retries never dead-letter while running, and stopping still completes.
+        Assert.Equal(0, consumer.GetMetrics().MessagesDeadLettered);
+        await consumer.StopAsync(TestContext.Current.CancellationToken)
+            .WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        Assert.Equal(1, consumer.GetMetrics().MessagesDeadLettered);
+
+        await consumer.DisposeAsync();
+    }
+
+    [Fact]
     public async Task GetMetrics_ReturnsAccurateMetrics()
     {
         // Arrange

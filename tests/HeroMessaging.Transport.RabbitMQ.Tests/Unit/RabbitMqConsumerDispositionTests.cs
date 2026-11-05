@@ -55,7 +55,13 @@ public class RabbitMqConsumerDispositionTests
 
         var host = new Mock<IRabbitMqConsumerHost>();
         host.SetupGet(h => h.Name).Returns("RabbitMQ");
-        var options = new ConsumerOptions { AutoAcknowledge = action != "none" || expectedAck, RequeueOnFailure = requeueOnFailure };
+        // Zero backoff keeps the single-disposition check synchronous; retry timing is covered by RabbitMqConsumerRetryPolicyTests.
+        var options = new ConsumerOptions
+        {
+            AutoAcknowledge = action != "none" || expectedAck,
+            RequeueOnFailure = requeueOnFailure,
+            MessageRetryPolicy = new RetryPolicy { MaxAttempts = 3, InitialDelay = TimeSpan.Zero }
+        };
         await using var consumer = new RabbitMqConsumer(
             "test-consumer", TransportAddress.Queue("test-queue"), channel.Object,
             async (_, context, ct) =>

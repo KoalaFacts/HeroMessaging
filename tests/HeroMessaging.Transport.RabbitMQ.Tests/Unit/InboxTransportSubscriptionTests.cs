@@ -36,6 +36,8 @@ public sealed class InboxTransportSubscriptionTests
         Assert.NotNull(options);
         Assert.False(options.AutoAcknowledge);
         Assert.True(options.RequeueOnFailure);
+        Assert.Equal(-1, options.MessageRetryPolicy.MaxAttempts);
+        Assert.Equal(ConsumerOptions.Default.MessageRetryPolicy.InitialDelay, options.MessageRetryPolicy.InitialDelay);
         await getHandler()(Envelope(message.MessageId), new MessageContext
         {
             Acknowledge = _ =>

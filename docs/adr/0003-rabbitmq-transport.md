@@ -299,6 +299,22 @@ channel.QueueBind(queue, exchange, routingKey, arguments);
 
 ---
 
+### TD-6: Consumer Retry Policy on Handler Failure (2026-11-06)
+
+**Decision**: `ConsumerOptions.MessageRetryPolicy` governs RabbitMQ direct-consumer handler failures; the earlier immediate, unbounded requeue is replaced.
+
+- With `RequeueOnFailure = true` (default), the consumer computes retry *n* = previous retries + 1. While `RetryPolicy.ShouldRetry(n)` holds it waits `CalculateDelay(n)` in process (the delivery stays unacknowledged and holds a prefetch slot, as `DeferAsync` does) and then NACKs with requeue. Stopping the consumer during the wait requeues at once.
+- When retries are exhausted, or with `RequeueOnFailure = false`, it NACKs without requeue and counts `MessagesDeadLettered`. The broker retains the message only if the queue has a dead-letter exchange (`QueueDefinition.DeadLetterExchange`); otherwise RabbitMQ discards it.
+- `MaxAttempts` counts retries after the first delivery: `0` never retries, `-1` retries forever. `TransportEnvelope.DeliveryCount` exposes previous retries to handlers.
+- Retry state: a broker `x-delivery-count` header (quorum queues) is used as a floor and survives consumer restarts. It counts every return to the queue (handler failures, `DeferAsync`, `RejectAsync(requeue: true)`, channel loss, a stop during backoff), so those also use up the retry budget. RabbitMQ 4 quorum queues additionally enforce their own `delivery-limit` (default 20) and dead-letter or drop the message when it is reached; set `x-delivery-limit` above `MaxAttempts` (or disable it for Inbox queues).
+- Classic queues carry no count, so the consumer keeps one per message ID in memory (atomic increments; bounded at 10,000 IDs, least recently recorded evicted). Copies with the same ID share it, and a success clears it. It resets when the consumer restarts or another consumer receives the message, so on classic queues `MaxAttempts` bounds retries per consumer instance, not globally. A message with neither an ID nor a broker count gets one retry and is rejected when it comes back redelivered.
+- `InboxTransportSubscription` overrides the policy to unlimited retries with the configured backoff so an Inbox write failure does not reject the delivery (a quorum queue's own delivery limit still applies). The in-memory consumer stops unlimited retries when it is stopped, because a stop skips retry delays.
+- This is separate from Outbox retries (`OutboxOptions.MaxRetries`), which count failed publishes from the PostgreSQL Outbox to the broker.
+
+**Consequence**: a default consumer now dead-letters a persistently failing message after 3 retries (5 s, 10 s, 20 s) instead of redelivering it forever; configure a dead-letter exchange to keep it. Unit tests: `RabbitMqConsumerRetryPolicyTests`, `ConsumerRetryAttemptsTests`; integration (RabbitMQ 3.13): `RabbitMqErrorScenarioIntegrationTests.Consumer_WhenHandlerKeepsFailing_RetriesWithBackoffThenDeadLetters` (classic queue) and `Consumer_OnQuorumQueueAfterConsumerRestart_ContinuesRetryCountThenDeadLetters`.
+
+---
+
 ## Architectural Consequences
 
 ### Positive Consequences
@@ -370,6 +386,7 @@ channel.QueueBind(queue, exchange, routingKey, arguments);
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | 2025-10-27 | Claude Code | Initial ADR for RabbitMQ transport |
+| 1.1 | 2026-11-06 | HeroMessaging maintainers | TD-6 consumer retry policy |
 
 ---
 

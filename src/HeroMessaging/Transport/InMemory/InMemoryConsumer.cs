@@ -386,7 +386,13 @@ internal class InMemoryConsumer : ITransportConsumer
 
             // Retry logic - schedule retry asynchronously to avoid blocking other messages
             var retryCount = envelope.DeliveryCount;
-            if (!messageHandled && retryCount < _options.MessageRetryPolicy.MaxAttempts)
+            bool stoppingNow;
+            lock (_stateLock)
+                stoppingNow = _stopTask is not null;
+
+            // A stop skips retry delays, so unlimited retries would never let it finish: stop retrying instead.
+            var unlimitedDuringStop = stoppingNow && _options.MessageRetryPolicy.MaxAttempts == -1;
+            if (!messageHandled && !unlimitedDuringStop && _options.MessageRetryPolicy.ShouldRetry(retryCount + 1))
             {
                 var delay = _options.MessageRetryPolicy.CalculateDelay(retryCount + 1);
                 var retryEnvelope = envelope with { DeliveryCount = retryCount + 1 };
