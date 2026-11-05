@@ -90,9 +90,9 @@ jobs:
         if: matrix.os == 'ubuntu-latest' && matrix.framework == 'net10.0'
         shell: bash
         run: |
-          # Use the newest installed .NET 10 runtime patch rather than a hard-coded one:
-          # a pinned patch stops restoring once NuGet flags its ILCompiler pack (NU1903).
-          runtime="$(dotnet --list-runtimes | awk '$1 == "Microsoft.NETCore.App" && $2 ~ /^10\.0\.[0-9]+$/ { v = $2 } END { print v }')"
+          # Use the newest stable .NET 10 runtime patch installed on the runner (setup-dotnet or the image),
+          # not a hard-coded one: a pinned patch stops restoring once NuGet flags its ILCompiler pack (NU1903).
+          runtime="$(dotnet --list-runtimes | awk '$1 == "Microsoft.NETCore.App" && $2 ~ /^10\.0\.[0-9]+$/ { print $2 }' | sort -V | tail -n 1)"
           if [ -z "$runtime" ]; then
             echo "::error::No stable Microsoft.NETCore.App 10.0.x runtime is installed on this runner"
             exit 1

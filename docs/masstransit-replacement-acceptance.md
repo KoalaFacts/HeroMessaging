@@ -113,7 +113,7 @@ Work order for the first replacement route. Status: todo, in progress (PR), done
 
 | ID | Item | Moves | Status | Evidence |
 | --- | --- | --- | --- | --- |
-| R0 | Green main: the scheduled Build and Test run failed from 2026-11-04 because the NativeAOT consumer pinned runtime 10.0.12, whose `Microsoft.DotNet.ILCompiler` pack gained advisory GHSA-p3jp-9v83-76w9 (NU1903 as error). CI now passes the newest installed 10.0.x runtime. | F02 evidence job | in progress (PR #140) | Reproduced NU1903 locally with 10.0.12; consumer restore, publish and execute pass with SDK 10.0.403 / runtime 10.0.14 (`NATIVE_AOT_PASS`). |
+| R0 | Green main: the scheduled Build and Test run failed from 2026-11-04 because the NativeAOT consumer pinned runtime 10.0.12, whose `Microsoft.DotNet.ILCompiler` pack gained advisory GHSA-p3jp-9v83-76w9 (NU1903 as error). CI now passes the newest installed 10.0.x runtime. | F02 evidence job | done (PR #140) | Reproduced NU1903 locally with 10.0.12. PR #140 CI run 42057116267, Unit Tests (ubuntu-latest, net10.0): SDK 10.0.402, runtime 10.0.14 from the runner's installed set, `NativeAOT consumer passed`; also passed locally with SDK 10.0.403 / runtime 10.0.14. |
 | D0 | First docs housekeeping: fold finished plans and one-off analyses into their live pages and delete them; fix stale facts; add the docs checker. | — | todo | |
 | R1 | RabbitMQ direct-consumer retries/redelivery: attempt limit and backoff govern failure; terminal disposition; retry state across redelivery. | F09 | todo | |
 | R2 | Dead letters and replay: retained destination with failure context, safe replay, operator procedure. | F10 | todo | |
