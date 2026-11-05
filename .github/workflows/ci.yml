@@ -256,7 +256,7 @@ jobs:
   # Quality gates and final validation
   quality-gates:
     name: Quality Gates & Validation
-    needs: [unit-tests, integration-tests]
+    needs: [unit-tests, integration-tests, docs-check]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 10

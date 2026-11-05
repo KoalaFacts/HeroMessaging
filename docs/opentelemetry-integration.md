@@ -227,7 +227,7 @@ The integration follows OpenTelemetry semantic conventions for messaging systems
 
 ## Compatibility
 
-- **.NET Versions:** net6.0, net7.0, net8.0, net9.0
+- **.NET Versions:** net8.0, net9.0, net10.0
 - **OpenTelemetry Spec:** Compatible with OTLP 1.0
 
 ## Future Enhancements

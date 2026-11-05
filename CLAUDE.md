@@ -11,7 +11,7 @@ Development guidelines for Claude Code and AI assistants. Last updated: 2026-11-
 6. **Task Verification Protocol**: Every task must be verified before marking as finished
 
 ## Active Technologies
-- **Language**: C# 14 (`LangVersion` 14.0), .NET multi-target (net8.0, net9.0, net10.0); the source generator targets netstandard2.0
+- **Language**: C# 14 (`LangVersion` 14.0 in Directory.Build.props), .NET multi-target (net8.0, net9.0, net10.0); the source generator targets netstandard2.0 with `LangVersion` latest
 - **Testing**: Xunit.v3, BenchmarkDotNet, Coverlet, ReportGenerator
 - **Build**: MSBuild, Directory.Build.props for shared configuration
 - **CI/CD**: GitHub Actions with cross-platform matrix testing
@@ -84,7 +84,8 @@ dotnet test --framework net10.0
 - **Constants**: `PascalCase` (e.g., `DefaultMaxDecompressedSize`, `Send`)
 
 ### Code Organization
-- **Primary Constructors**: Use C# 12 syntax for services and decorators
+- **Primary Constructors**: Use primary-constructor syntax for services and decorators
+- **Lock fields**: Use `System.Threading.Lock` under `#if NET9_0_OR_GREATER` and `object` otherwise; prefer `params ReadOnlySpan<T>` for new `params` APIs
 - **Plugin Architecture**: Separate packages for different concerns
 - **Decorator Pattern**: For cross-cutting concerns (logging, retry, metrics)
 - **Builder Pattern**: Fluent configuration APIs
@@ -177,7 +178,7 @@ The idempotency framework provides exactly-once semantics for at-least-once deli
 
 ### Implementation Status
 - **Phase 1 (Complete)**: Core abstractions, in-memory storage, unit tests
-- **Phase 2 (Complete)**: Configuration API (`WithIdempotency`), SQL Server/PostgreSQL storage, integration tests
+- **Phase 2 (Partial)**: Configuration API (`WithIdempotency`) and SQL Server/PostgreSQL storage exist with integration tests; `WithIdempotency` registers an `IdempotencyDecorator` factory but nothing adds the decorator to the processing pipeline yet, so it does not deduplicate on its own
 - **Phase 3 (Planned)**: Advanced key generators, concurrency handling, benchmarks
 - **Phase 4 (Planned)**: Documentation, samples, performance optimization
 
@@ -279,7 +280,7 @@ services.AddHeroMessaging(builder =>
     });
 });
 ```
-For durable storage, call `services.AddSqlServerIdempotencyStore(...)` or `services.AddPostgreSqlIdempotencyStore(...)` before `WithIdempotency`; the builder registers its defaults with `TryAdd`.
+For durable storage, call `services.AddSqlServerIdempotencyStore(...)` or `services.AddPostgreSqlIdempotencyStore(...)` before `WithIdempotency`; the builder registers its defaults with `TryAdd`. The builder registers a `Func<IMessageProcessor, IdempotencyDecorator>` factory; the decorator is not yet inserted into the pipeline automatically.
 
 ### Architecture Documentation
 See [ADR 0005: Idempotency Framework](docs/adr/0005-idempotency-framework.md) for comprehensive architecture decisions, trade-offs, and implementation plan.

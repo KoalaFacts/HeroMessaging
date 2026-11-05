@@ -69,7 +69,7 @@ builder.WithEventBus(options =>
 
 `MaxDegreeOfParallelism` and `BoundedCapacity` must be positive. Set `MaxPooledEnvelopes` to zero to disable pooling.
 
-`HeroMessaging.RingBuffer`, a direct dependency of `HeroMessaging`, provides Disruptor-style sequencers, wait strategies and a batch event processor. `UseChannelQueue(...)` and `UseRingBufferQueue(...)` currently only register `InMemoryQueueOptions`; no runtime component reads those options yet, so they do not change in-memory queue behaviour.
+`HeroMessaging.RingBuffer`, a direct dependency of `HeroMessaging`, provides Disruptor-style sequencers, wait strategies and a batch event processor. `UseChannelQueue(...)` and `UseRingBufferQueue(...)` currently only validate and register `InMemoryQueueOptions`; no runtime component reads those options yet, so they do not change in-memory queue behaviour.
 
 If `PostgreSqlStorageOptions.AutoCreateTables` is `false`, provision the outbox table using the current `PostgreSqlOutboxStorage` schema before starting a worker. In particular, external delivery requires `retry_delay_ms BIGINT`, `lease_token UUID`, and `lease_expires_at TIMESTAMPTZ` in addition to the existing outbox columns and indexes. No old-schema migration is provided because this feature has not been released.
 

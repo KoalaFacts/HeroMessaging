@@ -323,7 +323,7 @@ See existing ADRs for examples:
    node --test .github/scripts/check-docs.test.ts
    node .github/scripts/check-docs.ts
    ```
-   It fails on broken relative links or anchors, Markdown files missing from [docs/README.md](docs/README.md), and repository paths named in inline code that do not exist.
+   It fails on broken relative links or anchors, Markdown files linked from neither [docs/README.md](docs/README.md) nor README.md, and repository paths named in inline code that do not exist.
 
 ### PR Guidelines
 

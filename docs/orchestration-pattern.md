@@ -578,7 +578,7 @@ var staleSagas = await repository.FindStaleAsync(TimeSpan.FromHours(1));
 **Benefits:**
 - **Deterministic Tests**: Full control over time progression in tests
 - **No Flaky Tests**: Eliminate timing-dependent test failures
-- **Framework Support**: Works across netstandard2.0, net6.0, net7.0, net8.0, net9.0
+- **Framework Support**: Works across net8.0, net9.0, net10.0
 - **Zero Overhead**: .NET 8+ has built-in TimeProvider, older versions use polyfill
 
 **Time-Controlled Operations:**

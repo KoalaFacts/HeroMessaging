@@ -9,7 +9,8 @@ The idempotency framework enables exactly-once processing semantics for at-least
 - ✅ Core abstractions and interfaces
 - ✅ Default implementation with in-memory storage
 - ✅ Unit test coverage
-- ✅ Configuration API (`builder.WithIdempotency(...)`)
+- ✅ Configuration API (`builder.WithIdempotency(...)`) registers the policy, key generator, store and an `IdempotencyDecorator` factory
+- ⏳ Pipeline integration: the decorator is not yet added to the processing pipeline automatically
 - ✅ SQL Server / PostgreSQL storage (`AddSqlServerIdempotencyStore`, `AddPostgreSqlIdempotencyStore`) with integration tests
 
 ## Core Concepts
@@ -241,6 +242,9 @@ dotnet test --filter "Category=Unit&FullyQualifiedName~Idempotency"
 - **Code Documentation**: Comprehensive XML docs on all public APIs
 
 ## Roadmap
+
+### Next: Pipeline integration
+- Insert `IdempotencyDecorator` into the processing pipeline when `WithIdempotency` is configured
 
 ### Phase 3: Advanced Features
 - Idempotency-specific telemetry

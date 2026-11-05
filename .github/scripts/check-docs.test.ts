@@ -33,6 +33,7 @@ describe("slugify", () => {
     assert.equal(slugify("Integration Tests"), "integration-tests");
     assert.equal(slugify("F09 — Consumer retries/redelivery!"), "f09--consumer-retriesredelivery");
     assert.equal(slugify("`WithIdempotency` API"), "withidempotency-api");
+    assert.equal(slugify("_Emphasis_ and snake_case"), "emphasis-and-snake_case");
   });
 
   it("numbers duplicate headings", () => {
@@ -88,6 +89,38 @@ describe("checkDocs", () => {
       "README.md": "```md\n[x](missing.md) `src/missing.cs`\n```\n[site](https://example.com/x.md)\n",
     });
     assert.deepEqual(messages(root), []);
+  });
+
+  it("ignores longer and info-string fences until a matching close", () => {
+    const root = repo({
+      "README.md": "````md\n```bash\n[x](missing.md)\n```\n[y](missing.md)\n````\n",
+    });
+    assert.deepEqual(messages(root), []);
+  });
+
+  it("ignores indented code blocks", () => {
+    const root = repo({ "README.md": "Intro\n\n    [x](missing.md)\n" });
+    assert.deepEqual(messages(root), []);
+  });
+
+  it("checks the outer link of a badge", () => {
+    const root = repo({ "README.md": "[![badge](https://example.com/b.svg)](docs/missing.md)\n" });
+    assert.deepEqual(messages(root), ["README.md:1: broken link: docs/missing.md"]);
+  });
+
+  it("checks repository paths inside inline commands", () => {
+    const root = repo({ "README.md": "Run `dotnet test --project tests/Missing.Tests`.\n" });
+    assert.deepEqual(messages(root), ["README.md:1: named path does not exist: tests/Missing.Tests"]);
+  });
+
+  it("reports a link to a sibling directory that only shares the root prefix", () => {
+    const root = repo({ "README.md": "[x](../outside/x.md)\n" });
+    assert.match(messages(root)[0], /link leaves the repository/);
+  });
+
+  it("does not throw on a stray percent sign", () => {
+    const root = repo({ "README.md": "[x](docs/100%.md)\n" });
+    assert.deepEqual(messages(root), ["README.md:1: broken link: docs/100%.md"]);
   });
 
   it("still checks links but not named paths in historical records", () => {

@@ -221,7 +221,7 @@ public class MyPluginTests(ITestOutputHelper output) : PluginTestBase<IMyPlugin>
 ```
 
 ### Database services
-Integration tests use real PostgreSQL, SQL Server and RabbitMQ services; the connection settings are in [CONTRIBUTING.md](../CONTRIBUTING.md#integration-tests).
+Integration tests run against real PostgreSQL, SQL Server and RabbitMQ. The Saga and RabbitMQ fixtures start Testcontainers unless you set `PostgreSql__ConnectionString`, `SqlServer__ConnectionString` or `RabbitMq__Host` to point them at services you provide (as CI does). See [CONTRIBUTING.md](../CONTRIBUTING.md#integration-tests) for the database rules.
 
 ## Best Practices
 

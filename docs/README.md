@@ -1,6 +1,6 @@
 # HeroMessaging documentation index
 
-Every Markdown document in the repository is listed here once. Start with the [main README](../README.md) for the overview and quick start. `node .github/scripts/check-docs.ts` fails when a document is missing from this index or a relative link is broken.
+Every Markdown document in the repository is listed here once. Start with the [main README](../README.md) for the overview and quick start. `node .github/scripts/check-docs.ts` fails when a document is linked from neither this index nor the main README, a relative link or anchor is broken, or a repository path named in inline code does not exist (dated records are exempt from the path check only).
 
 ## Users (current)
 
@@ -13,7 +13,7 @@ Every Markdown document in the repository is listed here once. Start with the [m
 - [Idempotency](../src/HeroMessaging/Idempotency/README.md) — idempotency framework usage and storage.
 - [Source generators](../src/HeroMessaging.SourceGenerators/README.md) — generator package overview and compatibility limits; extended [usage](../src/HeroMessaging.SourceGenerators/USAGE.md) and [examples](../src/HeroMessaging.SourceGenerators/Examples/README.md) (2025 material; see the package README for what the runtime supports).
 - [Competitive benchmarks](../benchmarks/HeroMessaging.CompetitiveBenchmarks/README.md) — in-process comparison with MassTransit.
-- [Security policy](../SECURITY.md) — supported versions and vulnerability reporting. [.github/SECURITY.md](../.github/SECURITY.md) is a second copy GitHub displays.
+- Security policy — supported versions and vulnerability reporting: [.github/SECURITY.md](../.github/SECURITY.md) (the one GitHub displays) and [SECURITY.md](../SECURITY.md) (an older, differently worded policy at the root).
 
 ## Contributors and maintainers (current)
 
