@@ -383,33 +383,30 @@ public sealed class RabbitMqDeadLetterReplayIntegrationTests : RabbitMqIntegrati
     public async Task ReplayDeadLetters_FromPriorityQueue_UnresolvedHighPriorityMessageDoesNotHideTheRest()
     {
         var token = TestContext.Current.CancellationToken;
+        var deadLetterExchange = CreateExchangeName();
         var deadLetterQueue = CreateQueueName();
-        var targetQueue = CreateQueueName();
+        var workQueue = CreateQueueName();
         var topology = new TransportTopology();
+        topology.AddExchange(new ExchangeDefinition { Name = deadLetterExchange, Type = HeroMessaging.Abstractions.Transport.ExchangeType.Direct, Durable = true });
         topology.AddQueue(new QueueDefinition { Name = deadLetterQueue, Durable = true, MaxPriority = 10 });
-        topology.AddQueue(new QueueDefinition { Name = targetQueue, Durable = true });
+        topology.AddBinding(new BindingDefinition { SourceExchange = deadLetterExchange, Destination = deadLetterQueue, RoutingKey = "failed" });
+        topology.AddQueue(new QueueDefinition { Name = workQueue, Durable = true, DeadLetterExchange = deadLetterExchange, DeadLetterRoutingKey = "failed" });
         await Transport!.ConfigureTopologyAsync(topology, token);
-        var history = new Dictionary<string, object?>
-        {
-            ["x-death"] = new List<object> { new Dictionary<string, object?> { ["queue"] = targetQueue, ["reason"] = "rejected", ["count"] = 1L } }
-        };
+        _deadLetterExchanges[deadLetterQueue] = deadLetterExchange;
+        await DeadLetterAsync(workQueue, deadLetterQueue, [CreateTestEnvelope(), CreateTestEnvelope()]);
         await using (var connection = await ConnectAsync())
         await using (var channel = await connection.CreateChannelAsync(cancellationToken: token))
         {
+            // No x-death history, and a priority that puts it ahead of the dead-lettered messages.
             await channel.BasicPublishAsync(string.Empty, deadLetterQueue, false,
                 new BasicProperties { MessageId = "unresolved", Priority = 9, Persistent = true }, new byte[] { 1 }, token);
-            foreach (var id in new[] { "a", "b" })
-            {
-                await channel.BasicPublishAsync(string.Empty, deadLetterQueue, false,
-                    new BasicProperties { MessageId = id, Priority = 1, Persistent = true, Headers = history }, new byte[] { 1 }, token);
-            }
         }
         await WaitForMessageCountAsync(deadLetterQueue, 3);
 
         var result = await Transport.ReplayDeadLettersAsync(TransportAddress.Queue(deadLetterQueue), cancellationToken: token);
 
         Assert.Equal(new DeadLetterReplayResult(2, 1), result);
-        Assert.Equal(2u, await GetMessageCountAsync(targetQueue));
+        Assert.Equal(2u, await GetMessageCountAsync(workQueue));
         Assert.Equal(1u, await WaitForMessageCountAsync(deadLetterQueue, 1));
     }
 
