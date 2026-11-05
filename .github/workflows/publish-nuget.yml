@@ -146,7 +146,7 @@ jobs:
           path: ./packages
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: |
             8.0.x
@@ -237,7 +237,7 @@ jobs:
           path: ./packages
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: |
             8.0.x
@@ -322,19 +322,19 @@ jobs:
             // Add publication status to release notes
             const updatedBody = `${release.data.body}
 
----
+            ---
 
-## ✅ Publication Status
+            ## ✅ Publication Status
 
-- ✅ **NuGet.org**: [View packages](https://www.nuget.org/packages/HeroMessaging/${version})
-- ✅ **GitHub Packages**: [View packages](https://github.com/${{ github.repository }}/packages)
+            - ✅ **NuGet.org**: [View packages](https://www.nuget.org/packages/HeroMessaging/${version})
+            - ✅ **GitHub Packages**: [View packages](https://github.com/${{ github.repository }}/packages)
 
-**Published**: ${new Date().toISOString()}
+            **Published**: ${new Date().toISOString()}
 
----
+            ---
 
-_Published automatically via [Publish to NuGet workflow](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})_
-`;
+            _Published automatically via [Publish to NuGet workflow](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})_
+            `;
 
             // Update release
             await github.rest.repos.updateRelease({

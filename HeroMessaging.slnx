@@ -4,6 +4,9 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
+  <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/HeroMessaging.CompetitiveBenchmarks/HeroMessaging.CompetitiveBenchmarks.csproj" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/HeroMessaging.Abstractions/HeroMessaging.Abstractions.csproj" />
     <Project Path="src/HeroMessaging.Observability.HealthChecks/HeroMessaging.Observability.HealthChecks.csproj" />

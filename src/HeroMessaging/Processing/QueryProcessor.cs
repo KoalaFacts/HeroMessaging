@@ -1,3 +1,6 @@
+using System.Reflection;
+using System.Runtime.CompilerServices;
+using HeroMessaging.Abstractions.Handlers;
 using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Abstractions.Queries;
 using HeroMessaging.Utilities;
@@ -47,19 +50,30 @@ public class QueryProcessor : IQueryProcessor, IProcessor, IAsyncDisposable
             throw new ObjectDisposedException(nameof(QueryProcessor));
         }
 
-        // Use cached handler type - avoids MakeGenericType allocation after first call
-        var handlerType = HandlerTypeCache.GetQueryHandlerType(query.GetType(), typeof(TResponse));
-        var handler = _serviceProvider.GetService(handlerType) ?? throw new InvalidOperationException($"No handler found for query type {query.GetType().Name}");
-
-        // Cache the handle method to avoid reflection on each call
-        var handleMethod = HandlerTypeCache.GetHandleMethod(handlerType);
+        object? handler = null;
+        MethodInfo? handleMethod = null;
+        Func<object, CancellationToken, Task<TResponse>>? generated = null;
+        if (RuntimeFeature.IsDynamicCodeSupported)
+        {
+            // Preserve the existing manual-registration path on JIT runtimes.
+            (handler, handleMethod) = ResolveDynamicHandler(query);
+        }
+        else
+        {
+            // Resolve before waiting to preserve handler lifetime and failure ordering.
+            generated = ResolveGeneratedHandler(query);
+        }
 
         await _processingLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
             var startTime = _timeProvider.GetTimestamp();
-            var result = await ((Task<TResponse>)handleMethod.Invoke(handler, [query, cancellationToken])!).ConfigureAwait(false);
+            var execution = generated is not null
+                ? generated(query, cancellationToken)
+                : (Task<TResponse>)handleMethod!.Invoke(handler, BindingFlags.DoNotWrapExceptions,
+                    binder: null, parameters: [query, cancellationToken], culture: null)!;
+            var result = await execution.ConfigureAwait(false);
             var elapsedMs = _timeProvider.GetElapsedTime(startTime).TotalMilliseconds;
 
             _metrics.RecordSuccess((long)elapsedMs);
@@ -80,6 +94,26 @@ public class QueryProcessor : IQueryProcessor, IProcessor, IAsyncDisposable
             _processingLock.Release();
         }
     }
+    private Func<object, CancellationToken, Task<TResponse>> ResolveGeneratedHandler<TResponse>(IQuery<TResponse> query)
+    {
+        if (_serviceProvider is IKeyedServiceProvider keyedProvider &&
+            keyedProvider.GetKeyedService(typeof(Func<object, CancellationToken, Task<TResponse>>),
+                (typeof(IQueryHandler<,>), query.GetType())) is Func<object, CancellationToken, Task<TResponse>> generated)
+        {
+            return generated;
+        }
+
+        throw new InvalidOperationException($"No generated handler found for query type {query.GetType().Name}. Use AddGeneratedHandlers for NativeAOT query dispatch.");
+    }
+
+    private (object Handler, MethodInfo Method) ResolveDynamicHandler<TResponse>(IQuery<TResponse> query)
+    {
+        var handlerType = HandlerTypeCache.GetQueryHandlerType(query.GetType(), typeof(TResponse));
+        var handler = _serviceProvider.GetService(handlerType) ?? throw new InvalidOperationException($"No handler found for query type {query.GetType().Name}");
+        var handleMethod = HandlerTypeCache.GetHandleMethod(handlerType);
+        return (handler, handleMethod);
+    }
+
     /// <summary>
     /// Executes get metrics.
     /// </summary>

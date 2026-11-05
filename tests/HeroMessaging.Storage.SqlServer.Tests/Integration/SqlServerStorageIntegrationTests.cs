@@ -5,6 +5,7 @@ using Xunit;
 namespace HeroMessaging.Storage.SqlServer.Tests.Integration;
 
 [Trait("Category", "Integration")]
+[Collection("SQL Server storage integration")]
 public class SqlServerStorageIntegrationTests : SqlServerIntegrationTestBase
 {
     [Fact]

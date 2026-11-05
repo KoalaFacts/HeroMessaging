@@ -31,7 +31,7 @@ public class ProtobufMessageSerializerTests
     [ProtoContract]
     private class ComplexTestMessage
     {
-        [ProtoMember(1)]
+        [ProtoMember(1, IsRequired = true)]
         public string Id { get; set; } = Guid.NewGuid().ToString();
 
         [ProtoMember(2)]
@@ -377,6 +377,26 @@ public class ProtobufMessageSerializerTests
     #endregion
 
     #region DeserializeAsync Tests
+
+    [Fact]
+    [Trait("Category", "Unit")]
+    public async Task SerializeDeserialize_ComplexMessageWithEmptyId_PreservesEmptyId()
+    {
+        var serializer = new ProtobufMessageSerializer();
+        var original = new ComplexTestMessage
+        {
+            Id = string.Empty,
+            Nested = new TestMessage { Id = 1, Name = "Nested" }
+        };
+
+        var data = await serializer.SerializeAsync(original, cancellationToken: TestContext.Current.CancellationToken);
+        var result = await serializer.DeserializeAsync<ComplexTestMessage>(data, cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.NotNull(result);
+        Assert.Equal(string.Empty, result.Id);
+        Assert.NotNull(result.Nested);
+        Assert.Equal(original.Nested.Id, result.Nested.Id);
+    }
 
     [Fact]
     [Trait("Category", "Unit")]

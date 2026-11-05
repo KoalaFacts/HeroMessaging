@@ -862,8 +862,8 @@ public class OrderTestData
 ### Generator Not Running
 
 **Check these:**
-1. Target framework supports source generators (.NET 5+)
-2. C# language version is recent (C# 9+)
+1. Compiler host supports Roslyn 5.9 or later (verified with .NET SDK 10.0.401). Older SDKs and IDE compiler hosts cannot load this version of the analyzer.
+2. C# language version is recent (C# 9+). The compiler host requirement is separate from the application's target framework.
 3. Package correctly installed in `.csproj`:
    ```xml
    <PackageReference Include="HeroMessaging.SourceGenerators" Version="1.0.0" />
@@ -927,7 +927,7 @@ A: Yes, it's normal C# code. Test it like any other code.
 
 ## License
 
-MIT License - same as HeroMessaging
+Apache License, Version 2.0 - same as HeroMessaging
 
 ---
 

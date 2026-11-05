@@ -115,7 +115,7 @@ try {
     $result | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $fixture
     Read-InProcessProfileControl $fixture $expected | Out-Null
     $observation = Get-InProcessCalibrationObservation ([PSCustomObject]$result) -Runs 3
-    if ($observation.fastestSeconds -ne 12.5 -or (Get-InProcessCalibrationCount 500000 $observation.fastestSeconds 10 10000000) -ne 500000) {
+    if ($observation.fastestSeconds -ne 12.5 -or (Get-InProcessCalibrationCount 500000 $observation.fastestSeconds 10 10000000) -ne 600000) {
         throw 'Actual profiling import order broke calibration execution.'
     }
     $result.samples[2].completeEventsPerSecond = 60000

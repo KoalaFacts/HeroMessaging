@@ -31,13 +31,6 @@ public class InMemoryInboxStorage : IInboxStorage
     {
         var messageId = message.MessageId.ToString();
 
-        if (options.RequireIdempotency && _entries.ContainsKey(messageId))
-        {
-            var existing = _entries[messageId];
-            existing.Status = InboxStatus.Duplicate;
-            return Task.FromResult<InboxEntry?>(null);
-        }
-
         var entry = new InboxEntry
         {
             Id = messageId,
@@ -46,6 +39,11 @@ public class InMemoryInboxStorage : IInboxStorage
             Status = InboxStatus.Pending,
             ReceivedAt = _timeProvider.GetUtcNow()
         };
+
+        if (options.RequireIdempotency)
+        {
+            return Task.FromResult<InboxEntry?>(_entries.TryAdd(messageId, entry) ? entry : null);
+        }
 
         _entries[messageId] = entry;
         return Task.FromResult<InboxEntry?>(entry);

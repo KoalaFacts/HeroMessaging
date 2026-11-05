@@ -6,6 +6,7 @@ using Xunit;
 namespace HeroMessaging.Storage.SqlServer.Tests.Integration;
 
 [Trait("Category", "Integration")]
+[Collection("SQL Server storage integration")]
 public class SqlServerSagaRepositoryTests : IAsyncLifetime
 {
     private MsSqlContainer? _sqlContainer;
@@ -19,17 +20,22 @@ public class SqlServerSagaRepositoryTests : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
-        // Create and start SQL Server container
-        _sqlContainer = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest")
-            .WithPassword("YourStrong@Passw0rd")
-            .Build();
+        // External connections must target a dedicated disposable test database.
+        // The caller removes it, including generated tables, even if the test process exits (see CONTRIBUTING.md).
+        var connectionString = Environment.GetEnvironmentVariable("SqlServer__ConnectionString");
+        if (string.IsNullOrEmpty(connectionString))
+        {
+            _sqlContainer = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest")
+                .WithPassword("YourStrong@Passw0rd")
+                .Build();
 
-        await _sqlContainer.StartAsync(TestContext.Current.CancellationToken);
+            await _sqlContainer.StartAsync(TestContext.Current.CancellationToken);
+            connectionString = _sqlContainer.GetConnectionString();
+        }
 
-        // Create storage options with container connection string
         _options = new SqlServerStorageOptions
         {
-            ConnectionString = _sqlContainer.GetConnectionString(),
+            ConnectionString = connectionString,
             Schema = "test",
             SagasTableName = $"Sagas_{Guid.NewGuid():N}",
             AutoCreateTables = true

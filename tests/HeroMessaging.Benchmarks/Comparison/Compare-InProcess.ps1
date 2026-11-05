@@ -6,11 +6,11 @@ param(
     [string]$OutputDirectory = 'artifacts/ci-inprocess',
     [ValidateRange(1, 4)][int]$Rounds = 1,
     [ValidateRange(1, 10)][int]$Runs = 3,
-    [ValidateRange(32, 10000000)][int]$NoopMessages = 2000000,
-    [ValidateRange(32, 10000000)][int]$MultiHandlerMessages = 500000,
+    [ValidateRange(32, 20000000)][int]$NoopMessages = 2000000,
+    [ValidateRange(32, 20000000)][int]$MultiHandlerMessages = 500000,
     [ValidateRange(32, 1000000)][int]$WarmupCount = 100000,
     [ValidateRange(0, 30)][int]$MinimumBatchSeconds = 10,
-    [ValidateRange(32, 10000000)][int]$MaximumMessages = 10000000
+    [ValidateRange(32, 20000000)][int]$MaximumMessages = 20000000
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'

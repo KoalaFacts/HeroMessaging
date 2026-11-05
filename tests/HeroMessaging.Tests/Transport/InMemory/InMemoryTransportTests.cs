@@ -316,17 +316,19 @@ public class InMemoryTransportTests : IAsyncLifetime
         var queue = TransportAddress.Queue("retry-queue");
         var envelope = new TransportEnvelope("TestMessage", new byte[] { 1, 2, 3 }.AsMemory());
         int attemptCount = 0;
+        var acknowledged = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        var consumer = await _transport!.SubscribeAsync(
+        await using var consumer = await _transport!.SubscribeAsync(
             queue,
             async (env, ctx, ct) =>
             {
-                attemptCount++;
-                if (attemptCount < 3)
+                var attempt = Interlocked.Increment(ref attemptCount);
+                if (attempt < 3)
                 {
                     throw new InvalidOperationException("Simulated failure");
                 }
                 await ctx.AcknowledgeAsync(ct);
+                acknowledged.TrySetResult();
             },
             new ConsumerOptions
             {
@@ -341,12 +343,14 @@ public class InMemoryTransportTests : IAsyncLifetime
 
         // Act
         await _transport!.SendAsync(queue, envelope, TestContext.Current.CancellationToken);
-        await Task.Delay(500, TestContext.Current.CancellationToken); // Give time for retries
+        await acknowledged.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        await consumer.StopAsync(TestContext.Current.CancellationToken);
 
         // Assert
-        Assert.Equal(3, attemptCount);
-
-        await consumer.DisposeAsync();
+        Assert.Equal(3, Volatile.Read(ref attemptCount));
+        var metrics = consumer.GetMetrics();
+        Assert.Equal(1, metrics.MessagesAcknowledged);
+        Assert.Equal(2, metrics.MessagesFailed);
     }
 
     [Fact]

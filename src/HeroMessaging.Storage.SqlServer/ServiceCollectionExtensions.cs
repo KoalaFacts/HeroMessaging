@@ -19,6 +19,9 @@ public static class ExtensionsToIHeroMessagingBuilderForSqlServer
     /// </summary>
     public static IHeroMessagingBuilder UseSqlServer(this IHeroMessagingBuilder builder, string connectionString)
     {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(connectionString);
+
         var options = new SqlServerStorageOptions { ConnectionString = connectionString };
         return UseSqlServer(builder, options);
     }
@@ -28,7 +31,9 @@ public static class ExtensionsToIHeroMessagingBuilderForSqlServer
     /// </summary>
     public static IHeroMessagingBuilder UseSqlServer(this IHeroMessagingBuilder builder, SqlServerStorageOptions options)
     {
-        var services = builder as IServiceCollection ?? throw new InvalidOperationException("Builder must implement IServiceCollection");
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(options);
+        var services = builder.Services;
 
         services.AddSingleton(options);
         services.AddSingleton<IMessageStorage>(sp => new SqlServerMessageStorage(options, sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<IJsonSerializer>()));
@@ -43,6 +48,10 @@ public static class ExtensionsToIHeroMessagingBuilderForSqlServer
     /// </summary>
     public static IHeroMessagingBuilder UseSqlServer(this IHeroMessagingBuilder builder, string connectionString, Action<SqlServerStorageOptions> configure)
     {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(connectionString);
+        ArgumentNullException.ThrowIfNull(configure);
+
         var options = new SqlServerStorageOptions { ConnectionString = connectionString };
         configure(options);
         return UseSqlServer(builder, options);
@@ -53,7 +62,9 @@ public static class ExtensionsToIHeroMessagingBuilderForSqlServer
     /// </summary>
     public static IHeroMessagingBuilder UseSqlServerMessageStorage(this IHeroMessagingBuilder builder, SqlServerStorageOptions options)
     {
-        var services = builder as IServiceCollection ?? throw new InvalidOperationException("Builder must implement IServiceCollection");
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(options);
+        var services = builder.Services;
         services.AddSingleton<IMessageStorage>(sp => new SqlServerMessageStorage(options, sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<IJsonSerializer>()));
         return builder;
     }
@@ -63,7 +74,9 @@ public static class ExtensionsToIHeroMessagingBuilderForSqlServer
     /// </summary>
     public static IHeroMessagingBuilder UseSqlServerOutbox(this IHeroMessagingBuilder builder, SqlServerStorageOptions options)
     {
-        var services = builder as IServiceCollection ?? throw new InvalidOperationException("Builder must implement IServiceCollection");
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(options);
+        var services = builder.Services;
         services.AddSingleton<IOutboxStorage>(sp => new SqlServerOutboxStorage(options, sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<IJsonSerializer>()));
         return builder;
     }
@@ -73,7 +86,9 @@ public static class ExtensionsToIHeroMessagingBuilderForSqlServer
     /// </summary>
     public static IHeroMessagingBuilder UseSqlServerDeadLetterQueue(this IHeroMessagingBuilder builder, SqlServerStorageOptions options)
     {
-        var services = builder as IServiceCollection ?? throw new InvalidOperationException("Builder must implement IServiceCollection");
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(options);
+        var services = builder.Services;
         services.AddSingleton<IDeadLetterQueue>(sp => new SqlServerDeadLetterQueue(options, sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<IJsonSerializer>()));
         return builder;
     }
@@ -84,7 +99,9 @@ public static class ExtensionsToIHeroMessagingBuilderForSqlServer
     public static IHeroMessagingBuilder UseSqlServerSagaRepository<TSaga>(this IHeroMessagingBuilder builder, SqlServerStorageOptions options)
         where TSaga : class, ISaga
     {
-        var services = builder as IServiceCollection ?? throw new InvalidOperationException("Builder must implement IServiceCollection");
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(options);
+        var services = builder.Services;
         services.AddSingleton<ISagaRepository<TSaga>>(sp => new SqlServerSagaRepository<TSaga>(options, sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<IJsonSerializer>()));
         return builder;
     }
@@ -95,7 +112,8 @@ public static class ExtensionsToIHeroMessagingBuilderForSqlServer
     public static IHeroMessagingBuilder UseSqlServerSagaRepository<TSaga>(this IHeroMessagingBuilder builder)
         where TSaga : class, ISaga
     {
-        var services = builder as IServiceCollection ?? throw new InvalidOperationException("Builder must implement IServiceCollection");
+        ArgumentNullException.ThrowIfNull(builder);
+        var services = builder.Services;
         services.AddSingleton<ISagaRepository<TSaga>>(sp =>
         {
             var options = sp.GetRequiredService<SqlServerStorageOptions>();

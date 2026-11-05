@@ -31,6 +31,45 @@ public abstract class CorrelationContextDecoratorTests
 
     public sealed class MetadataEnrichment
     {
+        [Fact]
+        public async Task PreservesComparersAndMatchesSequentialUpdates()
+        {
+            var message = new TestMessage
+            {
+                CorrelationId = new string("correlation".ToCharArray()),
+                CausationId = new string("causation".ToCharArray())
+            };
+            var metadata = ImmutableDictionary.Create<string, object>(StringComparer.OrdinalIgnoreCase, ReferenceEqualityComparer.Instance)
+                .Add("correlationid", new string("correlation".ToCharArray()))
+                .Add("causationid", "old-causation")
+                .Add("messageid", "old-message")
+                .Add("custom", new object());
+            var original = new ProcessingContext("component", metadata);
+            var expected = original.WithMetadata("CorrelationId", message.CorrelationId)
+                .WithMetadata("CausationId", message.CausationId)
+                .WithMetadata("MessageId", message.MessageId.ToString());
+            ProcessingContext captured = default;
+            var inner = new CoreMessageProcessor((_, context, _) =>
+            {
+                captured = context;
+                return ValueTask.CompletedTask;
+            });
+            var decorator = new CorrelationContextDecorator(inner, NullLogger<CorrelationContextDecorator>.Instance);
+
+            var result = await decorator.ProcessAsync(message, original, TestContext.Current.CancellationToken);
+
+            Assert.True(result.Success);
+            Assert.Same(metadata.KeyComparer, captured.Metadata.KeyComparer);
+            Assert.Same(metadata.ValueComparer, captured.Metadata.ValueComparer);
+            Assert.Equal(expected.Metadata.Keys.Order(StringComparer.Ordinal), captured.Metadata.Keys.Order(StringComparer.Ordinal));
+            Assert.Same(message.CorrelationId, captured.Metadata["correlationid"]);
+            Assert.Same(message.CausationId, captured.Metadata["causationid"]);
+            Assert.Same(metadata["custom"], captured.Metadata["custom"]);
+            Assert.Equal(expected.Metadata["MessageId"], captured.Metadata["messageid"]);
+            Assert.Same(metadata, original.Metadata);
+            Assert.NotSame(message.CorrelationId, original.Metadata["correlationid"]);
+        }
+
         [Theory]
         [InlineData(null, null)]
         [InlineData("", "")]

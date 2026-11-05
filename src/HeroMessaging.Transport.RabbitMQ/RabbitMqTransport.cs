@@ -351,32 +351,55 @@ public sealed class RabbitMqTransport : IConfirmedQueueTransport, IRabbitMqConsu
         var channelPool = await GetOrCreateChannelPoolAsync(cancellationToken).ConfigureAwait(false);
         var channel = await channelPool.AcquireChannelAsync(cancellationToken).ConfigureAwait(false);
 
-        // Set prefetch count
-        await channel.BasicQosAsync(0, _options.PrefetchCount, false, cancellationToken).ConfigureAwait(false);
-
-        var consumer = new RabbitMqConsumer(
-            consumerId,
-            source,
-            channel,
-            handler,
-            options,
-            this,
-            _loggerFactory.CreateLogger<RabbitMqConsumer>(),
-            _timeProvider,
-            _instrumentation);
-
-        if (!_consumers.TryAdd(consumerId, consumer))
+        RabbitMqConsumer? consumer = null;
+        var registered = false;
+        var subscribedSuccessfully = false;
+        try
         {
-            channel.Dispose();
-            throw new InvalidOperationException($"Consumer '{consumerId}' already exists");
-        }
+            // A failed QoS setup still leaves an acquired channel to dispose.
+            await channel.BasicQosAsync(0, _options.PrefetchCount, false, cancellationToken).ConfigureAwait(false);
 
-        if (options.StartImmediately)
+            consumer = new RabbitMqConsumer(
+                consumerId,
+                source,
+                channel,
+                handler,
+                options,
+                this,
+                _loggerFactory.CreateLogger<RabbitMqConsumer>(),
+                _timeProvider,
+                _instrumentation,
+                channelPool.RetireConsumerChannel);
+
+            if (!_consumers.TryAdd(consumerId, consumer))
+                throw new InvalidOperationException($"Consumer '{consumerId}' already exists");
+
+            registered = true;
+            if (options.StartImmediately)
+                await consumer.StartAsync(cancellationToken).ConfigureAwait(false);
+
+            subscribedSuccessfully = true;
+            return consumer;
+        }
+        finally
         {
-            await consumer.StartAsync(cancellationToken).ConfigureAwait(false);
+            if (!subscribedSuccessfully)
+            {
+                try
+                {
+                    if (registered)
+                        await consumer!.DisposeAsync().ConfigureAwait(false);
+                    else
+                        channel.Dispose();
+                }
+                catch (Exception cleanupError)
+                {
+                    // Do not replace the original startup or cancellation failure.
+                    _logger.LogWarning(cleanupError,
+                        "Failed cleaning up consumer {ConsumerId} after subscription failure", consumerId);
+                }
+            }
         }
-
-        return consumer;
     }
 
     /// <inheritdoc/>
@@ -519,9 +542,12 @@ public sealed class RabbitMqTransport : IConfirmedQueueTransport, IRabbitMqConsu
         _connectLock.Dispose();
     }
 
-    void IRabbitMqConsumerHost.RemoveConsumer(string consumerId)
+    void IRabbitMqConsumerHost.RemoveConsumer(RabbitMqConsumer consumer)
     {
-        _consumers.TryRemove(consumerId, out _);
+        // A stale disposal must not remove a replacement registration with the
+        // same ID after a disconnect/reconnect race.
+        ((ICollection<KeyValuePair<string, RabbitMqConsumer>>)_consumers).Remove(
+            new KeyValuePair<string, RabbitMqConsumer>(consumer.ConsumerId, consumer));
     }
 
     private static Dictionary<string, object?> ToNullableArguments(IEnumerable<KeyValuePair<string, object>> arguments)

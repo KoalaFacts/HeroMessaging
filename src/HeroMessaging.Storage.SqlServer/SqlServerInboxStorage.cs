@@ -164,20 +164,23 @@ public class SqlServerInboxStorage : IInboxStorage, IInboxClaimStorage
             var messageId = message.MessageId.ToString();
             var now = _timeProvider.GetUtcNow();
 
-            // Check for duplicates if idempotency is required
-            if (options.RequireIdempotency)
-            {
-                var isDuplicate = await IsDuplicateAsync(messageId, options.DeduplicationWindow, cancellationToken);
-                if (isDuplicate)
-                {
-                    return null; // Message already exists
-                }
-            }
-
-            var sql = $"""
-                INSERT INTO {_tableName} (Id, MessageType, Payload, Source, Status, ReceivedAt, RequireIdempotency, DeduplicationWindowMinutes)
-                VALUES (@Id, @MessageType, @Payload, @Source, @Status, @ReceivedAt, @RequireIdempotency, @DeduplicationWindowMinutes)
-                """;
+            // Serialize admission against the retained primary key. A windowed
+            // pre-check can race another writer or miss an older retained row.
+            var sql = options.RequireIdempotency
+                ? $"""
+                    DECLARE @AdmittedIds TABLE (Id NVARCHAR(100) NOT NULL);
+                    INSERT INTO {_tableName} (Id, MessageType, Payload, Source, Status, ReceivedAt, RequireIdempotency, DeduplicationWindowMinutes)
+                    OUTPUT INSERTED.Id INTO @AdmittedIds (Id)
+                    SELECT @Id, @MessageType, @Payload, @Source, @Status, @ReceivedAt, @RequireIdempotency, @DeduplicationWindowMinutes
+                    WHERE NOT EXISTS (
+                        SELECT 1 FROM {_tableName} WITH (UPDLOCK, HOLDLOCK) WHERE Id = @Id
+                    );
+                    SELECT Id FROM @AdmittedIds;
+                    """
+                : $"""
+                    INSERT INTO {_tableName} (Id, MessageType, Payload, Source, Status, ReceivedAt, RequireIdempotency, DeduplicationWindowMinutes)
+                    VALUES (@Id, @MessageType, @Payload, @Source, @Status, @ReceivedAt, @RequireIdempotency, @DeduplicationWindowMinutes)
+                    """;
 
             using var command = new SqlCommand(sql, connection, transaction);
             command.Parameters.Add("@Id", SqlDbType.NVarChar, 100).Value = messageId;
@@ -190,7 +193,18 @@ public class SqlServerInboxStorage : IInboxStorage, IInboxClaimStorage
             command.Parameters.Add("@RequireIdempotency", SqlDbType.Bit).Value = options.RequireIdempotency;
             command.Parameters.Add("@DeduplicationWindowMinutes", SqlDbType.Int).Value = (object?)options.DeduplicationWindow?.TotalMinutes ?? DBNull.Value;
 
-            await command.ExecuteNonQueryAsync(cancellationToken);
+            if (options.RequireIdempotency)
+            {
+                // OUTPUT INTO plus a final SELECT reports actual admission under
+                // SET NOCOUNT ON and with enabled INSERT triggers on the target table.
+                var insertedId = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+                if (insertedId is null)
+                    return null;
+            }
+            else
+            {
+                await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
 
             return new InboxEntry
             {
@@ -413,7 +427,7 @@ public class SqlServerInboxStorage : IInboxStorage, IInboxClaimStorage
                 SELECT Id, MessageType, Payload, Source, Status, ReceivedAt, ProcessedAt, Error, RequireIdempotency, DeduplicationWindowMinutes
                 FROM {_tableName}
                 {whereClause}
-                ORDER BY ReceivedAt DESC
+                ORDER BY ReceivedAt ASC, Id ASC
                 OFFSET 0 ROWS
                 FETCH NEXT @Limit ROWS ONLY
                 """;

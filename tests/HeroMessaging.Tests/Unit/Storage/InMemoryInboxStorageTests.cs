@@ -74,28 +74,78 @@ public sealed class InMemoryInboxStorageTests
     }
 
     [Fact]
-    public async Task AddAsync_WithRequireIdempotencyTrue_StoresDuplicateAsNull()
+    public async Task AddAsync_WithRequireIdempotencyTrue_PreservesOriginalPendingWork()
     {
-        // Arrange
         var timeProvider = new FakeTimeProvider();
         var storage = new InMemoryInboxStorage(timeProvider);
         var messageId = Guid.NewGuid();
-        var message1 = new TestMessage { MessageId = messageId, Content = "First" };
-        var message2 = new TestMessage { MessageId = messageId, Content = "Second" };
+        var original = new TestMessage { MessageId = messageId, Content = "Original business work" };
+        var duplicate = new TestMessage { MessageId = messageId, Content = "Duplicate delivery" };
         var options = new InboxOptions { RequireIdempotency = true };
 
-        // Act
-        var entry1 = await storage.AddAsync(message1, options, cancellationToken: TestContext.Current.CancellationToken);
-        var entry2 = await storage.AddAsync(message2, options, cancellationToken: TestContext.Current.CancellationToken);
+        var first = await storage.AddAsync(original, options, TestContext.Current.CancellationToken);
+        var second = await storage.AddAsync(duplicate, options, TestContext.Current.CancellationToken);
 
-        // Assert
-        Assert.NotNull(entry1);
-        Assert.Null(entry2);
-
-        // Verify the stored entry is marked as duplicate
-        var stored = await storage.GetAsync(messageId.ToString(), cancellationToken: TestContext.Current.CancellationToken);
+        Assert.NotNull(first);
+        Assert.Null(second);
+        var stored = await storage.GetAsync(messageId.ToString(), TestContext.Current.CancellationToken);
         Assert.NotNull(stored);
-        Assert.Equal(InboxStatus.Duplicate, stored.Status);
+        Assert.Same(first, stored);
+        Assert.Equal(InboxStatus.Pending, stored.Status);
+        Assert.Same(original, stored.Message);
+
+        var work = (await storage.GetUnprocessedAsync(1, TestContext.Current.CancellationToken)).ToArray();
+        Assert.Single(work);
+        Assert.Same(first, work[0]);
+        Assert.Equal(1L, await storage.GetUnprocessedCountAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task AddAsync_WithRequireIdempotencyTrue_PreservesProcessedEntryOnDuplicate()
+    {
+        var storage = new InMemoryInboxStorage(new FakeTimeProvider());
+        var messageId = Guid.NewGuid();
+        var original = new TestMessage { MessageId = messageId, Content = "Completed" };
+        var duplicate = new TestMessage { MessageId = messageId, Content = "Redelivery" };
+        var options = new InboxOptions { RequireIdempotency = true };
+        var entry = await storage.AddAsync(original, options, TestContext.Current.CancellationToken);
+        Assert.NotNull(entry);
+        Assert.True(await storage.MarkProcessedAsync(messageId.ToString(), TestContext.Current.CancellationToken));
+        var processedAt = entry.ProcessedAt;
+
+        Assert.Null(await storage.AddAsync(duplicate, options, TestContext.Current.CancellationToken));
+
+        Assert.Same(entry, await storage.GetAsync(messageId.ToString(), TestContext.Current.CancellationToken));
+        Assert.Equal(InboxStatus.Processed, entry.Status);
+        Assert.Equal(processedAt, entry.ProcessedAt);
+        Assert.Same(original, entry.Message);
+        Assert.Empty(await storage.GetUnprocessedAsync(1, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task AddAsync_ConcurrentIdempotentDuplicates_OnlyOneOriginalIsAdmitted()
+    {
+        var storage = new InMemoryInboxStorage(new FakeTimeProvider());
+        var messageId = Guid.NewGuid();
+        var options = new InboxOptions { RequireIdempotency = true };
+        var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var sends = Enumerable.Range(0, 64).Select(index => Task.Run(async () =>
+        {
+            await start.Task;
+            var message = new TestMessage { MessageId = messageId, Content = $"Delivery {index}" };
+            return await storage.AddAsync(message, options, TestContext.Current.CancellationToken);
+        }, TestContext.Current.CancellationToken)).ToArray();
+
+        start.SetResult();
+        var results = await Task.WhenAll(sends);
+
+        var admitted = Assert.Single(results, entry => entry is not null);
+        Assert.NotNull(admitted);
+        Assert.Same(admitted, await storage.GetAsync(messageId.ToString(), TestContext.Current.CancellationToken));
+        Assert.Equal(InboxStatus.Pending, admitted.Status);
+        var pending = await storage.GetUnprocessedAsync(1, TestContext.Current.CancellationToken);
+        Assert.Same(admitted, Assert.Single(pending));
+        Assert.Equal(1L, await storage.GetUnprocessedCountAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
