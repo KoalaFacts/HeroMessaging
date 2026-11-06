@@ -779,6 +779,60 @@ public sealed class InMemoryInboxStorageTests
     }
 
     [Fact]
+    public async Task CleanupOldEntriesAsync_EntryInsideItsDeduplicationWindow_IsRetainedAndStillRejectsRedelivery()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var timeProvider = new FakeTimeProvider();
+        var storage = new InMemoryInboxStorage(timeProvider);
+        var options = new InboxOptions { DeduplicationWindow = TimeSpan.FromDays(30) };
+        var message = new TestMessage();
+        await storage.AddAsync(message, options, token);
+        await storage.MarkProcessedAsync(message.MessageId.ToString(), token);
+
+        timeProvider.Advance(TimeSpan.FromDays(8));
+        await storage.CleanupOldEntriesAsync(TimeSpan.FromDays(7), token);
+
+        Assert.NotNull(await storage.GetAsync(message.MessageId.ToString(), token));
+        Assert.True(await storage.IsDuplicateAsync(message.MessageId.ToString(), options.DeduplicationWindow, token));
+        Assert.Null(await storage.AddAsync(message, options, token));
+    }
+
+    [Fact]
+    public async Task CleanupOldEntriesAsync_EntryPastBothRetentionAndItsWindow_IsRemoved()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var timeProvider = new FakeTimeProvider();
+        var storage = new InMemoryInboxStorage(timeProvider);
+        var message = new TestMessage();
+        await storage.AddAsync(message, new InboxOptions { DeduplicationWindow = TimeSpan.FromDays(30) }, token);
+        await storage.MarkProcessedAsync(message.MessageId.ToString(), token);
+
+        timeProvider.Advance(TimeSpan.FromDays(31));
+        await storage.CleanupOldEntriesAsync(TimeSpan.FromDays(7), token);
+
+        Assert.Null(await storage.GetAsync(message.MessageId.ToString(), token));
+    }
+
+    [Fact]
+    public async Task CleanupOldEntriesAsync_EntryWithWindowShorterThanRetention_IsRemovedAfterRetention()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var timeProvider = new FakeTimeProvider();
+        var storage = new InMemoryInboxStorage(timeProvider);
+        var message = new TestMessage();
+        await storage.AddAsync(message, new InboxOptions { DeduplicationWindow = TimeSpan.FromHours(1) }, token);
+        await storage.MarkProcessedAsync(message.MessageId.ToString(), token);
+
+        timeProvider.Advance(TimeSpan.FromDays(6));
+        await storage.CleanupOldEntriesAsync(TimeSpan.FromDays(7), token);
+        Assert.NotNull(await storage.GetAsync(message.MessageId.ToString(), token));
+
+        timeProvider.Advance(TimeSpan.FromDays(2));
+        await storage.CleanupOldEntriesAsync(TimeSpan.FromDays(7), token);
+        Assert.Null(await storage.GetAsync(message.MessageId.ToString(), token));
+    }
+
+    [Fact]
     public async Task CleanupOldEntriesAsync_DoesNotRemovePendingEntries()
     {
         // Arrange
