@@ -128,6 +128,7 @@ Work order for the first replacement route. Status: todo, in progress (PR), done
 | R11 | SQL Server external Outbox. | F12 | todo | |
 | R12 | Equivalent-work benchmarks against MassTransit with resource use; negative results recorded. | P01–P05 | todo | |
 | R13 | Idempotency in the pipeline: `WithIdempotency` registers an `IdempotencyDecorator` factory that nothing inserts into processing, so configuring it does not deduplicate (found in D0). | F18 | todo | |
+| C1 | CI capacity: `Build and Test` ran on every branch push and again for the pull request, so each PR commit queued two full matrices and four open PRs waited over an hour for runners. Branch pushes now run only through the pull request. | — | in progress (this PR) | 2026-11-06 10:33–10:50 UTC: 12 queued `Build and Test`/scan runs across PRs #145–#148 and main, each PR head with duplicate push and pull_request check sets. |
 
 ## Result record
 

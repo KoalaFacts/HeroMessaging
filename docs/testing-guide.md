@@ -145,7 +145,7 @@ dotnet run -c Release --project tests/HeroMessaging.Benchmarks --no-build -- --e
 ## CI/CD Integration
 
 ### GitHub Actions Workflows
-- **ci.yml** (Build and Test): unit-test matrix (Ubuntu/Windows/macOS × net8.0/net9.0/net10.0), NativeAOT package consumer, in-process performance comparison, coverage and quality gates, release package build
+- **ci.yml** (Build and Test; runs on pull requests and pushes to `main`/`develop`, nightly and on demand, not on other branch pushes): unit-test matrix (Ubuntu/Windows/macOS × net8.0/net9.0/net10.0), NativeAOT package consumer, in-process performance comparison, coverage and quality gates, release package build
 - **run-integration-tests.yml**: PostgreSQL, SQL Server and RabbitMQ integration tests (called from ci.yml)
 - **codeql.yml**, **security-scan.yml**: CodeQL and dependency/secret scanning
 - **profile-inprocess.yml**: native in-process profiling (manual)
