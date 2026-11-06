@@ -100,7 +100,7 @@ public class PostgreSqlInboxStorage : IInboxStorage, IInboxClaimStorage
         try
         {
             if (_initialized) return;
-            await InitializeDatabase().ConfigureAwait(false);
+            await InitializeDatabase(cancellationToken).ConfigureAwait(false);
             _initialized = true;
         }
         finally
@@ -112,12 +112,26 @@ public class PostgreSqlInboxStorage : IInboxStorage, IInboxClaimStorage
     /// Executes initialize database.
     /// </summary>
 
-    private async Task InitializeDatabase()
+    private async Task InitializeDatabase(CancellationToken cancellationToken)
     {
+        // On a unit-of-work connection a no-op CREATE INDEX IF NOT EXISTS still takes a ShareLock held until the
+        // business transaction ends, which blocks every other transaction's Inbox admission. Skip the DDL when the
+        // table is complete. The shared-connection constructor always uses the default table name.
+        if (_connectionProvider.IsSharedConnection)
+        {
+            var connection = await _connectionProvider.GetConnectionAsync(cancellationToken).ConfigureAwait(false);
+            string[] indexes = [.. new[] { "status", "received_at", "processed_at" }
+                .Select(suffix => $"idx_{_options.InboxTableName}_{suffix}".ToLowerInvariant())];
+            if (await PostgreSqlSchemaCatalog.TableAndIndexesExistAsync(connection, _connectionProvider.GetTransaction(), _tableName, indexes, cancellationToken).ConfigureAwait(false))
+            {
+                return;
+            }
+        }
+
         // Create schema if needed
         if (!string.IsNullOrEmpty(_options.Schema))
         {
-            await _schemaInitializer.InitializeSchemaAsync(_options.Schema).ConfigureAwait(false);
+            await _schemaInitializer.InitializeSchemaAsync(_options.Schema, cancellationToken).ConfigureAwait(false);
         }
 
         // Create table
@@ -140,7 +154,7 @@ public class PostgreSqlInboxStorage : IInboxStorage, IInboxClaimStorage
             CREATE INDEX IF NOT EXISTS idx_{_options.InboxTableName}_processed_at ON {_tableName}(processed_at);
             """;
 
-        await _schemaInitializer.ExecuteSchemaScriptAsync(createTableSql).ConfigureAwait(false);
+        await _schemaInitializer.ExecuteSchemaScriptAsync(createTableSql, cancellationToken).ConfigureAwait(false);
     }
     /// <summary>
     /// Executes add async.
