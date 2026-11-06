@@ -142,6 +142,28 @@ public class RabbitMqTransportTests : IAsyncLifetime
             await _transport!.PublishAsync(topic, envelope, cancellationToken: TestContext.Current.CancellationToken));
     }
 
+    [Fact]
+    public async Task PublishConfirmedAsync_WithoutPublisherConfirms_ThrowsActionableError()
+    {
+        var options = new RabbitMqTransportOptions { Host = "localhost", UsePublisherConfirms = false };
+        await using var transport = new RabbitMqTransport(options, MockLoggerFactory.Object, TimeProvider.System);
+        var envelope = new TransportEnvelope { MessageId = Guid.NewGuid().ToString(), Body = new byte[] { 1 } };
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            transport.PublishConfirmedAsync(TransportAddress.Topic("test-topic"), envelope, TestContext.Current.CancellationToken));
+
+        Assert.Contains("UsePublisherConfirms", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task PublishConfirmedAsync_WhenDisconnected_ThrowsInvalidOperationException()
+    {
+        var envelope = new TransportEnvelope { MessageId = Guid.NewGuid().ToString(), Body = new byte[] { 1 } };
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            Transport.PublishConfirmedAsync(TransportAddress.Topic("test-topic"), envelope, TestContext.Current.CancellationToken));
+    }
+
     #endregion
 
     #region SubscribeAsync Tests
