@@ -411,6 +411,122 @@ public sealed class RabbitMqDeadLetterReplayIntegrationTests : RabbitMqIntegrati
     }
 
     [Fact]
+    public async Task ErrorQueue_KeepsFailureContextAndReplaysToTheSourceQueue()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var (workQueue, deadLetterQueue) = await CreateDeadLetteredQueueAsync();
+        var errorQueue = workQueue + "_error";
+        var topology = new TransportTopology();
+        topology.AddQueue(new QueueDefinition { Name = errorQueue, Durable = true });
+        await Transport!.ConfigureTopologyAsync(topology, token);
+        await using var transport = await ConnectWithErrorQueueAsync();
+        var sent = CreateTestEnvelope();
+        await using (await transport.SubscribeAsync(
+            TransportAddress.Queue(workQueue),
+            (_, _, _) => throw new InvalidOperationException("Order 42 has no customer"),
+            new ConsumerOptions { MessageRetryPolicy = new RetryPolicy { MaxAttempts = 1, InitialDelay = TimeSpan.FromMilliseconds(20) } },
+            token))
+        {
+            await transport.SendAsync(TransportAddress.Queue(workQueue), sent, token);
+            await WaitForMessageCountAsync(errorQueue, 1);
+        }
+
+        Assert.Equal(0u, await GetMessageCountAsync(deadLetterQueue));
+        await using (var connection = await ConnectAsync())
+        await using (var channel = await connection.CreateChannelAsync(cancellationToken: token))
+        {
+            var faulted = await channel.BasicGetAsync(errorQueue, autoAck: false, token);
+            Assert.NotNull(faulted);
+            var headers = faulted.BasicProperties.Headers!;
+            Assert.Equal(sent.MessageId, faulted.BasicProperties.MessageId);
+            Assert.Equal(workQueue, Text(headers[FaultHeaders.Queue]));
+            Assert.Equal("System.InvalidOperationException", Text(headers[FaultHeaders.ExceptionType]));
+            Assert.Equal("Order 42 has no customer", Text(headers[FaultHeaders.ExceptionMessage]));
+            Assert.Equal(1L, Convert.ToInt64(headers[FaultHeaders.Retries], System.Globalization.CultureInfo.InvariantCulture));
+            Assert.True(headers.ContainsKey(FaultHeaders.Time));
+            await channel.BasicNackAsync(faulted.DeliveryTag, false, requeue: true, token);
+        }
+
+        var result = await transport.ReplayDeadLettersAsync(TransportAddress.Queue(errorQueue), cancellationToken: token);
+
+        Assert.Equal(1, result.Replayed);
+        Assert.Equal(1u, await GetMessageCountAsync(workQueue));
+        await using var check = await ConnectAsync();
+        await using var reader = await check.CreateChannelAsync(cancellationToken: token);
+        var replayed = await reader.BasicGetAsync(workQueue, autoAck: true, token);
+        Assert.NotNull(replayed);
+        Assert.DoesNotContain(replayed.BasicProperties.Headers!.Keys, static key => key.StartsWith("hero-fault-", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task ErrorQueue_WhenMissing_FallsBackToTheDeadLetterExchange()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var (workQueue, deadLetterQueue) = await CreateDeadLetteredQueueAsync();
+        await using var transport = await ConnectWithErrorQueueAsync();
+        await using (await transport.SubscribeAsync(
+            TransportAddress.Queue(workQueue),
+            (_, _, _) => throw new InvalidOperationException("poison"),
+            RejectAtOnce,
+            token))
+        {
+            await transport.SendAsync(TransportAddress.Queue(workQueue), CreateTestEnvelope(), token);
+            await WaitForMessageCountAsync(deadLetterQueue, 1);
+        }
+    }
+
+    [Fact]
+    public async Task ErrorQueue_WithoutPublisherConfirms_FallsBackToTheDeadLetterExchange()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var (workQueue, deadLetterQueue) = await CreateDeadLetteredQueueAsync();
+        var errorQueue = workQueue + "_error";
+        var topology = new TransportTopology();
+        topology.AddQueue(new QueueDefinition { Name = errorQueue, Durable = true });
+        await Transport!.ConfigureTopologyAsync(topology, token);
+        await using var transport = await ConnectWithErrorQueueAsync(usePublisherConfirms: false);
+        await using (await transport.SubscribeAsync(
+            TransportAddress.Queue(workQueue),
+            (_, _, _) => throw new InvalidOperationException("poison"),
+            RejectAtOnce,
+            token))
+        {
+            await transport.SendAsync(TransportAddress.Queue(workQueue), CreateTestEnvelope(), token);
+            await WaitForMessageCountAsync(deadLetterQueue, 1);
+        }
+
+        Assert.Equal(0u, await GetMessageCountAsync(errorQueue));
+    }
+
+    [Fact]
+    public async Task ErrorQueue_MessagePublishedByAnotherBrokerUser_IsMovedWithItsFailureContext()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var (workQueue, deadLetterQueue) = await CreateDeadLetteredQueueAsync();
+        var errorQueue = workQueue + "_error";
+        var topology = new TransportTopology();
+        topology.AddQueue(new QueueDefinition { Name = errorQueue, Durable = true });
+        await Transport!.ConfigureTopologyAsync(topology, token);
+        var messageId = await PublishAsAnotherUserAsync(workQueue, "published by another account");
+        await using var transport = await ConnectWithErrorQueueAsync();
+
+        await using (await transport.SubscribeAsync(
+            TransportAddress.Queue(workQueue),
+            (_, _, _) => throw new InvalidOperationException("poison"),
+            RejectAtOnce,
+            token))
+        {
+            var faulted = await GetSingleAsync(errorQueue);
+            Assert.Equal(messageId, faulted.BasicProperties.MessageId);
+            Assert.Equal("published by another account", System.Text.Encoding.UTF8.GetString(faulted.Body.Span));
+            Assert.Null(faulted.BasicProperties.UserId);
+            Assert.Equal(workQueue, Text(faulted.BasicProperties.Headers![FaultHeaders.Queue]));
+        }
+
+        Assert.Equal(0u, await GetMessageCountAsync(deadLetterQueue));
+    }
+
+    [Fact]
     public async Task ReplayDeadLetters_FromEmptyQueue_ReplaysNothing()
     {
         var token = TestContext.Current.CancellationToken;
@@ -464,6 +580,17 @@ public sealed class RabbitMqDeadLetterReplayIntegrationTests : RabbitMqIntegrati
     /// </summary>
     private async Task<string> DeadLetterAsAnotherUserAsync(string workQueue, string deadLetterQueue, string body)
     {
+        var messageId = await PublishAsAnotherUserAsync(workQueue, body);
+        await DeadLetterAsync(workQueue, deadLetterQueue, [], expectedTotal: 1);
+        return messageId;
+    }
+
+    /// <summary>
+    /// Publishes to <paramref name="queue"/> as a new broker user with a validated <c>user-id</c> property, so the
+    /// message names a different publisher than the transport's <c>guest</c> account.
+    /// </summary>
+    private async Task<string> PublishAsAnotherUserAsync(string queue, string body)
+    {
         var token = TestContext.Current.CancellationToken;
         var userName = $"publisher-{Guid.NewGuid():N}";
         const string password = "publisher-password";
@@ -476,15 +603,11 @@ public sealed class RabbitMqDeadLetterReplayIntegrationTests : RabbitMqIntegrati
             UserName = userName,
             Password = password
         };
-        await using (var connection = await factory.CreateConnectionAsync(token))
-        await using (var channel = await connection.CreateChannelAsync(
-            new CreateChannelOptions(publisherConfirmationsEnabled: true, publisherConfirmationTrackingEnabled: true), token))
-        {
-            var properties = new BasicProperties { MessageId = messageId, UserId = userName, Persistent = true };
-            await channel.BasicPublishAsync(string.Empty, workQueue, mandatory: true, properties, System.Text.Encoding.UTF8.GetBytes(body), token);
-        }
-
-        await DeadLetterAsync(workQueue, deadLetterQueue, [], expectedTotal: 1);
+        await using var connection = await factory.CreateConnectionAsync(token);
+        await using var channel = await connection.CreateChannelAsync(
+            new CreateChannelOptions(publisherConfirmationsEnabled: true, publisherConfirmationTrackingEnabled: true), token);
+        var properties = new BasicProperties { MessageId = messageId, UserId = userName, Persistent = true };
+        await channel.BasicPublishAsync(string.Empty, queue, mandatory: true, properties, System.Text.Encoding.UTF8.GetBytes(body), token);
         return messageId;
     }
 
@@ -566,6 +689,27 @@ public sealed class RabbitMqDeadLetterReplayIntegrationTests : RabbitMqIntegrati
         await using var channel = await connection.CreateChannelAsync(cancellationToken: TestContext.Current.CancellationToken);
         await channel.QueueDeleteAsync(queue, cancellationToken: TestContext.Current.CancellationToken);
     }
+
+    private async Task<RabbitMqTransport> ConnectWithErrorQueueAsync(bool usePublisherConfirms = true)
+    {
+        var transport = new RabbitMqTransport(new RabbitMqTransportOptions
+        {
+            Host = Options!.Host,
+            Port = Options.Port,
+            UserName = Options.UserName,
+            Password = Options.Password,
+            UsePublisherConfirms = usePublisherConfirms,
+            ErrorQueueSuffix = "_error"
+        }, LoggerFactory, TimeProvider.System);
+        await transport.ConnectAsync(TestContext.Current.CancellationToken);
+        return transport;
+    }
+
+    private static string? Text(object? value) => value switch
+    {
+        byte[] bytes => System.Text.Encoding.UTF8.GetString(bytes),
+        _ => value?.ToString()
+    };
 
     private Task<IConnection> ConnectAsync()
     {

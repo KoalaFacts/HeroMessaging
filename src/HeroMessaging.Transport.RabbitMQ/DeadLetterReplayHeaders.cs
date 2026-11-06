@@ -15,13 +15,18 @@ internal static class DeadLetterReplayHeaders
     private const string FirstDeathQueueHeader = "x-first-death-queue";
 
     /// <summary>
-    /// Returns the queue that most recently dead-lettered the message (the first <c>x-death</c> entry), falling
-    /// back to <c>x-first-death-queue</c>; <see langword="null"/> when neither names a queue.
+    /// Returns the queue the message failed on: <c>hero-fault-queue</c> for an error-queue copy, otherwise the queue
+    /// that most recently dead-lettered it (the first <c>x-death</c> entry), falling back to
+    /// <c>x-first-death-queue</c>; <see langword="null"/> when none names a queue.
     /// </summary>
     internal static string? ResolveSourceQueue(IDictionary<string, object?>? headers)
     {
         if (headers is null)
             return null;
+
+        // An error-queue copy names its source directly; it is the most recent failure.
+        if (headers.TryGetValue(FaultHeaders.Queue, out var faulted) && AsText(faulted) is { Length: > 0 } faultQueue)
+            return faultQueue;
 
         if (headers.TryGetValue(DeathHeader, out var deaths) &&
             deaths is IEnumerable<object?> entries &&
@@ -39,12 +44,13 @@ internal static class DeadLetterReplayHeaders
 
     /// <summary>
     /// Copies the headers for republishing: drops the broker's <c>x-delivery-count</c> (a quorum queue would
-    /// otherwise count the old failures against the replayed message's new retry budget), keeps the
-    /// <c>x-death</c> failure history and increments <see cref="ReplayCountHeader"/>.
+    /// otherwise count the old failures against the replayed message's new retry budget) and the
+    /// <c>hero-fault-*</c> context of the replayed failure, keeps the <c>x-death</c> history and increments
+    /// <see cref="ReplayCountHeader"/>.
     /// </summary>
     internal static Dictionary<string, object?> PrepareHeaders(IDictionary<string, object?>? headers)
     {
-        var prepared = WithoutDeliveryCount(headers);
+        var prepared = WithoutDeliveryCount(FaultHeaders.WithoutFaultHeaders(headers));
         var previous = prepared.TryGetValue(ReplayCountHeader, out var value) ? AsCount(value) : 0;
         prepared[ReplayCountHeader] = previous + 1;
         return prepared;
