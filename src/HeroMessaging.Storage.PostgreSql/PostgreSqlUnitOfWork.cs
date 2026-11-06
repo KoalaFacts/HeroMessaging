@@ -199,6 +199,7 @@ public class PostgreSqlUnitOfWork : IUnitOfWork
             {
                 await Transaction.RollbackAsync().ConfigureAwait(false);
                 await Transaction.DisposeAsync().ConfigureAwait(false);
+                Transaction = null;
             }
         }
         catch

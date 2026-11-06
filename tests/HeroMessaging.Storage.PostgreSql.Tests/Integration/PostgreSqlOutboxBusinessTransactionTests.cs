@@ -197,6 +197,32 @@ public class PostgreSqlOutboxBusinessTransactionTests : PostgreSqlIntegrationTes
         }
     }
 
+    [Theory]
+    [InlineData("Biz", "My_Outbox")]
+    [InlineData("public", "outbox_messages_with_a_table_name_long_enough_to_truncate")]
+    public async Task CompleteTableWithCustomName_SecondWriterDoesNotWaitForAnOpenTransaction(string schema, string table)
+    {
+        await WithDatabaseAsync(async connectionString =>
+        {
+            var options = new PostgreSqlStorageOptions { ConnectionString = connectionString, Schema = schema, OutboxTableName = table };
+            var serializer = new DefaultJsonSerializer(new DefaultBufferPoolManager());
+            await new PostgreSqlOutboxStorage(options, TimeProvider.System, serializer).GetPendingAsync(1, TestContext.Current.CancellationToken);
+
+            await using var connection = new NpgsqlConnection(connectionString);
+            await connection.OpenAsync(TestContext.Current.CancellationToken);
+            await using var transaction = await connection.BeginTransactionAsync(TestContext.Current.CancellationToken);
+            var holder = new PostgreSqlOutboxStorage(options, TimeProvider.System, serializer, new PostgreSqlConnectionProvider(connection, transaction));
+            await holder.AddAsync(TestMessageBuilder.CreateValidMessage("held"), new OutboxOptions { Destination = "orders" }, TestContext.Current.CancellationToken);
+
+            using var timeout = CreateLockTimeout();
+            var other = new PostgreSqlOutboxStorage(options, TimeProvider.System, serializer);
+            await other.AddAsync(TestMessageBuilder.CreateValidMessage("other"), new OutboxOptions { Destination = "orders" }, timeout.Token);
+            Assert.Single(await other.ClaimExternalAsync(10, TimeSpan.FromMinutes(1), timeout.Token));
+
+            await transaction.RollbackAsync(TestContext.Current.CancellationToken);
+        });
+    }
+
     private static CancellationTokenSource CreateLockTimeout()
     {
         var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);

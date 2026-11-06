@@ -78,7 +78,7 @@ public class PostgreSqlOutboxStorage : IExternalOutboxStorage
         try
         {
             if (_initialized) return;
-            await InitializeDatabase().ConfigureAwait(false);
+            await InitializeDatabase(cancellationToken).ConfigureAwait(false);
             _initialized = true;
         }
         finally
@@ -90,13 +90,13 @@ public class PostgreSqlOutboxStorage : IExternalOutboxStorage
     /// Executes initialize database.
     /// </summary>
 
-    private async Task InitializeDatabase()
+    private async Task InitializeDatabase(CancellationToken cancellationToken)
     {
         // ALTER TABLE and CREATE INDEX lock the table even when "IF NOT EXISTS" makes them no-ops. On a
         // unit-of-work connection that lock is held until the business transaction ends, which serialises
         // every business transaction and blocks Outbox workers. Read the catalog first and skip the DDL
         // when the table is already complete.
-        if (await IsSchemaCompleteAsync().ConfigureAwait(false))
+        if (await IsSchemaCompleteAsync(cancellationToken).ConfigureAwait(false))
         {
             return;
         }
@@ -104,7 +104,7 @@ public class PostgreSqlOutboxStorage : IExternalOutboxStorage
         // Create schema if needed
         if (!string.IsNullOrEmpty(_options.Schema))
         {
-            await _schemaInitializer.InitializeSchemaAsync(_options.Schema).ConfigureAwait(false);
+            await _schemaInitializer.InitializeSchemaAsync(_options.Schema, cancellationToken).ConfigureAwait(false);
         }
 
         // Create table
@@ -136,9 +136,10 @@ public class PostgreSqlOutboxStorage : IExternalOutboxStorage
             CREATE INDEX IF NOT EXISTS idx_{_options.OutboxTableName}_lease ON {_tableName}(lease_expires_at) WHERE status = 'Processing' AND destination IS NOT NULL;
             """;
 
-        await _schemaInitializer.ExecuteSchemaScriptAsync(createTableSql).ConfigureAwait(false);
+        await _schemaInitializer.ExecuteSchemaScriptAsync(createTableSql, cancellationToken).ConfigureAwait(false);
     }
-    private async Task<bool> IsSchemaCompleteAsync()
+
+    private async Task<bool> IsSchemaCompleteAsync(CancellationToken cancellationToken)
     {
         const string sql = """
             SELECT
@@ -151,19 +152,19 @@ public class PostgreSqlOutboxStorage : IExternalOutboxStorage
                  WHERE i.indrelid = to_regclass(@table) AND c.relname = ANY(@indexes))
             """;
 
-        var table = _options.OutboxTableName.ToLowerInvariant();
-        string[] indexes =
-        [
-            $"idx_{table}_status", $"idx_{table}_next_retry", $"idx_{table}_created_at", $"idx_{table}_lease"
-        ];
+        var table = _options.OutboxTableName;
+        var indexes = new[] { "status", "next_retry", "created_at", "lease" }
+            .Select(suffix => ToStoredIdentifier($"idx_{table}_{suffix}"))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
 
-        var connection = await _connectionProvider.GetConnectionAsync().ConfigureAwait(false);
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             await using var command = new NpgsqlCommand(sql, connection, _connectionProvider.GetTransaction());
             command.Parameters.AddWithValue("table", _tableName);
             command.Parameters.AddWithValue("indexes", indexes);
-            var found = Convert.ToInt64(await command.ExecuteScalarAsync().ConfigureAwait(false), System.Globalization.CultureInfo.InvariantCulture);
+            var found = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false), System.Globalization.CultureInfo.InvariantCulture);
             return found == 3 + indexes.Length;
         }
         finally
@@ -173,6 +174,30 @@ public class PostgreSqlOutboxStorage : IExternalOutboxStorage
                 await connection.DisposeAsync().ConfigureAwait(false);
             }
         }
+    }
+
+    /// <summary>
+    /// Returns an unquoted identifier as PostgreSQL stores it: ASCII letters folded to lower case and the
+    /// name truncated to 63 bytes (NAMEDATALEN - 1) without splitting a character.
+    /// </summary>
+    private static string ToStoredIdentifier(string identifier)
+    {
+        const int maxBytes = 63;
+        var builder = new System.Text.StringBuilder(identifier.Length);
+        var bytes = 0;
+        foreach (var rune in identifier.EnumerateRunes())
+        {
+            var folded = rune.Value is >= 'A' and <= 'Z' ? new System.Text.Rune(rune.Value + 32) : rune;
+            if (bytes + folded.Utf8SequenceLength > maxBytes)
+            {
+                break;
+            }
+
+            bytes += folded.Utf8SequenceLength;
+            builder.Append(folded.ToString());
+        }
+
+        return builder.ToString();
     }
 
     /// <summary>
