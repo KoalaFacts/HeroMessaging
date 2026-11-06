@@ -94,9 +94,9 @@ public abstract class RabbitMqIntegrationTestBase : IAsyncLifetime
 
         var token = TestContext.Current.CancellationToken;
         var added = await _rabbitMqContainer.ExecAsync(["rabbitmqctl", "add_user", userName, password], token);
-        Assert.True(added.ExitCode == 0, $"rabbitmqctl add_user failed: {added.Stderr}");
+        Assert.True(added.ExitCode == 0, $"rabbitmqctl add_user exited with {added.ExitCode}: {added.Stderr}");
         var permitted = await _rabbitMqContainer.ExecAsync(["rabbitmqctl", "set_permissions", "-p", "/", userName, ".*", ".*", ".*"], token);
-        Assert.True(permitted.ExitCode == 0, $"rabbitmqctl set_permissions failed: {permitted.Stderr}");
+        Assert.True(permitted.ExitCode == 0, $"rabbitmqctl set_permissions exited with {permitted.ExitCode}: {permitted.Stderr}");
     }
 
     /// <summary>

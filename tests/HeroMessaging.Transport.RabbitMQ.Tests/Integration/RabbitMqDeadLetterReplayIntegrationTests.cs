@@ -466,14 +466,15 @@ public sealed class RabbitMqDeadLetterReplayIntegrationTests : RabbitMqIntegrati
     {
         var token = TestContext.Current.CancellationToken;
         var userName = $"publisher-{Guid.NewGuid():N}";
-        await CreateBrokerUserAsync(userName, "publisher-password");
+        const string password = "publisher-password";
+        await CreateBrokerUserAsync(userName, password);
         var messageId = Guid.NewGuid().ToString();
         var factory = new ConnectionFactory
         {
             HostName = Options!.Host,
             Port = Options.Port,
             UserName = userName,
-            Password = "publisher-password"
+            Password = password
         };
         await using (var connection = await factory.CreateConnectionAsync(token))
         await using (var channel = await connection.CreateChannelAsync(
