@@ -10,8 +10,6 @@ namespace HeroMessaging.Storage.PostgreSql;
 /// </summary>
 public class PostgreSqlUnitOfWork : IUnitOfWork
 {
-    private readonly NpgsqlConnection _connection;
-    private NpgsqlTransaction? _transaction;
     private readonly List<string> _savepoints = [];
     private readonly TimeProvider _timeProvider;
     private readonly IJsonSerializer _jsonSerializer;
@@ -27,25 +25,40 @@ public class PostgreSqlUnitOfWork : IUnitOfWork
 
     public PostgreSqlUnitOfWork(string connectionString, TimeProvider? timeProvider = null, IJsonSerializer? jsonSerializer = null)
     {
-        _connection = new NpgsqlConnection(connectionString);
+        Connection = new NpgsqlConnection(connectionString);
         _timeProvider = timeProvider ?? TimeProvider.System;
         _jsonSerializer = jsonSerializer ?? new DefaultJsonSerializer(new DefaultBufferPoolManager());
 
         // Initialize storage implementations lazily with the shared connection/transaction
-        _outboxStorage = new Lazy<IOutboxStorage>(() => new PostgreSqlOutboxStorage(_connection, _transaction, _timeProvider, _jsonSerializer));
-        _inboxStorage = new Lazy<IInboxStorage>(() => new PostgreSqlInboxStorage(_connection, _transaction, _timeProvider, _jsonSerializer));
-        _queueStorage = new Lazy<IQueueStorage>(() => new PostgreSqlQueueStorage(_connection, _transaction, _timeProvider, _jsonSerializer));
-        _messageStorage = new Lazy<IMessageStorage>(() => new PostgreSqlMessageStorage(_connection, _transaction, _timeProvider, _jsonSerializer));
+        _outboxStorage = new Lazy<IOutboxStorage>(() => new PostgreSqlOutboxStorage(Connection, Transaction, _timeProvider, _jsonSerializer));
+        _inboxStorage = new Lazy<IInboxStorage>(() => new PostgreSqlInboxStorage(Connection, Transaction, _timeProvider, _jsonSerializer));
+        _queueStorage = new Lazy<IQueueStorage>(() => new PostgreSqlQueueStorage(Connection, Transaction, _timeProvider, _jsonSerializer));
+        _messageStorage = new Lazy<IMessageStorage>(() => new PostgreSqlMessageStorage(Connection, Transaction, _timeProvider, _jsonSerializer));
     }
     /// <summary>
     /// Gets isolation level.
     /// </summary>
 
-    public IsolationLevel IsolationLevel => _transaction?.IsolationLevel ?? IsolationLevel.Unspecified;
+    public IsolationLevel IsolationLevel => Transaction?.IsolationLevel ?? IsolationLevel.Unspecified;
     /// <summary>
     /// Gets is transaction active.
     /// </summary>
-    public bool IsTransactionActive => _transaction != null && _connection.State == ConnectionState.Open;
+    public bool IsTransactionActive => Transaction != null && Connection.State == ConnectionState.Open;
+
+    /// <summary>
+    /// Gets the connection this unit of work writes its Outbox, Inbox, queue and message rows on.
+    /// Run business commands on this connection with <see cref="Transaction"/> so they commit or roll back
+    /// together with the messaging rows. The connection is opened by <see cref="BeginTransactionAsync"/>
+    /// and owned by this unit of work: do not close or dispose it.
+    /// </summary>
+    public NpgsqlConnection Connection { get; }
+
+    /// <summary>
+    /// Gets the active transaction, or <see langword="null"/> before <see cref="BeginTransactionAsync"/>
+    /// and after <see cref="CommitAsync"/> or <see cref="RollbackAsync"/>. Read it after each
+    /// <see cref="BeginTransactionAsync"/> rather than keeping it across transactions.
+    /// </summary>
+    public NpgsqlTransaction? Transaction { get; private set; }
     /// <summary>
     /// Gets outbox storage.
     /// </summary>
@@ -69,17 +82,17 @@ public class PostgreSqlUnitOfWork : IUnitOfWork
 
     public async Task BeginTransactionAsync(IsolationLevel isolationLevel = IsolationLevel.ReadCommitted, CancellationToken cancellationToken = default)
     {
-        if (_transaction != null)
+        if (Transaction != null)
         {
             throw new InvalidOperationException("Transaction is already active");
         }
 
-        if (_connection.State != ConnectionState.Open)
+        if (Connection.State != ConnectionState.Open)
         {
-            await _connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+            await Connection.OpenAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        _transaction = await _connection.BeginTransactionAsync(isolationLevel, cancellationToken).ConfigureAwait(false);
+        Transaction = await Connection.BeginTransactionAsync(isolationLevel, cancellationToken).ConfigureAwait(false);
     }
     /// <summary>
     /// Executes commit async.
@@ -87,19 +100,19 @@ public class PostgreSqlUnitOfWork : IUnitOfWork
 
     public async Task CommitAsync(CancellationToken cancellationToken = default)
     {
-        if (_transaction == null)
+        if (Transaction == null)
         {
             throw new InvalidOperationException("No active transaction to commit");
         }
 
         try
         {
-            await _transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            await Transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
         }
         finally
         {
-            await _transaction.DisposeAsync().ConfigureAwait(false);
-            _transaction = null;
+            await Transaction.DisposeAsync().ConfigureAwait(false);
+            Transaction = null;
             _savepoints.Clear();
         }
     }
@@ -109,19 +122,19 @@ public class PostgreSqlUnitOfWork : IUnitOfWork
 
     public async Task RollbackAsync(CancellationToken cancellationToken = default)
     {
-        if (_transaction == null)
+        if (Transaction == null)
         {
             throw new InvalidOperationException("No active transaction to rollback");
         }
 
         try
         {
-            await _transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+            await Transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
         }
         finally
         {
-            await _transaction.DisposeAsync().ConfigureAwait(false);
-            _transaction = null;
+            await Transaction.DisposeAsync().ConfigureAwait(false);
+            Transaction = null;
             _savepoints.Clear();
         }
     }
@@ -131,7 +144,7 @@ public class PostgreSqlUnitOfWork : IUnitOfWork
 
     public async Task SavepointAsync(string savepointName, CancellationToken cancellationToken = default)
     {
-        if (_transaction == null)
+        if (Transaction == null)
         {
             throw new InvalidOperationException("No active transaction for savepoint");
         }
@@ -146,7 +159,7 @@ public class PostgreSqlUnitOfWork : IUnitOfWork
             throw new InvalidOperationException($"Savepoint '{savepointName}' already exists");
         }
 
-        await _transaction.SaveAsync(savepointName, cancellationToken).ConfigureAwait(false);
+        await Transaction.SaveAsync(savepointName, cancellationToken).ConfigureAwait(false);
         _savepoints.Add(savepointName);
     }
     /// <summary>
@@ -155,7 +168,7 @@ public class PostgreSqlUnitOfWork : IUnitOfWork
 
     public async Task RollbackToSavepointAsync(string savepointName, CancellationToken cancellationToken = default)
     {
-        if (_transaction == null)
+        if (Transaction == null)
         {
             throw new InvalidOperationException("No active transaction for savepoint rollback");
         }
@@ -165,7 +178,7 @@ public class PostgreSqlUnitOfWork : IUnitOfWork
             throw new InvalidOperationException($"Savepoint '{savepointName}' does not exist");
         }
 
-        await _transaction.RollbackAsync(savepointName, cancellationToken).ConfigureAwait(false);
+        await Transaction.RollbackAsync(savepointName, cancellationToken).ConfigureAwait(false);
 
         // Remove this savepoint and all later ones
         var index = _savepoints.IndexOf(savepointName);
@@ -182,10 +195,10 @@ public class PostgreSqlUnitOfWork : IUnitOfWork
 
         try
         {
-            if (_transaction != null)
+            if (Transaction != null)
             {
-                await _transaction.RollbackAsync().ConfigureAwait(false);
-                await _transaction.DisposeAsync().ConfigureAwait(false);
+                await Transaction.RollbackAsync().ConfigureAwait(false);
+                await Transaction.DisposeAsync().ConfigureAwait(false);
             }
         }
         catch
@@ -194,13 +207,13 @@ public class PostgreSqlUnitOfWork : IUnitOfWork
         }
         finally
         {
-            if (_connection?.State == ConnectionState.Open)
+            if (Connection?.State == ConnectionState.Open)
             {
-                await _connection.CloseAsync().ConfigureAwait(false);
+                await Connection.CloseAsync().ConfigureAwait(false);
             }
-            if (_connection != null)
+            if (Connection != null)
             {
-                await _connection.DisposeAsync().ConfigureAwait(false);
+                await Connection.DisposeAsync().ConfigureAwait(false);
             }
             _disposed = true;
         }

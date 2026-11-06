@@ -73,6 +73,8 @@ builder.WithEventBus(options =>
 
 `HeroMessaging.RingBuffer`, a direct dependency of `HeroMessaging`, provides Disruptor-style sequencers, wait strategies and a batch event processor. `UseChannelQueue(...)` and `UseRingBufferQueue(...)` currently only validate and register `InMemoryQueueOptions`; no runtime component reads those options yet, so they do not change in-memory queue behaviour.
 
+To write business state and an outbox entry atomically, use one `PostgreSqlUnitOfWork`: call `BeginTransactionAsync`, run your business commands on `unitOfWork.Connection` with `unitOfWork.Transaction`, add the message with `unitOfWork.OutboxStorage.AddAsync(message, new OutboxOptions { Destination = "orders" })`, then `CommitAsync`. Rollback, a failed statement followed by rollback, or disposing without commit discards both, and outbox workers neither see nor wait for the entry until commit. The unit of work uses the default schema and `outbox_messages` table, so the standalone worker storage must use the same names. Create the outbox table before the first business transaction (starting the worker does this when `AutoCreateTables` is `true`); otherwise that first transaction creates it and holds the table lock until it ends.
+
 If `PostgreSqlStorageOptions.AutoCreateTables` is `false`, provision the outbox table using the current `PostgreSqlOutboxStorage` schema before starting a worker. In particular, external delivery requires `retry_delay_ms BIGINT`, `lease_token UUID`, and `lease_expires_at TIMESTAMPTZ` in addition to the existing outbox columns and indexes. No old-schema migration is provided because this feature has not been released.
 
 **Observability:**

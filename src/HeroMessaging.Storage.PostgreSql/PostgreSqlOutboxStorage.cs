@@ -92,6 +92,15 @@ public class PostgreSqlOutboxStorage : IExternalOutboxStorage
 
     private async Task InitializeDatabase()
     {
+        // ALTER TABLE and CREATE INDEX lock the table even when "IF NOT EXISTS" makes them no-ops. On a
+        // unit-of-work connection that lock is held until the business transaction ends, which serialises
+        // every business transaction and blocks Outbox workers. Read the catalog first and skip the DDL
+        // when the table is already complete.
+        if (await IsSchemaCompleteAsync().ConfigureAwait(false))
+        {
+            return;
+        }
+
         // Create schema if needed
         if (!string.IsNullOrEmpty(_options.Schema))
         {
@@ -129,6 +138,43 @@ public class PostgreSqlOutboxStorage : IExternalOutboxStorage
 
         await _schemaInitializer.ExecuteSchemaScriptAsync(createTableSql).ConfigureAwait(false);
     }
+    private async Task<bool> IsSchemaCompleteAsync()
+    {
+        const string sql = """
+            SELECT
+                (SELECT COUNT(*) FROM pg_catalog.pg_attribute a
+                 WHERE a.attrelid = to_regclass(@table)
+                   AND a.attname IN ('retry_delay_ms', 'lease_token', 'lease_expires_at')
+                   AND NOT a.attisdropped)
+              + (SELECT COUNT(*) FROM pg_catalog.pg_index i
+                 JOIN pg_catalog.pg_class c ON c.oid = i.indexrelid
+                 WHERE i.indrelid = to_regclass(@table) AND c.relname = ANY(@indexes))
+            """;
+
+        var table = _options.OutboxTableName.ToLowerInvariant();
+        string[] indexes =
+        [
+            $"idx_{table}_status", $"idx_{table}_next_retry", $"idx_{table}_created_at", $"idx_{table}_lease"
+        ];
+
+        var connection = await _connectionProvider.GetConnectionAsync().ConfigureAwait(false);
+        try
+        {
+            await using var command = new NpgsqlCommand(sql, connection, _connectionProvider.GetTransaction());
+            command.Parameters.AddWithValue("table", _tableName);
+            command.Parameters.AddWithValue("indexes", indexes);
+            var found = Convert.ToInt64(await command.ExecuteScalarAsync().ConfigureAwait(false), System.Globalization.CultureInfo.InvariantCulture);
+            return found == 3 + indexes.Length;
+        }
+        finally
+        {
+            if (!_connectionProvider.IsSharedConnection)
+            {
+                await connection.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+    }
+
     /// <summary>
     /// Executes add async.
     /// </summary>
