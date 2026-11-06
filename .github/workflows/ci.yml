@@ -1,7 +1,10 @@
 name: Build and Test
 
 on:
-  push:  # Trigger on every commit to any branch
+  # Branch pushes are covered by the pull_request run; a push trigger on every
+  # branch ran the whole matrix twice per PR commit and queued CI for over an hour.
+  push:
+    branches: [ main, develop ]
   pull_request:
     branches: [ main, develop ]
   schedule:
