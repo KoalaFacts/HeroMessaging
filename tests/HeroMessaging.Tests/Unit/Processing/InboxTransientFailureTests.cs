@@ -1,0 +1,115 @@
+using HeroMessaging.Abstractions;
+using HeroMessaging.Abstractions.Commands;
+using HeroMessaging.Abstractions.Storage;
+using HeroMessaging.Processing;
+using HeroMessaging.Storage;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
+using Xunit;
+
+namespace HeroMessaging.Tests.Unit.Processing;
+
+/// <summary>
+/// R5 step 2 (F08): a transient handler failure must not permanently fail a durable Inbox entry.
+/// </summary>
+[Trait("Category", "Unit")]
+public sealed class InboxTransientFailureTests
+{
+    [Fact]
+    public async Task ProcessWorkItem_TransientHandlerFailureThenSuccess_EntryEndsProcessed()
+    {
+        var storage = new InMemoryInboxStorage(TimeProvider.System);
+        var calls = 0;
+        var messaging = new Mock<IHeroMessaging>();
+        messaging
+            .Setup(m => m.SendAsync(It.IsAny<ICommand>(), It.IsAny<CancellationToken>()))
+            .Returns(() => Interlocked.Increment(ref calls) == 1
+                ? Task.FromException(new TimeoutException("database timeout"))
+                : Task.CompletedTask);
+
+        using var services = new ServiceCollection().AddSingleton(messaging.Object).BuildServiceProvider();
+        await using var processor = new InboxProcessor(storage, services, NullLogger<InboxProcessor>.Instance, TimeProvider.System);
+        var command = new InboxProcessorTests.TestCommand();
+
+        await processor.StartAsync(TestContext.Current.CancellationToken);
+        Assert.True(await processor.ProcessIncomingAsync(command, cancellationToken: TestContext.Current.CancellationToken));
+
+        var entry = await WaitForTerminalAsync(storage, command.MessageId.ToString(), InboxStatus.Processed, TimeSpan.FromSeconds(20));
+        await processor.StopAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(InboxStatus.Processed, entry?.Status);
+        Assert.Equal(2, calls);
+    }
+
+    [Fact]
+    public async Task ProcessWorkItem_PermanentHandlerFailure_EntryEndsFailedAfterOneAttempt()
+    {
+        var storage = new InMemoryInboxStorage(TimeProvider.System);
+        var calls = 0;
+        var messaging = new Mock<IHeroMessaging>();
+        messaging
+            .Setup(m => m.SendAsync(It.IsAny<ICommand>(), It.IsAny<CancellationToken>()))
+            .Returns(() =>
+            {
+                Interlocked.Increment(ref calls);
+                return Task.FromException(new ArgumentException("invalid order"));
+            });
+
+        using var services = new ServiceCollection().AddSingleton(messaging.Object).BuildServiceProvider();
+        await using var processor = new InboxProcessor(storage, services, NullLogger<InboxProcessor>.Instance, TimeProvider.System);
+        var command = new InboxProcessorTests.TestCommand();
+
+        await processor.StartAsync(TestContext.Current.CancellationToken);
+        Assert.True(await processor.ProcessIncomingAsync(command, cancellationToken: TestContext.Current.CancellationToken));
+
+        var entry = await WaitForTerminalAsync(storage, command.MessageId.ToString(), InboxStatus.Failed, TimeSpan.FromSeconds(20));
+        await processor.StopAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(InboxStatus.Failed, entry?.Status);
+        Assert.Equal(1, calls);
+    }
+
+    [Fact]
+    public async Task ProcessWorkItem_TransientFailureEveryAttempt_EntryEndsFailedAfterMaxAttempts()
+    {
+        var storage = new InMemoryInboxStorage(TimeProvider.System);
+        var calls = 0;
+        var messaging = new Mock<IHeroMessaging>();
+        messaging
+            .Setup(m => m.SendAsync(It.IsAny<ICommand>(), It.IsAny<CancellationToken>()))
+            .Returns(() =>
+            {
+                Interlocked.Increment(ref calls);
+                return Task.FromException(new TimeoutException("database timeout"));
+            });
+
+        using var services = new ServiceCollection().AddSingleton(messaging.Object).BuildServiceProvider();
+        await using var processor = new InboxProcessor(storage, services, NullLogger<InboxProcessor>.Instance, TimeProvider.System);
+        var command = new InboxProcessorTests.TestCommand();
+
+        await processor.StartAsync(TestContext.Current.CancellationToken);
+        Assert.True(await processor.ProcessIncomingAsync(command, cancellationToken: TestContext.Current.CancellationToken));
+
+        var entry = await WaitForTerminalAsync(storage, command.MessageId.ToString(), InboxStatus.Failed, TimeSpan.FromSeconds(20));
+        await processor.StopAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(InboxStatus.Failed, entry?.Status);
+        Assert.Equal(3, calls);
+    }
+
+    private static async Task<InboxEntry?> WaitForTerminalAsync(IInboxStorage storage, string id, InboxStatus expected, TimeSpan timeout)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+        InboxEntry? entry;
+        do
+        {
+            entry = await storage.GetAsync(id, TestContext.Current.CancellationToken);
+            if (entry?.Status == expected)
+                return entry;
+            await Task.Delay(50, TestContext.Current.CancellationToken);
+        }
+        while (DateTime.UtcNow < deadline);
+        return entry;
+    }
+}

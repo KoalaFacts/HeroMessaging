@@ -50,6 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **RabbitMQ consumer handler failures are no longer requeued forever.** With default `ConsumerOptions`, a message whose handler keeps failing is rejected without requeue after 3 retries (about 35 s of backoff). RabbitMQ keeps it only if the queue has a dead-letter exchange. To upgrade, set `QueueDefinition.DeadLetterExchange` on the queue, or set `MessageRetryPolicy.MaxAttempts = -1` to keep retrying indefinitely (now with backoff).
 
 ### Fixed
+- The Inbox worker no longer marks an entry `Failed` on the first transient handler failure. A failure that `DefaultIdempotencyPolicy` does not classify as permanent (for example `TimeoutException`, `IOException`, or an unknown exception) leaves the entry pending and is retried after 200 ms, then 400 ms; the third failure marks it `Failed`. Permanent failures (for example `ArgumentException`, `InvalidOperationException`) still fail on the first attempt. The attempt count is kept per worker process, so a restart starts a new count.
 - Inbox retention cleanup (in-memory, PostgreSQL, SQL Server) no longer deletes a processed or failed entry before its own `InboxOptions.DeduplicationWindow` has elapsed. Previously the worker's fixed seven-day cleanup removed entries with a longer window, so a redelivery after day seven was admitted and processed again.
 
 ### Changed

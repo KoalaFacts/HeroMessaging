@@ -4,6 +4,7 @@ using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Abstractions.Storage;
+using HeroMessaging.Idempotency;
 using HeroMessaging.Utilities;
 using Microsoft.Extensions.Logging;
 
@@ -18,6 +19,18 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
     private readonly IServiceProvider _serviceProvider;
     private readonly TimeProvider _timeProvider;
     private readonly ConcurrentDictionary<string, byte> _inFlight = new();
+    private readonly ConcurrentDictionary<string, TransientFailureState> _transientFailures = new();
+    private static readonly DefaultIdempotencyPolicy FailureClassifier = new();
+
+    /// <summary>
+    /// Handler attempts per entry and process before a transient failure becomes terminal.
+    /// </summary>
+    internal const int MaxHandlerAttempts = 3;
+
+    /// <summary>
+    /// Delay before the second attempt; doubles for each later attempt.
+    /// </summary>
+    internal static readonly TimeSpan InitialRetryDelay = TimeSpan.FromMilliseconds(200);
     private readonly CancellationTokenSource _shutdown = new();
     private bool _stopTimedOut;
     /// <summary>
@@ -186,7 +199,8 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
     protected override async Task<IEnumerable<InboxEntry>> PollForWorkItemsAsync(CancellationToken cancellationToken)
     {
         var pending = await _inboxStorage.GetUnprocessedAsync(100, cancellationToken);
-        return [.. pending.Where(entry => _inFlight.TryAdd(entry.Id, 0))];
+        var now = _timeProvider.GetUtcNow();
+        return [.. pending.Where(entry => IsDue(entry.Id, now) && _inFlight.TryAdd(entry.Id, 0))];
     }
     /// <summary>
     /// Executes get polling delay.
@@ -250,6 +264,7 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
             await ScopedMessagingExecutor.DispatchAsync(_serviceProvider, entry.Message, Logger, "inbox", _shutdown.Token);
 
             await _inboxStorage.MarkProcessedAsync(entry.Id);
+            _transientFailures.TryRemove(entry.Id, out _);
 
             Logger.LogInformation("Inbox entry {EntryId} (Message: {MessageId}) processed successfully from source {Source}",
                 entry.Id, entry.Message.MessageId, entry.Options.Source ?? "Unknown");
@@ -268,8 +283,13 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
         {
             Logger.LogError(ex, "Unable to claim inbox entry {EntryId}; it remains pending", entry.Id);
         }
+        catch (Exception ex) when (TryScheduleRetry(entry, ex))
+        {
+            entry.Status = InboxStatus.Pending;
+        }
         catch (Exception ex)
         {
+            _transientFailures.TryRemove(entry.Id, out _);
             Logger.LogError(ex, "Error processing inbox entry {EntryId} (Message: {MessageId})",
                 entry.Id, entry.Message.MessageId);
 
@@ -292,6 +312,32 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
             }
         }
     }
+    private bool IsDue(string entryId, DateTimeOffset now) =>
+        !_transientFailures.TryGetValue(entryId, out var state) || state.NotBefore <= now;
+
+    /// <summary>
+    /// Leaves an entry pending for another attempt when the failure is transient
+    /// (not classified as permanent by <see cref="DefaultIdempotencyPolicy"/>) and attempts remain.
+    /// </summary>
+    private bool TryScheduleRetry(InboxEntry entry, Exception exception)
+    {
+        if (FailureClassifier.IsIdempotentFailure(exception))
+            return false;
+
+        var attempts = _transientFailures.TryGetValue(entry.Id, out var previous) ? previous.Attempts + 1 : 1;
+        if (attempts >= MaxHandlerAttempts)
+            return false;
+
+        var delay = TimeSpan.FromTicks(InitialRetryDelay.Ticks << (attempts - 1));
+        _transientFailures[entry.Id] = new TransientFailureState(attempts, _timeProvider.GetUtcNow() + delay);
+        Logger.LogWarning(exception,
+            "Transient failure processing inbox entry {EntryId} (attempt {Attempt} of {MaxAttempts}); retrying after {Delay}",
+            entry.Id, attempts, MaxHandlerAttempts, delay);
+        return true;
+    }
+
+    private readonly record struct TransientFailureState(int Attempts, DateTimeOffset NotBefore);
+
     /// <summary>
     /// Executes get unprocessed count async.
     /// </summary>

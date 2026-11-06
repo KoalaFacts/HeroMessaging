@@ -127,6 +127,51 @@ public sealed class PostgreSqlInboxRecoveryTests : PostgreSqlIntegrationTestBase
         }
     }
 
+    [Fact]
+    public async Task TransientHandlerFailure_IsRetriedAndEntryEndsProcessed()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var options = new PostgreSqlStorageOptions
+        {
+            ConnectionString = ConnectionString,
+            Schema = $"inbox_transient_{Guid.NewGuid():N}"
+        };
+        var message = new TestEvent();
+        var calls = 0;
+        var messaging = new Mock<IHeroMessaging>();
+        messaging.Setup(service => service.PublishAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()))
+            .Returns(() => Interlocked.Increment(ref calls) == 1
+                ? Task.FromException(new TimeoutException("downstream timeout"))
+                : Task.CompletedTask);
+
+        try
+        {
+            await using var host = CreateHost(options, messaging.Object);
+            var storage = host.GetRequiredService<IInboxStorage>();
+            await storage.AddAsync(message, new InboxOptions(), cancellationToken);
+            var hosted = Assert.Single(host.GetServices<IHostedService>());
+            await hosted.StartAsync(cancellationToken);
+
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeout.CancelAfter(TimeSpan.FromSeconds(15));
+            InboxEntry? persisted;
+            while ((persisted = await storage.GetAsync(message.MessageId.ToString(), timeout.Token))?.Status
+                   is not (InboxStatus.Processed or InboxStatus.Failed))
+                await Task.Delay(TimeSpan.FromMilliseconds(100), timeout.Token);
+            await hosted.StopAsync(cancellationToken);
+
+            Assert.Equal(InboxStatus.Processed, persisted?.Status);
+            Assert.Equal(2, calls);
+        }
+        finally
+        {
+            await using var connection = new NpgsqlConnection(ConnectionString);
+            await connection.OpenAsync(CancellationToken.None);
+            await using var command = new NpgsqlCommand($"DROP SCHEMA IF EXISTS {options.Schema} CASCADE", connection);
+            await command.ExecuteNonQueryAsync(CancellationToken.None);
+        }
+    }
+
     private static ServiceProvider CreateHost(PostgreSqlStorageOptions options, IHeroMessaging messaging)
     {
         var services = new ServiceCollection();
