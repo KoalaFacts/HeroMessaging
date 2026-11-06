@@ -315,6 +315,35 @@ channel.QueueBind(queue, exchange, routingKey, arguments);
 
 ---
 
+### TD-7: Dead-Letter Replay (2026-11-06)
+
+**Decision**: `RabbitMqTransport.ReplayDeadLettersAsync(deadLetterQueue, options)` moves retained messages from a dead-letter queue back to the queue that rejected them, for operators to run after the cause is fixed. It is an explicit call, not a background process.
+
+- The source queue is the first (most recent) `x-death` entry's `queue`, falling back to `x-first-death-queue`; `DeadLetterReplayOptions.TargetQueue` overrides it (it may not be the dead-letter queue itself). A message whose history names no queue, names the dead-letter queue, or names a queue that no longer routes (deleted or renamed) is counted in `DeadLetterReplayResult.Unresolved` and moved to the back of the dead-letter queue: republished there with a confirmation and then acknowledged, not requeued, because a quorum queue counts a requeue against its delivery limit (default 20; RabbitMQ's quorum queue guide says `basic.nack` returns stop counting from 4.3) and would eventually drop a message that was never replayed. Unresolved messages are held until the fetch ends and moved afterwards, so a high-priority one is not fetched again by the same call (a priority queue keeps their priority). The rest of the queue is still replayed.
+- A call looks at no more messages than the dead-letter queue held at its start. It first takes up to `MaxMessages` (default 100) replayable messages with `basic.get` and holds them unacknowledged, then publishes each to the default exchange with mandatory routing and a publisher confirmation and acknowledges it on the dead-letter queue only after the confirmation. Taking the batch first means a replayed message that fails again during the call (which a priority queue can put ahead of older messages) cannot be fetched twice by it. Unresolved messages do not count against `MaxMessages`. Publisher confirms are required. An explicit target that does not route throws `QueueDeliveryException`; any failure or cancellation closes the replay channel, which returns every held message to the dead-letter queue. Messages already replayed stay replayed. A missing dead-letter queue throws `InvalidOperationException`.
+- Delivery is at least once: a process stop, connection loss or confirmation timeout after the broker accepted the copy leaves the dead-letter copy too, and a later call replays it again; the same windows can leave an unresolved message twice in the dead-letter queue. `MaxMessages` also bounds the message bodies held in memory.
+- The replayed copy keeps the body, properties and `x-death` history, drops `UserId` (the broker rejects a copy claiming another user), drops the broker's `x-delivery-count` and increments a `hero-replay-count` header. Dropping `x-delivery-count` matters for quorum dead-letter queues: a message returned to one by a failed replay comes back with `x-delivery-count`, which the consumer (TD-6) would otherwise count against the replayed message's new retry budget. RabbitMQ removes a per-message `expiration` when dead-lettering (kept as `original-expiration` in `x-death`), so the copy has no TTL.
+
+**Consequence**: retained failures can be replayed without broker plugins or hand-written shovels. Failure context is the broker's `x-death` (queue, reason, time, count), or the `hero-fault-*` headers when an error queue is configured (TD-8). Integration (RabbitMQ 3.13): `RabbitMqDeadLetterReplayIntegrationTests` (22 tests: two replay a message published by another broker user, four cover TD-8); unit: `DeadLetterReplayHeadersTests`, `RabbitMqDeadLetterReplayValidationTests`.
+
+---
+
+### TD-8: Error Queue with Failure Context (2026-11-06)
+
+**Decision**: `RabbitMqTransportOptions.ErrorQueueSuffix` (default `null`) names a per-queue error queue (`orders` + `"_error"` = `orders_error`). When it is set, a terminal handler failure (retries used up, `RequeueOnFailure = false`) or a handler's `DeadLetterAsync(reason)` publishes a copy to that queue and then acknowledges the original, instead of rejecting it.
+
+- The copy keeps the body, properties and headers, is made persistent, drops `expiration` (the original is gone once the copy is confirmed, so the copy must not expire), `x-delivery-count` and `UserId` (the broker rejects a copy naming another publisher, as in TD-7), replaces any earlier `hero-fault-*` headers and adds `hero-fault-queue` (source queue), `hero-fault-consumer`, `hero-fault-retries`, `hero-fault-time` (UTC, ISO 8601), and either `hero-fault-exception-type` and `hero-fault-exception-message` (truncated to 4,096 characters) or `hero-fault-reason`.
+- The copy is published with mandatory routing and a publisher confirmation; the original is acknowledged only after the confirmation. If the error queue does not exist, publisher confirms are disabled, or the copy is not confirmed, the original is rejected without requeue as before, so a dead-letter exchange still keeps it. A confirmation timeout after the broker accepted the copy can leave the copy and a dead-lettered original. Delivery is at least once: if the consumer channel closes after the confirmation but before the acknowledgement, the original is redelivered, so the error queue can hold a duplicate.
+- A handler's `DeadLetterAsync` claims the delivery before publishing the copy, so a call after the delivery was settled throws without copying, and cancelling the handler's token during the move does not lead to a retry.
+- `hero-fault-exception-message` carries the exception message (up to 4,096 characters, never splitting a surrogate pair) to anyone who can read the error queue; handlers whose exceptions can contain secrets or personal data should not set `ErrorQueueSuffix` or should throw sanitised exceptions. `MessagesDeadLettered` counts both moved and rejected messages.
+- The error queue is not declared automatically; declare it with the topology like any queue.
+- `ReplayDeadLettersAsync` reads `hero-fault-queue` before `x-death`, so an error queue replays like a dead-letter queue, and removes the `hero-fault-*` headers from the replayed copy.
+- Additive public API: a new settable property on `RabbitMqTransportOptions`; no signature changes.
+
+**Consequence**: operators see why a message failed without searching logs, matching MassTransit's `_error` queues. Unit: `FaultHeadersTests`, `RabbitMqConsumerRetryPolicyTests` (error-queue cases); integration (RabbitMQ 3.13): `RabbitMqDeadLetterReplayIntegrationTests.ErrorQueue_KeepsFailureContextAndReplaysToTheSourceQueue`, `ErrorQueue_WhenMissing_FallsBackToTheDeadLetterExchange`, `ErrorQueue_WithoutPublisherConfirms_FallsBackToTheDeadLetterExchange`, `ErrorQueue_MessagePublishedByAnotherBrokerUser_IsMovedWithItsFailureContext`.
+
+---
+
 ## Architectural Consequences
 
 ### Positive Consequences
