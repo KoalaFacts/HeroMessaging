@@ -50,6 +50,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `docs/adr/0004-saga-patterns.md` - Implementation summary
   - Comprehensive code examples in tests
 
+- **PostgreSQL business-transaction Outbox**: `PostgreSqlUnitOfWork.Connection` and `PostgreSqlUnitOfWork.Transaction` let business commands run in the same transaction as `OutboxStorage.AddAsync`, so the business rows and the outbox entry commit or roll back together.
+
 ### Breaking
 - **RabbitMQ consumer handler failures are no longer requeued forever.** With default `ConsumerOptions`, a message whose handler keeps failing is rejected without requeue after 3 retries (about 35 s of backoff). RabbitMQ keeps it only if the queue has a dead-letter exchange. To upgrade, set `QueueDefinition.DeadLetterExchange` on the queue, or set `MessageRetryPolicy.MaxAttempts = -1` to keep retrying indefinitely (now with backoff).
 
@@ -57,6 +59,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Inbox retention cleanup (in-memory, PostgreSQL, SQL Server) no longer deletes a processed or failed entry before its own `InboxOptions.DeduplicationWindow` has elapsed. Previously the worker's fixed seven-day cleanup removed entries with a longer window, so a redelivery after day seven was admitted and processed again.
 
 ### Changed
+- **PostgreSQL Outbox schema check**: `PostgreSqlOutboxStorage` reads the catalog and skips its `ALTER TABLE`/`CREATE INDEX IF NOT EXISTS` statements when the table is already complete. Previously every unit-of-work outbox write ran them inside the business transaction and held an exclusive table lock until commit, so concurrent business transactions waited for each other and outbox workers blocked.
 - **RabbitMQ consumer retries**: `ConsumerOptions.MessageRetryPolicy` now governs handler failures. A failing delivery is requeued after the policy's backoff until its retries are used up, then rejected without requeue (retained only with a dead-letter exchange) and counted in `ConsumerMetrics.MessagesDeadLettered`. Previously it was requeued immediately and indefinitely. Inbox transport subscriptions keep retrying indefinitely, now with backoff.
 - **RetryPolicy**: `CalculateDelay` returns zero for a zero initial delay at any attempt number (it threw for attempts above 1024 with exponential backoff).
 - **In-memory consumer**: `RetryPolicy.MaxAttempts = -1` now retries indefinitely, as documented, instead of dead-lettering at once; stopping the consumer ends those retries.
