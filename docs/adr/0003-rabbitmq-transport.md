@@ -315,6 +315,19 @@ channel.QueueBind(queue, exchange, routingKey, arguments);
 
 ---
 
+### TD-7: Dead-Letter Replay (2026-11-06)
+
+**Decision**: `RabbitMqTransport.ReplayDeadLettersAsync(deadLetterQueue, options)` moves retained messages from a dead-letter queue back to the queue that rejected them, for operators to run after the cause is fixed. It is an explicit call, not a background process.
+
+- The source queue is the first (most recent) `x-death` entry's `queue`, falling back to `x-first-death-queue`; `DeadLetterReplayOptions.TargetQueue` overrides it (it may not be the dead-letter queue itself). A message whose history names no queue, names the dead-letter queue, or names a queue that no longer routes (deleted or renamed) is counted in `DeadLetterReplayResult.Unresolved` and moved to the back of the dead-letter queue: republished there with a confirmation and then acknowledged, not requeued, because a quorum queue counts a requeue against its delivery limit (default 20; RabbitMQ's quorum queue guide says `basic.nack` returns stop counting from 4.3) and would eventually drop a message that was never replayed. Unresolved messages are held until the fetch ends and moved afterwards, so a high-priority one is not fetched again by the same call (a priority queue keeps their priority). The rest of the queue is still replayed.
+- A call looks at no more messages than the dead-letter queue held at its start. It first takes up to `MaxMessages` (default 100) replayable messages with `basic.get` and holds them unacknowledged, then publishes each to the default exchange with mandatory routing and a publisher confirmation and acknowledges it on the dead-letter queue only after the confirmation. Taking the batch first means a replayed message that fails again during the call (which a priority queue can put ahead of older messages) cannot be fetched twice by it. Unresolved messages do not count against `MaxMessages`. Publisher confirms are required. An explicit target that does not route throws `QueueDeliveryException`; any failure or cancellation closes the replay channel, which returns every held message to the dead-letter queue. Messages already replayed stay replayed. A missing dead-letter queue throws `InvalidOperationException`.
+- Delivery is at least once: a process stop, connection loss or confirmation timeout after the broker accepted the copy leaves the dead-letter copy too, and a later call replays it again; the same windows can leave an unresolved message twice in the dead-letter queue. `MaxMessages` also bounds the message bodies held in memory.
+- The replayed copy keeps the body, properties and `x-death` history, drops `UserId` (the broker rejects a copy claiming another user), drops the broker's `x-delivery-count` and increments a `hero-replay-count` header. Dropping `x-delivery-count` matters for quorum dead-letter queues: a message returned to one by a failed replay comes back with `x-delivery-count`, which the consumer (TD-6) would otherwise count against the replayed message's new retry budget. RabbitMQ removes a per-message `expiration` when dead-lettering (kept as `original-expiration` in `x-death`), so the copy has no TTL.
+
+**Consequence**: retained failures can be replayed without broker plugins or hand-written shovels. The consumer's exception is not yet attached to the dead-lettered message; the broker's `x-death` (queue, reason, time, count) and the consumer's error log (message ID, queue, exception) are the failure context. Integration (RabbitMQ 3.13): `RabbitMqDeadLetterReplayIntegrationTests` (18 tests, two of them replaying a message published by another broker user); unit: `DeadLetterReplayHeadersTests`, `RabbitMqDeadLetterReplayValidationTests`.
+
+---
+
 ## Architectural Consequences
 
 ### Positive Consequences

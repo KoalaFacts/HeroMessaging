@@ -402,6 +402,227 @@ public sealed class RabbitMqTransport : IConfirmedQueueTransport, IRabbitMqConsu
         }
     }
 
+    /// <summary>
+    /// Moves messages retained in a dead-letter queue back to the queue that rejected them (or to
+    /// <see cref="DeadLetterReplayOptions.TargetQueue"/>) once the cause of the failure is fixed.
+    /// </summary>
+    /// <param name="deadLetterQueue">The queue bound to the work queue's dead-letter exchange.</param>
+    /// <param name="options">Replay limits and target; <see langword="null"/> uses the defaults.</param>
+    /// <param name="cancellationToken">
+    /// Stops the replay. Messages already replayed stay replayed; the others stay in the dead-letter queue and
+    /// <see cref="OperationCanceledException"/> is thrown.
+    /// </param>
+    /// <returns>How many messages were replayed and how many were left in place.</returns>
+    /// <remarks>
+    /// <para>
+    /// A call looks at no more messages than the dead-letter queue held when it started. It first takes up to
+    /// <see cref="DeadLetterReplayOptions.MaxMessages"/> replayable messages (held unacknowledged), then publishes each
+    /// to its target queue with mandatory routing and a publisher confirmation and removes it from the dead-letter
+    /// queue only after the broker confirms it. Taking the batch first means a message that fails again during the
+    /// call cannot be replayed twice by it, even in a priority queue.
+    /// </para>
+    /// <para>
+    /// Messages are counted as <see cref="DeadLetterReplayResult.Unresolved"/> and moved to the back of the
+    /// dead-letter queue (republished with confirmation, not requeued, so a quorum queue's delivery limit never
+    /// drops them; in a priority queue they keep their priority) when their <c>x-death</c> history names no queue, names the dead-letter queue itself, or names a
+    /// queue that no longer routes (deleted or renamed). Replay those with <see cref="DeadLetterReplayOptions.TargetQueue"/>.
+    /// An explicit target that does not route throws <see cref="QueueDeliveryException"/> and leaves every message
+    /// not yet replayed in the dead-letter queue.
+    /// </para>
+    /// <para>
+    /// Delivery is at least once: if the process stops, the connection drops or the confirmation times out after
+    /// the broker accepted the copy, the dead-letter copy stays too and a later call replays it again. The same
+    /// windows can leave an unresolved message twice in the dead-letter queue. Handlers
+    /// must tolerate duplicates, as they already must for redelivery.
+    /// </para>
+    /// <para>
+    /// The copy keeps the body, properties and <c>x-death</c> history, drops the broker's <c>x-delivery-count</c> so
+    /// it starts with the consumer's full retry budget, drops <c>UserId</c> (the broker would reject a copy claiming
+    /// another user) and carries a <c>hero-replay-count</c> header counting replays.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentException">The dead-letter queue name is blank, or the target is blank or is the dead-letter queue.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><see cref="DeadLetterReplayOptions.MaxMessages"/> is not positive.</exception>
+    /// <exception cref="InvalidOperationException">The transport is not connected, publisher confirms are disabled, or the dead-letter queue does not exist.</exception>
+    /// <exception cref="OperationCanceledException"><paramref name="cancellationToken"/> was cancelled; messages not yet replayed stay in the dead-letter queue.</exception>
+    /// <exception cref="QueueDeliveryException">The explicit <see cref="DeadLetterReplayOptions.TargetQueue"/> does not route.</exception>
+    /// <exception cref="TimeoutException">The broker did not confirm a copy within <see cref="RabbitMqTransportOptions.PublisherConfirmTimeout"/>.</exception>
+    public async Task<DeadLetterReplayResult> ReplayDeadLettersAsync(
+        TransportAddress deadLetterQueue,
+        DeadLetterReplayOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(deadLetterQueue.Name, nameof(deadLetterQueue));
+        options ??= new DeadLetterReplayOptions();
+        if (options.MaxMessages <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(options), options.MaxMessages, "DeadLetterReplayOptions.MaxMessages must be positive; it bounds the messages taken per call.");
+        }
+
+        if (options.TargetQueue is not null &&
+            (string.IsNullOrWhiteSpace(options.TargetQueue) || options.TargetQueue == deadLetterQueue.Name))
+        {
+            throw new ArgumentException(
+                "DeadLetterReplayOptions.TargetQueue must name a queue other than the dead-letter queue, or be null to use each message's x-death source queue.",
+                nameof(options));
+        }
+
+        if (!_options.UsePublisherConfirms)
+        {
+            throw new InvalidOperationException(
+                $"Dead-letter replay removes a message only after the broker confirms its copy. Enable {nameof(RabbitMqTransportOptions.UsePublisherConfirms)}.");
+        }
+
+        EnsureConnected();
+
+        var channelPool = await GetOrCreateChannelPoolAsync(cancellationToken).ConfigureAwait(false);
+        var channel = await channelPool.AcquireChannelAsync(cancellationToken).ConfigureAwait(false);
+        var replayed = 0;
+        var unresolved = 0;
+        var settled = false;
+        try
+        {
+            // Take the whole batch before publishing anything, so a replayed message that fails again and returns
+            // (ahead of older messages in a priority queue) cannot be fetched twice by this call.
+            var batch = new List<(BasicGetResult Message, string Target)>();
+            var unresolvedHeld = new List<BasicGetResult>();
+            var depth = await GetQueueDepthAsync(channel, deadLetterQueue.Name, cancellationToken).ConfigureAwait(false);
+            for (long taken = 0; taken < depth && batch.Count < options.MaxMessages; taken++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var message = await channel.BasicGetAsync(deadLetterQueue.Name, autoAck: false, cancellationToken).ConfigureAwait(false);
+                if (message is null)
+                    break;
+
+                if (ResolveReplayTarget(deadLetterQueue.Name, options.TargetQueue, message) is { } target)
+                {
+                    batch.Add((message, target));
+                }
+                else
+                {
+                    // Held until the fetch ends: moved now, a high-priority copy would be fetched again at once.
+                    unresolvedHeld.Add(message);
+                }
+            }
+
+            foreach (var message in unresolvedHeld)
+            {
+                await MoveToBackAsync(channel, deadLetterQueue.Name, message).ConfigureAwait(false);
+                unresolved++;
+            }
+
+            foreach (var (message, target) in batch)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (await TryReplayAsync(channel, deadLetterQueue.Name, target, options.TargetQueue is null, message).ConfigureAwait(false))
+                {
+                    await channel.BasicAckAsync(message.DeliveryTag, multiple: false, CancellationToken.None).ConfigureAwait(false);
+                    replayed++;
+                }
+                else
+                {
+                    await MoveToBackAsync(channel, deadLetterQueue.Name, message).ConfigureAwait(false);
+                    unresolved++;
+                }
+            }
+
+            settled = true;
+        }
+        finally
+        {
+            try
+            {
+                if (!settled && channel.IsOpen)
+                {
+                    // Closing the channel returns every unacknowledged message to the dead-letter queue.
+                    try
+                    {
+                        await channel.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                    }
+                    catch (Exception closeError) when (closeError is AlreadyClosedException or OperationInterruptedException or IOException or TimeoutException or OperationCanceledException or ObjectDisposedException)
+                    {
+                        _logger.LogWarning(closeError, "Could not close the replay channel for {DeadLetterQueue}", deadLetterQueue.Name);
+                    }
+                }
+            }
+            finally
+            {
+                channelPool.ReleaseChannel(channel);
+            }
+        }
+
+        return new DeadLetterReplayResult(replayed, unresolved);
+    }
+
+    private static async Task<long> GetQueueDepthAsync(IChannel channel, string queue, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var declared = await channel.QueueDeclarePassiveAsync(queue, cancellationToken).ConfigureAwait(false);
+            return declared.MessageCount;
+        }
+        catch (OperationInterruptedException ex) when (ex.ShutdownReason?.ReplyCode == 404)
+        {
+            throw new InvalidOperationException(
+                $"Dead-letter queue '{queue}' does not exist. Check the name against the work queue's dead-letter exchange binding.", ex);
+        }
+    }
+
+    private string? ResolveReplayTarget(string deadLetterQueue, string? explicitTarget, BasicGetResult message)
+    {
+        var target = explicitTarget ?? DeadLetterReplayHeaders.ResolveSourceQueue(message.BasicProperties.Headers);
+        if (target is not null && target != deadLetterQueue)
+            return target;
+
+        _logger.LogWarning(
+            "Leaving message {MessageId} in {DeadLetterQueue}: its x-death history names no other source queue. Replay it with DeadLetterReplayOptions.TargetQueue",
+            message.BasicProperties.MessageId, deadLetterQueue);
+        return null;
+    }
+
+    /// <summary>
+    /// Moves an unresolved message to the back of the dead-letter queue as a new, confirmed message instead of
+    /// requeueing it: a quorum queue counts a requeue against its delivery limit and could eventually drop a message
+    /// that was never replayed.
+    /// </summary>
+    private async Task MoveToBackAsync(IChannel channel, string deadLetterQueue, BasicGetResult message)
+    {
+        var properties = new BasicProperties(message.BasicProperties)
+        {
+            Headers = DeadLetterReplayHeaders.WithoutDeliveryCount(message.BasicProperties.Headers),
+            UserId = null
+        };
+        await PublishMessageAsync(channel, string.Empty, deadLetterQueue, properties, message.Body, CancellationToken.None, requireRoute: true)
+            .ConfigureAwait(false);
+        await channel.BasicAckAsync(message.DeliveryTag, multiple: false, CancellationToken.None).ConfigureAwait(false);
+    }
+
+    private async Task<bool> TryReplayAsync(IChannel channel, string deadLetterQueue, string target, bool targetFromHistory, BasicGetResult message)
+    {
+        var messageId = message.BasicProperties.MessageId;
+        var properties = new BasicProperties(message.BasicProperties)
+        {
+            Headers = DeadLetterReplayHeaders.PrepareHeaders(message.BasicProperties.Headers),
+            UserId = null
+        };
+        try
+        {
+            await PublishMessageAsync(channel, string.Empty, target, properties, message.Body, CancellationToken.None, requireRoute: true)
+                .ConfigureAwait(false);
+        }
+        catch (QueueDeliveryException ex) when (targetFromHistory)
+        {
+            _logger.LogWarning(ex,
+                "Leaving message {MessageId} in {DeadLetterQueue}: its source queue {Queue} does not route (deleted or renamed?). Replay it with DeadLetterReplayOptions.TargetQueue",
+                messageId, deadLetterQueue, target);
+            return false;
+        }
+
+        _logger.LogInformation("Replayed message {MessageId} from {DeadLetterQueue} to {Queue}", messageId, deadLetterQueue, target);
+        return true;
+    }
+
     /// <inheritdoc/>
     public async Task ConfigureTopologyAsync(
         TransportTopology topology,
