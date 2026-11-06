@@ -89,13 +89,17 @@ public abstract class RabbitMqIntegrationTestBase : IAsyncLifetime
     /// </summary>
     protected async Task CreateBrokerUserAsync(string userName, string password)
     {
-        if (_rabbitMqContainer is null)
+        if (_rabbitMqContainer is not { } container)
+        {
+            // Assert.Skip throws; the return makes the branch's end explicit for flow analysis.
             Assert.Skip("Needs the Testcontainers broker to add a user; RabbitMq__Host points at an external broker.");
+            return;
+        }
 
         var token = TestContext.Current.CancellationToken;
-        var added = await _rabbitMqContainer.ExecAsync(["rabbitmqctl", "add_user", userName, password], token);
+        var added = await container.ExecAsync(["rabbitmqctl", "add_user", userName, password], token);
         Assert.True(added.ExitCode == 0, $"rabbitmqctl add_user exited with {added.ExitCode}: {added.Stderr}");
-        var permitted = await _rabbitMqContainer.ExecAsync(["rabbitmqctl", "set_permissions", "-p", "/", userName, ".*", ".*", ".*"], token);
+        var permitted = await container.ExecAsync(["rabbitmqctl", "set_permissions", "-p", "/", userName, ".*", ".*", ".*"], token);
         Assert.True(permitted.ExitCode == 0, $"rabbitmqctl set_permissions exited with {permitted.ExitCode}: {permitted.Stderr}");
     }
 
