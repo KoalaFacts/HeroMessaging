@@ -223,6 +223,7 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
                 await Task.Delay(TimeSpan.FromHours(1), _timeProvider, cancellationToken);
 
                 await _inboxStorage.CleanupOldEntriesAsync(TimeSpan.FromDays(7), cancellationToken);
+                PruneStaleTransientFailures(_timeProvider.GetUtcNow() - TimeSpan.FromHours(1));
 
                 Logger.LogDebug("Inbox cleanup completed");
             }
@@ -254,7 +255,10 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
 
                 var persisted = await _inboxStorage.GetAsync(entry.Id, _shutdown.Token);
                 if (persisted?.Status != InboxStatus.Pending)
+                {
+                    _transientFailures.TryRemove(entry.Id, out _);
                     return;
+                }
                 entry = persisted;
             }
 
@@ -312,6 +316,21 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
             }
         }
     }
+    /// <summary>
+    /// Drops retry state for entries this worker has not retried for a long time
+    /// (processed by another host, deleted, or abandoned at shutdown).
+    /// </summary>
+    internal void PruneStaleTransientFailures(DateTimeOffset olderThan)
+    {
+        foreach (var pair in _transientFailures)
+        {
+            if (pair.Value.NotBefore < olderThan)
+                _transientFailures.TryRemove(pair.Key, out _);
+        }
+    }
+
+    internal int TransientFailureCount => _transientFailures.Count;
+
     private bool IsDue(string entryId, DateTimeOffset now) =>
         !_transientFailures.TryGetValue(entryId, out var state) || state.NotBefore <= now;
 

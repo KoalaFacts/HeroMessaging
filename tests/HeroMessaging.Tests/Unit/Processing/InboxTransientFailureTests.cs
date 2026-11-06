@@ -98,6 +98,33 @@ public sealed class InboxTransientFailureTests
         Assert.Equal(3, calls);
     }
 
+    [Fact]
+    public async Task PruneStaleTransientFailures_EntryRetriedLongAgo_IsForgotten()
+    {
+        var storage = new InMemoryInboxStorage(TimeProvider.System);
+        var messaging = new Mock<IHeroMessaging>();
+        messaging
+            .Setup(m => m.SendAsync(It.IsAny<ICommand>(), It.IsAny<CancellationToken>()))
+            .Returns(() => Task.FromException(new TimeoutException("database timeout")));
+
+        using var services = new ServiceCollection().AddSingleton(messaging.Object).BuildServiceProvider();
+        await using var processor = new InboxProcessor(storage, services, NullLogger<InboxProcessor>.Instance, TimeProvider.System);
+        var command = new InboxProcessorTests.TestCommand();
+
+        await processor.StartAsync(TestContext.Current.CancellationToken);
+        Assert.True(await processor.ProcessIncomingAsync(command, cancellationToken: TestContext.Current.CancellationToken));
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
+        while (processor.TransientFailureCount == 0 && DateTime.UtcNow < deadline)
+            await Task.Delay(20, TestContext.Current.CancellationToken);
+        await processor.StopAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, processor.TransientFailureCount);
+        processor.PruneStaleTransientFailures(DateTimeOffset.UtcNow - TimeSpan.FromHours(1));
+        Assert.Equal(1, processor.TransientFailureCount);
+        processor.PruneStaleTransientFailures(DateTimeOffset.UtcNow + TimeSpan.FromHours(1));
+        Assert.Equal(0, processor.TransientFailureCount);
+    }
+
     private static async Task<InboxEntry?> WaitForTerminalAsync(IInboxStorage storage, string id, InboxStatus expected, TimeSpan timeout)
     {
         var deadline = DateTime.UtcNow + timeout;
