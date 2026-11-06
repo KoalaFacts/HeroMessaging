@@ -185,6 +185,7 @@ public class PostgreSqlOutboxStorage : IExternalOutboxStorage
         const int maxBytes = 63;
         var builder = new System.Text.StringBuilder(identifier.Length);
         var bytes = 0;
+        Span<char> utf16 = stackalloc char[2];
         foreach (var rune in identifier.EnumerateRunes())
         {
             var folded = rune.Value is >= 'A' and <= 'Z' ? new System.Text.Rune(rune.Value + 32) : rune;
@@ -194,7 +195,7 @@ public class PostgreSqlOutboxStorage : IExternalOutboxStorage
             }
 
             bytes += folded.Utf8SequenceLength;
-            builder.Append(folded.ToString());
+            builder.Append(utf16[..folded.EncodeToUtf16(utf16)]);
         }
 
         return builder.ToString();
