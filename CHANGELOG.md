@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Idempotency on the event bus**: `WithIdempotency(...)` now deduplicates events. `EventBus` runs each handler delivery through `IdempotencyDecorator` (new `MessageProcessingPipelineBuilder.UseIdempotency()`), keyed per handler as `{configured key}:handler:{handler type}` so a redelivered event is suppressed for every handler without one handler's cached result hiding another. If the idempotency store is unavailable, the event is processed without deduplication (logged) instead of failing. Limits: two copies of one event processed at the same moment can both run; commands, queries, Inbox and transport consumers are not covered yet.
+
 ### Added
 
 - **RabbitMQ error queues with failure context**: set `RabbitMqTransportOptions.ErrorQueueSuffix` (for example `"_error"`) to move a message whose retries are used up, or that a handler dead-letters, to `<queue><suffix>` with `hero-fault-*` headers (source queue, exception type and message or reason, retries, time, consumer). The original is acknowledged only after a publisher-confirmed copy; a missing error queue falls back to rejecting it as before. `ReplayDeadLettersAsync` replays error queues to their source queue.

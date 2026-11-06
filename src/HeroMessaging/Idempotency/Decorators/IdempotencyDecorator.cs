@@ -2,6 +2,7 @@ using HeroMessaging.Abstractions.Idempotency;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Processing.Decorators;
+using HeroMessaging.Utilities;
 using Microsoft.Extensions.Logging;
 
 namespace HeroMessaging.Idempotency.Decorators;
@@ -98,7 +99,21 @@ public sealed class IdempotencyDecorator : MessageProcessorDecorator
         var idempotencyKey = _policy.KeyGenerator.GenerateKey(message, context);
 
         // Check cache for existing response
-        var cachedResponse = await _store.GetAsync(idempotencyKey, cancellationToken).ConfigureAwait(false);
+        IdempotencyResponse? cachedResponse;
+        try
+        {
+            cachedResponse = await _store.GetAsync(idempotencyKey, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested && !ErrorClassifier.IsCritical(ex))
+        {
+            // An unavailable store must not stop processing: run the handler without deduplication.
+            _logger.LogWarning(ex,
+                "Idempotency store read failed for message {MessageId} with key {IdempotencyKey}; processing without deduplication",
+                message.MessageId,
+                idempotencyKey);
+            cachedResponse = null;
+        }
+
         if (cachedResponse != null)
         {
             _logger.LogInformation(
@@ -120,7 +135,26 @@ public sealed class IdempotencyDecorator : MessageProcessorDecorator
 
         var result = await _inner.ProcessAsync(message, context, cancellationToken).ConfigureAwait(false);
 
-        // Store result based on outcome and policy
+        // Store result based on outcome and policy. The handler has already run, so a failed or
+        // cancelled write is logged and never replaces the handler's real result.
+        try
+        {
+            await StoreResultAsync(message, idempotencyKey, result, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (!ErrorClassifier.IsCritical(ex))
+        {
+            _logger.LogWarning(ex,
+                "Idempotency store write failed for message {MessageId} with key {IdempotencyKey}; a redelivery will be processed again",
+                message.MessageId,
+                idempotencyKey);
+        }
+
+        return result;
+    }
+
+    private async ValueTask StoreResultAsync(IMessage message, string idempotencyKey, ProcessingResult result,
+        CancellationToken cancellationToken)
+    {
         if (result.Success)
         {
             await _store.StoreSuccessAsync(
@@ -148,8 +182,6 @@ public sealed class IdempotencyDecorator : MessageProcessorDecorator
                 _policy.FailureTtl,
                 result.Exception.GetType().Name);
         }
-
-        return result;
     }
 
     /// <summary>
