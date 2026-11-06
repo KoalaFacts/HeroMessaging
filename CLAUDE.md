@@ -10,6 +10,8 @@ Development guidelines for Claude Code and AI assistants. Last updated: 2026-11-
 5. **Architectural Governance**: ADRs for decisions, plugin architecture, multi-framework support
 6. **Task Verification Protocol**: Every task must be verified before marking as finished
 
+Before claiming a change works, use the `.claude/skills/verification-first` and `.claude/skills/verify-heromessaging` skills (done criteria, real-boundary evidence, independent verdict).
+
 ## Active Technologies
 - **Language**: C# 14 (`LangVersion` 14.0 in Directory.Build.props), .NET multi-target (net8.0, net9.0, net10.0); the source generator targets netstandard2.0 with `LangVersion` latest
 - **Testing**: Xunit.v3, BenchmarkDotNet, Coverlet, ReportGenerator
