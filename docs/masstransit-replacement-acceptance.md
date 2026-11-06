@@ -119,7 +119,7 @@ Work order for the first replacement route. Status: todo, in progress (PR), done
 | R2 | Dead letters and replay: retained destination with failure context, safe replay, operator procedure. | F10 | todo | |
 | R3 | PostgreSQL Outbox: commit/rollback with business state, competing workers, lease expiry/fencing, process death around broker confirmation. | F06 | todo | |
 | R4 | Transactional external publish on top of R3. | F07 | todo | |
-| R5 | Durable Inbox: persist-before-ACK, duplicates, multi-host ownership, crash recovery, retention/poison policy. Step 1: retention cleanup respects each entry's deduplication window. | F08 | in progress (step 1: PR pending) | Step 1: `CleanupOldEntriesAsync_EntryInsideItsDeduplicationWindow_IsRetainedAndStillRejectsRedelivery` (in-memory unit; PostgreSQL and SQL Server integration), `CleanupOldEntriesAsync_EntryPastBothRetentionAndItsWindow_IsRemoved`. F08 stays Implemented, acceptance open. |
+| R5 | Durable Inbox: persist-before-ACK, duplicates, multi-host ownership, crash recovery, retention/poison policy. Step 1: retention cleanup respects each entry's deduplication window. | F08 | in progress (step 1: PR #146) | Step 1: `CleanupOldEntriesAsync_EntryInsideItsDeduplicationWindow_IsRetainedAndStillRejectsRedelivery` (in-memory unit; PostgreSQL and SQL Server integration), `CleanupOldEntriesAsync_EntryPastBothRetentionAndItsWindow_IsRemoved`. F08 stays Implemented, acceptance open. |
 | R6 | Two-process reliability harness (separate OS processes killed at declared points, business ledger) running R3–R5 in hosted CI. | F06–F08 | todo | |
 | R7 | Consumer testing API. | F24 | todo | |
 | R8 | Remote request/response. | F16 | todo | |
