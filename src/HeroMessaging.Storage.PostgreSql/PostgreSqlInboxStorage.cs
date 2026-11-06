@@ -114,18 +114,12 @@ public class PostgreSqlInboxStorage : IInboxStorage, IInboxClaimStorage
 
     private async Task InitializeDatabase(CancellationToken cancellationToken)
     {
-        // On a unit-of-work connection a no-op CREATE INDEX IF NOT EXISTS still takes a ShareLock held until the
-        // business transaction ends, which blocks every other transaction's Inbox admission. Skip the DDL when the
-        // table is complete. The shared-connection constructor always uses the default table name.
-        if (_connectionProvider.IsSharedConnection)
+        // A no-op CREATE INDEX IF NOT EXISTS still takes a ShareLock on the table. On a unit-of-work connection it is
+        // held until the business transaction ends and blocks every other transaction's Inbox admission; on a new
+        // connection it waits for any open transaction that has admitted an entry. Skip the DDL when the table is complete.
+        if (await IsSchemaCompleteAsync(cancellationToken).ConfigureAwait(false))
         {
-            var connection = await _connectionProvider.GetConnectionAsync(cancellationToken).ConfigureAwait(false);
-            string[] indexes = [.. new[] { "status", "received_at", "processed_at" }
-                .Select(suffix => $"idx_{_options.InboxTableName}_{suffix}".ToLowerInvariant())];
-            if (await PostgreSqlSchemaCatalog.TableAndIndexesExistAsync(connection, _connectionProvider.GetTransaction(), _tableName, indexes, cancellationToken).ConfigureAwait(false))
-            {
-                return;
-            }
+            return;
         }
 
         // Create schema if needed
@@ -156,6 +150,26 @@ public class PostgreSqlInboxStorage : IInboxStorage, IInboxClaimStorage
 
         await _schemaInitializer.ExecuteSchemaScriptAsync(createTableSql, cancellationToken).ConfigureAwait(false);
     }
+    private async Task<bool> IsSchemaCompleteAsync(CancellationToken cancellationToken)
+    {
+        string[] indexes = [.. new[] { "status", "received_at", "processed_at" }
+            .Select(suffix => PostgreSqlSchemaCatalog.ToStoredIdentifier($"idx_{_options.InboxTableName}_{suffix}"))
+            .Distinct(StringComparer.Ordinal)];
+
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return await PostgreSqlSchemaCatalog.TableAndIndexesExistAsync(connection, _connectionProvider.GetTransaction(), _tableName, indexes, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            if (!_connectionProvider.IsSharedConnection)
+            {
+                await connection.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+    }
+
     /// <summary>
     /// Executes add async.
     /// </summary>

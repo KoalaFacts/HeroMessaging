@@ -61,6 +61,32 @@ public class PostgreSqlUnitOfWorkInboxTests : PostgreSqlIntegrationTestBase
         });
     }
 
+    [Theory]
+    [InlineData("Biz", "My_Inbox")]
+    [InlineData("public", "inbox_messages_with_a_table_name_long_enough_to_truncate")]
+    public async Task CompleteTableWithCustomName_SecondAdmissionDoesNotWaitForAnOpenTransaction(string schema, string table)
+    {
+        await WithDatabaseAsync(async connectionString =>
+        {
+            var options = new PostgreSqlStorageOptions { ConnectionString = connectionString, Schema = schema, InboxTableName = table };
+            var serializer = new DefaultJsonSerializer(new DefaultBufferPoolManager());
+            await new PostgreSqlInboxStorage(options, TimeProvider.System, serializer).GetPendingAsync(new InboxQuery { Limit = 1 }, TestContext.Current.CancellationToken);
+
+            await using var connection = new NpgsqlConnection(connectionString);
+            await connection.OpenAsync(TestContext.Current.CancellationToken);
+            await using var transaction = await connection.BeginTransactionAsync(TestContext.Current.CancellationToken);
+            var holder = new PostgreSqlInboxStorage(options, TimeProvider.System, serializer, new PostgreSqlConnectionProvider(connection, transaction));
+            Assert.NotNull(await holder.AddAsync(TestMessageBuilder.CreateValidMessage("held"), new InboxOptions(), TestContext.Current.CancellationToken));
+
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+            timeout.CancelAfter(TimeSpan.FromSeconds(10));
+            var other = new PostgreSqlInboxStorage(options, TimeProvider.System, serializer);
+            Assert.NotNull(await other.AddAsync(TestMessageBuilder.CreateValidMessage("other"), new InboxOptions(), timeout.Token));
+
+            await transaction.RollbackAsync(TestContext.Current.CancellationToken);
+        });
+    }
+
     private async Task WithDatabaseAsync(Func<string, Task> test)
     {
         var database = $"uow_inbox_{Guid.NewGuid():N}";

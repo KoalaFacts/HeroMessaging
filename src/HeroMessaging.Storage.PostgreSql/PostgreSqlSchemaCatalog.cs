@@ -33,4 +33,29 @@ internal static class PostgreSqlSchemaCatalog
         var found = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false), System.Globalization.CultureInfo.InvariantCulture);
         return found == indexNames.Length;
     }
+
+    /// <summary>
+    /// Returns an unquoted identifier as PostgreSQL stores it: ASCII letters folded to lower case and the
+    /// name truncated to 63 bytes (NAMEDATALEN - 1) without splitting a character.
+    /// </summary>
+    public static string ToStoredIdentifier(string identifier)
+    {
+        const int maxBytes = 63;
+        var builder = new System.Text.StringBuilder(identifier.Length);
+        var bytes = 0;
+        Span<char> utf16 = stackalloc char[2];
+        foreach (var rune in identifier.EnumerateRunes())
+        {
+            var folded = rune.Value is >= 'A' and <= 'Z' ? new System.Text.Rune(rune.Value + 32) : rune;
+            if (bytes + folded.Utf8SequenceLength > maxBytes)
+            {
+                break;
+            }
+
+            bytes += folded.Utf8SequenceLength;
+            builder.Append(utf16[..folded.EncodeToUtf16(utf16)]);
+        }
+
+        return builder.ToString();
+    }
 }
