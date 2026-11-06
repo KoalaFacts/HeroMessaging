@@ -19,6 +19,7 @@ Every Markdown document in the repository is listed here once. Start with the [m
 
 - [Contributing guide](../CONTRIBUTING.md) — workflow, standards and integration-test services.
 - [Development guidelines](../CLAUDE.md) — binding rules for contributors and AI assistants.
+- [Verification-first skill](../.claude/skills/verification-first/SKILL.md) and [HeroMessaging verify skill](../.claude/skills/verify-heromessaging/SKILL.md) — for AI agents: how to prove a change works at the real boundary, per acceptance row; current.
 - [Testing guide](testing-guide.md) — test layout, patterns and CI.
 - [Test projects](../tests/README.md) — test project list and commands.
 - [Architecture tests](../tests/HeroMessaging.Architecture.Tests/README.md) — enforced architecture rules.

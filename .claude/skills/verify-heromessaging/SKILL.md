@@ -42,7 +42,7 @@ Use with `verification-first`. Rows match `docs/masstransit-replacement-acceptan
 | F10 | Dead letters and replay | dead-letter replay API, `FaultHeaders`, `RabbitMqTransportOptions.ErrorQueueSuffix` | `RabbitMqDeadLetterReplayIntegrationTests` (22; 3 skip against an external broker — they need the Testcontainers broker to add a user), `FaultHeadersTests`, `DeadLetterReplayHeadersTests` | retained message with `hero-fault-*`, replayed body/headers, counts left retained | F09 |
 | F11 | SQL Server registration | `src/HeroMessaging.Storage.SqlServer` builder extensions | SqlServer.Tests `SqlServerBuilderRegistrationTests` (30 pass, no database needed) | resolved providers/options, null-argument errors | A02 |
 | F12 | SQL Server external Outbox | none | none — Open | — | F06 |
-| F13 | Saga persistence/concurrency | `PostgreSqlSagaRepository`, `SqlServerSagaRepository`, `InMemorySagaRepository` | `PostgreSqlSagaRepositoryTests` (38), `InMemorySagaRepositoryTests` | conflict detection on concurrent update | F14, F15 |
+| F13 | Saga persistence/concurrency | `PostgreSqlSagaRepository`, `SqlServerSagaRepository`, `InMemorySagaRepository` | `PostgreSqlSagaRepositoryTests` (38; the filter matches both the `Unit` and `Integration` class), `InMemorySagaRepositoryTests` | conflict detection on concurrent update | F14, F15 |
 | F14 | Saga state plus outgoing work | `Orchestration/SagaOrchestrator` | `SagaOrchestratorTests` only (no joint transaction) — Open | — | F13, F06 |
 | F15 | Saga routing/timeouts | `StateMachine*`, `SagaTimeoutHandler` | `SagaTimeoutHandlerTests`, `StateMachineTests` (with F13/F14 classes: 107 pass) | timeout event raised for the right state, compensation | F13 |
 | F16 | Remote request/response | none | none — Open | — | — |
@@ -72,7 +72,7 @@ node --test .github/scripts/check-docs.test.ts && node .github/scripts/check-doc
 
 ## Traps
 
-- `HeroMessaging.Storage.PostgreSql.Tests` classes under `Unit/` still open a real connection; without `PostgreSql__ConnectionString` about 127 of 228 fail with "Failed to connect to 127.0.0.1:5432". That is missing setup, not a regression.
+- Without `PostgreSql__ConnectionString`, `HeroMessaging.Storage.PostgreSql.Tests` classes under `Unit/` (59 tests) fall back to `Host=localhost;Database=test` and fail with connect or "No password has been provided" errors, and `Integration/` classes fall back to Testcontainers (which needs Docker Hub). Expect 59 failures with Docker up, about 127 without. That is missing setup, not a regression.
 - `dotnet test --framework net10.0` on `HeroMessaging.Transport.RabbitMQ.Tests` reports "Zero tests ran" (the project targets net8.0;net9.0). Zero tests is not a pass.
 - With `RabbitMq__Host` set, three replay/error-queue tests skip (they add a broker user through Testcontainers). Count skips; run them through Testcontainers when the change touches `UserId` handling.
 - `PostgreSqlRabbitMqOutboxRecoveryTests` and `PostgreSqlRabbitMqInboxRecoveryTests` rebuild DI hosts inside one process. They are not the two-OS-process kill evidence F06–F08 acceptance requires.
@@ -82,4 +82,4 @@ node --test .github/scripts/check-docs.test.ts && node .github/scripts/check-doc
 
 ## Last verified
 
-2026-11-06, commit 07bf0c1 (main): every row above run once with the commands shown; core unit suite 2556 pass on net8.0, net9.0 and net10.0; PostgreSql.Tests 228 pass (net10.0); RabbitMQ.Tests 357 total, 354 pass, 3 skip (net9.0, external broker); check-docs OK, 16 tests; CompetitiveBenchmarks `--verify` both providers verified. Not run: NativeAOT consumer, SQL Server integration, MessagePack/Protobuf suites.
+2026-11-06, rows run on commit 07bf0c1 (main), skills added in PR #150: every row above run once with the commands shown; core unit suite 2556 pass on net8.0, net9.0 and net10.0; PostgreSql.Tests 228 pass (net10.0); RabbitMQ.Tests 357 total, 354 pass, 3 skip (net9.0, external broker); check-docs OK, 16 tests; CompetitiveBenchmarks `--verify` both providers verified. Not run: NativeAOT consumer, SQL Server integration, MessagePack/Protobuf suites.
