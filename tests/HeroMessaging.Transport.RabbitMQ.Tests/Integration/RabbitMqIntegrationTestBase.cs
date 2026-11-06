@@ -84,6 +84,22 @@ public abstract class RabbitMqIntegrationTestBase : IAsyncLifetime
     }
 
     /// <summary>
+    /// Adds a broker user with full permissions on the default virtual host. Only possible when the test owns the
+    /// broker container; skipped against an external broker (<c>RabbitMq__Host</c>).
+    /// </summary>
+    protected async Task CreateBrokerUserAsync(string userName, string password)
+    {
+        if (_rabbitMqContainer is null)
+            Assert.Skip("Needs the Testcontainers broker to add a user; RabbitMq__Host points at an external broker.");
+
+        var token = TestContext.Current.CancellationToken;
+        var added = await _rabbitMqContainer.ExecAsync(["rabbitmqctl", "add_user", userName, password], token);
+        Assert.True(added.ExitCode == 0, $"rabbitmqctl add_user failed: {added.Stderr}");
+        var permitted = await _rabbitMqContainer.ExecAsync(["rabbitmqctl", "set_permissions", "-p", "/", userName, ".*", ".*", ".*"], token);
+        Assert.True(permitted.ExitCode == 0, $"rabbitmqctl set_permissions failed: {permitted.Stderr}");
+    }
+
+    /// <summary>
     /// Create a unique queue name for testing
     /// </summary>
     protected static string CreateQueueName() => $"test-queue-{Guid.NewGuid():N}";

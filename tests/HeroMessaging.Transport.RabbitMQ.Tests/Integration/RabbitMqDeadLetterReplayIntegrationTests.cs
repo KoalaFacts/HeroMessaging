@@ -422,6 +422,82 @@ public sealed class RabbitMqDeadLetterReplayIntegrationTests : RabbitMqIntegrati
         Assert.Equal(0, result.Unresolved);
     }
 
+    [Fact]
+    public async Task ReplayDeadLetters_MessagePublishedByAnotherBrokerUser_IsReplayedUnderTheReplayAccount()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var (workQueue, deadLetterQueue) = await CreateDeadLetteredQueueAsync();
+        var messageId = await DeadLetterAsAnotherUserAsync(workQueue, deadLetterQueue, "published by another account");
+
+        var result = await Transport!.ReplayDeadLettersAsync(TransportAddress.Queue(deadLetterQueue), cancellationToken: token);
+
+        Assert.Equal((1, 0), (result.Replayed, result.Unresolved));
+        var replayed = await GetSingleAsync(workQueue);
+        Assert.Equal(messageId, replayed.BasicProperties.MessageId);
+        Assert.Equal("published by another account", System.Text.Encoding.UTF8.GetString(replayed.Body.Span));
+        Assert.Null(replayed.BasicProperties.UserId);
+        Assert.True(replayed.BasicProperties.Headers!.ContainsKey("x-death"), "Failure history must survive replay.");
+        Assert.Equal(0u, await GetMessageCountAsync(deadLetterQueue));
+    }
+
+    [Fact]
+    public async Task ReplayDeadLetters_UnresolvedMessagePublishedByAnotherBrokerUser_StaysRetainedWithItsHistory()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var (workQueue, deadLetterQueue) = await CreateDeadLetteredQueueAsync();
+        var messageId = await DeadLetterAsAnotherUserAsync(workQueue, deadLetterQueue, "source queue is gone");
+        await DeleteQueueAsync(workQueue);
+
+        var result = await Transport!.ReplayDeadLettersAsync(TransportAddress.Queue(deadLetterQueue), cancellationToken: token);
+
+        Assert.Equal((0, 1), (result.Replayed, result.Unresolved));
+        var retained = await GetSingleAsync(deadLetterQueue);
+        Assert.Equal(messageId, retained.BasicProperties.MessageId);
+        Assert.Equal("source queue is gone", System.Text.Encoding.UTF8.GetString(retained.Body.Span));
+        Assert.Null(retained.BasicProperties.UserId);
+        Assert.True(retained.BasicProperties.Headers!.ContainsKey("x-death"), "Failure history must stay with the retained message.");
+    }
+
+    /// <summary>
+    /// Publishes as a second broker user with a validated <c>user-id</c> property, then dead-letters the message
+    /// through the transport (connected as <c>guest</c>), so the retained message names a different publisher.
+    /// </summary>
+    private async Task<string> DeadLetterAsAnotherUserAsync(string workQueue, string deadLetterQueue, string body)
+    {
+        var token = TestContext.Current.CancellationToken;
+        var userName = $"publisher-{Guid.NewGuid():N}";
+        await CreateBrokerUserAsync(userName, "publisher-password");
+        var messageId = Guid.NewGuid().ToString();
+        var factory = new ConnectionFactory
+        {
+            HostName = Options!.Host,
+            Port = Options.Port,
+            UserName = userName,
+            Password = "publisher-password"
+        };
+        await using (var connection = await factory.CreateConnectionAsync(token))
+        await using (var channel = await connection.CreateChannelAsync(
+            new CreateChannelOptions(publisherConfirmationsEnabled: true, publisherConfirmationTrackingEnabled: true), token))
+        {
+            var properties = new BasicProperties { MessageId = messageId, UserId = userName, Persistent = true };
+            await channel.BasicPublishAsync(string.Empty, workQueue, mandatory: true, properties, System.Text.Encoding.UTF8.GetBytes(body), token);
+        }
+
+        await DeadLetterAsync(workQueue, deadLetterQueue, [], expectedTotal: 1);
+        return messageId;
+    }
+
+    private async Task<BasicGetResult> GetSingleAsync(string queue)
+    {
+        var token = TestContext.Current.CancellationToken;
+        await WaitForMessageCountAsync(queue, 1);
+        await using var connection = await ConnectAsync();
+        await using var channel = await connection.CreateChannelAsync(cancellationToken: token);
+        var message = await channel.BasicGetAsync(queue, autoAck: true, token);
+        Assert.NotNull(message);
+        return message;
+    }
+
     private async Task<(string WorkQueue, string DeadLetterQueue)> CreateDeadLetteredQueueAsync(bool quorum = false)
     {
         var workQueue = CreateQueueName();
