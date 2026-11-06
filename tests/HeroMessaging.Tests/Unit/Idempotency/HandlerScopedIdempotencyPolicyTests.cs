@@ -57,6 +57,20 @@ public sealed class HandlerScopedIdempotencyPolicyTests
     }
 
     [Fact]
+    public void GenerateKey_GenericHandler_OmitsAssemblyVersions()
+    {
+        var policy = new HandlerScopedIdempotencyPolicy(new DefaultIdempotencyPolicy());
+        var messageId = Guid.NewGuid();
+
+        var key = policy.KeyGenerator.GenerateKey(new TestMessage { MessageId = messageId },
+            new ProcessingContext { Handler = new GenericHandler<HandlerA>() });
+
+        var scope = typeof(HandlerScopedIdempotencyPolicyTests).FullName;
+        Assert.Equal($"idempotency:{messageId}:handler:{scope}+GenericHandler`1[{scope}+HandlerA]", key);
+        Assert.DoesNotContain("Version=", key);
+    }
+
+    [Fact]
     public void Constructor_NullInner_Throws()
     {
         Assert.Throws<ArgumentNullException>(() => new HandlerScopedIdempotencyPolicy(null!));
@@ -74,4 +88,6 @@ public sealed class HandlerScopedIdempotencyPolicyTests
     private sealed class HandlerA;
 
     private sealed class HandlerB;
+
+    private sealed class GenericHandler<T>;
 }

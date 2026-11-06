@@ -97,6 +97,65 @@ public sealed class EventBusIdempotencyTests
         Assert.Equal(1, counters.Second);
     }
 
+    [Fact]
+    public async Task PublishAndWaitAsync_WhenIdempotencyStoreFails_ProcessesWithoutDeduplicationAndKeepsBusAlive()
+    {
+        var counters = new Counters();
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton(TimeProvider.System);
+        services.AddSingleton(counters);
+        services.AddSingleton<IEventHandler<DuplicateEvent>, FirstHandler>();
+        services.AddSingleton<IEventHandler<DuplicateEvent>, SecondHandler>();
+        services.AddSingleton<Abstractions.Idempotency.IIdempotencyStore, FailingStore>();
+        services.AddHeroMessaging().WithIdempotency();
+        using var provider = services.BuildServiceProvider();
+        await using var bus = new EventBus(provider, NullLogger<EventBus>.Instance);
+        var @event = new DuplicateEvent { MessageId = Guid.NewGuid() };
+
+        var first = await bus.PublishAndWaitAsync(@event, TestContext.Current.CancellationToken);
+        var second = await bus.PublishAndWaitAsync(@event, TestContext.Current.CancellationToken);
+
+        Assert.True(first.Success);
+        Assert.True(second.Success);
+        Assert.Equal(2, counters.First);
+        Assert.Equal(2, counters.Second);
+    }
+
+    [Fact]
+    public async Task PublishAsync_WithIdempotency_RunsEachHandlerOncePerMessageId()
+    {
+        var counters = new Counters();
+        using var provider = BuildProvider(counters, withIdempotency: true);
+        await using var bus = new EventBus(provider, NullLogger<EventBus>.Instance);
+        var @event = new DuplicateEvent { MessageId = Guid.NewGuid() };
+
+        await bus.PublishAsync(@event, TestContext.Current.CancellationToken);
+        var deadline = DateTime.UtcNow.AddSeconds(5);
+        while ((counters.First < 1 || counters.Second < 1) && DateTime.UtcNow < deadline)
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        await Task.Delay(50, TestContext.Current.CancellationToken); // let the decorator store the results
+        var redelivery = await bus.PublishAndWaitAsync(@event, TestContext.Current.CancellationToken);
+
+        Assert.True(redelivery.Success);
+
+        Assert.Equal(1, counters.First);
+        Assert.Equal(1, counters.Second);
+    }
+
+    private sealed class FailingStore : Abstractions.Idempotency.IIdempotencyStore
+    {
+        public ValueTask<Abstractions.Idempotency.IdempotencyResponse?> GetAsync(string idempotencyKey, CancellationToken cancellationToken = default)
+            => ValueTask.FromException<Abstractions.Idempotency.IdempotencyResponse?>(new IOException("store offline"));
+        public ValueTask StoreSuccessAsync(string idempotencyKey, object? result, TimeSpan ttl, CancellationToken cancellationToken = default)
+            => ValueTask.FromException(new IOException("store offline"));
+        public ValueTask StoreFailureAsync(string idempotencyKey, Exception exception, TimeSpan ttl, CancellationToken cancellationToken = default)
+            => ValueTask.FromException(new IOException("store offline"));
+        public ValueTask<bool> ExistsAsync(string idempotencyKey, CancellationToken cancellationToken = default)
+            => ValueTask.FromException<bool>(new IOException("store offline"));
+        public ValueTask<int> CleanupExpiredAsync(CancellationToken cancellationToken = default) => ValueTask.FromResult(0);
+    }
+
     private static ServiceProvider BuildProvider(Counters counters, bool withIdempotency)
     {
         var services = new ServiceCollection();

@@ -10,8 +10,9 @@ The idempotency framework enables exactly-once processing semantics for at-least
 - ✅ Default implementation with in-memory storage
 - ✅ Unit test coverage
 - ✅ Configuration API (`builder.WithIdempotency(...)`) registers the policy, key generator, store and an `IdempotencyDecorator` factory
-- ✅ Event bus integration: with `WithIdempotency` configured, `EventBus` runs every event through `IdempotencyDecorator` (after validation, before error handling and retry). Keys are scoped per handler: `{configured key}:handler:{handler type}`, so a redelivered event is suppressed for each handler without one handler's cached result hiding another.
+- ✅ Event bus integration: with `WithIdempotency` configured, `EventBus` runs every event through `IdempotencyDecorator` (after validation, before error handling and retry). Keys are scoped per handler: `{configured key}:handler:{handler type name}` (namespace-qualified, no assembly version; two registrations of the same handler type share a key), so a redelivered event is suppressed for each handler without one handler's cached result hiding another.
 - ⏳ Commands, queries, Inbox and transport consumers do not yet use the pipeline, so they are not deduplicated by this decorator
+- ✅ Store failures: a failed cache read runs the handler without deduplication, and a failed or cancelled write is logged and returns the handler's real result (a redelivery then runs again)
 - ⏳ Concurrent duplicates: two deliveries of the same message that run at the same moment can both miss the cache and both execute (no processing lock yet)
 - ✅ SQL Server / PostgreSQL storage (`AddSqlServerIdempotencyStore`, `AddPostgreSqlIdempotencyStore`) with integration tests
 
