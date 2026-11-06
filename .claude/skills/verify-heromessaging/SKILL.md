@@ -14,12 +14,13 @@ Use with `verification-first`. Rows match `docs/masstransit-replacement-acceptan
 - Node 22.18+ (CI uses 24) for `.github/scripts/check-docs.ts`.
 - Real infrastructure, same images as `.github/workflows/run-integration-tests.yml`. If Docker Hub answers 429, pull through `mirror.gcr.io/library/...`. If `docker info` fails, start the daemon (`dockerd &`).
   ```bash
-  docker run -d --name pg  -p 5432:5432 -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=heromessaging_tests mirror.gcr.io/library/postgres:17
-  docker run -d --name rmq -p 5672:5672 mirror.gcr.io/library/rabbitmq:3.13-management-alpine
+  docker run -d --name pg  -p 127.0.0.1:5432:5432 -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=heromessaging_tests mirror.gcr.io/library/postgres:17
+  docker run -d --name rmq -p 127.0.0.1:5672:5672 mirror.gcr.io/library/rabbitmq:3.13-management-alpine
   export PostgreSql__ConnectionString="Host=localhost;Database=heromessaging_tests;Username=postgres;Password=postgres"
   export RabbitMq__Host=localhost RabbitMq__Port=5672
   # SQL Server: mcr.microsoft.com/mssql/server with SqlServer__ConnectionString as in run-integration-tests.yml
   ```
+  These are throwaway, task-owned containers bound to loopback only; never point the tests at a shared or production database or broker (the test schemas are created and dropped).
   Without these variables the fixtures fall back to Testcontainers (`postgres:17-alpine`, `rabbitmq:3.13-management-alpine`), which needs Docker Hub.
 - Build once: `dotnet build HeroMessaging.slnx -c Release -warnaserror`, then run tests with `--no-build`.
 - Run one row: `dotnet test --project tests/<Project> -c Release --no-build --framework net9.0 --no-progress --filter-class "*.<ClassName>"` (repeat `--filter-class` for several classes).
