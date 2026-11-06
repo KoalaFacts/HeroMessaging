@@ -763,6 +763,37 @@ public sealed class RabbitMqTransport : IConfirmedQueueTransport, IRabbitMqConsu
         _connectLock.Dispose();
     }
 
+    async Task<bool> IRabbitMqConsumerHost.TryMoveToErrorQueueAsync(string sourceQueue, BasicProperties properties, ReadOnlyMemory<byte> body)
+    {
+        if (string.IsNullOrEmpty(_options.ErrorQueueSuffix))
+            return false;
+
+        if (!_options.UsePublisherConfirms)
+        {
+            _logger.LogWarning(
+                "RabbitMqTransportOptions.ErrorQueueSuffix is set but publisher confirms are disabled, so failed messages from {Queue} cannot be moved safely and are rejected instead. Enable UsePublisherConfirms",
+                sourceQueue);
+            return false;
+        }
+
+        var errorQueue = sourceQueue + _options.ErrorQueueSuffix;
+        try
+        {
+            var channelPool = await GetOrCreateChannelPoolAsync(CancellationToken.None).ConfigureAwait(false);
+            await channelPool.ExecuteAsync(
+                channel => PublishMessageAsync(channel, string.Empty, errorQueue, properties, body, CancellationToken.None, requireRoute: true),
+                CancellationToken.None).ConfigureAwait(false);
+            return true;
+        }
+        catch (QueueDeliveryException ex)
+        {
+            _logger.LogError(ex,
+                "Error queue {ErrorQueue} does not exist, so a failed message from {Queue} is rejected instead. Declare the error queue",
+                errorQueue, sourceQueue);
+            return false;
+        }
+    }
+
     void IRabbitMqConsumerHost.RemoveConsumer(RabbitMqConsumer consumer)
     {
         // A stale disposal must not remove a replacement registration with the
