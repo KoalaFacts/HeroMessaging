@@ -99,4 +99,53 @@ public sealed class PostgreSqlInboxDeduplicationWindowTests : PostgreSqlIntegrat
             await command.ExecuteNonQueryAsync(CancellationToken.None);
         }
     }
+
+    [Fact]
+    public async Task CleanupOldEntriesAsync_EntryInsideItsDeduplicationWindow_IsRetainedAndStillRejectsRedelivery()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var options = new PostgreSqlStorageOptions
+        {
+            ConnectionString = ConnectionString,
+            Schema = $"inbox_retention_{Guid.NewGuid():N}"
+        };
+        var clock = new FakeTimeProvider(new DateTimeOffset(2026, 11, 6, 0, 0, 0, TimeSpan.Zero));
+        var storage = new PostgreSqlInboxStorage(options, clock,
+            new DefaultJsonSerializer(new DefaultBufferPoolManager()));
+        var longWindow = new InboxOptions { DeduplicationWindow = TimeSpan.FromDays(30) };
+        var shortWindow = new InboxOptions { DeduplicationWindow = TimeSpan.FromHours(1) };
+        var guarded = TestMessageBuilder.CreateValidMessage("inside its window");
+        var expired = TestMessageBuilder.CreateValidMessage("past its window");
+        var unbounded = TestMessageBuilder.CreateValidMessage("no window");
+
+        try
+        {
+            Assert.NotNull(await storage.AddAsync(guarded, longWindow, token));
+            Assert.NotNull(await storage.AddAsync(expired, shortWindow, token));
+            Assert.NotNull(await storage.AddAsync(unbounded, new InboxOptions(), token));
+            foreach (var message in new[] { guarded, expired, unbounded })
+                Assert.True(await storage.MarkProcessedAsync(message.MessageId.ToString(), token));
+
+            clock.Advance(TimeSpan.FromDays(8));
+            await storage.CleanupOldEntriesAsync(TimeSpan.FromDays(7), token);
+
+            // Retention never shortens an entry's own deduplication window: a
+            // redelivery on day 8 of a 30-day window is still rejected.
+            Assert.NotNull(await storage.GetAsync(guarded.MessageId.ToString(), token));
+            Assert.Null(await storage.AddAsync(guarded, longWindow, token));
+            Assert.Null(await storage.GetAsync(expired.MessageId.ToString(), token));
+            Assert.Null(await storage.GetAsync(unbounded.MessageId.ToString(), token));
+
+            clock.Advance(TimeSpan.FromDays(23));
+            await storage.CleanupOldEntriesAsync(TimeSpan.FromDays(7), token);
+            Assert.Null(await storage.GetAsync(guarded.MessageId.ToString(), token));
+        }
+        finally
+        {
+            await using var connection = new NpgsqlConnection(ConnectionString);
+            await connection.OpenAsync(CancellationToken.None);
+            await using var command = new NpgsqlCommand($"DROP SCHEMA IF EXISTS {options.Schema} CASCADE", connection);
+            await command.ExecuteNonQueryAsync(CancellationToken.None);
+        }
+    }
 }

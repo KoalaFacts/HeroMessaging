@@ -515,16 +515,22 @@ public class PostgreSqlInboxStorage : IInboxStorage, IInboxClaimStorage
         try
         {
 
-            var cutoffTime = _timeProvider.GetUtcNow().Subtract(olderThan);
+            var now = _timeProvider.GetUtcNow();
+            var cutoffTime = now.Subtract(olderThan);
 
+            // Retention never shortens an entry's own deduplication window: removing the
+            // row earlier would let a redelivery inside that window be admitted again.
             var sql = $"""
                 DELETE FROM {_tableName}
                 WHERE received_at < @cutoff_time
                 AND status IN ('Processed', 'Failed')
+                AND (deduplication_window_minutes IS NULL
+                     OR received_at < @now - make_interval(mins => deduplication_window_minutes))
                 """;
 
             using var command = new NpgsqlCommand(sql, connection, transaction);
             command.Parameters.AddWithValue("cutoff_time", cutoffTime);
+            command.Parameters.AddWithValue("now", now);
 
             await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
