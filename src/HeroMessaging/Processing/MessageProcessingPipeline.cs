@@ -1,9 +1,12 @@
 using HeroMessaging.Abstractions.ErrorHandling;
+using HeroMessaging.Abstractions.Idempotency;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Metrics;
 using HeroMessaging.Abstractions.Policies;
 using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Abstractions.Validation;
+using HeroMessaging.Idempotency;
+using HeroMessaging.Idempotency.Decorators;
 using HeroMessaging.Processing.Decorators;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -17,6 +20,7 @@ public class MessageProcessingPipelineBuilder(IServiceProvider serviceProvider)
 {
     private readonly IServiceProvider _serviceProvider = serviceProvider;
     private readonly List<Func<IMessageProcessor, IMessageProcessor>> _decorators = [];
+    private HandlerScopedIdempotencyPolicy? _scopedIdempotencyPolicy;
 
 
     /// <summary>
@@ -50,6 +54,42 @@ public class MessageProcessingPipelineBuilder(IServiceProvider serviceProvider)
             var logger = _serviceProvider.GetService<ILogger<ValidationDecorator>>()
                 ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<ValidationDecorator>.Instance;
             return new ValidationDecorator(processor, validatorToUse, logger);
+        });
+        return this;
+    }
+
+    /// <summary>
+    /// Add idempotency (response caching) to the pipeline when an <see cref="IIdempotencyStore"/> and an
+    /// <see cref="IIdempotencyPolicy"/> are registered, for example by <c>WithIdempotency()</c>; otherwise this step is skipped.
+    /// </summary>
+    /// <remarks>
+    /// Keys are scoped to the handler (<c>{configured key}:handler:{handler type}</c>), so a redelivered message is
+    /// suppressed per handler and one handler's cached response never hides another handler.
+    /// Place it after validation and before error handling and retry, so only the final outcome is cached.
+    /// </remarks>
+    /// <returns>The builder for method chaining.</returns>
+    public MessageProcessingPipelineBuilder UseIdempotency()
+    {
+        _decorators.Add(processor =>
+        {
+            var store = _serviceProvider.GetService<IIdempotencyStore>();
+            var policy = _serviceProvider.GetService<IIdempotencyPolicy>();
+            if (store == null || policy == null)
+            {
+                return processor; // Skip if idempotency is not configured
+            }
+
+            var scopedPolicy = _scopedIdempotencyPolicy;
+            if (scopedPolicy == null || !ReferenceEquals(scopedPolicy.Inner, policy))
+            {
+                scopedPolicy = new HandlerScopedIdempotencyPolicy(policy);
+                _scopedIdempotencyPolicy = scopedPolicy;
+            }
+
+            var logger = _serviceProvider.GetService<ILogger<IdempotencyDecorator>>()
+                ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<IdempotencyDecorator>.Instance;
+            var timeProvider = _serviceProvider.GetRequiredService<TimeProvider>();
+            return new IdempotencyDecorator(processor, store, scopedPolicy, logger, timeProvider);
         });
         return this;
     }

@@ -81,7 +81,8 @@ public class EventBus : IEventBus, IAsyncDisposable
             .UseLogging()           // Log the entire process
             .UseCorrelation()       // Track correlation/causation for choreography
             .UseValidation()        // Validate before processing
-            .UseErrorHandling()     // Handle errors with dead letter queue
+            .UseIdempotency()       // Suppress redelivered events per handler when WithIdempotency is configured
+            .UseErrorHandling()    // Handle errors with dead letter queue
             .UseRetry();            // Innermost - retry the actual processing
     }
     /// <summary>

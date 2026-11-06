@@ -178,7 +178,7 @@ The idempotency framework provides exactly-once semantics for at-least-once deli
 
 ### Implementation Status
 - **Phase 1 (Complete)**: Core abstractions, in-memory storage, unit tests
-- **Phase 2 (Partial)**: Configuration API (`WithIdempotency`) and SQL Server/PostgreSQL storage exist with integration tests; `WithIdempotency` registers an `IdempotencyDecorator` factory but nothing adds the decorator to the processing pipeline yet, so it does not deduplicate on its own
+- **Phase 2 (Partial)**: Configuration API (`WithIdempotency`) and SQL Server/PostgreSQL storage exist with integration tests; `EventBus` applies the decorator through `MessageProcessingPipelineBuilder.UseIdempotency()` with handler-scoped keys; commands, queries, Inbox and transport consumers are not deduplicated yet
 - **Phase 3 (Planned)**: Advanced key generators, concurrency handling, benchmarks
 - **Phase 4 (Planned)**: Documentation, samples, performance optimization
 
@@ -280,7 +280,7 @@ services.AddHeroMessaging(builder =>
     });
 });
 ```
-For durable storage, call `services.AddSqlServerIdempotencyStore(...)` or `services.AddPostgreSqlIdempotencyStore(...)` before `WithIdempotency`; the builder registers its defaults with `TryAdd`. The builder registers a `Func<IMessageProcessor, IdempotencyDecorator>` factory; the decorator is not yet inserted into the pipeline automatically.
+For durable storage, call `services.AddSqlServerIdempotencyStore(...)` or `services.AddPostgreSqlIdempotencyStore(...)` before `WithIdempotency`; the builder registers its defaults with `TryAdd`. The builder also registers a `Func<IMessageProcessor, IdempotencyDecorator>` factory for manual pipelines. `EventBus` inserts the decorator automatically (after validation, before error handling/retry) with keys `{configured key}:handler:{handler type}`; other processors do not yet.
 
 ### Architecture Documentation
 See [ADR 0005: Idempotency Framework](docs/adr/0005-idempotency-framework.md) for comprehensive architecture decisions, trade-offs, and implementation plan.

@@ -127,7 +127,7 @@ Work order for the first replacement route. Status: todo, in progress (PR), done
 | R10 | Saga state plus outgoing work. | F14 | todo | |
 | R11 | SQL Server external Outbox. | F12 | todo | |
 | R12 | Equivalent-work benchmarks against MassTransit with resource use; negative results recorded. | P01–P05 | todo | |
-| R13 | Idempotency in the pipeline: `WithIdempotency` registers an `IdempotencyDecorator` factory that nothing inserts into processing, so configuring it does not deduplicate (found in D0). | F18 | todo | |
+| R13 | Idempotency in the pipeline: `WithIdempotency` registers an `IdempotencyDecorator` factory that nothing inserts into processing, so configuring it does not deduplicate (found in D0). Step 1: event bus. Step 2: commands, queries, Inbox and transport consumers. | F18 | in progress (step 1, PR pending) | Step 1: `EventBusIdempotencyTests` (5; 3 failed on main for the missing dedup), `HandlerScopedIdempotencyPolicyTests` (5). Keys are per handler; concurrent duplicates can still both run. F18 stays Partial. |
 
 ## Result record
 
