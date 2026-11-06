@@ -177,10 +177,12 @@ public class InMemoryInboxStorage : IInboxStorage
 
     public Task CleanupOldEntriesAsync(TimeSpan olderThan, CancellationToken cancellationToken = default)
     {
-        var cutoff = _timeProvider.GetUtcNow().Subtract(olderThan);
+        var now = _timeProvider.GetUtcNow();
+        var cutoff = now.Subtract(olderThan);
         var toRemove = _entries
             .Where(kvp => kvp.Value.ReceivedAt < cutoff &&
-                         kvp.Value.Status == InboxStatus.Processed)
+                         kvp.Value.Status == InboxStatus.Processed &&
+                         IsOutsideDeduplicationWindow(kvp.Value, now))
             .Select(kvp => kvp.Key)
             .ToList();
 
@@ -191,4 +193,9 @@ public class InMemoryInboxStorage : IInboxStorage
 
         return Task.CompletedTask;
     }
+
+    // Retention never shortens an entry's own deduplication window: removing the
+    // entry earlier would let a redelivery inside that window be processed again.
+    private static bool IsOutsideDeduplicationWindow(InboxEntry entry, DateTimeOffset now) =>
+        entry.Options.DeduplicationWindow is not { } window || entry.ReceivedAt < now.Subtract(window);
 }

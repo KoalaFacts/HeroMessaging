@@ -93,7 +93,9 @@ public record InboxOptions
     public bool RequireIdempotency { get; init; } = true;
 
     /// <summary>
-    /// Time window for duplicate message detection.
+    /// Time window for duplicate message detection. Retention cleanup never removes an entry
+    /// before this window has elapsed; when <see langword="null"/>, the entry is retained only
+    /// for the cleanup retention period.
     /// </summary>
     public TimeSpan? DeduplicationWindow { get; init; }
 }
