@@ -74,7 +74,7 @@ public interface IInboxStorage
     Task<long> GetUnprocessedCountAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Removes completed entries older than the specified time span. An entry whose
+    /// Removes processed (and, where the store supports it, failed) entries older than the specified time span. An entry whose
     /// <see cref="InboxOptions.DeduplicationWindow"/> has not yet elapsed is kept, so a
     /// redelivery inside that window is still rejected.
     /// </summary>

@@ -814,6 +814,25 @@ public sealed class InMemoryInboxStorageTests
     }
 
     [Fact]
+    public async Task CleanupOldEntriesAsync_EntryWithWindowShorterThanRetention_IsRemovedAfterRetention()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var timeProvider = new FakeTimeProvider();
+        var storage = new InMemoryInboxStorage(timeProvider);
+        var message = new TestMessage();
+        await storage.AddAsync(message, new InboxOptions { DeduplicationWindow = TimeSpan.FromHours(1) }, token);
+        await storage.MarkProcessedAsync(message.MessageId.ToString(), token);
+
+        timeProvider.Advance(TimeSpan.FromDays(6));
+        await storage.CleanupOldEntriesAsync(TimeSpan.FromDays(7), token);
+        Assert.NotNull(await storage.GetAsync(message.MessageId.ToString(), token));
+
+        timeProvider.Advance(TimeSpan.FromDays(2));
+        await storage.CleanupOldEntriesAsync(TimeSpan.FromDays(7), token);
+        Assert.Null(await storage.GetAsync(message.MessageId.ToString(), token));
+    }
+
+    [Fact]
     public async Task CleanupOldEntriesAsync_DoesNotRemovePendingEntries()
     {
         // Arrange

@@ -47,7 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **RabbitMQ consumer handler failures are no longer requeued forever.** With default `ConsumerOptions`, a message whose handler keeps failing is rejected without requeue after 3 retries (about 35 s of backoff). RabbitMQ keeps it only if the queue has a dead-letter exchange. To upgrade, set `QueueDefinition.DeadLetterExchange` on the queue, or set `MessageRetryPolicy.MaxAttempts = -1` to keep retrying indefinitely (now with backoff).
 
 ### Fixed
-- Inbox retention cleanup (in-memory, PostgreSQL, SQL Server) no longer deletes a completed entry before its own `InboxOptions.DeduplicationWindow` has elapsed. Previously the worker's fixed seven-day cleanup removed entries with a longer window, so a redelivery after day seven was admitted and processed again.
+- Inbox retention cleanup (in-memory, PostgreSQL, SQL Server) no longer deletes a processed or failed entry before its own `InboxOptions.DeduplicationWindow` has elapsed. Previously the worker's fixed seven-day cleanup removed entries with a longer window, so a redelivery after day seven was admitted and processed again.
 
 ### Changed
 - **RabbitMQ consumer retries**: `ConsumerOptions.MessageRetryPolicy` now governs handler failures. A failing delivery is requeued after the policy's backoff until its retries are used up, then rejected without requeue (retained only with a dead-letter exchange) and counted in `ConsumerMetrics.MessagesDeadLettered`. Previously it was requeued immediately and indefinitely. Inbox transport subscriptions keep retrying indefinitely, now with backoff.
