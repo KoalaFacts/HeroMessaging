@@ -2,6 +2,7 @@ using HeroMessaging.Abstractions.Idempotency;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Processing.Decorators;
+using HeroMessaging.Utilities;
 using Microsoft.Extensions.Logging;
 
 namespace HeroMessaging.Idempotency.Decorators;
@@ -103,7 +104,7 @@ public sealed class IdempotencyDecorator : MessageProcessorDecorator
         {
             cachedResponse = await _store.GetAsync(idempotencyKey, cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested && !ErrorClassifier.IsCritical(ex))
         {
             // An unavailable store must not stop processing: run the handler without deduplication.
             _logger.LogWarning(ex,
@@ -140,7 +141,7 @@ public sealed class IdempotencyDecorator : MessageProcessorDecorator
         {
             await StoreResultAsync(message, idempotencyKey, result, cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (!ErrorClassifier.IsCritical(ex))
         {
             _logger.LogWarning(ex,
                 "Idempotency store write failed for message {MessageId} with key {IdempotencyKey}; a redelivery will be processed again",
