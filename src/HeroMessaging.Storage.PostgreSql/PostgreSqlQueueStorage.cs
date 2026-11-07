@@ -90,7 +90,7 @@ public class PostgreSqlQueueStorage : IQueueStorage
         try
         {
             if (_initialized) return;
-            await InitializeDatabase().ConfigureAwait(false);
+            await InitializeDatabase(cancellationToken).ConfigureAwait(false);
             _initialized = true;
         }
         finally
@@ -102,18 +102,38 @@ public class PostgreSqlQueueStorage : IQueueStorage
     /// Executes initialize database.
     /// </summary>
 
-    private async Task InitializeDatabase()
+    private async Task InitializeDatabase(CancellationToken cancellationToken)
     {
-        using var connection = new NpgsqlConnection(_connectionString);
-        await connection.OpenAsync().ConfigureAwait(false);
+        if (_sharedConnection != null)
+        {
+            // An open connection's ConnectionString no longer carries its password, so the schema cannot be
+            // created on a new connection. Use the shared connection, and skip the DDL when the table is
+            // complete so no table lock is held for the rest of the business transaction.
+            string[] indexes = [.. new[] { "queue_name", "priority", "visible_at" }
+                .Select(suffix => $"idx_{_options.QueueTableName}_{suffix}".ToLowerInvariant())];
+            if (await PostgreSqlSchemaCatalog.TableAndIndexesExistAsync(_sharedConnection, _sharedTransaction, _tableName, indexes, cancellationToken).ConfigureAwait(false))
+            {
+                return;
+            }
 
+            await CreateSchemaAsync(_sharedConnection, _sharedTransaction, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        await using var connection = new NpgsqlConnection(_connectionString);
+        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+        await CreateSchemaAsync(connection, null, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task CreateSchemaAsync(NpgsqlConnection connection, NpgsqlTransaction? transaction, CancellationToken cancellationToken)
+    {
         // Create schema if it doesn't exist
         if (!string.IsNullOrEmpty(_options.Schema) && _options.Schema != "public")
         {
             var createSchemaSql = $"CREATE SCHEMA IF NOT EXISTS {_options.Schema}";
 
-            using var schemaCommand = new NpgsqlCommand(createSchemaSql, connection);
-            await schemaCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
+            await using var schemaCommand = new NpgsqlCommand(createSchemaSql, connection, transaction);
+            await schemaCommand.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
 
         var createTableSql = $"""
@@ -135,8 +155,8 @@ public class PostgreSqlQueueStorage : IQueueStorage
             CREATE INDEX IF NOT EXISTS idx_{_options.QueueTableName}_visible_at ON {_tableName}(queue_name, visible_at, acknowledged) WHERE acknowledged = false;
             """;
 
-        using var command = new NpgsqlCommand(createTableSql, connection);
-        await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+        await using var command = new NpgsqlCommand(createTableSql, connection, transaction);
+        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
     /// <summary>
     /// Executes enqueue async.
