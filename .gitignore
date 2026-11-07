@@ -483,8 +483,9 @@ $RECYCLE.BIN/
 # Vim temporary swap files
 *.swp
 
-# AI
-.claude
+# AI (local agent state stays ignored; shared agent skills are tracked)
+.claude/*
+!.claude/skills/
 NUL
 nul
 .specify/
