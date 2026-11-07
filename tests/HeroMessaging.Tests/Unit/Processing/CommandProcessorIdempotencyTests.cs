@@ -61,8 +61,11 @@ public sealed class CommandProcessorIdempotencyTests
         await using var processor = new CommandProcessor(provider, NullLogger<CommandProcessor>.Instance);
         var command = new DuplicateCommand { MessageId = Guid.NewGuid() };
 
-        await Assert.ThrowsAnyAsync<ArgumentException>(() => processor.SendAsync(command, TestContext.Current.CancellationToken));
-        await Assert.ThrowsAnyAsync<Exception>(() => processor.SendAsync(command, TestContext.Current.CancellationToken));
+        var first = await Assert.ThrowsAsync<ArgumentException>(() => processor.SendAsync(command, TestContext.Current.CancellationToken));
+        var duplicate = await Assert.ThrowsAsync<ArgumentException>(() => processor.SendAsync(command, TestContext.Current.CancellationToken));
+
+        Assert.Contains("invalid order", first.Message);
+        Assert.Contains("invalid order", duplicate.Message);
 
         Assert.Equal(1, counter.Calls);
     }
@@ -120,6 +123,25 @@ public sealed class CommandProcessorIdempotencyTests
 
         Assert.Equal(1, first);
         Assert.Equal(2, second);
+    }
+
+    [Fact]
+    public async Task SendAsync_WithIdempotency_CancelledHandlerIsNotCachedAndPropagates()
+    {
+        var calls = 0;
+        var counter = new Counter
+        {
+            Throws = () => Interlocked.Increment(ref calls) == 1 ? new OperationCanceledException("stopped") : null
+        };
+        using var provider = BuildProvider(counter, withIdempotency: true);
+        await using var processor = new CommandProcessor(provider, NullLogger<CommandProcessor>.Instance);
+        var command = new DuplicateCommand { MessageId = Guid.NewGuid() };
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() => processor.SendAsync(command, TestContext.Current.CancellationToken));
+        await processor.SendAsync(command, TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, counter.Calls);
+        Assert.Equal(1, processor.GetMetrics().ProcessedCount);
     }
 
     private static ServiceProvider BuildProvider(Counter counter, bool withIdempotency)
