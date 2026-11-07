@@ -2,224 +2,75 @@
 
 ## Supported Versions
 
-We release security updates for the following versions:
-
-| Version | Supported          |
-| ------- | ------------------ |
-| 1.x.x   | :white_check_mark: |
-| < 1.0   | :x:                |
+| Version | Supported          | .NET target frameworks |
+| ------- | ------------------ | ---------------------- |
+| 1.x     | :white_check_mark: | net8.0, net9.0, net10.0 |
+| < 1.0   | :x:                | Pre-release versions are not supported |
 
 ## Reporting a Vulnerability
 
-We take security seriously. If you discover a security vulnerability, please follow these steps:
+Do **not** open a public GitHub issue for a security vulnerability.
 
-### 1. Do Not Disclose Publicly
+Report it privately through [GitHub private vulnerability reporting](https://github.com/KoalaFacts/HeroMessaging/security/advisories/new) (preferred), or email the maintainers if an address is listed in the repository settings.
 
-Please do **not** create a public GitHub issue for security vulnerabilities.
+Include:
 
-### 2. Report Privately
+- A description of the vulnerability and what an attacker could do with it
+- Steps to reproduce, and a proof of concept (code or configuration) if you have one
+- Environment: HeroMessaging version, .NET version, operating system, plugin packages in use
+- A suggested fix (optional) and your contact information (optional)
 
-- Use GitHub's [Security Advisories](https://github.com/KoalaFacts/HeroMessaging/security/advisories/new) feature
-- Or email the maintainers directly (if email is provided in CLAUDE.md or repository settings)
+### Response Timeline
 
-### 3. Include Details
+- **Initial response**: within 48 hours
+- **Status update**: within 7 days
+- **Fix**: depends on severity
+  - Critical (for example remote code execution, SQL injection, authentication bypass): 7–14 days
+  - High (privilege escalation, data exposure, denial of service): 14–30 days
+  - Medium (information disclosure, limited data exposure): 30–60 days
+  - Low: next regular release
 
-When reporting, please include:
+### Disclosure
 
-- Description of the vulnerability
-- Steps to reproduce
-- Potential impact
-- Suggested fix (if you have one)
-- Your contact information (optional)
+We follow coordinated disclosure: the reporter notifies the maintainers privately; the maintainers confirm and assess severity; the fix is developed privately and the reporter may review it; the release is published with a GitHub Security Advisory; public disclosure follows once the fix is available (typically within 90 days of the report). Reporters are credited in the advisory, release notes and [CHANGELOG.md](../CHANGELOG.md) unless they prefer to remain anonymous.
 
-### 4. Response Timeline
+Subscribe to [Security Advisories](https://github.com/KoalaFacts/HeroMessaging/security/advisories), [Releases](https://github.com/KoalaFacts/HeroMessaging/releases) and the [NuGet package](https://www.nuget.org/packages/HeroMessaging) to hear about fixes.
 
-- **Initial Response**: Within 48 hours
-- **Status Update**: Within 7 days
-- **Fix Timeline**: Depends on severity
-  - Critical: 7-14 days
-  - High: 14-30 days
-  - Medium: 30-60 days
-  - Low: Next regular release
+## Using HeroMessaging Securely
 
-## Security Features
+- **Credentials**: never commit connection strings or broker passwords; read them from configuration backed by a secret store, environment variables, or user secrets (development only).
+- **Validation**: validate message contents in handlers (or with the validation pipeline) before acting on them.
+- **SQL**: the PostgreSQL and SQL Server storage plugins use parameterised queries and validate schema/table identifiers; keep that rule in any storage you write.
+- **Serialization**: prefer source-generated `JsonSerializerContext` metadata over polymorphic or reflection-based deserialization of untrusted input, and keep a bounded `MaxDepth`.
+- **Transport**: use TLS for RabbitMQ outside a trusted network (`WithRabbitMqSsl(...)` or `RabbitMqTransportOptions.UseSsl`).
+- **Least privilege**: give the application's database account only the rights it needs on the HeroMessaging tables, not ownership of the database.
+- **In-memory storage** is for development and tests: it is not durable, not shared between processes, and not encrypted. For production use PostgreSQL or SQL Server with TLS connections, encryption at rest and database authentication.
+- **Sagas**: do not keep sensitive data in saga state without encrypting it; make compensation and timeout actions idempotent and log them.
+- **Dependencies**: keep packages current (`dotnet list package --outdated`, `dotnet list package --vulnerable`).
 
-### Automated Security Scanning
+Compliance (GDPR, SOC 2, HIPAA and similar) is the responsibility of the application; HeroMessaging collects no personal data itself.
 
-This repository implements multiple layers of automated security:
+## Repository Security
 
-#### 1. **Dependabot** (Dependency Scanning)
-- **What**: Automated dependency updates and vulnerability alerts
-- **When**: Weekly scans on Mondays at 6:00 AM UTC
-- **Coverage**: NuGet packages and GitHub Actions
-- **Location**: `.github/dependabot.yml`
+- **Dependabot** (`.github/dependabot.yml`): weekly NuGet and GitHub Actions updates, Mondays 06:00 Australia/Sydney.
+- **Secret scanning** (Gitleaks, `.github/workflows/security-scan.yml`): every push and pull request, and daily at 04:00 UTC.
+- **Vulnerable packages**: `dotnet list package --vulnerable --include-transitive` in the same workflow.
+- **CodeQL** (`.github/workflows/codeql.yml`).
+- **SBOM**: generated by the package build job in `.github/workflows/ci.yml`.
+- **Publishing**: NuGet trusted publishing through OIDC (`id-token: write` in `.github/workflows/publish-nuget.yml`), no API key.
+- **Package signing**: optional; `create-release.yml` signs when the `NUGET_SIGNING_CERT_BASE64` and `NUGET_SIGNING_CERT_PASSWORD` secrets exist. Setup: [PACKAGE_SIGNING.md](PACKAGE_SIGNING.md).
 
-#### 2. **Secret Scanning** (Gitleaks)
-- **What**: Detects hardcoded secrets, API keys, and credentials
-- **When**: Every push, PR, and daily at 4:00 AM UTC
-- **Tool**: [Gitleaks](https://github.com/gitleaks/gitleaks)
-- **Location**: `.github/workflows/security-scan.yml`
+More detail: [GitHub Advanced Security](GITHUB_ADVANCED_SECURITY.md), [security scan review](SECURITY_SCAN_REVIEW.md), [environment protection](ENVIRONMENT_PROTECTION.md).
 
-#### 3. **Vulnerability Scanning**
-- **What**: Scans NuGet packages for known vulnerabilities
-- **When**: Every push, PR, and daily scans
-- **Tool**: `dotnet list package --vulnerable`
-- **Action**: Fails CI if critical vulnerabilities found
-
-#### 4. **SBOM Generation**
-- **What**: Software Bill of Materials (SPDX format)
-- **When**: Generated during package build
-- **Tool**: Microsoft SBOM Tool
-- **Purpose**: Supply chain transparency and security
-
-#### 5. **Package Signing** (Optional)
-- **What**: Code signing for NuGet packages
-- **When**: During release creation
-- **Status**: Configured but requires certificate
-- **Setup Instructions**: See [Package Signing Setup](#package-signing-setup)
-
-### Security Best Practices
-
-This project follows these security practices:
-
-✅ **Minimal Permissions**: GitHub Actions use principle of least privilege
-✅ **Trusted Publishing**: NuGet.org publishing via OIDC (no API keys)
-✅ **Immutable Builds**: Packages built once, never rebuilt for releases
-✅ **Artifact Retention**: 90-day retention for audit trails
-✅ **Secret Protection**: No secrets in code or git history
-✅ **Dependency Pinning**: Action versions pinned (e.g., `@v5`)
-✅ **HTTPS Only**: All external connections use HTTPS
-✅ **Code Review**: All changes require review before merge
-
-## Package Signing Setup
-
-To enable NuGet package signing:
-
-### 1. Obtain a Code Signing Certificate
-
-Purchase or generate a code signing certificate from a trusted Certificate Authority:
-- [DigiCert](https://www.digicert.com/signing/code-signing-certificates)
-- [Sectigo](https://sectigo.com/ssl-certificates-tls/code-signing)
-- [GlobalSign](https://www.globalsign.com/en/code-signing-certificate)
-
-### 2. Export Certificate
-
-Export your certificate as a `.pfx` file with password protection:
+### Verifying a Package
 
 ```bash
-# If you have a .p12 or .pfx file, convert to base64
-base64 -w 0 your-certificate.pfx > certificate.base64
+dotnet nuget verify --all HeroMessaging.<version>.nupkg   # signature, when signed
+sha256sum HeroMessaging.<version>.nupkg                   # compare with the release notes
 ```
 
-### 3. Add Secrets to Repository
+The CI package build generates SPDX SBOM files (`*.spdx.json`) next to the packages.
 
-Add these secrets to your GitHub repository:
+## Questions
 
-1. Go to **Settings** → **Secrets and variables** → **Actions**
-2. Add the following secrets:
-   - `NUGET_SIGNING_CERT_BASE64`: Content of `certificate.base64`
-   - `NUGET_SIGNING_CERT_PASSWORD`: Password for the .pfx file
-
-### 4. Verify
-
-On the next release, the `create-release` workflow will automatically sign packages.
-
-## Security Workflow Diagram
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                    Code Pushed                          │
-└────────────────────┬────────────────────────────────────┘
-                     │
-     ┌───────────────┼───────────────┐
-     │               │               │
-     ▼               ▼               ▼
-┌─────────┐   ┌──────────┐   ┌──────────────┐
-│ Secret  │   │Dependency│   │  Unit Tests  │
-│ Scan    │   │  Vuln    │   │  + Coverage  │
-│(Gitleaks)│  │  Scan    │   │              │
-└─────────┘   └──────────┘   └──────────────┘
-     │               │               │
-     └───────────────┼───────────────┘
-                     │
-                     ▼
-            ┌─────────────────┐
-            │  Quality Gates  │
-            │  (80% coverage) │
-            └────────┬────────┘
-                     │
-                     ▼
-            ┌─────────────────┐
-            │  Build Package  │
-            │  + Generate SBOM│
-            └────────┬────────┘
-                     │
-                     ▼
-            ┌─────────────────┐
-            │  Sign Package   │
-            │  (if cert set)  │
-            └────────┬────────┘
-                     │
-                     ▼
-            ┌─────────────────┐
-            │  Publish to     │
-            │  NuGet.org      │
-            └─────────────────┘
-```
-
-## Verifying Package Authenticity
-
-### Verify Signature
-
-```bash
-dotnet nuget verify HeroMessaging.1.0.0.nupkg
-```
-
-### Check SBOM
-
-SBOM files are included in release artifacts:
-1. Go to [Releases](https://github.com/KoalaFacts/HeroMessaging/releases)
-2. Download SBOM artifacts for the version
-3. Review `_manifest/spdx_2.2/*.spdx.json`
-
-### Validate Package Hash
-
-```bash
-# On Linux/macOS
-sha256sum HeroMessaging.1.0.0.nupkg
-
-# On Windows (PowerShell)
-Get-FileHash HeroMessaging.1.0.0.nupkg -Algorithm SHA256
-```
-
-Compare the hash with the one listed in the release notes.
-
-## Security Updates
-
-Security updates are released as soon as possible after a vulnerability is confirmed:
-
-1. **Patch Created**: Fix developed and tested
-2. **Security Advisory**: Published on GitHub
-3. **Release**: New version released with fix
-4. **Notification**: Dependabot alerts users with updated version
-5. **Documentation**: CHANGELOG.md updated with security note
-
-## Acknowledgments
-
-We appreciate security researchers who responsibly disclose vulnerabilities. Contributors will be acknowledged in:
-
-- GitHub Security Advisories
-- Release notes
-- CHANGELOG.md (with permission)
-
-## Additional Resources
-
-- [OWASP Top 10](https://owasp.org/www-project-top-ten/)
-- [NuGet Package Signing](https://docs.microsoft.com/nuget/create-packages/sign-a-package)
-- [GitHub Security Features](https://github.com/features/security)
-- [Supply Chain Security](https://slsa.dev/)
-
----
-
-**Last Updated**: 2025-11-07
-**Version**: 1.0
+For security questions that are not vulnerabilities, [open a discussion](https://github.com/KoalaFacts/HeroMessaging/discussions); see [CONTRIBUTING.md](../CONTRIBUTING.md) for general contribution guidelines.
