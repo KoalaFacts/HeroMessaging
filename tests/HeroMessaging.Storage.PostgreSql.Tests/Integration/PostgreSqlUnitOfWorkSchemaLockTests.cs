@@ -55,10 +55,10 @@ public class PostgreSqlUnitOfWorkSchemaLockTests : PostgreSqlIntegrationTestBase
             await first.BeginTransactionAsync(cancellationToken: TestContext.Current.CancellationToken);
             await second.BeginTransactionAsync(cancellationToken: TestContext.Current.CancellationToken);
 
-            await first.MessageStorage.StoreAsync(TestMessageBuilder.CreateValidMessage("first"), (HeroMessaging.Abstractions.Storage.MessageStorageOptions?)null, TestContext.Current.CancellationToken);
+            await first.MessageStorage.StoreAsync(TestMessageBuilder.CreateValidMessage("first"), options: null, cancellationToken: TestContext.Current.CancellationToken);
             using (var timeout = CreateLockTimeout())
             {
-                await second.MessageStorage.StoreAsync(TestMessageBuilder.CreateValidMessage("second"), (HeroMessaging.Abstractions.Storage.MessageStorageOptions?)null, timeout.Token);
+                await second.MessageStorage.StoreAsync(TestMessageBuilder.CreateValidMessage("second"), options: null, cancellationToken: timeout.Token);
             }
 
             await second.CommitAsync(TestContext.Current.CancellationToken);
@@ -93,7 +93,7 @@ public class PostgreSqlUnitOfWorkSchemaLockTests : PostgreSqlIntegrationTestBase
             await using (var unitOfWork = new PostgreSqlUnitOfWork(connectionString))
             {
                 await unitOfWork.BeginTransactionAsync(cancellationToken: TestContext.Current.CancellationToken);
-                await unitOfWork.MessageStorage.StoreAsync(TestMessageBuilder.CreateValidMessage(), (HeroMessaging.Abstractions.Storage.MessageStorageOptions?)null, TestContext.Current.CancellationToken);
+                await unitOfWork.MessageStorage.StoreAsync(TestMessageBuilder.CreateValidMessage(), options: null, cancellationToken: TestContext.Current.CancellationToken);
                 await unitOfWork.RollbackAsync(TestContext.Current.CancellationToken);
             }
 
