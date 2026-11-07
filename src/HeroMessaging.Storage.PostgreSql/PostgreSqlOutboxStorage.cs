@@ -212,6 +212,7 @@ public class PostgreSqlOutboxStorage : IExternalOutboxStorage
 
     public async Task<OutboxEntry> AddAsync(IMessage message, OutboxOptions options, CancellationToken cancellationToken = default)
     {
+        OutboxAddressValidator.Validate(options);
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         var connection = await _connectionProvider.GetConnectionAsync(cancellationToken).ConfigureAwait(false);
         var transaction = _connectionProvider.GetTransaction();

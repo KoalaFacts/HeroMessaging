@@ -63,6 +63,27 @@ public class PostgreSqlOutboxLeaseTests : PostgreSqlIntegrationTestBase
     }
 
     [Fact]
+    public async Task AddAsync_InvalidDeliveryAddress_ThrowsAndStoresNothing()
+    {
+        await WithStorageAsync(async (storage, _, _) =>
+        {
+            OutboxOptions[] invalid =
+            [
+                new() { Destination = "orders", Topic = "order-events" },
+                new() { Destination = "orders", RoutingKey = "orders.created" },
+                new() { RoutingKey = "orders.created" },
+                new() { Topic = " " }
+            ];
+            foreach (var options in invalid)
+                await Assert.ThrowsAsync<ArgumentException>(() => storage.AddAsync(
+                    TestMessageBuilder.CreateValidMessage("invalid"), options, TestContext.Current.CancellationToken));
+
+            Assert.Empty(await storage.ClaimExternalAsync(10, TimeSpan.FromMinutes(1), TestContext.Current.CancellationToken));
+            Assert.Empty(await storage.GetLocalPendingAsync(10, TestContext.Current.CancellationToken));
+        });
+    }
+
+    [Fact]
     public async Task ClaimExternalAsync_ExpiredLeaseCanBeRecoveredButOldOwnerCannotComplete()
     {
         await WithStorageAsync(async (storage, options, time) =>

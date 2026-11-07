@@ -74,18 +74,11 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOu
             await SubmitWorkItemAsync(new OutboxWorkItem(entry), cancellationToken);
         }
     }
-    private static bool IsExternal(OutboxOptions options) => options.Destination is not null || options.Topic is not null;
+    private static bool IsExternal(OutboxOptions options) => OutboxAddressValidator.IsExternal(options);
 
     private void ValidateExternalAddress(OutboxOptions options)
     {
-        if (options.Destination is not null && options.Topic is not null)
-            throw new ArgumentException("An outbox entry is either sent to a queue (Destination) or published to a topic (Topic), not both.", nameof(options));
-        if (options.RoutingKey is not null && options.Topic is null)
-            throw new ArgumentException("RoutingKey applies only to an outbox entry published to a Topic.", nameof(options));
-        if (options.Destination is not null && string.IsNullOrWhiteSpace(options.Destination))
-            throw new ArgumentException("External outbox destination must name a queue.", nameof(options));
-        if (options.Topic is not null && string.IsNullOrWhiteSpace(options.Topic))
-            throw new ArgumentException("External outbox topic must name a topic (for RabbitMQ, an exchange).", nameof(options));
+        OutboxAddressValidator.Validate(options);
         if (!IsExternal(options))
             return;
         if (_externalDelivery is null)
