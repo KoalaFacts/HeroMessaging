@@ -62,6 +62,21 @@ public record OutboxOptions
     public string? Destination { get; init; }
 
     /// <summary>
+    /// Topic (for RabbitMQ, the exchange) to publish the message to after the business transaction commits.
+    /// Delivery completes only when the broker confirms that at least one bound queue received it; an
+    /// unroutable publish is retried and then failed like any other delivery error. Mutually exclusive
+    /// with <see cref="Destination"/>; requires leased Outbox storage and an
+    /// <see cref="Transport.IConfirmedPublishTransport"/>.
+    /// </summary>
+    public string? Topic { get; init; }
+
+    /// <summary>
+    /// Routing key used when publishing to <see cref="Topic"/>. When <see langword="null"/>, the transport's
+    /// default routing key is used (<c>#</c> for RabbitMQ). Only valid together with <see cref="Topic"/>.
+    /// </summary>
+    public string? RoutingKey { get; init; }
+
+    /// <summary>
     /// Priority level for delivery. Higher values indicate higher priority. Default: 0.
     /// </summary>
     public int Priority { get; init; } = 0;

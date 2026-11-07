@@ -1,3 +1,4 @@
+using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Messages;
 using HeroMessaging.Abstractions.Serialization;
 using HeroMessaging.Abstractions.Storage;
@@ -16,6 +17,21 @@ internal sealed class ExternalOutboxDelivery(
 {
     private static readonly TimeSpan LeaseDuration = TimeSpan.FromMinutes(1);
     private static readonly TimeSpan LeaseRenewalInterval = TimeSpan.FromSeconds(20);
+
+    /// <summary>Whether the transport can publish entries addressed to a topic.</summary>
+    public bool CanPublish => transport is IConfirmedPublishTransport;
+
+    private Task SendAsync(OutboxOptions options, TransportEnvelope envelope, CancellationToken cancellationToken)
+    {
+        if (options.Topic is null)
+            return transport.SendConfirmedAsync(TransportAddress.Queue(options.Destination!), envelope, cancellationToken);
+
+        if (transport is not IConfirmedPublishTransport publisher)
+            throw new NotSupportedException($"Outbox entry is addressed to topic '{options.Topic}', but the transport does not implement {nameof(IConfirmedPublishTransport)}.");
+        if (options.RoutingKey is not null)
+            envelope = envelope.WithHeader("RoutingKey", options.RoutingKey);
+        return publisher.PublishConfirmedAsync(TransportAddress.Topic(options.Topic), envelope, cancellationToken);
+    }
 
     public async Task DeliverAsync(OutboxEntry entry, Guid token, CancellationToken shutdown)
     {
@@ -51,7 +67,7 @@ internal sealed class ExternalOutboxDelivery(
 
             if (transport.State != TransportState.Connected)
                 await transport.ConnectAsync(delivery.Token).ConfigureAwait(false);
-            await transport.SendConfirmedAsync(TransportAddress.Queue(entry.Options.Destination!), envelope, delivery.Token).ConfigureAwait(false);
+            await SendAsync(entry.Options, envelope, delivery.Token).ConfigureAwait(false);
 
             await delivery.CancelAsync().ConfigureAwait(false);
             await renewal.ConfigureAwait(false);

@@ -39,6 +39,30 @@ public class PostgreSqlOutboxLeaseTests : PostgreSqlIntegrationTestBase
     }
 
     [Fact]
+    public async Task ClaimExternalAsync_TopicEntry_RestoresTopicAndRoutingKey()
+    {
+        await WithStorageAsync(async (storage, _, _) =>
+        {
+            await storage.AddAsync(TestMessageBuilder.CreateValidMessage("topic entry"),
+                new OutboxOptions { Topic = "order-events", RoutingKey = "orders.created" }, TestContext.Current.CancellationToken);
+            await storage.AddAsync(TestMessageBuilder.CreateValidMessage("default routing"),
+                new OutboxOptions { Topic = "order-events" }, TestContext.Current.CancellationToken);
+
+            var claims = await storage.ClaimExternalAsync(10, TimeSpan.FromMinutes(1), TestContext.Current.CancellationToken);
+
+            Assert.Equal(2, claims.Count);
+            Assert.All(claims, claim =>
+            {
+                Assert.Equal("order-events", claim.Entry.Options.Topic);
+                Assert.Null(claim.Entry.Options.Destination);
+            });
+            Assert.Contains(claims, claim => claim.Entry.Options.RoutingKey == "orders.created");
+            Assert.Contains(claims, claim => claim.Entry.Options.RoutingKey is null);
+            Assert.Empty(await storage.GetLocalPendingAsync(10, TestContext.Current.CancellationToken));
+        });
+    }
+
+    [Fact]
     public async Task ClaimExternalAsync_ExpiredLeaseCanBeRecoveredButOldOwnerCannotComplete()
     {
         await WithStorageAsync(async (storage, options, time) =>
