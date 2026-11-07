@@ -13,7 +13,7 @@ namespace HeroMessaging.Transport.RabbitMQ;
 /// <summary>
 /// RabbitMQ implementation of IMessageTransport
 /// </summary>
-public sealed class RabbitMqTransport : IConfirmedQueueTransport, IRabbitMqConsumerHost
+public sealed class RabbitMqTransport : IConfirmedQueueTransport, IConfirmedPublishTransport, IRabbitMqConsumerHost
 {
     private readonly RabbitMqTransportOptions _options;
     private readonly ILogger<RabbitMqTransport> _logger;
@@ -255,10 +255,29 @@ public sealed class RabbitMqTransport : IConfirmedQueueTransport, IRabbitMqConsu
     }
 
     /// <inheritdoc/>
-    public async Task PublishAsync(
+    public Task PublishAsync(
         TransportAddress topic,
         TransportEnvelope envelope,
         CancellationToken cancellationToken = default)
+        => PublishCoreAsync(topic, envelope, requireRoute: false, cancellationToken);
+
+    /// <inheritdoc/>
+    public Task PublishConfirmedAsync(
+        TransportAddress topic,
+        TransportEnvelope envelope,
+        CancellationToken cancellationToken = default)
+    {
+        if (!_options.UsePublisherConfirms)
+            throw new InvalidOperationException("Confirmed publish requires RabbitMQ publisher confirms. Set RabbitMqTransportOptions.UsePublisherConfirms to true.");
+
+        return PublishCoreAsync(topic, envelope, requireRoute: true, cancellationToken);
+    }
+
+    private async Task PublishCoreAsync(
+        TransportAddress topic,
+        TransportEnvelope envelope,
+        bool requireRoute,
+        CancellationToken cancellationToken)
     {
         EnsureConnected();
 
@@ -305,8 +324,15 @@ public sealed class RabbitMqTransport : IConfirmedQueueTransport, IRabbitMqConsu
                 // Try to get routing key from headers, default to "#" (broadcast)
                 var routingKey = envelope.Headers.TryGetValue("RoutingKey", out var rk) ? rk?.ToString() ?? "#" : "#";
 
-                await PublishMessageAsync(channel, topic.Name, routingKey, properties, envelope.Body, cancellationToken)
-                    .ConfigureAwait(false);
+                try
+                {
+                    await PublishMessageAsync(channel, topic.Name, routingKey, properties, envelope.Body, cancellationToken, requireRoute)
+                        .ConfigureAwait(false);
+                }
+                catch (QueueDeliveryException ex) when (requireRoute)
+                {
+                    throw new PublishRouteException(topic.Name, routingKey, ex.InnerException ?? ex);
+                }
 
                 if (_options.UsePublisherConfirms)
                 {
