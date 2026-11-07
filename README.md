@@ -494,7 +494,7 @@ See [CLAUDE.md](CLAUDE.md) for detailed development guidelines.
 
 ## Security
 
-Please see [SECURITY.md](.github/SECURITY.md) for security policies and vulnerability reporting.
+Please see [.github/SECURITY.md](.github/SECURITY.md) for security policies and vulnerability reporting.
 
 ## Roadmap
 

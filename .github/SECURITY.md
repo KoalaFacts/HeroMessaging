@@ -40,7 +40,7 @@ Subscribe to [Security Advisories](https://github.com/KoalaFacts/HeroMessaging/s
 
 - **Credentials**: never commit connection strings or broker passwords; read them from configuration backed by a secret store, environment variables, or user secrets (development only).
 - **Validation**: validate message contents in handlers (or with the validation pipeline) before acting on them.
-- **SQL**: the PostgreSQL and SQL Server storage plugins use parameterised queries and validate schema/table identifiers; keep that rule in any storage you write.
+- **SQL**: the PostgreSQL and SQL Server storage plugins pass message data as query parameters; most also validate configured schema/table names. Keep both rules in any storage you write.
 - **Serialization**: prefer source-generated `JsonSerializerContext` metadata over polymorphic or reflection-based deserialization of untrusted input, and keep a bounded `MaxDepth`.
 - **Transport**: use TLS for RabbitMQ outside a trusted network (`WithRabbitMqSsl(...)` or `RabbitMqTransportOptions.UseSsl`).
 - **Least privilege**: give the application's database account only the rights it needs on the HeroMessaging tables, not ownership of the database.
