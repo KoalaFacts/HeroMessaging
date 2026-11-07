@@ -141,53 +141,81 @@ public sealed class PostgreSqlRabbitMqOutboxRecoveryTests : RabbitMqIntegrationT
 
         try
         {
-            await using var host = CreateHost(options);
-            var hosted = Assert.Single(host.GetServices<IHostedService>());
-            await hosted.StartAsync(cancellationToken);
-            await host.GetRequiredService<IOutboxProcessor>().PublishToOutboxAsync(message,
-                new OutboxOptions { Destination = $"topic:{exchange}", RetryDelay = TimeSpan.FromSeconds(1), MaxRetries = 20 }, cancellationToken);
-
-            await WaitForAsync(async token =>
+            await using (var firstHost = CreateHost(options))
             {
-                var entries = await host.GetRequiredService<IOutboxStorage>().GetPendingAsync(
-                    new OutboxQuery { Status = OutboxStatus.Pending, Limit = 10 }, token);
-                return entries.Any(entry => entry.Message.MessageId == message.MessageId && entry.RetryCount >= 1
-                    && entry.LastError?.Contains(exchange, StringComparison.Ordinal) == true);
-            }, cancellationToken);
+                var hosted = Assert.Single(firstHost.GetServices<IHostedService>());
+                await hosted.StartAsync(cancellationToken);
+                try
+                {
+                    await firstHost.GetRequiredService<IOutboxProcessor>().PublishToOutboxAsync(message,
+                        new OutboxOptions { Destination = $"topic:{exchange}", RetryDelay = TimeSpan.FromSeconds(1), MaxRetries = 20 }, cancellationToken);
 
+                    await WaitForAsync(async token =>
+                    {
+                        var entries = await firstHost.GetRequiredService<IOutboxStorage>().GetPendingAsync(
+                            new OutboxQuery { Status = OutboxStatus.Pending, Limit = 10 }, token);
+                        return entries.Any(entry => entry.Message.MessageId == message.MessageId && entry.RetryCount >= 1
+                            && entry.LastError?.Contains(exchange, StringComparison.Ordinal) == true);
+                    }, cancellationToken);
+                }
+                finally
+                {
+                    await hosted.StopAsync(CancellationToken.None);
+                }
+            }
+
+            // Bind both queues while no worker runs, so a retry cannot land between the two bindings.
             var bound = new TransportTopology();
-            var received = new List<Task<TransportEnvelope>>();
             foreach (var queue in queues)
             {
                 bound.AddQueue(new QueueDefinition { Name = queue, Durable = true });
                 bound.AddBinding(new BindingDefinition { SourceExchange = exchange, Destination = queue, RoutingKey = "#" });
             }
             await Transport.ConfigureTopologyAsync(bound, cancellationToken);
-            foreach (var queue in queues)
+            var received = new List<Task<TransportEnvelope>>();
+            var consumers = new List<ITransportConsumer>();
+            try
             {
-                var arrived = new TaskCompletionSource<TransportEnvelope>(TaskCreationOptions.RunContinuationsAsynchronously);
-                await Transport.SubscribeAsync(TransportAddress.Queue(queue), async (envelope, context, token) =>
+                foreach (var queue in queues)
                 {
-                    await context.AcknowledgeAsync(token);
-                    arrived.TrySetResult(envelope);
-                }, cancellationToken: cancellationToken);
-                received.Add(arrived.Task);
-            }
+                    var arrived = new TaskCompletionSource<TransportEnvelope>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    consumers.Add(await Transport.SubscribeAsync(TransportAddress.Queue(queue), async (envelope, context, token) =>
+                    {
+                        await context.AcknowledgeAsync(token);
+                        arrived.TrySetResult(envelope);
+                    }, cancellationToken: cancellationToken));
+                    received.Add(arrived.Task);
+                }
 
-            foreach (var arrival in received)
-            {
-                var envelope = await arrival.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken);
-                Assert.Equal(message.MessageId.ToString(), envelope.MessageId);
-                Assert.Equal(message.Content, new JsonMessageSerializer().Deserialize<TestMessage>(envelope.Body.Span)?.Content);
-            }
+                await using var secondHost = CreateHost(options);
+                var hosted = Assert.Single(secondHost.GetServices<IHostedService>());
+                await hosted.StartAsync(cancellationToken);
+                try
+                {
+                    foreach (var arrival in received)
+                    {
+                        var envelope = await arrival.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken);
+                        Assert.Equal(message.MessageId.ToString(), envelope.MessageId);
+                        Assert.Equal(message.Content, new JsonMessageSerializer().Deserialize<TestMessage>(envelope.Body.Span)?.Content);
+                    }
 
-            await WaitForAsync(async token =>
+                    await WaitForAsync(async token =>
+                    {
+                        var entries = await secondHost.GetRequiredService<IOutboxStorage>().GetPendingAsync(
+                            new OutboxQuery { Status = OutboxStatus.Processed, Limit = 10 }, token);
+                        return entries.Any(entry => entry.Message.MessageId == message.MessageId);
+                    }, cancellationToken);
+                }
+                finally
+                {
+                    await hosted.StopAsync(CancellationToken.None);
+                }
+            }
+            finally
             {
-                var entries = await host.GetRequiredService<IOutboxStorage>().GetPendingAsync(
-                    new OutboxQuery { Status = OutboxStatus.Processed, Limit = 10 }, token);
-                return entries.Any(entry => entry.Message.MessageId == message.MessageId);
-            }, cancellationToken);
-            await hosted.StopAsync(cancellationToken);
+                foreach (var consumer in consumers)
+                    await consumer.DisposeAsync();
+            }
         }
         finally
         {

@@ -4,7 +4,7 @@ namespace HeroMessaging.Processing;
 
 /// <summary>
 /// Reads an external outbox destination (<c>OutboxOptions.Destination</c>): <c>topic:&lt;name&gt;</c> addresses a topic,
-/// <c>queue:&lt;name&gt;</c> or a bare name addresses a queue.
+/// <c>queue:&lt;name&gt;</c> or a bare name addresses a queue. Prefixes are lower case and matched exactly.
 /// </summary>
 internal static class OutboxDestination
 {
@@ -31,6 +31,8 @@ internal static class OutboxDestination
         var name = destination[prefix.Length..];
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException($"External outbox destination '{destination}' has no name after '{prefix}'.", nameof(destination));
+        if (name.Trim().Length != name.Length)
+            throw new ArgumentException($"External outbox destination '{destination}' has white space around the name after '{prefix}'; remove it.", nameof(destination));
         return name;
     }
 }

@@ -393,7 +393,7 @@ public sealed class ExternalOutboxProcessorTests
     }
 
     [Fact]
-    public async Task TopicDestination_TransportWithoutConfirmedPublish_RecordsActionableFailure()
+    public async Task TopicDestination_TransportWithoutConfirmedPublish_FailsAtOnceWithActionableError()
     {
         var storage = new Mock<IExternalOutboxStorage>();
         storage.SetupGet(s => s.SupportsExternalClaims).Returns(true);
@@ -402,7 +402,7 @@ public sealed class ExternalOutboxProcessorTests
         {
             Id = Guid.NewGuid().ToString(),
             Message = TestMessageBuilder.CreateValidMessage(),
-            Options = new OutboxOptions { Destination = "topic:orders.events", MaxRetries = 1 }
+            Options = new OutboxOptions { Destination = "topic:orders.events", MaxRetries = 5 }
         };
         var token = Guid.NewGuid();
         var failed = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -421,6 +421,45 @@ public sealed class ExternalOutboxProcessorTests
         Assert.Contains("orders.events", error);
         Assert.Contains(nameof(IConfirmedPublishTransport), error);
         storage.Verify(s => s.CompleteExternalAsync(It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+        storage.Verify(s => s.RetryExternalAsync(It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<int>(),
+            It.IsAny<DateTimeOffset>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        transport.Verify(t => t.ConnectAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Theory]
+    [InlineData("topic:")]
+    [InlineData("topic: orders")]
+    public async Task StoredDestinationThatCannotBeParsed_FailsAtOnceWithoutSending(string destination)
+    {
+        var storage = new Mock<IExternalOutboxStorage>();
+        storage.SetupGet(s => s.SupportsExternalClaims).Returns(true);
+        var transport = new Mock<IConfirmedQueueTransport>();
+        var publisher = transport.As<IConfirmedPublishTransport>();
+        var entry = new OutboxEntry
+        {
+            Id = Guid.NewGuid().ToString(),
+            Message = TestMessageBuilder.CreateValidMessage(),
+            Options = new OutboxOptions { Destination = destination, MaxRetries = 5 }
+        };
+        var token = Guid.NewGuid();
+        var failed = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        SetupSingleClaim(storage, entry, token);
+        storage.Setup(s => s.FailExternalAsync(entry.Id, token, 1, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Callback<string, Guid, int, string, CancellationToken>((_, _, _, error, _) => failed.TrySetResult(error))
+            .ReturnsAsync(true);
+        transport.SetupGet(t => t.State).Returns(TransportState.Connected);
+
+        using var services = new ServiceCollection().BuildServiceProvider();
+        await using var processor = CreateProcessor(storage.Object, transport.Object, services);
+        await processor.StartAsync(TestContext.Current.CancellationToken);
+        var error = await failed.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        await processor.StopAsync(TestContext.Current.CancellationToken);
+
+        Assert.Contains(destination, error);
+        publisher.Verify(t => t.PublishConfirmedAsync(It.IsAny<TransportAddress>(), It.IsAny<TransportEnvelope>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+        transport.Verify(t => t.SendConfirmedAsync(It.IsAny<TransportAddress>(), It.IsAny<TransportEnvelope>(),
+            It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -445,6 +484,8 @@ public sealed class ExternalOutboxProcessorTests
     [InlineData("topic:")]
     [InlineData("topic:  ")]
     [InlineData("queue:")]
+    [InlineData("topic: orders")]
+    [InlineData("queue:orders ")]
     public async Task PublishToOutbox_PrefixWithoutName_RejectsBeforeWrite(string destination)
     {
         var storage = new Mock<IExternalOutboxStorage>();

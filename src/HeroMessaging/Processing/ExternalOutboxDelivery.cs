@@ -27,6 +27,14 @@ internal sealed class ExternalOutboxDelivery(
             return;
         }
 
+        if (!TryResolveDestination(entry, out var destination, out var configurationError))
+        {
+            logger.LogError("External outbox entry {EntryId} cannot be delivered: {Error}", entry.Id, configurationError);
+            if (!await storage.FailExternalAsync(entry.Id, token, entry.RetryCount + 1, configurationError).ConfigureAwait(false))
+                logger.LogWarning("Outbox lease for {EntryId} was lost before failure could be recorded", entry.Id);
+            return;
+        }
+
         if (!await storage.RenewExternalAsync(entry.Id, token, LeaseDuration).ConfigureAwait(false))
         {
             logger.LogWarning("Outbox lease for {EntryId} was lost before delivery started", entry.Id);
@@ -51,12 +59,9 @@ internal sealed class ExternalOutboxDelivery(
 
             if (transport.State != TransportState.Connected)
                 await transport.ConnectAsync(delivery.Token).ConfigureAwait(false);
-            var destination = OutboxDestination.Parse(entry.Options.Destination!);
             if (destination.Type == TransportAddressType.Topic)
             {
-                if (transport is not IConfirmedPublishTransport publisher)
-                    throw OutboxDestination.TopicNotSupported(destination);
-                await publisher.PublishConfirmedAsync(destination, envelope, delivery.Token).ConfigureAwait(false);
+                await ((IConfirmedPublishTransport)transport).PublishConfirmedAsync(destination, envelope, delivery.Token).ConfigureAwait(false);
             }
             else
             {
@@ -94,6 +99,24 @@ internal sealed class ExternalOutboxDelivery(
         {
             await delivery.CancelAsync().ConfigureAwait(false);
             await renewal.ConfigureAwait(false);
+        }
+    }
+
+    private bool TryResolveDestination(OutboxEntry entry, out TransportAddress destination, out string error)
+    {
+        try
+        {
+            destination = OutboxDestination.Parse(entry.Options.Destination!);
+            if (destination.Type == TransportAddressType.Topic && transport is not IConfirmedPublishTransport)
+                throw OutboxDestination.TopicNotSupported(destination);
+            error = string.Empty;
+            return true;
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException)
+        {
+            destination = default;
+            error = ex.Message;
+            return false;
         }
     }
 
