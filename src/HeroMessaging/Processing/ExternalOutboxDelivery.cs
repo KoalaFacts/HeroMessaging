@@ -51,7 +51,17 @@ internal sealed class ExternalOutboxDelivery(
 
             if (transport.State != TransportState.Connected)
                 await transport.ConnectAsync(delivery.Token).ConfigureAwait(false);
-            await transport.SendConfirmedAsync(TransportAddress.Queue(entry.Options.Destination!), envelope, delivery.Token).ConfigureAwait(false);
+            var destination = OutboxDestination.Parse(entry.Options.Destination!);
+            if (destination.Type == TransportAddressType.Topic)
+            {
+                if (transport is not IConfirmedPublishTransport publisher)
+                    throw OutboxDestination.TopicNotSupported(destination);
+                await publisher.PublishConfirmedAsync(destination, envelope, delivery.Token).ConfigureAwait(false);
+            }
+            else
+            {
+                await transport.SendConfirmedAsync(destination, envelope, delivery.Token).ConfigureAwait(false);
+            }
 
             await delivery.CancelAsync().ConfigureAwait(false);
             await renewal.ConfigureAwait(false);

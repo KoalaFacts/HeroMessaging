@@ -353,6 +353,18 @@ channel.QueueBind(queue, exchange, routingKey, arguments);
 
 **Consequence**: Outbox delivery can mark a published event processed only when a subscriber queue has it. Integration (RabbitMQ 3.13): `RabbitMqConfirmedPublishTests` (matching binding reaches every bound queue; no matching binding and no bindings throw `PublishRouteException`; the channel stays usable after a returned message — the three failure cases passed silently with routing not required). Unit: `RabbitMqTransportTests.PublishConfirmedAsync_WithoutPublisherConfirms_ThrowsActionableError`, `PublishConfirmedAsync_WhenDisconnected_ThrowsInvalidOperationException`.
 
+### TD-10: Outbox topic destinations (2026-11-07)
+
+**Decision**: `OutboxOptions.Destination` keeps its single string (and its existing storage column). `topic:<name>` addresses a topic and is delivered with `IConfirmedPublishTransport.PublishConfirmedAsync`; `queue:<name>` or a bare name addresses a queue and is sent with `SendConfirmedAsync`, as before. The prefixes match `TransportAddress.ToString()`.
+
+- No schema change and no new public type: `Processing/OutboxDestination` (internal) parses the string at publish time and again at delivery, so entries written directly to storage (for example through `PostgreSqlUnitOfWork`) follow the same rules.
+- `PublishToOutboxAsync` rejects a prefix without a name (`ArgumentException`) and a topic when the registered transport does not implement `IConfirmedPublishTransport` (`NotSupportedException` naming the interface). At delivery the same transport gap throws that message, which is recorded on the entry and follows its retry policy.
+- An unroutable topic publish (`PublishRouteException`) is an ordinary delivery failure: the entry stays pending and is retried, so a subscriber queue bound later still gets it.
+- The envelope carries no `RoutingKey` header, so the transport publishes with `#`; per-entry routing keys are a later step.
+- Compatibility: a queue whose name starts with `topic:` or `queue:` must be written as `queue:<name>`. The feature has not been released.
+
+**Consequence**: `PostgreSqlRabbitMqOutboxRecoveryTests.TopicDestination_RetriesWhileUnboundThenReachesEveryBoundQueue` (PostgreSQL 17 + RabbitMQ 3.13) retries while the exchange has no binding, then delivers to both bound queues and marks the entry processed; before the change the entry was sent to a queue literally named `topic:<exchange>` and never arrived. Unit: `ExternalOutboxProcessorTests` topic cases.
+
 ---
 
 ## Architectural Consequences

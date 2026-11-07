@@ -321,6 +321,159 @@ public sealed class ExternalOutboxProcessorTests
         storage.Verify(s => s.CompleteExternalAsync(It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    [Fact]
+    public async Task TopicDestination_PublishesConfirmedToTheTopicAndCompletesClaim()
+    {
+        var storage = new Mock<IExternalOutboxStorage>();
+        storage.SetupGet(s => s.SupportsExternalClaims).Returns(true);
+        var transport = new Mock<IConfirmedQueueTransport>();
+        var publisher = transport.As<IConfirmedPublishTransport>();
+        var message = TestMessageBuilder.CreateValidMessage("topic delivery");
+        var entry = new OutboxEntry
+        {
+            Id = Guid.NewGuid().ToString(),
+            Message = message,
+            Options = new OutboxOptions { Destination = "topic:orders.events" }
+        };
+        var token = Guid.NewGuid();
+        var completed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        SetupSingleClaim(storage, entry, token);
+        storage.Setup(s => s.CompleteExternalAsync(entry.Id, token, It.IsAny<CancellationToken>()))
+            .Callback(() => completed.TrySetResult())
+            .ReturnsAsync(true);
+        transport.SetupGet(t => t.State).Returns(TransportState.Connected);
+        publisher.Setup(t => t.PublishConfirmedAsync(It.IsAny<TransportAddress>(), It.IsAny<TransportEnvelope>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        using var services = new ServiceCollection().BuildServiceProvider();
+        await using var processor = CreateProcessor(storage.Object, transport.Object, services);
+        await processor.StartAsync(TestContext.Current.CancellationToken);
+        await completed.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        await processor.StopAsync(TestContext.Current.CancellationToken);
+
+        publisher.Verify(t => t.PublishConfirmedAsync(
+            It.Is<TransportAddress>(address => address.Name == "orders.events" && address.Type == TransportAddressType.Topic),
+            It.Is<TransportEnvelope>(envelope => envelope.MessageId == message.MessageId.ToString()),
+            It.IsAny<CancellationToken>()), Times.Once);
+        transport.Verify(t => t.SendConfirmedAsync(It.IsAny<TransportAddress>(), It.IsAny<TransportEnvelope>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task QueuePrefixedDestination_SendsToTheNamedQueue()
+    {
+        var storage = new Mock<IExternalOutboxStorage>();
+        storage.SetupGet(s => s.SupportsExternalClaims).Returns(true);
+        var transport = new Mock<IConfirmedQueueTransport>();
+        var entry = new OutboxEntry
+        {
+            Id = Guid.NewGuid().ToString(),
+            Message = TestMessageBuilder.CreateValidMessage(),
+            Options = new OutboxOptions { Destination = "queue:orders" }
+        };
+        var token = Guid.NewGuid();
+        var completed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        SetupSingleClaim(storage, entry, token);
+        storage.Setup(s => s.CompleteExternalAsync(entry.Id, token, It.IsAny<CancellationToken>()))
+            .Callback(() => completed.TrySetResult())
+            .ReturnsAsync(true);
+        transport.SetupGet(t => t.State).Returns(TransportState.Connected);
+        transport.Setup(t => t.SendConfirmedAsync(It.IsAny<TransportAddress>(), It.IsAny<TransportEnvelope>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        using var services = new ServiceCollection().BuildServiceProvider();
+        await using var processor = CreateProcessor(storage.Object, transport.Object, services);
+        await processor.StartAsync(TestContext.Current.CancellationToken);
+        await completed.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        await processor.StopAsync(TestContext.Current.CancellationToken);
+
+        transport.Verify(t => t.SendConfirmedAsync(
+            It.Is<TransportAddress>(address => address.Name == "orders" && address.Type == TransportAddressType.Queue),
+            It.IsAny<TransportEnvelope>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task TopicDestination_TransportWithoutConfirmedPublish_RecordsActionableFailure()
+    {
+        var storage = new Mock<IExternalOutboxStorage>();
+        storage.SetupGet(s => s.SupportsExternalClaims).Returns(true);
+        var transport = new Mock<IConfirmedQueueTransport>();
+        var entry = new OutboxEntry
+        {
+            Id = Guid.NewGuid().ToString(),
+            Message = TestMessageBuilder.CreateValidMessage(),
+            Options = new OutboxOptions { Destination = "topic:orders.events", MaxRetries = 1 }
+        };
+        var token = Guid.NewGuid();
+        var failed = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        SetupSingleClaim(storage, entry, token);
+        storage.Setup(s => s.FailExternalAsync(entry.Id, token, 1, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Callback<string, Guid, int, string, CancellationToken>((_, _, _, error, _) => failed.TrySetResult(error))
+            .ReturnsAsync(true);
+        transport.SetupGet(t => t.State).Returns(TransportState.Connected);
+
+        using var services = new ServiceCollection().BuildServiceProvider();
+        await using var processor = CreateProcessor(storage.Object, transport.Object, services);
+        await processor.StartAsync(TestContext.Current.CancellationToken);
+        var error = await failed.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        await processor.StopAsync(TestContext.Current.CancellationToken);
+
+        Assert.Contains("orders.events", error);
+        Assert.Contains(nameof(IConfirmedPublishTransport), error);
+        storage.Verify(s => s.CompleteExternalAsync(It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task PublishToOutbox_TopicDestinationWithoutConfirmedPublishTransport_RejectsBeforeWrite()
+    {
+        var storage = new Mock<IExternalOutboxStorage>();
+        storage.SetupGet(s => s.SupportsExternalClaims).Returns(true);
+        using var services = new ServiceCollection().BuildServiceProvider();
+        var processor = CreateProcessor(storage.Object, new Mock<IConfirmedQueueTransport>().Object, services);
+
+        var ex = await Assert.ThrowsAsync<NotSupportedException>(() => processor.PublishToOutboxAsync(
+            TestMessageBuilder.CreateValidMessage(),
+            new OutboxOptions { Destination = "topic:orders.events" },
+            TestContext.Current.CancellationToken));
+
+        Assert.Contains(nameof(IConfirmedPublishTransport), ex.Message);
+        storage.Verify(s => s.AddAsync(It.IsAny<HeroMessaging.Abstractions.Messages.IMessage>(),
+            It.IsAny<OutboxOptions>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Theory]
+    [InlineData("topic:")]
+    [InlineData("topic:  ")]
+    [InlineData("queue:")]
+    public async Task PublishToOutbox_PrefixWithoutName_RejectsBeforeWrite(string destination)
+    {
+        var storage = new Mock<IExternalOutboxStorage>();
+        storage.SetupGet(s => s.SupportsExternalClaims).Returns(true);
+        var transport = new Mock<IConfirmedQueueTransport>();
+        transport.As<IConfirmedPublishTransport>();
+        using var services = new ServiceCollection().BuildServiceProvider();
+        var processor = CreateProcessor(storage.Object, transport.Object, services);
+
+        await Assert.ThrowsAsync<ArgumentException>(() => processor.PublishToOutboxAsync(
+            TestMessageBuilder.CreateValidMessage(),
+            new OutboxOptions { Destination = destination },
+            TestContext.Current.CancellationToken));
+
+        storage.Verify(s => s.AddAsync(It.IsAny<HeroMessaging.Abstractions.Messages.IMessage>(),
+            It.IsAny<OutboxOptions>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    private static void SetupSingleClaim(Mock<IExternalOutboxStorage> storage, OutboxEntry entry, Guid token)
+    {
+        var claimCount = 0;
+        storage.Setup(s => s.GetLocalPendingAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        storage.Setup(s => s.ClaimExternalAsync(It.IsAny<int>(), It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => Interlocked.Increment(ref claimCount) == 1 ? [new OutboxLease(entry, token)] : []);
+        storage.Setup(s => s.RenewExternalAsync(entry.Id, token, It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+    }
+
     private static OutboxProcessor CreateProcessor(
         IExternalOutboxStorage storage, IConfirmedQueueTransport transport, IServiceProvider services,
         IMessageSerializer? configuredSerializer = null)

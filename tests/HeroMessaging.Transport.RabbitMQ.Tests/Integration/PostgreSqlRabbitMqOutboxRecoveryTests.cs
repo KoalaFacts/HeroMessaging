@@ -114,6 +114,95 @@ public sealed class PostgreSqlRabbitMqOutboxRecoveryTests : RabbitMqIntegrationT
         }
     }
 
+    [Fact]
+    public async Task TopicDestination_RetriesWhileUnboundThenReachesEveryBoundQueue()
+    {
+        var cancellationToken = TestContext.Current.CancellationToken;
+        PostgreSqlContainer? postgres = null;
+        var connectionString = Environment.GetEnvironmentVariable("PostgreSql__ConnectionString");
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            postgres = new PostgreSqlBuilder("postgres:17-alpine").WithPassword("postgres").Build();
+            await postgres.StartAsync(cancellationToken);
+            connectionString = postgres.GetConnectionString();
+        }
+
+        var options = new PostgreSqlStorageOptions
+        {
+            ConnectionString = connectionString,
+            Schema = $"outbox_topic_{Guid.NewGuid():N}"
+        };
+        var exchange = CreateExchangeName();
+        var queues = new[] { CreateQueueName(), CreateQueueName() };
+        var message = TestMessageBuilder.CreateValidMessage("topic outbox");
+        var exchangeOnly = new TransportTopology();
+        exchangeOnly.AddExchange(new ExchangeDefinition { Name = exchange, Type = ExchangeType.Topic, Durable = true });
+        await Transport!.ConfigureTopologyAsync(exchangeOnly, cancellationToken);
+
+        try
+        {
+            await using var host = CreateHost(options);
+            var hosted = Assert.Single(host.GetServices<IHostedService>());
+            await hosted.StartAsync(cancellationToken);
+            await host.GetRequiredService<IOutboxProcessor>().PublishToOutboxAsync(message,
+                new OutboxOptions { Destination = $"topic:{exchange}", RetryDelay = TimeSpan.FromSeconds(1), MaxRetries = 20 }, cancellationToken);
+
+            await WaitForAsync(async token =>
+            {
+                var entries = await host.GetRequiredService<IOutboxStorage>().GetPendingAsync(
+                    new OutboxQuery { Status = OutboxStatus.Pending, Limit = 10 }, token);
+                return entries.Any(entry => entry.Message.MessageId == message.MessageId && entry.RetryCount >= 1
+                    && entry.LastError?.Contains(exchange, StringComparison.Ordinal) == true);
+            }, cancellationToken);
+
+            var bound = new TransportTopology();
+            var received = new List<Task<TransportEnvelope>>();
+            foreach (var queue in queues)
+            {
+                bound.AddQueue(new QueueDefinition { Name = queue, Durable = true });
+                bound.AddBinding(new BindingDefinition { SourceExchange = exchange, Destination = queue, RoutingKey = "#" });
+            }
+            await Transport.ConfigureTopologyAsync(bound, cancellationToken);
+            foreach (var queue in queues)
+            {
+                var arrived = new TaskCompletionSource<TransportEnvelope>(TaskCreationOptions.RunContinuationsAsynchronously);
+                await Transport.SubscribeAsync(TransportAddress.Queue(queue), async (envelope, context, token) =>
+                {
+                    await context.AcknowledgeAsync(token);
+                    arrived.TrySetResult(envelope);
+                }, cancellationToken: cancellationToken);
+                received.Add(arrived.Task);
+            }
+
+            foreach (var arrival in received)
+            {
+                var envelope = await arrival.WaitAsync(TimeSpan.FromSeconds(15), cancellationToken);
+                Assert.Equal(message.MessageId.ToString(), envelope.MessageId);
+                Assert.Equal(message.Content, new JsonMessageSerializer().Deserialize<TestMessage>(envelope.Body.Span)?.Content);
+            }
+
+            await WaitForAsync(async token =>
+            {
+                var entries = await host.GetRequiredService<IOutboxStorage>().GetPendingAsync(
+                    new OutboxQuery { Status = OutboxStatus.Processed, Limit = 10 }, token);
+                return entries.Any(entry => entry.Message.MessageId == message.MessageId);
+            }, cancellationToken);
+            await hosted.StopAsync(cancellationToken);
+        }
+        finally
+        {
+            await using var connection = new NpgsqlConnection(connectionString);
+            await connection.OpenAsync(CancellationToken.None);
+            await using var command = new NpgsqlCommand($"DROP SCHEMA IF EXISTS {options.Schema} CASCADE", connection);
+            await command.ExecuteNonQueryAsync(CancellationToken.None);
+            if (postgres is not null)
+            {
+                await postgres.StopAsync(CancellationToken.None);
+                await postgres.DisposeAsync();
+            }
+        }
+    }
+
     private ServiceProvider CreateHost(PostgreSqlStorageOptions options)
     {
         var services = new ServiceCollection();

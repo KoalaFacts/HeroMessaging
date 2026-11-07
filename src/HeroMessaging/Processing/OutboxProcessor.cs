@@ -20,6 +20,7 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOu
     private readonly IOutboxStorage _outboxStorage;
     private readonly IExternalOutboxStorage? _externalStorage;
     private readonly ExternalOutboxDelivery? _externalDelivery;
+    private readonly bool _supportsTopicDelivery;
     private readonly CancellationTokenSource _shutdown = new();
     private bool _stopTimedOut;
     private readonly int _maxExternalDeliveries;
@@ -52,7 +53,10 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOu
         _outboxStorage = outboxStorage;
         _externalStorage = outboxStorage as IExternalOutboxStorage;
         if (_externalStorage?.SupportsExternalClaims == true && transport is IConfirmedQueueTransport confirmedTransport && messageSerializer is not null)
+        {
             _externalDelivery = new ExternalOutboxDelivery(_externalStorage, confirmedTransport, messageSerializer, timeProvider, logger);
+            _supportsTopicDelivery = confirmedTransport is IConfirmedPublishTransport;
+        }
         _serviceProvider = serviceProvider;
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
@@ -66,10 +70,19 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOu
 
         if (options.Destination is not null)
         {
-            if (string.IsNullOrWhiteSpace(options.Destination))
-                throw new ArgumentException("External outbox destination must name a queue.", nameof(options));
+            TransportAddress destination;
+            try
+            {
+                destination = OutboxDestination.Parse(options.Destination);
+            }
+            catch (ArgumentException ex)
+            {
+                throw new ArgumentException(ex.Message, nameof(options), ex);
+            }
             if (_externalDelivery is null)
                 throw new NotSupportedException("External outbox delivery requires leased storage, a confirmed queue transport, and a message serializer.");
+            if (destination.Type == TransportAddressType.Topic && !_supportsTopicDelivery)
+                throw OutboxDestination.TopicNotSupported(destination);
         }
 
         var entry = await _outboxStorage.AddAsync(message, options, cancellationToken);
