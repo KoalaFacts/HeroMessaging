@@ -2,6 +2,7 @@ using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Commands;
 using HeroMessaging.Abstractions.Events;
 using HeroMessaging.Abstractions.Messages;
+using HeroMessaging.Processing;
 using Microsoft.Extensions.Logging;
 
 namespace HeroMessaging.Utilities;
@@ -37,7 +38,13 @@ internal static class MessageDispatcher
             case IEvent @event:
                 // Wait for every handler: a persisted entry must not be marked processed while a
                 // handler is still queued, running or has failed.
-                var receipt = await messaging.PublishAndWaitAsync(@event, cancellationToken).ConfigureAwait(false);
+                // The processor's token must reach the handlers so a handler still running at stop is cancelled.
+                var receipt = (messaging is IHandlerCancellableEventPublisher publisher
+                    ? await publisher.PublishAndWaitWithHandlerCancellationAsync(@event, cancellationToken).ConfigureAwait(false)
+                    : await messaging.PublishAndWaitAsync(@event, cancellationToken).ConfigureAwait(false))
+                    ?? throw new InvalidOperationException(
+                        $"[HM-DISPATCH-EVENT-HANDLER] Event {@event.GetType().Name} ({@event.MessageId}) from {source ?? "processor"} " +
+                        "returned no publish receipt. Use an IHeroMessaging implementation whose PublishAndWaitAsync returns a receipt.");
                 if (!receipt.Success)
                     throw CreateHandlerFailure(@event, receipt, source);
                 return true;

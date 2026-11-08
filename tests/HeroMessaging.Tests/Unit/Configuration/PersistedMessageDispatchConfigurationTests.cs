@@ -127,6 +127,59 @@ public sealed class PersistedMessageDispatchConfigurationTests
         Assert.Equal(InboxStatus.Processed, afterCompletion.Status);
     }
 
+    [Fact]
+    public async Task WithInbox_EventHandlerRunningAtStop_ObservesTheProcessorShutdownToken()
+    {
+        var probe = new CancellationProbe();
+        var services = new ServiceCollection().AddLogging().AddSingleton(probe);
+        services.AddTransient<IEventHandler<InboxTestEvent>, CancellationObservingInboxTestEventHandler>();
+        new HeroMessagingBuilder(services).UseInMemoryStorage().WithInbox().Build();
+        await using var provider = services.BuildServiceProvider();
+        var hosted = provider.GetServices<IHostedService>().ToList();
+        foreach (var service in hosted)
+            await service.StartAsync(TestContext.Current.CancellationToken);
+        var inbox = provider.GetRequiredService<IInboxProcessor>();
+
+        Assert.True(await inbox.ProcessIncomingAsync(new InboxTestEvent(), cancellationToken: TestContext.Current.CancellationToken));
+        var canBeCanceled = await probe.Entered.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        using var stopTimeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        stopTimeout.CancelAfter(TimeSpan.FromSeconds(1));
+        foreach (var service in hosted)
+            await service.StopAsync(stopTimeout.Token);
+
+        Assert.True(canBeCanceled);
+        await probe.Cancelled.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+    }
+
+    public sealed class CancellationProbe
+    {
+        private readonly TaskCompletionSource<bool> _entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _cancelled = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task<bool> Entered => _entered.Task;
+        public Task Cancelled => _cancelled.Task;
+
+        public async Task RunAsync(CancellationToken cancellationToken)
+        {
+            _entered.TrySetResult(cancellationToken.CanBeCanceled);
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                _cancelled.TrySetResult();
+                throw;
+            }
+        }
+    }
+
+    public sealed class CancellationObservingInboxTestEventHandler(CancellationProbe probe) : IEventHandler<InboxTestEvent>
+    {
+        public Task HandleAsync(InboxTestEvent @event, CancellationToken cancellationToken = default) =>
+            probe.RunAsync(cancellationToken);
+    }
+
     public sealed class BlockingHandlerGate
     {
         private readonly TaskCompletionSource _entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
