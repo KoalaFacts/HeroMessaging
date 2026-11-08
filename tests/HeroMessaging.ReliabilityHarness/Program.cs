@@ -21,7 +21,7 @@ using Npgsql;
 // --role outbox-publisher (default): a PostgreSQL Outbox publisher delivering to a RabbitMQ queue.
 // --role inbox-consumer: a RabbitMQ consumer admitting deliveries to a PostgreSQL Inbox whose handler
 //   appends one row per handled message to the business ledger table <schema>.business_ledger.
-// Protocol on stdout (one line each): READY, ENQUEUED <id>, CRASHPOINT <point> <id>.
+// Protocol on stdout (one line each): READY, ENQUEUED <id>, CRASHPOINT <point> <id>, HANDLING <id>, EFFECT <id>.
 // The test kills the process at a CRASHPOINT; a line "stop" (or end of input) on stdin stops it cleanly.
 var settings = HarnessSettings.Parse(args);
 var lineLock = new object();
@@ -159,7 +159,7 @@ namespace HeroMessaging.ReliabilityHarness
             var known = role switch
             {
                 OutboxPublisher => crashPoint is null or CrashPointTransport.BeforePublish or CrashPointTransport.AfterConfirm,
-                InboxConsumer => crashPoint is null or InboxCrashPoint.BeforeInbox or InboxCrashPoint.AfterInbox,
+                InboxConsumer => crashPoint is null or InboxCrashPoint.BeforeInbox or InboxCrashPoint.AfterInbox or InboxCrashPoint.AfterEffect,
                 _ => throw new ArgumentException($"Unknown role '{role}'.")
             };
             if (!known)
@@ -179,13 +179,15 @@ namespace HeroMessaging.ReliabilityHarness
 
     /// <summary>
     /// The consumer-side crash point: the first delivery stops before the Inbox admission, or after the Inbox
-    /// entry is persisted but before the broker acknowledgement. In the second case the handler for that message
-    /// also waits, so the entry stays unprocessed until the process is killed.
+    /// entry is persisted but before the broker acknowledgement. After the admission (<c>after-inbox</c> and
+    /// <c>after-effect</c>) the handler for that message also waits, so the entry stays unprocessed until the process
+    /// is killed: with <c>after-inbox</c> before its business effect, with <c>after-effect</c> once the effect committed.
     /// </summary>
     internal sealed class InboxCrashPoint(string? crashPoint, Action<string> writeLine)
     {
         public const string BeforeInbox = "before-inbox";
         public const string AfterInbox = "after-inbox";
+        public const string AfterEffect = "after-effect";
         private int _deliveries;
         private string? _haltedMessageId;
 
@@ -199,12 +201,21 @@ namespace HeroMessaging.ReliabilityHarness
             return true;
         }
 
+        public bool HoldsAfterEffect => crashPoint == AfterEffect;
+
         public bool IsHalted(Guid messageId) => string.Equals(Volatile.Read(ref _haltedMessageId), messageId.ToString(), StringComparison.Ordinal);
 
         /// <summary>Holds the halted message's handler until the process is killed, announcing that it started.</summary>
         public async Task HoldHandlerAsync(Guid messageId, CancellationToken cancellationToken)
         {
             writeLine($"HANDLING {messageId}");
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+        }
+
+        /// <summary>Holds the halted message's handler after its business effect committed, announcing it.</summary>
+        public async Task HoldAfterEffectAsync(Guid messageId, CancellationToken cancellationToken)
+        {
+            writeLine($"EFFECT {messageId}");
             await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
         }
 
@@ -228,7 +239,7 @@ namespace HeroMessaging.ReliabilityHarness
 
             var admitted = await inner.ProcessIncomingAsync(message, options, cancellationToken);
 
-            if (crashHere && crash.Point == InboxCrashPoint.AfterInbox)
+            if (crashHere && crash.Point is InboxCrashPoint.AfterInbox or InboxCrashPoint.AfterEffect)
                 await crash.HaltAsync(message.MessageId);
             return admitted;
         }
@@ -244,7 +255,8 @@ namespace HeroMessaging.ReliabilityHarness
     {
         public async Task HandleAsync(HarnessOrderPlaced @event, CancellationToken cancellationToken = default)
         {
-            if (crash.IsHalted(@event.MessageId))
+            var halted = crash.IsHalted(@event.MessageId);
+            if (halted && !crash.HoldsAfterEffect)
                 await crash.HoldHandlerAsync(@event.MessageId, cancellationToken);
 
             await using var connection = new NpgsqlConnection(settings.ConnectionString);
@@ -254,6 +266,9 @@ namespace HeroMessaging.ReliabilityHarness
             command.Parameters.AddWithValue("id", @event.MessageId.ToString());
             command.Parameters.AddWithValue("process", Environment.ProcessId);
             await command.ExecuteNonQueryAsync(cancellationToken);
+
+            if (halted && crash.HoldsAfterEffect)
+                await crash.HoldAfterEffectAsync(@event.MessageId, cancellationToken);
         }
     }
 
