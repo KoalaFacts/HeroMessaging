@@ -159,7 +159,7 @@ public class PostgreSqlOutboxStorage : IExternalOutboxStorage
 
         var table = _options.OutboxTableName;
         var indexes = new[] { "status", "next_retry", "created_at", "lease" }
-            .Select(suffix => ToStoredIdentifier($"idx_{table}_{suffix}"))
+            .Select(suffix => PostgreSqlSchemaCatalog.ToStoredIdentifier($"idx_{table}_{suffix}"))
             .Distinct(StringComparer.Ordinal)
             .ToArray();
 
@@ -179,31 +179,6 @@ public class PostgreSqlOutboxStorage : IExternalOutboxStorage
                 await connection.DisposeAsync().ConfigureAwait(false);
             }
         }
-    }
-
-    /// <summary>
-    /// Returns an unquoted identifier as PostgreSQL stores it: ASCII letters folded to lower case and the
-    /// name truncated to 63 bytes (NAMEDATALEN - 1) without splitting a character.
-    /// </summary>
-    private static string ToStoredIdentifier(string identifier)
-    {
-        const int maxBytes = 63;
-        var builder = new System.Text.StringBuilder(identifier.Length);
-        var bytes = 0;
-        Span<char> utf16 = stackalloc char[2];
-        foreach (var rune in identifier.EnumerateRunes())
-        {
-            var folded = rune.Value is >= 'A' and <= 'Z' ? new System.Text.Rune(rune.Value + 32) : rune;
-            if (bytes + folded.Utf8SequenceLength > maxBytes)
-            {
-                break;
-            }
-
-            bytes += folded.Utf8SequenceLength;
-            builder.Append(utf16[..folded.EncodeToUtf16(utf16)]);
-        }
-
-        return builder.ToString();
     }
 
     /// <summary>
