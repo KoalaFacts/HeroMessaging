@@ -12,7 +12,7 @@ Tests use xUnit with Microsoft.Testing.Platform. The runner is selected in the r
 - `HeroMessaging.Serialization.*.Tests`: JSON, MessagePack and protobuf serializers.
 - `HeroMessaging.Storage.*.Tests`: PostgreSQL and SQL Server providers.
 - `HeroMessaging.Transport.RabbitMQ.Tests`: RabbitMQ transport.
-- `HeroMessaging.ReliabilityHarness`: not a test project; an Outbox publisher that RabbitMQ integration tests start as a separate OS process and kill at declared crash points.
+- `HeroMessaging.ReliabilityHarness`: not a test project; an Outbox publisher or Inbox consumer that RabbitMQ integration tests start as a separate OS process and kill at declared crash points.
 - `HeroMessaging.Observability.*.Tests`: health checks and OpenTelemetry.
 - `HeroMessaging.SourceGenerators.Tests`: generated code and diagnostics.
 - `HeroMessaging.Tests.Shared`: shared helpers; this is not an executable test project.
