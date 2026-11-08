@@ -48,7 +48,7 @@ public sealed class PersistedMessageDispatchConfigurationTests
         services.AddTransient<IEventHandler<InboxTestEvent>, InboxTestEventHandler>();
         new HeroMessagingBuilder(services).UseInMemoryStorage().WithInbox().Build();
 
-        var entry = await RunInboxAsync(services, new InboxTestEvent());
+        var entry = await RunInboxAsync(services, ledger, new InboxTestEvent());
 
         Assert.Equal(InboxStatus.Processed, entry.Status);
         Assert.Null(entry.Error);
@@ -63,14 +63,14 @@ public sealed class PersistedMessageDispatchConfigurationTests
         services.AddTransient<ICommandHandler<InboxTestCommand>, InboxTestCommandHandler>();
         new HeroMessagingBuilder(services).UseInMemoryStorage().Microservice("unused").Build();
 
-        var entry = await RunInboxAsync(services, new InboxTestCommand());
+        var entry = await RunInboxAsync(services, ledger, new InboxTestCommand());
 
         Assert.Equal(InboxStatus.Processed, entry.Status);
         Assert.Null(entry.Error);
         Assert.Equal(["command"], ledger.Calls);
     }
 
-    private static async Task<InboxEntry> RunInboxAsync(IServiceCollection services, Abstractions.Messages.IMessage message)
+    private static async Task<InboxEntry> RunInboxAsync(IServiceCollection services, HandlerLedger ledger, Abstractions.Messages.IMessage message)
     {
         await using var provider = services.BuildServiceProvider();
         var hosted = provider.GetServices<IHostedService>().ToList();
@@ -91,6 +91,11 @@ public sealed class PersistedMessageDispatchConfigurationTests
         }
         while (entry is null || entry.Status is InboxStatus.Pending or InboxStatus.Processing);
 
+        // The event bus admits an event before its handler runs, so wait for the handler itself
+        // before the provider (and the handler's scope) is disposed.
+        if (entry.Status == InboxStatus.Processed)
+            await ledger.FirstCall.WaitAsync(timeout.Token);
+
         foreach (var service in hosted)
             await service.StopAsync(TestContext.Current.CancellationToken);
         return entry;
@@ -99,6 +104,9 @@ public sealed class PersistedMessageDispatchConfigurationTests
     public sealed class HandlerLedger
     {
         private readonly List<string> _calls = [];
+        private readonly TaskCompletionSource _firstCall = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task FirstCall => _firstCall.Task;
 
         public IReadOnlyList<string> Calls
         {
@@ -113,6 +121,7 @@ public sealed class PersistedMessageDispatchConfigurationTests
         {
             lock (_calls)
                 _calls.Add(call);
+            _firstCall.TrySetResult();
         }
     }
 
