@@ -10,7 +10,7 @@ namespace HeroMessaging.Processing.Decorators;
 /// Decorator that wraps event processing in database transactions
 /// Each event handler execution gets its own transaction to maintain independence
 /// </summary>
-public class TransactionEventBusDecorator : IEventBus
+public class TransactionEventBusDecorator : IEventBus, IHandlerCancellableEventPublisher
 {
     private readonly IEventBus _inner;
     private readonly ILogger<TransactionEventBusDecorator> _logger;
@@ -65,6 +65,13 @@ public class TransactionEventBusDecorator : IEventBus
     /// <inheritdoc />
     public Task<EventPublishReceipt> PublishAndWaitAsync(IEvent @event, CancellationToken cancellationToken = default)
         => _inner.PublishAndWaitAsync(@event, cancellationToken);
+
+    /// <inheritdoc />
+    Task<EventPublishReceipt> IHandlerCancellableEventPublisher.PublishAndWaitWithHandlerCancellationAsync(
+        IEvent @event, CancellationToken cancellationToken)
+        => _inner is IHandlerCancellableEventPublisher inner
+            ? inner.PublishAndWaitWithHandlerCancellationAsync(@event, cancellationToken)
+            : _inner.PublishAndWaitAsync(@event, cancellationToken);
 }
 
 /// <summary>

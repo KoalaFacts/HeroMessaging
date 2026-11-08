@@ -22,12 +22,13 @@ public sealed class OutboxHostShutdownTests
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         CancellationToken handlerToken = default;
         var messaging = new Mock<IHeroMessaging>();
-        messaging.Setup(service => service.PublishAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()))
-            .Returns(async (IEvent _, CancellationToken cancellationToken) =>
+        messaging.Setup(service => service.PublishAndWaitAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()))
+            .Returns(async (IEvent @event, CancellationToken cancellationToken) =>
             {
                 entered.TrySetResult();
                 handlerToken = cancellationToken;
                 await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                return new EventPublishReceipt(@event.MessageId, []);
             });
         using var services = new ServiceCollection().AddSingleton(messaging.Object).BuildServiceProvider();
         await using var processor = new OutboxProcessor(storage, services, NullLogger<OutboxProcessor>.Instance, TimeProvider.System);
@@ -48,7 +49,7 @@ public sealed class OutboxHostShutdownTests
 
         Assert.Equal(OutboxStatus.Pending, entry.Status);
         Assert.Equal(0, entry.RetryCount);
-        messaging.Verify(service => service.PublishAsync(It.IsAny<IEvent>(), It.Is<CancellationToken>(token => token.CanBeCanceled)), Times.Once);
+        messaging.Verify(service => service.PublishAndWaitAsync(It.IsAny<IEvent>(), It.Is<CancellationToken>(token => token.CanBeCanceled)), Times.Once);
     }
 
     [Fact]
@@ -59,11 +60,12 @@ public sealed class OutboxHostShutdownTests
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var messaging = new Mock<IHeroMessaging>();
-        messaging.Setup(service => service.PublishAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()))
-            .Returns(async (IEvent _, CancellationToken _) =>
+        messaging.Setup(service => service.PublishAndWaitAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()))
+            .Returns(async (IEvent @event, CancellationToken _) =>
             {
                 entered.TrySetResult();
                 await release.Task;
+                return new EventPublishReceipt(@event.MessageId, []);
             });
         using var services = new ServiceCollection().AddSingleton(messaging.Object).BuildServiceProvider();
         var processor = new OutboxProcessor(storage, services, NullLogger<OutboxProcessor>.Instance, TimeProvider.System);
