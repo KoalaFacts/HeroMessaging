@@ -56,7 +56,12 @@ internal sealed class ReliabilityHarnessProcess : IDisposable
     public void Dispose()
     {
         if (!_process.HasExited)
+        {
             _process.Kill(entireProcessTree: true);
+            // Let the killed process release its broker channel and database connections before the next case starts.
+            _process.WaitForExit(TimeSpan.FromSeconds(10));
+        }
+
         _process.Dispose();
     }
 }

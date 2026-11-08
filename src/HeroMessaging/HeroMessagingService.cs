@@ -40,7 +40,7 @@ public class HeroMessagingService(
     ILogger<HeroMessagingService>? logger = null,
     IQueueProcessor? queueProcessor = null,
     IOutboxProcessor? outboxProcessor = null,
-    IInboxProcessor? inboxProcessor = null) : IHeroMessaging
+    IInboxProcessor? inboxProcessor = null) : IHeroMessaging, IHandlerCancellableEventPublisher
 {
     private readonly ICommandProcessor _commandProcessor = commandProcessor;
     private readonly IQueryProcessor _queryProcessor = queryProcessor;
@@ -102,6 +102,18 @@ public class HeroMessagingService(
         cancellationToken.ThrowIfCancellationRequested();
         Interlocked.Increment(ref _eventsPublished);
         return _eventBus.PublishAndWaitAsync(@event, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    Task<EventPublishReceipt> IHandlerCancellableEventPublisher.PublishAndWaitWithHandlerCancellationAsync(
+        IEvent @event, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(@event);
+        cancellationToken.ThrowIfCancellationRequested();
+        Interlocked.Increment(ref _eventsPublished);
+        return _eventBus is IHandlerCancellableEventPublisher publisher
+            ? publisher.PublishAndWaitWithHandlerCancellationAsync(@event, cancellationToken)
+            : _eventBus.PublishAndWaitAsync(@event, cancellationToken);
     }
     /// <summary>
     /// Executes send batch async.
