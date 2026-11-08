@@ -146,7 +146,7 @@ public sealed class PostgreSqlRabbitMqOutboxProcessCrashTests : RabbitMqIntegrat
         public static HarnessProcess Start(string connectionString, string schema, RabbitMqTransportOptions rabbit,
             string queue, int enqueue, string? crashPoint)
         {
-            var harness = Path.Combine(AppContext.BaseDirectory, "HeroMessaging.ReliabilityHarness.dll");
+            var harness = Path.Join(AppContext.BaseDirectory, "HeroMessaging.ReliabilityHarness.dll");
             Assert.True(File.Exists(harness), $"Reliability harness not found at {harness}.");
             var start = new ProcessStartInfo(Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") is { Length: > 0 } host ? host : "dotnet")
             {
