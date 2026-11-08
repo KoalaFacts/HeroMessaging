@@ -201,6 +201,13 @@ namespace HeroMessaging.ReliabilityHarness
 
         public bool IsHalted(Guid messageId) => string.Equals(Volatile.Read(ref _haltedMessageId), messageId.ToString(), StringComparison.Ordinal);
 
+        /// <summary>Holds the halted message's handler until the process is killed, announcing that it started.</summary>
+        public async Task HoldHandlerAsync(Guid messageId, CancellationToken cancellationToken)
+        {
+            writeLine($"HANDLING {messageId}");
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+        }
+
         public async Task HaltAsync(Guid messageId)
         {
             writeLine($"CRASHPOINT {crashPoint} {messageId}");
@@ -238,7 +245,7 @@ namespace HeroMessaging.ReliabilityHarness
         public async Task HandleAsync(HarnessOrderPlaced @event, CancellationToken cancellationToken = default)
         {
             if (crash.IsHalted(@event.MessageId))
-                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                await crash.HoldHandlerAsync(@event.MessageId, cancellationToken);
 
             await using var connection = new NpgsqlConnection(settings.ConnectionString);
             await connection.OpenAsync(cancellationToken);

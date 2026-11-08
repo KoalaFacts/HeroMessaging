@@ -18,6 +18,7 @@ public sealed class PostgreSqlRabbitMqInboxProcessCrashTests : RabbitMqIntegrati
 {
     private const int MessageCount = 3;
     private static readonly TimeSpan RecoveryTimeout = TimeSpan.FromSeconds(60);
+    private static readonly TimeSpan HandlerSettleTime = TimeSpan.FromSeconds(1);
 
     [Theory]
     [InlineData("before-inbox", false)]
@@ -65,8 +66,24 @@ public sealed class PostgreSqlRabbitMqInboxProcessCrashTests : RabbitMqIntegrati
             {
                 Assert.Equal("READY", await first.ReadLineAsync(TimeSpan.FromSeconds(60), cancellationToken));
                 var line = await first.ReadLineAsync(TimeSpan.FromSeconds(60), cancellationToken);
+                string? handlingId = null;
+                if (line.StartsWith("HANDLING ", StringComparison.Ordinal))
+                {
+                    handlingId = line["HANDLING ".Length..];
+                    line = await first.ReadLineAsync(TimeSpan.FromSeconds(60), cancellationToken);
+                }
+
                 Assert.Equal($"CRASHPOINT {crashPoint}", line[..line.LastIndexOf(' ')]);
                 crashedId = line[(line.LastIndexOf(' ') + 1)..];
+                if (entryPersistedBeforeKill)
+                {
+                    // Kill only once process A's Inbox worker is running the handler for the persisted entry,
+                    // and give a dispatcher that marks entries early time to do so: the entry must still be Pending.
+                    handlingId ??= (await first.ReadLineAsync(TimeSpan.FromSeconds(60), cancellationToken))["HANDLING ".Length..];
+                    Assert.Equal(crashedId, handlingId);
+                    await Task.Delay(HandlerSettleTime, cancellationToken);
+                }
+
                 first.Kill();
             }
 
