@@ -255,7 +255,7 @@ public sealed class OutboxProcessorTests : IDisposable
         var services = new ServiceCollection();
         var messagingMock = new Mock<IHeroMessaging>();
         messagingMock
-            .Setup(m => m.PublishAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()))
+            .Setup(m => m.PublishAndWaitAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Processing failed"));
         services.AddSingleton(messagingMock.Object);
         var serviceProvider = services.BuildServiceProvider();
@@ -306,7 +306,7 @@ public sealed class OutboxProcessorTests : IDisposable
         var services = new ServiceCollection();
         var messagingMock = new Mock<IHeroMessaging>();
         messagingMock
-            .Setup(m => m.PublishAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()))
+            .Setup(m => m.PublishAndWaitAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Processing failed"));
         services.AddSingleton(messagingMock.Object);
         var serviceProvider = services.BuildServiceProvider();
@@ -517,7 +517,7 @@ public sealed class OutboxProcessorTests : IDisposable
     [Fact]
     public async Task ProcessWorkItem_OnFailure_LogsError()
     {
-        // Arrange - Use TestEvent (IEvent) so the switch statement matches and calls PublishAsync
+        // Arrange - Use TestEvent (IEvent) so the switch statement matches and calls PublishAndWaitAsync
         var eventMessage = new TestEvent();
         var entry = new OutboxEntry
         {
@@ -539,7 +539,7 @@ public sealed class OutboxProcessorTests : IDisposable
         var services = new ServiceCollection();
         var messagingMock = new Mock<IHeroMessaging>();
         messagingMock
-            .Setup(m => m.PublishAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()))
+            .Setup(m => m.PublishAndWaitAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Processing failed"));
         services.AddSingleton(messagingMock.Object);
         var serviceProvider = services.BuildServiceProvider();

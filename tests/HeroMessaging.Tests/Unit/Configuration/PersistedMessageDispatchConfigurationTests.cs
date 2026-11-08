@@ -81,7 +81,72 @@ public sealed class PersistedMessageDispatchConfigurationTests
         var entry = await RunInboxAsync(services, ledger, new InboxTestEvent());
 
         Assert.Equal(["throwing-event"], ledger.Calls);
-        Assert.NotEqual(InboxStatus.Processed, entry.Status);
+        Assert.Equal(InboxStatus.Failed, entry.Status);
+        Assert.Contains(nameof(ThrowingInboxTestEventHandler), entry.Error);
+        Assert.Contains("handler failed", entry.Error);
+    }
+
+    [Fact]
+    public async Task WithInbox_EventHandlerStillRunning_EntryIsNotProcessedUntilItCompletes()
+    {
+        var gate = new BlockingHandlerGate();
+        var services = new ServiceCollection().AddLogging().AddSingleton(gate);
+        services.AddTransient<IEventHandler<InboxTestEvent>, BlockingInboxTestEventHandler>();
+        new HeroMessagingBuilder(services).UseInMemoryStorage().WithInbox().Build();
+        await using var provider = services.BuildServiceProvider();
+        var hosted = provider.GetServices<IHostedService>().ToList();
+        foreach (var service in hosted)
+            await service.StartAsync(TestContext.Current.CancellationToken);
+        var inbox = provider.GetRequiredService<IInboxProcessor>();
+        var storage = provider.GetRequiredService<IInboxStorage>();
+        var message = new InboxTestEvent();
+
+        Assert.True(await inbox.ProcessIncomingAsync(message, cancellationToken: TestContext.Current.CancellationToken));
+        await gate.Entered.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        await Task.Delay(TimeSpan.FromMilliseconds(200), TestContext.Current.CancellationToken);
+        // In-memory storage returns the live entry, so capture its status now.
+        var statusWhileRunning = (await storage.GetAsync(message.MessageId.ToString(), TestContext.Current.CancellationToken))?.Status;
+
+        gate.Release();
+        InboxEntry? afterCompletion;
+        using (var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken))
+        {
+            timeout.CancelAfter(TimeSpan.FromSeconds(5));
+            do
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(10), timeout.Token);
+                afterCompletion = await storage.GetAsync(message.MessageId.ToString(), timeout.Token);
+            }
+            while (afterCompletion is null || afterCompletion.Status != InboxStatus.Processed);
+        }
+
+        foreach (var service in hosted)
+            await service.StopAsync(TestContext.Current.CancellationToken);
+        Assert.NotNull(statusWhileRunning);
+        Assert.NotEqual(InboxStatus.Processed, statusWhileRunning);
+        Assert.Equal(InboxStatus.Processed, afterCompletion.Status);
+    }
+
+    public sealed class BlockingHandlerGate
+    {
+        private readonly TaskCompletionSource _entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _released = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task Entered => _entered.Task;
+
+        public Task WaitForReleaseAsync()
+        {
+            _entered.TrySetResult();
+            return _released.Task;
+        }
+
+        public void Release() => _released.TrySetResult();
+    }
+
+    public sealed class BlockingInboxTestEventHandler(BlockingHandlerGate gate) : IEventHandler<InboxTestEvent>
+    {
+        public Task HandleAsync(InboxTestEvent @event, CancellationToken cancellationToken = default) =>
+            gate.WaitForReleaseAsync();
     }
 
     public sealed class ThrowingInboxTestEventHandler(HandlerLedger ledger) : IEventHandler<InboxTestEvent>
@@ -114,8 +179,7 @@ public sealed class PersistedMessageDispatchConfigurationTests
         }
         while (entry is null || entry.Status is InboxStatus.Pending or InboxStatus.Processing);
 
-        // The event bus admits an event before its handler runs, so wait for the handler itself
-        // before the provider (and the handler's scope) is disposed.
+        // Processed means the handler completed; the wait only guards the provider disposal below.
         if (entry.Status == InboxStatus.Processed)
             await ledger.FirstCall.WaitAsync(timeout.Token);
 
