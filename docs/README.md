@@ -26,7 +26,7 @@ Every Markdown document in the repository is listed here once. Start with the [m
 - [Benchmarks](../tests/HeroMessaging.Benchmarks/README.md) — microbenchmarks and same-harness in-process comparison.
 - [NativeAOT package consumer](../tests/NativeAotConsumer/README.md) — packaged NativeAOT check run in CI.
 - [Release package preparation](release-package-preparation.md) — how release packages are built and verified.
-- [Environment protection](../.github/ENVIRONMENT_PROTECTION.md), [package signing](../.github/PACKAGE_SIGNING.md), [GitHub Advanced Security](../.github/GITHUB_ADVANCED_SECURITY.md), [security scan review](../.github/SECURITY_SCAN_REVIEW.md) — repository security and publishing setup.
+- [Environment protection](../.github/ENVIRONMENT_PROTECTION.md), [package signing](../.github/PACKAGE_SIGNING.md) — repository security and publishing setup; scanning and how to review findings are in [SECURITY.md](../.github/SECURITY.md#repository-security).
 - [Changelog](../CHANGELOG.md) — release history and unreleased changes.
 
 ## Architecture decision records
