@@ -70,6 +70,29 @@ public sealed class PersistedMessageDispatchConfigurationTests
         Assert.Equal(["command"], ledger.Calls);
     }
 
+    [Fact]
+    public async Task WithInbox_EventHandlerThrows_EntryIsNotMarkedProcessed()
+    {
+        var ledger = new HandlerLedger();
+        var services = new ServiceCollection().AddLogging().AddSingleton(ledger);
+        services.AddTransient<IEventHandler<InboxTestEvent>, ThrowingInboxTestEventHandler>();
+        new HeroMessagingBuilder(services).UseInMemoryStorage().WithInbox().Build();
+
+        var entry = await RunInboxAsync(services, ledger, new InboxTestEvent());
+
+        Assert.Equal(["throwing-event"], ledger.Calls);
+        Assert.NotEqual(InboxStatus.Processed, entry.Status);
+    }
+
+    public sealed class ThrowingInboxTestEventHandler(HandlerLedger ledger) : IEventHandler<InboxTestEvent>
+    {
+        public Task HandleAsync(InboxTestEvent @event, CancellationToken cancellationToken = default)
+        {
+            ledger.Record("throwing-event");
+            throw new InvalidOperationException("handler failed");
+        }
+    }
+
     private static async Task<InboxEntry> RunInboxAsync(IServiceCollection services, HandlerLedger ledger, Abstractions.Messages.IMessage message)
     {
         await using var provider = services.BuildServiceProvider();
