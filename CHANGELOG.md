@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Idempotency for commands**: with `WithIdempotency(...)` configured, `CommandProcessor` now deduplicates commands without a response, keyed per handler as `{configured key}:handler:{handler type}`. A redelivered command is not handled again; a cached idempotent failure (for example `ArgumentException`, `InvalidOperationException`) is rethrown without running the handler; transient failures and cancellations are not cached, so a redelivery runs the handler. If the idempotency store is unavailable, the command is processed without deduplication (logged). Limits: commands with a response, queries, Inbox and transport consumers are not covered yet; the idempotency record is written outside any business transaction.
 - **Idempotency on the event bus**: `WithIdempotency(...)` now deduplicates events. `EventBus` runs each handler delivery through `IdempotencyDecorator` (new `MessageProcessingPipelineBuilder.UseIdempotency()`), keyed per handler as `{configured key}:handler:{handler type}` so a redelivered event is suppressed for every handler without one handler's cached result hiding another. If the idempotency store is unavailable, the event is processed without deduplication (logged) instead of failing. Limits: two copies of one event processed at the same moment can both run; commands, queries, Inbox and transport consumers are not covered yet.
 
 ### Added
