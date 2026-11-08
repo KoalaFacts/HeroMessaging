@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Inbox, Outbox and queues without the mediator**: `WithInbox()`, `WithOutbox()` and `WithQueues()` now also register the command, query and event processors they dispatch through. Before, configuring one of them without `WithMediator()` and `WithEventBus()` — including the `Microservice()` preset — left `IHeroMessaging` unresolvable, so every persisted message failed with "Unable to resolve service for type ICommandProcessor" instead of reaching its handler.
 - **Idempotency on the event bus**: `WithIdempotency(...)` now deduplicates events. `EventBus` runs each handler delivery through `IdempotencyDecorator` (new `MessageProcessingPipelineBuilder.UseIdempotency()`), keyed per handler as `{configured key}:handler:{handler type}` so a redelivered event is suppressed for every handler without one handler's cached result hiding another. If the idempotency store is unavailable, the event is processed without deduplication (logged) instead of failing. Limits: two copies of one event processed at the same moment can both run; commands, queries, Inbox and transport consumers are not covered yet.
 
 ### Added
