@@ -26,6 +26,8 @@ public sealed class PostgreSqlInboxRecoveryTests : PostgreSqlIntegrationTestBase
         };
         var message = new TestEvent();
         var messaging = new Mock<IHeroMessaging>();
+        messaging.Setup(service => service.PublishAndWaitAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IEvent @event, CancellationToken _) => new EventPublishReceipt(@event.MessageId, []));
 
         try
         {
@@ -54,7 +56,7 @@ public sealed class PostgreSqlInboxRecoveryTests : PostgreSqlIntegrationTestBase
                 await hosted.StopAsync(cancellationToken);
             }
 
-            messaging.Verify(service => service.PublishAsync(
+            messaging.Verify(service => service.PublishAndWaitAsync(
                 It.Is<IEvent>(@event => @event.MessageId == message.MessageId),
                 It.IsAny<CancellationToken>()), Times.Once);
         }
@@ -80,11 +82,12 @@ public sealed class PostgreSqlInboxRecoveryTests : PostgreSqlIntegrationTestBase
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var messaging = new Mock<IHeroMessaging>();
-        messaging.Setup(service => service.PublishAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()))
-            .Returns(async (IEvent _, CancellationToken token) =>
+        messaging.Setup(service => service.PublishAndWaitAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()))
+            .Returns(async (IEvent @event, CancellationToken token) =>
             {
                 entered.TrySetResult();
                 await release.Task.WaitAsync(token);
+                return new EventPublishReceipt(@event.MessageId, []);
             });
 
         try
@@ -101,7 +104,7 @@ public sealed class PostgreSqlInboxRecoveryTests : PostgreSqlIntegrationTestBase
                 var secondHosted = Assert.Single(secondHost.GetServices<IHostedService>());
                 await secondHosted.StartAsync(cancellationToken);
                 await Task.Delay(TimeSpan.FromMilliseconds(350), cancellationToken);
-                messaging.Verify(service => service.PublishAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()), Times.Once);
+                messaging.Verify(service => service.PublishAndWaitAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()), Times.Once);
                 release.TrySetResult();
 
                 using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -111,7 +114,7 @@ public sealed class PostgreSqlInboxRecoveryTests : PostgreSqlIntegrationTestBase
                 await Task.Delay(TimeSpan.FromMilliseconds(350), cancellationToken);
                 await hosted.StopAsync(cancellationToken);
                 await secondHosted.StopAsync(cancellationToken);
-                messaging.Verify(service => service.PublishAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()), Times.Once);
+                messaging.Verify(service => service.PublishAndWaitAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()), Times.Once);
             }
             finally
             {
