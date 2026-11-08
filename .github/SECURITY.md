@@ -64,14 +64,16 @@ Compliance (GDPR, SOC 2, HIPAA and similar) is the responsibility of the applica
 - **Vulnerable packages fail the scan**: the security scan fails when any vulnerable package is reported.
 - **Package signing**: optional; `create-release.yml` signs when the `NUGET_SIGNING_CERT_BASE64` and `NUGET_SIGNING_CERT_PASSWORD` secrets exist. Setup: [PACKAGE_SIGNING.md](PACKAGE_SIGNING.md).
 
+Both scan workflows can also be run manually (`workflow_dispatch`).
+
 More detail: [environment protection](ENVIRONMENT_PROTECTION.md).
 
 ### Reviewing Scan Findings
 
 - **CodeQL**: alerts are under the repository's Security → Code scanning. Fix the code; dismiss an alert only as a false positive or "used in tests" with a reason in the dismissal comment.
 - **Secrets**: the `Security Scanning` run keeps the `gitleaks-report` artifact. A leaked credential is rotated first — removing it from the code does not revoke it. A confirmed false positive goes in a root `.gitleaksignore` (one fingerprint per line from the report).
-- **Vulnerable packages**: the run keeps `vulnerability-report` (the `dotnet list package --vulnerable --include-transitive` output) and comments it on the pull request. Upgrade the direct package, or add a direct `PackageReference` with a fixed version of the transitive one to the project that pulls it in; reproduce locally with the same command.
-- **Dependabot**: review its pull requests like any other; CI must pass before merge.
+- **Vulnerable packages**: the run keeps `vulnerability-report` (the `dotnet list package --vulnerable --include-transitive` output) and, when vulnerable packages are found on a pull request, posts it as a comment. Upgrade the direct package, or add a direct `PackageReference` with a fixed version of the transitive one to the project that pulls it in; reproduce locally with the same command.
+- **Dependabot**: review its pull requests like any other and merge only after CI passes.
 
 ### Verifying a Package
 
