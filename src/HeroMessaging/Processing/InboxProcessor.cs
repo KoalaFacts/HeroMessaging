@@ -157,7 +157,7 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
     /// <summary>
     /// Gets the counts this processor instance has observed since it was created (they are not persisted and are not shared between hosts).
     /// Duplicates include messages rejected by the pre-insert check and by storage on insert; the deduplication rate is duplicates divided by
-    /// all incoming messages (duplicates plus accepted). Failed counts handler failures that marked an entry as failed.
+    /// all incoming messages (duplicates plus accepted). Failed counts dispatch or completion failures after dispatch started (the entry is then marked failed).
     /// </summary>
 
     public IInboxProcessorMetrics GetMetrics()
