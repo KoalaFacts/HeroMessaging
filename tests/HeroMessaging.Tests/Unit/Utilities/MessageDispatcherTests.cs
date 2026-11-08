@@ -63,6 +63,23 @@ public sealed class MessageDispatcherTests
         Assert.Contains("from processor", exception.Message);
     }
 
+    [Fact]
+    public async Task DispatchAsync_PublishAndWaitReturnsNoReceipt_ThrowsActionableError()
+    {
+        var @event = new TestEvent();
+        var messaging = new Mock<IHeroMessaging>(MockBehavior.Strict);
+        messaging.Setup(service => service.PublishAndWaitAsync(@event, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((EventPublishReceipt)null!);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            MessageDispatcher.DispatchAsync(messaging.Object, @event, source: "queue", cancellationToken: TestContext.Current.CancellationToken));
+
+        Assert.Contains("[HM-DISPATCH-EVENT-HANDLER]", exception.Message);
+        Assert.Contains("returned no publish receipt", exception.Message);
+        Assert.Contains("queue", exception.Message);
+        Assert.Contains(@event.MessageId.ToString(), exception.Message);
+    }
+
     public sealed class TestEvent : IEvent
     {
         public Guid MessageId { get; set; } = Guid.NewGuid();
