@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Inbox processor metrics**: `InboxProcessor.GetMetrics()` now reports the processed, duplicate and failed messages this processor instance has seen and the deduplication rate (duplicates divided by all incoming messages); it returned zeros before. Counts are in memory per instance.
 - **Idempotency on the event bus**: `WithIdempotency(...)` now deduplicates events. `EventBus` runs each handler delivery through `IdempotencyDecorator` (new `MessageProcessingPipelineBuilder.UseIdempotency()`), keyed per handler as `{configured key}:handler:{handler type}` so a redelivered event is suppressed for every handler without one handler's cached result hiding another. If the idempotency store is unavailable, the event is processed without deduplication (logged) instead of failing. Limits: two copies of one event processed at the same moment can both run; commands, queries, Inbox and transport consumers are not covered yet.
 
 ### Added
