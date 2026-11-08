@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Diagnostics;
 using HeroMessaging.Abstractions.Transport;
 using Npgsql;
 using Testcontainers.PostgreSql;
@@ -51,7 +50,7 @@ public sealed class PostgreSqlRabbitMqOutboxProcessCrashTests : RabbitMqIntegrat
         {
             string crashedId;
             var enqueued = new List<string>();
-            using (var first = HarnessProcess.Start(connectionString, schema, Options!, queue, MessageCount, crashPoint))
+            using (var first = StartPublisher(connectionString, schema, Options!, queue, MessageCount, crashPoint))
             {
                 string line;
                 while (!(line = await first.ReadLineAsync(TimeSpan.FromSeconds(60), cancellationToken)).StartsWith("CRASHPOINT ", StringComparison.Ordinal))
@@ -71,7 +70,7 @@ public sealed class PostgreSqlRabbitMqOutboxProcessCrashTests : RabbitMqIntegrat
             Assert.Equal("Processing", dead[crashedId]);
             Assert.All(enqueued.Skip(1), id => Assert.Equal("Pending", dead[id]));
 
-            using var second = HarnessProcess.Start(connectionString, schema, Options!, queue, enqueue: 0, crashPoint: null);
+            using var second = StartPublisher(connectionString, schema, Options!, queue, enqueue: 0, crashPoint: null);
             Assert.Equal("READY", await second.ReadLineAsync(TimeSpan.FromSeconds(60), cancellationToken));
             var expected = enqueued.ToDictionary(id => id, id => id == crashedId ? crashedDeliveries : 1, StringComparer.Ordinal);
             var entries = new Dictionary<string, string>();
@@ -133,69 +132,17 @@ public sealed class PostgreSqlRabbitMqOutboxProcessCrashTests : RabbitMqIntegrat
         }
     }
 
-    /// <summary>The outbox publisher from HeroMessaging.ReliabilityHarness, run as its own OS process.</summary>
-    private sealed class HarnessProcess : IDisposable
+    private static ReliabilityHarnessProcess StartPublisher(string connectionString, string schema, RabbitMqTransportOptions rabbit,
+        string queue, int enqueue, string? crashPoint)
     {
-        private readonly Process _process;
-
-        private HarnessProcess(Process process)
+        var arguments = new List<string>
         {
-            _process = process;
-        }
-
-        public static HarnessProcess Start(string connectionString, string schema, RabbitMqTransportOptions rabbit,
-            string queue, int enqueue, string? crashPoint)
-        {
-            var harness = Path.Join(AppContext.BaseDirectory, "HeroMessaging.ReliabilityHarness.dll");
-            Assert.True(File.Exists(harness), $"Reliability harness not found at {harness}.");
-            var start = new ProcessStartInfo(Environment.GetEnvironmentVariable("DOTNET_HOST_PATH") is { Length: > 0 } host ? host : "dotnet")
-            {
-                RedirectStandardInput = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = false,
-                UseShellExecute = false
-            };
-            foreach (var argument in new[]
-                     {
-                         harness, "--pg", connectionString, "--schema", schema, "--rabbit-host", rabbit.Host,
-                         "--rabbit-port", rabbit.Port.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                         "--queue", queue, "--enqueue", enqueue.ToString(System.Globalization.CultureInfo.InvariantCulture)
-                     })
-                start.ArgumentList.Add(argument);
-            if (crashPoint is not null)
-            {
-                start.ArgumentList.Add("--crash-point");
-                start.ArgumentList.Add(crashPoint);
-            }
-
-            return new HarnessProcess(Process.Start(start) ?? throw new InvalidOperationException("Could not start the reliability harness."));
-        }
-
-        public async Task<string> ReadLineAsync(TimeSpan limit, CancellationToken cancellationToken)
-        {
-            var line = await _process.StandardOutput.ReadLineAsync(cancellationToken).AsTask().WaitAsync(limit, cancellationToken);
-            return line ?? throw new InvalidOperationException($"Reliability harness exited with {(_process.WaitForExit(5000) ? _process.ExitCode : -1)} before the expected output.");
-        }
-
-        public void Kill()
-        {
-            _process.Kill(entireProcessTree: true);
-            _process.WaitForExit();
-        }
-
-        public async Task<int> StopAsync(TimeSpan limit, CancellationToken cancellationToken)
-        {
-            await _process.StandardInput.WriteLineAsync("stop");
-            await _process.StandardInput.FlushAsync(cancellationToken);
-            await _process.WaitForExitAsync(cancellationToken).WaitAsync(limit, cancellationToken);
-            return _process.ExitCode;
-        }
-
-        public void Dispose()
-        {
-            if (!_process.HasExited)
-                _process.Kill(entireProcessTree: true);
-            _process.Dispose();
-        }
+            "--role", "outbox-publisher", "--pg", connectionString, "--schema", schema, "--rabbit-host", rabbit.Host,
+            "--rabbit-port", rabbit.Port.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            "--queue", queue, "--enqueue", enqueue.ToString(System.Globalization.CultureInfo.InvariantCulture)
+        };
+        if (crashPoint is not null)
+            arguments.AddRange(["--crash-point", crashPoint]);
+        return ReliabilityHarnessProcess.Start(arguments);
     }
 }
