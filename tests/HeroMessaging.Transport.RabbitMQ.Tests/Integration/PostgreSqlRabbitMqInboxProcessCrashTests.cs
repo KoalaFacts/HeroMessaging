@@ -12,6 +12,8 @@ namespace HeroMessaging.Transport.RabbitMQ.Tests.Integration;
 /// Two separate OS processes consume one RabbitMQ queue into a PostgreSQL Inbox. The first is killed at a
 /// declared crash point while holding an unacknowledged delivery; the second receives the redelivery. The
 /// business ledger is the table of rows the Inbox handler writes, one per handled message.
+/// A process killed after the handler's business effect committed but before the Inbox entry was completed
+/// (<c>after-effect</c>) shows the delivery guarantee: at-least-once, so the effect runs again in the second process.
 /// </summary>
 [Trait("Category", "Integration")]
 public sealed class PostgreSqlRabbitMqInboxProcessCrashTests : RabbitMqIntegrationTestBase
@@ -23,7 +25,14 @@ public sealed class PostgreSqlRabbitMqInboxProcessCrashTests : RabbitMqIntegrati
     [Theory]
     [InlineData("before-inbox", false)]
     [InlineData("after-inbox", true)]
-    public async Task ConsumerKilledBeforeAcknowledgement_SecondProcessHandlesEveryMessageOnce(string crashPoint, bool entryPersistedBeforeKill)
+    public Task ConsumerKilledBeforeAcknowledgement_SecondProcessHandlesEveryMessageOnce(string crashPoint, bool entryPersistedBeforeKill)
+        => RunCrashScenarioAsync(crashPoint, entryPersistedBeforeKill, effectCommittedBeforeKill: false);
+
+    [Fact]
+    public Task ConsumerKilledAfterHandlerEffectBeforeCompletion_SecondProcessRunsTheEffectAgain()
+        => RunCrashScenarioAsync("after-effect", entryPersistedBeforeKill: true, effectCommittedBeforeKill: true);
+
+    private async Task RunCrashScenarioAsync(string crashPoint, bool entryPersistedBeforeKill, bool effectCommittedBeforeKill)
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         PostgreSqlContainer? postgres = null;
@@ -62,25 +71,32 @@ public sealed class PostgreSqlRabbitMqInboxProcessCrashTests : RabbitMqIntegrati
             }
 
             string crashedId;
+            int firstProcessId;
             using (var first = StartConsumer(connectionString, schema, queue, crashPoint))
             {
+                firstProcessId = first.Id;
                 Assert.Equal("READY", await first.ReadLineAsync(TimeSpan.FromSeconds(60), cancellationToken));
-                var line = await first.ReadLineAsync(TimeSpan.FromSeconds(60), cancellationToken);
-                string? handlingId = null;
-                if (line.StartsWith("HANDLING ", StringComparison.Ordinal))
+                // The admission halts with CRASHPOINT; once persisted, process A's Inbox worker also reports the
+                // handler for that entry (HANDLING before its effect, EFFECT after it committed), in either order.
+                var handlerMarker = !entryPersistedBeforeKill ? null : effectCommittedBeforeKill ? "EFFECT " : "HANDLING ";
+                string? crashLine = null;
+                string? handlerId = null;
+                while (crashLine is null || (handlerMarker is not null && handlerId is null))
                 {
-                    handlingId = line["HANDLING ".Length..];
-                    line = await first.ReadLineAsync(TimeSpan.FromSeconds(60), cancellationToken);
+                    var line = await first.ReadLineAsync(TimeSpan.FromSeconds(60), cancellationToken);
+                    if (handlerMarker is not null && line.StartsWith(handlerMarker, StringComparison.Ordinal))
+                        handlerId = line[handlerMarker.Length..];
+                    else
+                        crashLine = line;
                 }
 
-                Assert.Equal($"CRASHPOINT {crashPoint}", line[..line.LastIndexOf(' ')]);
-                crashedId = line[(line.LastIndexOf(' ') + 1)..];
-                if (entryPersistedBeforeKill)
+                Assert.Equal($"CRASHPOINT {crashPoint}", crashLine[..crashLine.LastIndexOf(' ')]);
+                crashedId = crashLine[(crashLine.LastIndexOf(' ') + 1)..];
+                if (handlerMarker is not null)
                 {
-                    // Kill only once process A's Inbox worker is running the handler for the persisted entry,
-                    // and give a dispatcher that marks entries early time to do so: the entry must still be Pending.
-                    handlingId ??= (await first.ReadLineAsync(TimeSpan.FromSeconds(60), cancellationToken))["HANDLING ".Length..];
-                    Assert.Equal(crashedId, handlingId);
+                    // Kill only once process A's Inbox worker reached the declared point in the handler, and give a
+                    // dispatcher that marks entries early time to do so: the entry must still be Pending.
+                    Assert.Equal(crashedId, handlerId);
                     await Task.Delay(HandlerSettleTime, cancellationToken);
                 }
 
@@ -93,7 +109,11 @@ public sealed class PostgreSqlRabbitMqInboxProcessCrashTests : RabbitMqIntegrati
                 Assert.Equal("Pending", inboxAfterKill[crashedId]);
             else
                 Assert.False(inboxAfterKill.ContainsKey(crashedId), "No Inbox entry may exist before the admission.");
-            Assert.Empty(await ReadLedgerAsync(connectionString, schema, cancellationToken));
+            var ledgerAfterKill = await ReadLedgerAsync(connectionString, schema, cancellationToken);
+            if (effectCommittedBeforeKill)
+                Assert.Equal((crashedId, firstProcessId), Assert.Single(ledgerAfterKill));
+            else
+                Assert.Empty(ledgerAfterKill);
 
             using var second = StartConsumer(connectionString, schema, queue, crashPoint: null);
             Assert.Equal("READY", await second.ReadLineAsync(TimeSpan.FromSeconds(60), cancellationToken));
@@ -115,8 +135,12 @@ public sealed class PostgreSqlRabbitMqInboxProcessCrashTests : RabbitMqIntegrati
             Assert.Equal(0, await second.StopAsync(TimeSpan.FromSeconds(30), cancellationToken));
 
             ledger = await ReadLedgerAsync(connectionString, schema, cancellationToken);
-            Assert.Equal(sent.Order(StringComparer.Ordinal), ledger.Select(row => row.MessageId).Order(StringComparer.Ordinal));
-            Assert.Equal(secondProcessId, Assert.Single(ledger, row => row.MessageId == crashedId).ProcessId);
+            var expectedRows = effectCommittedBeforeKill ? sent.Append(crashedId) : sent;
+            Assert.Equal(expectedRows.Order(StringComparer.Ordinal), ledger.Select(row => row.MessageId).Order(StringComparer.Ordinal));
+            var crashedRows = ledger.Where(row => row.MessageId == crashedId).Select(row => row.ProcessId).Order().ToList();
+            // At-least-once: an effect committed before the kill runs again in the second process; otherwise once, there.
+            int[] expectedProcesses = effectCommittedBeforeKill ? [firstProcessId, secondProcessId] : [secondProcessId];
+            Assert.Equal(expectedProcesses.Order(), crashedRows);
             Assert.Equal(MessageCount, (await ReadInboxAsync(connectionString, schema, cancellationToken)).Count);
             Assert.Equal(0u, await GetReadyCountAsync(queue, cancellationToken));
         }
