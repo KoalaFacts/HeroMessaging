@@ -24,8 +24,11 @@ using Npgsql;
 //   With --effect idempotent the handler first records the message ID in <schema>.handled_messages in the same
 //   transaction as the ledger row and skips the row when the ID is already there (a deduplicating handler), recording
 //   the skip with this process ID in <schema>.skipped_effects.
-// Protocol on stdout (one line each): READY, ENQUEUED <id>, CRASHPOINT <point> <id>, HANDLING <id>, EFFECT <id>.
-// The test kills the process at a CRASHPOINT; a line "stop" (or end of input) on stdin stops it cleanly.
+// The publisher prints SENT <id> after each broker-confirmed send. With --send-delay-ms it then waits that long before
+// completing the entry (lease still held), so competing publisher processes interleave. With --start manual it prints
+// READY before starting its processors and starts them on a line "go" on stdin, printing STARTED.
+// Protocol on stdout (one line each): READY, STARTED, ENQUEUED <id>, SENT <id>, CRASHPOINT <point> <id>, HANDLING <id>,
+// EFFECT <id>. The test kills the process at a CRASHPOINT; a line "stop" (or end of input) on stdin stops it cleanly.
 var settings = HarnessSettings.Parse(args);
 var lineLock = new object();
 void WriteLine(string line)
@@ -73,7 +76,7 @@ if (settings.Role == HarnessSettings.InboxConsumer)
 }
 else
 {
-    var transport = new CrashPointTransport(rabbit, settings.CrashPoint, WriteLine);
+    var transport = new CrashPointTransport(rabbit, settings.CrashPoint, settings.SendDelay, WriteLine);
     services.AddSingleton<IMessageTransport>(transport);
     services.AddHeroMessaging(builder => builder
         .WithOutbox()
@@ -96,24 +99,42 @@ else
         await Task.Delay(TimeSpan.FromMilliseconds(20));
     }
 
-    await StartHostedAsync(provider);
+    if (!settings.ManualStart)
+        await StartHostedAsync(provider);
 }
 
 WriteLine("READY");
-
-string? command;
-do
+var started = !settings.ManualStart;
+if (settings.ManualStart && await WaitForCommandAsync("go"))
 {
-    command = await Console.In.ReadLineAsync();
+    await StartHostedAsync(provider);
+    started = true;
+    WriteLine("STARTED");
 }
-while (command is not null && !string.Equals(command, "stop", StringComparison.Ordinal));
+
+await WaitForCommandAsync("stop");
 
 if (consumer is not null)
     await consumer.DisposeAsync();
-foreach (var service in provider.GetServices<IHostedService>().Reverse())
-    await service.StopAsync(CancellationToken.None);
+if (started)
+{
+    foreach (var service in provider.GetServices<IHostedService>().Reverse())
+        await service.StopAsync(CancellationToken.None);
+}
 await provider.DisposeAsync();
 return 0;
+
+// True when the command arrived; false at end of input.
+static async Task<bool> WaitForCommandAsync(string expected)
+{
+    string? command;
+    do
+    {
+        command = await Console.In.ReadLineAsync();
+    }
+    while (command is not null && !string.Equals(command, expected, StringComparison.Ordinal));
+    return command is not null;
+}
 
 static async Task StartHostedAsync(IServiceProvider provider)
 {
@@ -143,12 +164,16 @@ namespace HeroMessaging.ReliabilityHarness
         string Queue,
         int Enqueue,
         string? CrashPoint,
-        bool IdempotentEffect)
+        bool IdempotentEffect,
+        bool ManualStart,
+        TimeSpan SendDelay)
     {
         public const string OutboxPublisher = "outbox-publisher";
         public const string InboxConsumer = "inbox-consumer";
         public const string PlainEffect = "plain";
         public const string IdempotentEffectName = "idempotent";
+        public const string ImmediateStart = "immediate";
+        public const string ManualStartName = "manual";
 
         public static HarnessSettings Parse(string[] args)
         {
@@ -173,6 +198,14 @@ namespace HeroMessaging.ReliabilityHarness
             var effect = values.GetValueOrDefault("--effect", PlainEffect);
             if (effect is not (PlainEffect or IdempotentEffectName))
                 throw new ArgumentException($"Unknown effect '{effect}'; use '{PlainEffect}' or '{IdempotentEffectName}'.");
+            var start = values.GetValueOrDefault("--start", ImmediateStart);
+            if (start is not (ImmediateStart or ManualStartName))
+                throw new ArgumentException($"Unknown start mode '{start}'; use '{ImmediateStart}' or '{ManualStartName}'.");
+            if (start == ManualStartName && role != OutboxPublisher)
+                throw new ArgumentException($"--start {ManualStartName} applies only to role '{OutboxPublisher}'.");
+            var sendDelayMs = int.Parse(values.GetValueOrDefault("--send-delay-ms", "0"), System.Globalization.CultureInfo.InvariantCulture);
+            if (sendDelayMs < 0)
+                throw new ArgumentException("--send-delay-ms must not be negative.");
 
             return new HarnessSettings(
                 role,
@@ -183,7 +216,9 @@ namespace HeroMessaging.ReliabilityHarness
                 Required("--queue"),
                 int.Parse(values.GetValueOrDefault("--enqueue", "0"), System.Globalization.CultureInfo.InvariantCulture),
                 crashPoint,
-                effect == IdempotentEffectName);
+                effect == IdempotentEffectName,
+                start == ManualStartName,
+                TimeSpan.FromMilliseconds(sendDelayMs));
         }
     }
 
@@ -311,9 +346,10 @@ namespace HeroMessaging.ReliabilityHarness
     /// <summary>
     /// Wraps the real transport and stops the first confirmed send at the declared point:
     /// before it reaches the broker, or after the broker confirmed it but before the Outbox entry is completed.
-    /// The process then waits to be killed.
+    /// The process then waits to be killed. Every other confirmed send is reported as <c>SENT &lt;id&gt;</c>, followed by
+    /// the configured send delay.
     /// </summary>
-    internal sealed class CrashPointTransport(IConfirmedQueueTransport inner, string? crashPoint, Action<string> writeLine)
+    internal sealed class CrashPointTransport(IConfirmedQueueTransport inner, string? crashPoint, TimeSpan sendDelay, Action<string> writeLine)
         : IConfirmedQueueTransport
     {
         public const string BeforePublish = "before-publish";
@@ -345,6 +381,10 @@ namespace HeroMessaging.ReliabilityHarness
 
             if (crashHere && crashPoint == AfterConfirm)
                 await HaltAsync(AfterConfirm, envelope.MessageId);
+
+            writeLine($"SENT {envelope.MessageId}");
+            if (sendDelay > TimeSpan.Zero)
+                await Task.Delay(sendDelay, cancellationToken);
         }
 
         private async Task HaltAsync(string point, string messageId)
