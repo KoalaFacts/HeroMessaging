@@ -21,6 +21,8 @@ using Npgsql;
 // --role outbox-publisher (default): a PostgreSQL Outbox publisher delivering to a RabbitMQ queue.
 // --role inbox-consumer: a RabbitMQ consumer admitting deliveries to a PostgreSQL Inbox whose handler
 //   appends one row per handled message to the business ledger table <schema>.business_ledger.
+//   With --effect idempotent the handler first records the message ID in <schema>.handled_messages in the same
+//   transaction as the ledger row and skips the row when the ID is already there (a deduplicating handler).
 // Protocol on stdout (one line each): READY, ENQUEUED <id>, CRASHPOINT <point> <id>, HANDLING <id>, EFFECT <id>.
 // The test kills the process at a CRASHPOINT; a line "stop" (or end of input) on stdin stops it cleanly.
 var settings = HarnessSettings.Parse(args);
@@ -139,10 +141,13 @@ namespace HeroMessaging.ReliabilityHarness
         int RabbitPort,
         string Queue,
         int Enqueue,
-        string? CrashPoint)
+        string? CrashPoint,
+        bool IdempotentEffect)
     {
         public const string OutboxPublisher = "outbox-publisher";
         public const string InboxConsumer = "inbox-consumer";
+        public const string PlainEffect = "plain";
+        public const string IdempotentEffectName = "idempotent";
 
         public static HarnessSettings Parse(string[] args)
         {
@@ -164,6 +169,9 @@ namespace HeroMessaging.ReliabilityHarness
             };
             if (!known)
                 throw new ArgumentException($"Unknown crash point '{crashPoint}' for role '{role}'.");
+            var effect = values.GetValueOrDefault("--effect", PlainEffect);
+            if (effect is not (PlainEffect or IdempotentEffectName))
+                throw new ArgumentException($"Unknown effect '{effect}'; use '{PlainEffect}' or '{IdempotentEffectName}'.");
 
             return new HarnessSettings(
                 role,
@@ -173,7 +181,8 @@ namespace HeroMessaging.ReliabilityHarness
                 int.Parse(Required("--rabbit-port"), System.Globalization.CultureInfo.InvariantCulture),
                 Required("--queue"),
                 int.Parse(values.GetValueOrDefault("--enqueue", "0"), System.Globalization.CultureInfo.InvariantCulture),
-                crashPoint);
+                crashPoint,
+                effect == IdempotentEffectName);
         }
     }
 
@@ -250,7 +259,10 @@ namespace HeroMessaging.ReliabilityHarness
         public Task<long> GetUnprocessedCountAsync(CancellationToken cancellationToken = default) => inner.GetUnprocessedCountAsync(cancellationToken);
     }
 
-    /// <summary>The business effect: one ledger row per handled message, tagged with this process ID.</summary>
+    /// <summary>
+    /// The business effect: one ledger row per handled message, tagged with this process ID. A deduplicating handler
+    /// (<c>--effect idempotent</c>) records the message ID in the same transaction and skips a message already recorded.
+    /// </summary>
     internal sealed class LedgerHandler(HarnessSettings settings, InboxCrashPoint crash) : IEventHandler<HarnessOrderPlaced>
     {
         public async Task HandleAsync(HarnessOrderPlaced @event, CancellationToken cancellationToken = default)
@@ -261,14 +273,29 @@ namespace HeroMessaging.ReliabilityHarness
 
             await using var connection = new NpgsqlConnection(settings.ConnectionString);
             await connection.OpenAsync(cancellationToken);
-            await using var command = new NpgsqlCommand(
-                $"INSERT INTO {settings.Schema}.business_ledger (message_id, process_id) VALUES (@id, @process)", connection);
-            command.Parameters.AddWithValue("id", @event.MessageId.ToString());
-            command.Parameters.AddWithValue("process", Environment.ProcessId);
-            await command.ExecuteNonQueryAsync(cancellationToken);
+            await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+            var firstTime = !settings.IdempotentEffect || await RecordHandledAsync(connection, transaction, @event.MessageId, cancellationToken);
+            if (firstTime)
+            {
+                await using var command = new NpgsqlCommand(
+                    $"INSERT INTO {settings.Schema}.business_ledger (message_id, process_id) VALUES (@id, @process)", connection, transaction);
+                command.Parameters.AddWithValue("id", @event.MessageId.ToString());
+                command.Parameters.AddWithValue("process", Environment.ProcessId);
+                await command.ExecuteNonQueryAsync(cancellationToken);
+            }
+
+            await transaction.CommitAsync(cancellationToken);
 
             if (halted && crash.HoldsAfterEffect)
                 await crash.HoldAfterEffectAsync(@event.MessageId, cancellationToken);
+        }
+
+        private async Task<bool> RecordHandledAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, Guid messageId, CancellationToken cancellationToken)
+        {
+            await using var command = new NpgsqlCommand(
+                $"INSERT INTO {settings.Schema}.handled_messages (message_id) VALUES (@id) ON CONFLICT (message_id) DO NOTHING", connection, transaction);
+            command.Parameters.AddWithValue("id", messageId.ToString());
+            return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
         }
     }
 
