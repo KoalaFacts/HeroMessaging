@@ -22,7 +22,8 @@ using Npgsql;
 // --role inbox-consumer: a RabbitMQ consumer admitting deliveries to a PostgreSQL Inbox whose handler
 //   appends one row per handled message to the business ledger table <schema>.business_ledger.
 //   With --effect idempotent the handler first records the message ID in <schema>.handled_messages in the same
-//   transaction as the ledger row and skips the row when the ID is already there (a deduplicating handler).
+//   transaction as the ledger row and skips the row when the ID is already there (a deduplicating handler), recording
+//   the skip with this process ID in <schema>.skipped_effects.
 // Protocol on stdout (one line each): READY, ENQUEUED <id>, CRASHPOINT <point> <id>, HANDLING <id>, EFFECT <id>.
 // The test kills the process at a CRASHPOINT; a line "stop" (or end of input) on stdin stops it cleanly.
 var settings = HarnessSettings.Parse(args);
@@ -282,6 +283,14 @@ namespace HeroMessaging.ReliabilityHarness
                 command.Parameters.AddWithValue("id", @event.MessageId.ToString());
                 command.Parameters.AddWithValue("process", Environment.ProcessId);
                 await command.ExecuteNonQueryAsync(cancellationToken);
+            }
+            else
+            {
+                await using var skipped = new NpgsqlCommand(
+                    $"INSERT INTO {settings.Schema}.skipped_effects (message_id, process_id) VALUES (@id, @process)", connection, transaction);
+                skipped.Parameters.AddWithValue("id", @event.MessageId.ToString());
+                skipped.Parameters.AddWithValue("process", Environment.ProcessId);
+                await skipped.ExecuteNonQueryAsync(cancellationToken);
             }
 
             await transaction.CommitAsync(cancellationToken);

@@ -56,7 +56,8 @@ public sealed class PostgreSqlRabbitMqInboxProcessCrashTests : RabbitMqIntegrati
         {
             await ExecuteAsync(connectionString,
                 $"CREATE SCHEMA {schema}; CREATE TABLE {schema}.business_ledger (message_id TEXT NOT NULL, process_id INTEGER NOT NULL); "
-                + $"CREATE TABLE {schema}.handled_messages (message_id TEXT PRIMARY KEY)",
+                + $"CREATE TABLE {schema}.handled_messages (message_id TEXT PRIMARY KEY); "
+                + $"CREATE TABLE {schema}.skipped_effects (message_id TEXT NOT NULL, process_id INTEGER NOT NULL)",
                 cancellationToken);
             var topology = new TransportTopology();
             topology.AddQueue(new QueueDefinition { Name = queue, Durable = true });
@@ -151,6 +152,12 @@ public sealed class PostgreSqlRabbitMqInboxProcessCrashTests : RabbitMqIntegrati
             int[] expectedProcesses = effectRunsTwice ? [firstProcessId, secondProcessId]
                 : effectCommittedBeforeKill ? [firstProcessId] : [secondProcessId];
             Assert.Equal(expectedProcesses.Order(), crashedRows);
+            // A deduplicating handler in process B ran for the redelivered message and skipped its effect; nothing else was skipped.
+            var skipped = await ReadRowsAsync(connectionString, $"SELECT message_id, process_id FROM {schema}.skipped_effects", cancellationToken);
+            if (idempotentEffect)
+                Assert.Equal((crashedId, secondProcessId), Assert.Single(skipped));
+            else
+                Assert.Empty(skipped);
             Assert.Equal(MessageCount, (await ReadInboxAsync(connectionString, schema, cancellationToken)).Count);
             Assert.Equal(0u, await GetReadyCountAsync(queue, cancellationToken));
         }
@@ -220,11 +227,14 @@ public sealed class PostgreSqlRabbitMqInboxProcessCrashTests : RabbitMqIntegrati
         return entries;
     }
 
-    private static async Task<List<(string MessageId, int ProcessId)>> ReadLedgerAsync(string connectionString, string schema, CancellationToken cancellationToken)
+    private static Task<List<(string MessageId, int ProcessId)>> ReadLedgerAsync(string connectionString, string schema, CancellationToken cancellationToken)
+        => ReadRowsAsync(connectionString, $"SELECT message_id, process_id FROM {schema}.business_ledger", cancellationToken);
+
+    private static async Task<List<(string MessageId, int ProcessId)>> ReadRowsAsync(string connectionString, string sql, CancellationToken cancellationToken)
     {
         await using var connection = new NpgsqlConnection(connectionString);
         await connection.OpenAsync(cancellationToken);
-        await using var command = new NpgsqlCommand($"SELECT message_id, process_id FROM {schema}.business_ledger", connection);
+        await using var command = new NpgsqlCommand(sql, connection);
         var rows = new List<(string, int)>();
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
