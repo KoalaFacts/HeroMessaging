@@ -13,7 +13,8 @@ namespace HeroMessaging.Transport.RabbitMQ.Tests.Integration;
 /// declared crash point while holding an unacknowledged delivery; the second receives the redelivery. The
 /// business ledger is the table of rows the Inbox handler writes, one per handled message.
 /// A process killed after the handler's business effect committed but before the Inbox entry was completed
-/// (<c>after-effect</c>) shows the delivery guarantee: at-least-once, so the effect runs again in the second process.
+/// (<c>after-effect</c>) shows the delivery guarantee: at-least-once, so the effect runs again in the second process,
+/// unless the handler deduplicates by message ID in the effect's own transaction (<c>--effect idempotent</c>).
 /// </summary>
 [Trait("Category", "Integration")]
 public sealed class PostgreSqlRabbitMqInboxProcessCrashTests : RabbitMqIntegrationTestBase
@@ -32,7 +33,12 @@ public sealed class PostgreSqlRabbitMqInboxProcessCrashTests : RabbitMqIntegrati
     public Task ConsumerKilledAfterHandlerEffectBeforeCompletion_SecondProcessRunsTheEffectAgain()
         => RunCrashScenarioAsync("after-effect", entryPersistedBeforeKill: true, effectCommittedBeforeKill: true);
 
-    private async Task RunCrashScenarioAsync(string crashPoint, bool entryPersistedBeforeKill, bool effectCommittedBeforeKill)
+    [Fact]
+    public Task ConsumerKilledAfterDeduplicatingHandlerEffect_SecondProcessCompletesWithoutRunningTheEffectAgain()
+        => RunCrashScenarioAsync("after-effect", entryPersistedBeforeKill: true, effectCommittedBeforeKill: true, idempotentEffect: true);
+
+    private async Task RunCrashScenarioAsync(string crashPoint, bool entryPersistedBeforeKill, bool effectCommittedBeforeKill,
+        bool idempotentEffect = false)
     {
         var cancellationToken = TestContext.Current.CancellationToken;
         PostgreSqlContainer? postgres = null;
@@ -49,7 +55,9 @@ public sealed class PostgreSqlRabbitMqInboxProcessCrashTests : RabbitMqIntegrati
         try
         {
             await ExecuteAsync(connectionString,
-                $"CREATE SCHEMA {schema}; CREATE TABLE {schema}.business_ledger (message_id TEXT NOT NULL, process_id INTEGER NOT NULL)",
+                $"CREATE SCHEMA {schema}; CREATE TABLE {schema}.business_ledger (message_id TEXT NOT NULL, process_id INTEGER NOT NULL); "
+                + $"CREATE TABLE {schema}.handled_messages (message_id TEXT PRIMARY KEY); "
+                + $"CREATE TABLE {schema}.skipped_effects (message_id TEXT NOT NULL, process_id INTEGER NOT NULL)",
                 cancellationToken);
             var topology = new TransportTopology();
             topology.AddQueue(new QueueDefinition { Name = queue, Durable = true });
@@ -72,7 +80,7 @@ public sealed class PostgreSqlRabbitMqInboxProcessCrashTests : RabbitMqIntegrati
 
             string crashedId;
             int firstProcessId;
-            using (var first = StartConsumer(connectionString, schema, queue, crashPoint))
+            using (var first = StartConsumer(connectionString, schema, queue, crashPoint, idempotentEffect))
             {
                 firstProcessId = first.Id;
                 Assert.Equal("READY", await first.ReadLineAsync(TimeSpan.FromSeconds(60), cancellationToken));
@@ -115,7 +123,7 @@ public sealed class PostgreSqlRabbitMqInboxProcessCrashTests : RabbitMqIntegrati
             else
                 Assert.Empty(ledgerAfterKill);
 
-            using var second = StartConsumer(connectionString, schema, queue, crashPoint: null);
+            using var second = StartConsumer(connectionString, schema, queue, crashPoint: null, idempotentEffect);
             Assert.Equal("READY", await second.ReadLineAsync(TimeSpan.FromSeconds(60), cancellationToken));
             var inbox = new Dictionary<string, string>();
             var ledger = new List<(string MessageId, int ProcessId)>();
@@ -135,12 +143,21 @@ public sealed class PostgreSqlRabbitMqInboxProcessCrashTests : RabbitMqIntegrati
             Assert.Equal(0, await second.StopAsync(TimeSpan.FromSeconds(30), cancellationToken));
 
             ledger = await ReadLedgerAsync(connectionString, schema, cancellationToken);
-            var expectedRows = effectCommittedBeforeKill ? sent.Append(crashedId) : sent;
+            var effectRunsTwice = effectCommittedBeforeKill && !idempotentEffect;
+            var expectedRows = effectRunsTwice ? sent.Append(crashedId) : sent;
             Assert.Equal(expectedRows.Order(StringComparer.Ordinal), ledger.Select(row => row.MessageId).Order(StringComparer.Ordinal));
             var crashedRows = ledger.Where(row => row.MessageId == crashedId).Select(row => row.ProcessId).Order().ToList();
-            // At-least-once: an effect committed before the kill runs again in the second process; otherwise once, there.
-            int[] expectedProcesses = effectCommittedBeforeKill ? [firstProcessId, secondProcessId] : [secondProcessId];
+            // At-least-once: an effect committed before the kill runs again in the second process unless the handler
+            // deduplicates (then only process A's row exists); an effect not committed before the kill runs once, there.
+            int[] expectedProcesses = effectRunsTwice ? [firstProcessId, secondProcessId]
+                : effectCommittedBeforeKill ? [firstProcessId] : [secondProcessId];
             Assert.Equal(expectedProcesses.Order(), crashedRows);
+            // A deduplicating handler in process B ran for the redelivered message and skipped its effect; nothing else was skipped.
+            var skipped = await ReadRowsAsync(connectionString, $"SELECT message_id, process_id FROM {schema}.skipped_effects", cancellationToken);
+            if (idempotentEffect)
+                Assert.Equal((crashedId, secondProcessId), Assert.Single(skipped));
+            else
+                Assert.Empty(skipped);
             Assert.Equal(MessageCount, (await ReadInboxAsync(connectionString, schema, cancellationToken)).Count);
             Assert.Equal(0u, await GetReadyCountAsync(queue, cancellationToken));
         }
@@ -155,7 +172,8 @@ public sealed class PostgreSqlRabbitMqInboxProcessCrashTests : RabbitMqIntegrati
         }
     }
 
-    private ReliabilityHarnessProcess StartConsumer(string connectionString, string schema, string queue, string? crashPoint)
+    private ReliabilityHarnessProcess StartConsumer(string connectionString, string schema, string queue, string? crashPoint,
+        bool idempotentEffect)
     {
         var arguments = new List<string>
         {
@@ -164,6 +182,8 @@ public sealed class PostgreSqlRabbitMqInboxProcessCrashTests : RabbitMqIntegrati
         };
         if (crashPoint is not null)
             arguments.AddRange(["--crash-point", crashPoint]);
+        if (idempotentEffect)
+            arguments.AddRange(["--effect", "idempotent"]);
         return ReliabilityHarnessProcess.Start(arguments);
     }
 
@@ -207,11 +227,14 @@ public sealed class PostgreSqlRabbitMqInboxProcessCrashTests : RabbitMqIntegrati
         return entries;
     }
 
-    private static async Task<List<(string MessageId, int ProcessId)>> ReadLedgerAsync(string connectionString, string schema, CancellationToken cancellationToken)
+    private static Task<List<(string MessageId, int ProcessId)>> ReadLedgerAsync(string connectionString, string schema, CancellationToken cancellationToken)
+        => ReadRowsAsync(connectionString, $"SELECT message_id, process_id FROM {schema}.business_ledger", cancellationToken);
+
+    private static async Task<List<(string MessageId, int ProcessId)>> ReadRowsAsync(string connectionString, string sql, CancellationToken cancellationToken)
     {
         await using var connection = new NpgsqlConnection(connectionString);
         await connection.OpenAsync(cancellationToken);
-        await using var command = new NpgsqlCommand($"SELECT message_id, process_id FROM {schema}.business_ledger", connection);
+        await using var command = new NpgsqlCommand(sql, connection);
         var rows = new List<(string, int)>();
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
