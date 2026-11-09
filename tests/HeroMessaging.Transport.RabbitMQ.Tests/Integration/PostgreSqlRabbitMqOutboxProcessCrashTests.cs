@@ -234,7 +234,7 @@ public sealed class PostgreSqlRabbitMqOutboxProcessCrashTests : RabbitMqIntegrat
         if (crashPoint is not null)
             arguments.AddRange(["--crash-point", crashPoint]);
         if (manualStart)
-            arguments.AddRange(["--start", "manual", "--send-delay-ms", "100"]);
+            arguments.AddRange(["--start", "manual", "--send-delay-ms", "200"]);
         return ReliabilityHarnessProcess.Start(arguments);
     }
 }
