@@ -7,9 +7,9 @@ using Xunit;
 namespace HeroMessaging.Transport.RabbitMQ.Tests.Integration;
 
 /// <summary>
-/// Two separate OS processes deliver a PostgreSQL Outbox to RabbitMQ. The first is killed at a declared
-/// crash point; the second takes over once the dead lease expires. The business ledger is the count of
-/// deliveries per message on the destination queue.
+/// Two separate OS processes deliver a PostgreSQL Outbox to RabbitMQ. Either the first is killed at a declared
+/// crash point and the second takes over once the dead lease expires, or both compete for the same entries.
+/// The business ledger is the count of deliveries per message on the destination queue.
 /// </summary>
 [Trait("Category", "Integration")]
 public sealed class PostgreSqlRabbitMqOutboxProcessCrashTests : RabbitMqIntegrationTestBase
@@ -104,6 +104,96 @@ public sealed class PostgreSqlRabbitMqOutboxProcessCrashTests : RabbitMqIntegrat
         }
     }
 
+    [Fact]
+    public async Task CompetingPublisherProcesses_DeliverEveryEntryExactlyOnce()
+    {
+        const int competingMessages = 20;
+        var cancellationToken = TestContext.Current.CancellationToken;
+        PostgreSqlContainer? postgres = null;
+        var connectionString = Environment.GetEnvironmentVariable("PostgreSql__ConnectionString");
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            postgres = new PostgreSqlBuilder("postgres:17-alpine").WithPassword("postgres").Build();
+            await postgres.StartAsync(cancellationToken);
+            connectionString = postgres.GetConnectionString();
+        }
+
+        var schema = $"outbox_compete_{Guid.NewGuid():N}";
+        var queue = CreateQueueName();
+        var topology = new TransportTopology();
+        topology.AddQueue(new QueueDefinition { Name = queue, Durable = true });
+        await Transport!.ConfigureTopologyAsync(topology, cancellationToken);
+
+        var ledger = new ConcurrentDictionary<string, int>(StringComparer.Ordinal);
+        await using var consumer = await Transport.SubscribeAsync(TransportAddress.Queue(queue),
+            async (envelope, context, token) =>
+            {
+                ledger.AddOrUpdate(envelope.MessageId, 1, (_, count) => count + 1);
+                await context.AcknowledgeAsync(token);
+            }, cancellationToken: cancellationToken);
+
+        try
+        {
+            using var first = StartPublisher(connectionString, schema, Options!, queue, competingMessages, crashPoint: null, manualStart: true);
+            var enqueued = new List<string>();
+            string line;
+            while ((line = await first.ReadLineAsync(TimeSpan.FromSeconds(60), cancellationToken)) != "READY")
+            {
+                if (line.StartsWith("ENQUEUED ", StringComparison.Ordinal))
+                    enqueued.Add(line["ENQUEUED ".Length..]);
+            }
+
+            using var second = StartPublisher(connectionString, schema, Options!, queue, enqueue: 0, crashPoint: null, manualStart: true);
+            Assert.Equal("READY", await second.ReadLineAsync(TimeSpan.FromSeconds(60), cancellationToken));
+            var firstOutput = first.ReadToEndAsync(cancellationToken);
+            var secondOutput = second.ReadToEndAsync(cancellationToken);
+            await Task.WhenAll(first.SendAsync("go", cancellationToken), second.SendAsync("go", cancellationToken));
+
+            var entries = new Dictionary<string, string>();
+            await WaitForAsync(async token =>
+            {
+                entries = await ReadEntriesAsync(connectionString, schema, token);
+                return entries.Count == competingMessages && entries.Values.All(status => status == "Processed")
+                    && enqueued.All(id => ledger.ContainsKey(id));
+            }, TimeSpan.FromSeconds(60), () => "Competing processes did not deliver every entry. Outbox: "
+                + string.Join(", ", entries.Select(pair => $"{pair.Key}={pair.Value}"))
+                + "; ledger: " + string.Join(", ", ledger.Select(pair => $"{pair.Key}={pair.Value}")), cancellationToken);
+
+            // Give a stray duplicate time to arrive before the ledger is checked.
+            await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
+            Assert.Equal(0, await first.StopAsync(TimeSpan.FromSeconds(30), cancellationToken));
+            Assert.Equal(0, await second.StopAsync(TimeSpan.FromSeconds(30), cancellationToken));
+            var sentByFirst = SentIds(await firstOutput);
+            var sentBySecond = SentIds(await secondOutput);
+
+            Assert.Equal(competingMessages, enqueued.Count);
+            Assert.Equal(
+                enqueued.Select(id => KeyValuePair.Create(id, 1)).OrderBy(pair => pair.Key, StringComparer.Ordinal),
+                ledger.OrderBy(pair => pair.Key, StringComparer.Ordinal));
+            Assert.NotEmpty(sentByFirst);
+            Assert.NotEmpty(sentBySecond);
+            Assert.Empty(sentByFirst.Intersect(sentBySecond, StringComparer.Ordinal));
+            Assert.Equal(
+                enqueued.Order(StringComparer.Ordinal),
+                sentByFirst.Concat(sentBySecond).Order(StringComparer.Ordinal));
+        }
+        finally
+        {
+            await using var connection = new NpgsqlConnection(connectionString);
+            await connection.OpenAsync(CancellationToken.None);
+            await using var command = new NpgsqlCommand($"DROP SCHEMA IF EXISTS {schema} CASCADE", connection);
+            await command.ExecuteNonQueryAsync(CancellationToken.None);
+            if (postgres is not null)
+            {
+                await postgres.StopAsync(CancellationToken.None);
+                await postgres.DisposeAsync();
+            }
+        }
+    }
+
+    private static List<string> SentIds(IEnumerable<string> output)
+        => [.. output.Where(line => line.StartsWith("SENT ", StringComparison.Ordinal)).Select(line => line["SENT ".Length..])];
+
     private static async Task<Dictionary<string, string>> ReadEntriesAsync(string connectionString, string schema, CancellationToken cancellationToken)
     {
         await using var connection = new NpgsqlConnection(connectionString);
@@ -133,7 +223,7 @@ public sealed class PostgreSqlRabbitMqOutboxProcessCrashTests : RabbitMqIntegrat
     }
 
     private static ReliabilityHarnessProcess StartPublisher(string connectionString, string schema, RabbitMqTransportOptions rabbit,
-        string queue, int enqueue, string? crashPoint)
+        string queue, int enqueue, string? crashPoint, bool manualStart = false)
     {
         var arguments = new List<string>
         {
@@ -143,6 +233,8 @@ public sealed class PostgreSqlRabbitMqOutboxProcessCrashTests : RabbitMqIntegrat
         };
         if (crashPoint is not null)
             arguments.AddRange(["--crash-point", crashPoint]);
+        if (manualStart)
+            arguments.AddRange(["--start", "manual", "--send-delay-ms", "200"]);
         return ReliabilityHarnessProcess.Start(arguments);
     }
 }

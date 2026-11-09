@@ -39,6 +39,22 @@ internal sealed class ReliabilityHarnessProcess : IDisposable
         return line ?? throw new InvalidOperationException($"Reliability harness exited with {(_process.WaitForExit(5000) ? _process.ExitCode : -1)} before the expected output.");
     }
 
+    /// <summary>Writes one command line (for example <c>go</c>) to the harness's standard input.</summary>
+    public async Task SendAsync(string command, CancellationToken cancellationToken)
+    {
+        await _process.StandardInput.WriteLineAsync(command.AsMemory(), cancellationToken);
+        await _process.StandardInput.FlushAsync(cancellationToken);
+    }
+
+    /// <summary>Reads every remaining output line until the harness closes its standard output.</summary>
+    public async Task<IReadOnlyList<string>> ReadToEndAsync(CancellationToken cancellationToken)
+    {
+        var lines = new List<string>();
+        while (await _process.StandardOutput.ReadLineAsync(cancellationToken) is { } line)
+            lines.Add(line);
+        return lines;
+    }
+
     public void Kill()
     {
         _process.Kill(entireProcessTree: true);
