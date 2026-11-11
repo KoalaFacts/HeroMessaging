@@ -27,8 +27,9 @@ using Npgsql;
 // The publisher prints SENT <id> after each broker-confirmed send. With --send-delay-ms it then waits that long before
 // completing the entry (lease still held), so competing publisher processes interleave. With --start manual it prints
 // READY before starting its processors and starts them on a line "go" on stdin, printing STARTED.
+// The consumer prints DUPLICATE <id> when the Inbox rejects a delivery as a duplicate (the delivery is still acknowledged).
 // Protocol on stdout (one line each): READY, STARTED, ENQUEUED <id>, SENT <id>, CRASHPOINT <point> <id>, HANDLING <id>,
-// EFFECT <id>. The test kills the process at a CRASHPOINT; a line "stop" (or end of input) on stdin stops it cleanly.
+// EFFECT <id>, DUPLICATE <id>. The test kills the process at a CRASHPOINT; a line "stop" (or end of input) on stdin stops it cleanly.
 var settings = HarnessSettings.Parse(args);
 var lineLock = new object();
 void WriteLine(string line)
@@ -264,6 +265,9 @@ namespace HeroMessaging.ReliabilityHarness
             await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
         }
 
+        /// <summary>Reports a delivery the Inbox rejected as a duplicate.</summary>
+        public void ReportDuplicate(Guid messageId) => writeLine($"DUPLICATE {messageId}");
+
         public async Task HaltAsync(Guid messageId)
         {
             writeLine($"CRASHPOINT {crashPoint} {messageId}");
@@ -286,6 +290,8 @@ namespace HeroMessaging.ReliabilityHarness
 
             if (crashHere && crash.Point is InboxCrashPoint.AfterInbox or InboxCrashPoint.AfterEffect)
                 await crash.HaltAsync(message.MessageId);
+            if (!admitted)
+                crash.ReportDuplicate(message.MessageId);
             return admitted;
         }
 
