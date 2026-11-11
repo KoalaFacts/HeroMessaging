@@ -36,6 +36,9 @@ public sealed class InboxProcessorMetricsTests : IAsyncDisposable
                 Options = options,
                 Status = InboxStatus.Pending
             });
+        _messaging
+            .Setup(m => m.PublishAndWaitAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IEvent @event, CancellationToken _) => new EventPublishReceipt(@event.MessageId, []));
         _storage
             .Setup(s => s.MarkProcessedAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
@@ -82,7 +85,7 @@ public sealed class InboxProcessorMetricsTests : IAsyncDisposable
     {
         var ct = TestContext.Current.CancellationToken;
         _messaging
-            .Setup(m => m.PublishAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()))
+            .Setup(m => m.PublishAndWaitAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("handler failed"));
 
         Assert.True(await _processor.ProcessIncomingAsync(new MetricsTestEvent(), cancellationToken: ct));
