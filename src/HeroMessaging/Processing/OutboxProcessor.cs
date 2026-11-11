@@ -64,22 +64,29 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOu
     {
         options ??= new OutboxOptions();
 
-        if (options.Destination is not null)
-        {
-            if (string.IsNullOrWhiteSpace(options.Destination))
-                throw new ArgumentException("External outbox destination must name a queue.", nameof(options));
-            if (_externalDelivery is null)
-                throw new NotSupportedException("External outbox delivery requires leased storage, a confirmed queue transport, and a message serializer.");
-        }
+        ValidateExternalAddress(options);
 
         var entry = await _outboxStorage.AddAsync(message, options, cancellationToken);
 
         // Trigger immediate processing for high priority messages
-        if (options.Destination is null && options.Priority > 5)
+        if (!IsExternal(options) && options.Priority > 5)
         {
             await SubmitWorkItemAsync(new OutboxWorkItem(entry), cancellationToken);
         }
     }
+    private static bool IsExternal(OutboxOptions options) => OutboxAddressValidator.IsExternal(options);
+
+    private void ValidateExternalAddress(OutboxOptions options)
+    {
+        OutboxAddressValidator.Validate(options);
+        if (!IsExternal(options))
+            return;
+        if (_externalDelivery is null)
+            throw new NotSupportedException("External outbox delivery requires leased storage, a confirmed queue transport, and a message serializer.");
+        if (options.Topic is not null && !_externalDelivery.CanPublish)
+            throw new NotSupportedException($"Publishing an outbox entry to a topic requires a transport that implements {nameof(IConfirmedPublishTransport)} (for example the RabbitMQ transport).");
+    }
+
     /// <summary>
     /// Gets is running.
     /// </summary>
@@ -236,7 +243,7 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOu
             return;
         }
 
-        if (!string.IsNullOrEmpty(entry.Options.Destination))
+        if (IsExternal(entry.Options))
         {
             await _outboxStorage.MarkFailedAsync(entry.Id, "External outbox destinations are not supported.");
             Logger.LogError("Outbox entry {EntryId} has an unsupported external destination", entry.Id);

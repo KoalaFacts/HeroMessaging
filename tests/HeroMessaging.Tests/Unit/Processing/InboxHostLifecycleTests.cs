@@ -43,6 +43,8 @@ public sealed class InboxHostLifecycleTests
         var storage = new InMemoryInboxStorage(TimeProvider.System);
         var entry = await storage.AddAsync(new TestEvent(), new InboxOptions(), TestContext.Current.CancellationToken);
         var messaging = new Mock<IHeroMessaging>();
+        messaging.Setup(service => service.PublishAndWaitAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IEvent @event, CancellationToken _) => new EventPublishReceipt(@event.MessageId, []));
         var services = new ServiceCollection();
         new HeroMessagingBuilder(services).WithInbox().Build();
         services.AddSingleton<IInboxStorage>(storage);
@@ -64,7 +66,7 @@ public sealed class InboxHostLifecycleTests
 
         await hosted.StopAsync(TestContext.Current.CancellationToken);
         Assert.False(processor.IsRunning);
-        messaging.Verify(service => service.PublishAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()), Times.Once);
+        messaging.Verify(service => service.PublishAndWaitAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -75,11 +77,12 @@ public sealed class InboxHostLifecycleTests
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var messaging = new Mock<IHeroMessaging>();
-        messaging.Setup(service => service.PublishAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()))
-            .Returns(async (IEvent _, CancellationToken _) =>
+        messaging.Setup(service => service.PublishAndWaitAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()))
+            .Returns(async (IEvent @event, CancellationToken _) =>
             {
                 entered.TrySetResult();
                 await release.Task;
+                return new EventPublishReceipt(@event.MessageId, []);
             });
         using var services = new ServiceCollection().AddSingleton(messaging.Object).BuildServiceProvider();
         await using var processor = new InboxProcessor(storage, services, NullLogger<InboxProcessor>.Instance, TimeProvider.System);
@@ -102,11 +105,12 @@ public sealed class InboxHostLifecycleTests
         var entry = await storage.AddAsync(new TestEvent(), new InboxOptions(), TestContext.Current.CancellationToken);
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var messaging = new Mock<IHeroMessaging>();
-        messaging.Setup(service => service.PublishAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()))
-            .Returns(async (IEvent _, CancellationToken cancellationToken) =>
+        messaging.Setup(service => service.PublishAndWaitAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()))
+            .Returns(async (IEvent @event, CancellationToken cancellationToken) =>
             {
                 entered.TrySetResult();
                 await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                return new EventPublishReceipt(@event.MessageId, []);
             });
         using var services = new ServiceCollection().AddSingleton(messaging.Object).BuildServiceProvider();
         var processor = new InboxProcessor(storage, services, NullLogger<InboxProcessor>.Instance, TimeProvider.System);
@@ -138,13 +142,14 @@ public sealed class InboxHostLifecycleTests
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var messaging = new Mock<IHeroMessaging>();
-        messaging.Setup(service => service.PublishAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()))
-            .Returns(async (IEvent _, CancellationToken _) =>
+        messaging.Setup(service => service.PublishAndWaitAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()))
+            .Returns(async (IEvent @event, CancellationToken _) =>
             {
                 entered.TrySetResult();
                 await release.Task;
                 if (failsAfterShutdown)
                     throw new ObjectDisposedException("handler dependency");
+                return new EventPublishReceipt(@event.MessageId, []);
             });
         using var services = new ServiceCollection().AddSingleton(messaging.Object).BuildServiceProvider();
         var processor = new InboxProcessor(storage, services, NullLogger<InboxProcessor>.Instance, TimeProvider.System);
