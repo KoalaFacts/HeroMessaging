@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **.NET 11 target**: every library and test project that targeted net8.0/net9.0/net10.0 now also targets `net11.0` (.NET 11 GA, 2026-11-10), and CI builds and tests net11.0 on Ubuntu, Windows and macOS. Building from source needs the .NET 11 SDK (`global.json` 11.0.100, `latestPatch`). Benchmark projects stay on net8.0–net10.0 because BenchmarkDotNet 0.15.8 does not recognise the .NET 11 runtime.
+
 ### Fixed
 
 - **Persisted events marked processed before their handlers ran**: the Inbox, Outbox and queue processors now dispatch events with `PublishAndWaitAsync` and mark an entry processed (or acknowledge it) only after every handler succeeded. Before, they used `PublishAsync`, which returns once the event bus has admitted the event, so an entry became `Processed` while its handler was still queued or running, and a throwing handler still left it `Processed` — a crash or handler failure lost the event. An unsuccessful handler now raises `[HM-DISPATCH-EVENT-HANDLER]` naming each failed handler and its cause, and the processor's own failure policy applies (Inbox entry `Failed`, Outbox retry, queue reject). Throughput of event entries now follows handler completion rather than bus admission. The processor's stop token reaches the event handlers (as it did with `PublishAsync`), so a handler still running at stop is cancelled (through the built-in `HeroMessagingService`, `EventBus` and `TransactionEventBusDecorator`; a custom `IHeroMessaging` or `IEventBus` wrapper falls back to `PublishAndWaitAsync`, whose token only cancels the wait). Because a processor worker now holds its slot until the event's handlers finish, a handler that synchronously waits on admitting more work to the same processor (for example `ProcessIncomingAsync` on a full Inbox) can stall that worker; enqueue follow-up work through the Outbox or a separate processor instead.

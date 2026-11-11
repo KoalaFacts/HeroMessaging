@@ -4,7 +4,7 @@
 
 | Version | Supported          | .NET target frameworks |
 | ------- | ------------------ | ---------------------- |
-| 1.x     | :white_check_mark: | net8.0, net9.0, net10.0 |
+| 1.x     | :white_check_mark: | net8.0, net9.0, net10.0, net11.0 |
 | < 1.0   | :x:                | Pre-release versions are not supported |
 
 ## Reporting a Vulnerability

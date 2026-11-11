@@ -18,7 +18,7 @@ HeroMessaging aims to provide better performance, lower resource consumption, an
 - **Saga Orchestration**: Built-in state machine-based saga support with compensation
 - **CQRS & Event Sourcing**: First-class support for command/query separation and events
 - **Pluggable Architecture**: Extensible serialization, storage, and transport layers
-- **Multi-Framework Support**: .NET 8, 9, and 10
+- **Multi-Framework Support**: .NET 8, 9, 10, and 11
 - **Tested Core**: Automated tests, coverage gate, and cross-platform CI
 
 ### Core Capabilities
@@ -450,7 +450,7 @@ The full index of guides, ADRs, package and test READMEs, and retained evidence 
 
 ### Prerequisites
 
-- .NET 10 SDK with Roslyn 5.9 or later (`global.json` pins 10.0.402 with `latestPatch` roll-forward; builds every target framework)
+- .NET 11 SDK (`global.json` pins the GA SDK 11.0.100 with `latestPatch` roll-forward; builds every target framework); .NET 8, 9 and 10 runtimes to run those test targets
 - Docker (for integration tests)
 
 ### Building
@@ -478,7 +478,7 @@ HeroMessaging maintains high standards:
 - **Test Coverage**: CI checks at least 80% aggregate line coverage; 100% public API coverage is a contributor goal
 - **Performance Comparison**: CI validates measurements and reports differences; percentage changes are informational, not a hard regression gate
 - **Cross-Platform CI**: Windows, Linux, macOS
-- **Multi-Framework**: net8.0, net9.0, net10.0
+- **Multi-Framework**: net8.0, net9.0, net10.0, net11.0
 
 ## Contributing
 
