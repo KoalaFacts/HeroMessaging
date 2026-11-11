@@ -321,6 +321,130 @@ public sealed class ExternalOutboxProcessorTests
         storage.Verify(s => s.CompleteExternalAsync(It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    [Theory]
+    [MemberData(nameof(InvalidTopicOptions))]
+    public async Task PublishToOutbox_WithInvalidTopicOptions_RejectsBeforeWrite(OutboxOptions options)
+    {
+        var storage = new Mock<IExternalOutboxStorage>();
+        storage.SetupGet(s => s.SupportsExternalClaims).Returns(true);
+        using var services = new ServiceCollection().BuildServiceProvider();
+        var transport = new Mock<IConfirmedQueueTransport>();
+        transport.As<IConfirmedPublishTransport>();
+        var processor = CreateProcessor(storage.Object, transport.Object, services);
+
+        await Assert.ThrowsAsync<ArgumentException>(() => processor.PublishToOutboxAsync(
+            TestMessageBuilder.CreateValidMessage(), options, TestContext.Current.CancellationToken));
+
+        storage.Verify(s => s.AddAsync(It.IsAny<HeroMessaging.Abstractions.Messages.IMessage>(),
+            It.IsAny<OutboxOptions>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    public static TheoryData<OutboxOptions> InvalidTopicOptions() =>
+    [
+        new OutboxOptions { Destination = "orders", Topic = "order-events" },
+        new OutboxOptions { Topic = " " },
+        new OutboxOptions { RoutingKey = "order.created" },
+        new OutboxOptions { Destination = "orders", RoutingKey = "order.created" }
+    ];
+
+    [Fact]
+    public async Task PublishToOutbox_TopicWithoutPublishTransport_RejectsBeforeWrite()
+    {
+        var storage = new Mock<IExternalOutboxStorage>();
+        storage.SetupGet(s => s.SupportsExternalClaims).Returns(true);
+        using var services = new ServiceCollection().BuildServiceProvider();
+        var processor = CreateProcessor(storage.Object, new Mock<IConfirmedQueueTransport>().Object, services);
+
+        var error = await Assert.ThrowsAsync<NotSupportedException>(() => processor.PublishToOutboxAsync(
+            TestMessageBuilder.CreateValidMessage(), new OutboxOptions { Topic = "order-events" },
+            TestContext.Current.CancellationToken));
+
+        Assert.Contains(nameof(IConfirmedPublishTransport), error.Message);
+        storage.Verify(s => s.AddAsync(It.IsAny<HeroMessaging.Abstractions.Messages.IMessage>(),
+            It.IsAny<OutboxOptions>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ConfirmedPublish_TopicEntry_PublishesWithRoutingKeyAndCompletesClaim()
+    {
+        var storage = new Mock<IExternalOutboxStorage>();
+        storage.SetupGet(s => s.SupportsExternalClaims).Returns(true);
+        var transportMock = new Mock<IConfirmedQueueTransport>();
+        var publisher = transportMock.As<IConfirmedPublishTransport>();
+        var message = TestMessageBuilder.CreateValidMessage("topic delivery");
+        var entry = new OutboxEntry
+        {
+            Id = Guid.NewGuid().ToString(),
+            Message = message,
+            Options = new OutboxOptions { Topic = "order-events", RoutingKey = "order.created" }
+        };
+        var token = Guid.NewGuid();
+        var completed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var claimCount = 0;
+        storage.Setup(s => s.GetLocalPendingAsync(It.IsAny<int>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
+        storage.Setup(s => s.ClaimExternalAsync(It.IsAny<int>(), It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => Interlocked.Increment(ref claimCount) == 1 ? [new OutboxLease(entry, token)] : []);
+        storage.Setup(s => s.RenewExternalAsync(entry.Id, token, It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        storage.Setup(s => s.CompleteExternalAsync(entry.Id, token, It.IsAny<CancellationToken>()))
+            .Callback(() => completed.TrySetResult())
+            .ReturnsAsync(true);
+        transportMock.SetupGet(t => t.State).Returns(TransportState.Connected);
+        publisher.Setup(t => t.PublishConfirmedAsync(It.IsAny<TransportAddress>(), It.IsAny<TransportEnvelope>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        using var services = new ServiceCollection().BuildServiceProvider();
+        await using var processor = CreateProcessor(storage.Object, transportMock.Object, services);
+        await processor.StartAsync(TestContext.Current.CancellationToken);
+        await completed.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        await processor.StopAsync(TestContext.Current.CancellationToken);
+
+        publisher.Verify(t => t.PublishConfirmedAsync(
+            It.Is<TransportAddress>(address => address.Name == "order-events" && address.Type == TransportAddressType.Topic),
+            It.Is<TransportEnvelope>(envelope => envelope.MessageId == message.MessageId.ToString()
+                && (string)envelope.Headers["RoutingKey"] == "order.created"),
+            It.IsAny<CancellationToken>()), Times.Once);
+        transportMock.Verify(t => t.SendConfirmedAsync(It.IsAny<TransportAddress>(), It.IsAny<TransportEnvelope>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ConfirmedPublish_UnroutableTopicEntry_RetriesWithoutCompletingClaim()
+    {
+        var storage = new Mock<IExternalOutboxStorage>();
+        storage.SetupGet(s => s.SupportsExternalClaims).Returns(true);
+        var transportMock = new Mock<IConfirmedQueueTransport>();
+        var publisher = transportMock.As<IConfirmedPublishTransport>();
+        var entry = new OutboxEntry
+        {
+            Id = Guid.NewGuid().ToString(),
+            Message = TestMessageBuilder.CreateValidMessage("unroutable"),
+            Options = new OutboxOptions { Topic = "order-events", MaxRetries = 3 }
+        };
+        var token = Guid.NewGuid();
+        var retried = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var claimCount = 0;
+        storage.Setup(s => s.GetLocalPendingAsync(It.IsAny<int>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
+        storage.Setup(s => s.ClaimExternalAsync(It.IsAny<int>(), It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => Interlocked.Increment(ref claimCount) == 1 ? [new OutboxLease(entry, token)] : []);
+        storage.Setup(s => s.RenewExternalAsync(entry.Id, token, It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        storage.Setup(s => s.RetryExternalAsync(entry.Id, token, 1, It.IsAny<DateTimeOffset>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Callback(() => retried.TrySetResult())
+            .ReturnsAsync(true);
+        transportMock.SetupGet(t => t.State).Returns(TransportState.Connected);
+        publisher.Setup(t => t.PublishConfirmedAsync(It.IsAny<TransportAddress>(), It.IsAny<TransportEnvelope>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new PublishRouteException("order-events", "#", new InvalidOperationException("NO_ROUTE")));
+
+        using var services = new ServiceCollection().BuildServiceProvider();
+        await using var processor = CreateProcessor(storage.Object, transportMock.Object, services);
+        await processor.StartAsync(TestContext.Current.CancellationToken);
+        await retried.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        await processor.StopAsync(TestContext.Current.CancellationToken);
+
+        storage.Verify(s => s.CompleteExternalAsync(It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     private static OutboxProcessor CreateProcessor(
         IExternalOutboxStorage storage, IConfirmedQueueTransport transport, IServiceProvider services,
         IMessageSerializer? configuredSerializer = null)

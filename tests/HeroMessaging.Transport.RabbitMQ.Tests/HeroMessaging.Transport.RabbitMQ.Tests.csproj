@@ -28,6 +28,7 @@
 		<ProjectReference Include="..\..\src\HeroMessaging.Abstractions\HeroMessaging.Abstractions.csproj" />
 		<ProjectReference Include="..\..\src\HeroMessaging.Observability.OpenTelemetry\HeroMessaging.Observability.OpenTelemetry.csproj" />
 		<ProjectReference Include="..\HeroMessaging.Tests\HeroMessaging.Tests.csproj" />
+		<ProjectReference Include="..\HeroMessaging.ReliabilityHarness\HeroMessaging.ReliabilityHarness.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>

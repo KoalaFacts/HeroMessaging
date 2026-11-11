@@ -41,16 +41,19 @@ public interface IHeroMessagingBuilder
     /// <summary>
     /// Enables queue-based message processing.
     /// </summary>
+    /// <remarks>Also registers the command, query and event processors that hand queued messages to their handlers, so <see cref="WithMediator"/> and <see cref="WithEventBus()"/> are optional.</remarks>
     IHeroMessagingBuilder WithQueues();
 
     /// <summary>
     /// Enables outbox pattern for reliable message publishing.
     /// </summary>
+    /// <remarks>Also registers the command, query and event processors that hand local Outbox messages to their handlers, so <see cref="WithMediator"/> and <see cref="WithEventBus()"/> are optional.</remarks>
     IHeroMessagingBuilder WithOutbox();
 
     /// <summary>
     /// Enables inbox pattern for idempotent message processing.
     /// </summary>
+    /// <remarks>Also registers the command, query and event processors that hand Inbox messages to their handlers, so <see cref="WithMediator"/> and <see cref="WithEventBus()"/> are optional.</remarks>
     IHeroMessagingBuilder WithInbox();
 
     /// <summary>

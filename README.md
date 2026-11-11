@@ -18,7 +18,7 @@ HeroMessaging aims to provide better performance, lower resource consumption, an
 - **Saga Orchestration**: Built-in state machine-based saga support with compensation
 - **CQRS & Event Sourcing**: First-class support for command/query separation and events
 - **Pluggable Architecture**: Extensible serialization, storage, and transport layers
-- **Multi-Framework Support**: .NET 8, 9, and 10
+- **Multi-Framework Support**: .NET 8, 9, 10, and 11
 - **Tested Core**: Automated tests, coverage gate, and cross-platform CI
 
 ### Core Capabilities
@@ -79,9 +79,9 @@ builder.WithEventBus(options =>
 
 `HeroMessaging.RingBuffer`, a direct dependency of `HeroMessaging`, provides Disruptor-style sequencers, wait strategies and a batch event processor. `UseChannelQueue(...)` and `UseRingBufferQueue(...)` currently only validate and register `InMemoryQueueOptions`; no runtime component reads those options yet, so they do not change in-memory queue behaviour.
 
-To write business state and an outbox entry atomically, use one `PostgreSqlUnitOfWork`: call `BeginTransactionAsync`, run your business commands on `unitOfWork.Connection` with `unitOfWork.Transaction`, add the message with `unitOfWork.OutboxStorage.AddAsync(message, new OutboxOptions { Destination = "orders" })`, then `CommitAsync`. Rollback, a failed statement followed by rollback, or disposing without commit discards both, and outbox workers neither see nor wait for the entry until commit. The unit of work uses the default schema and `outbox_messages` table, so the standalone worker storage must use the same names. Create the outbox table before the first business transaction (with `AutoCreateTables`, any call on the standalone outbox storage creates it, as the worker's first poll does); otherwise that first transaction creates it and holds the table lock until it ends.
+To write business state and an outbox entry atomically, use one `PostgreSqlUnitOfWork`: call `BeginTransactionAsync`, run your business commands on `unitOfWork.Connection` with `unitOfWork.Transaction`, add the message with `unitOfWork.OutboxStorage.AddAsync(message, new OutboxOptions { Destination = "orders" })` (or `new OutboxOptions { Topic = "order-events", RoutingKey = "orders.created" }` to publish an event to every queue bound to that exchange), then `CommitAsync`. Rollback, a failed statement followed by rollback, or disposing without commit discards both, and outbox workers neither see nor wait for the entry until commit. The unit of work uses the default schema and `outbox_messages` table, so the standalone worker storage must use the same names. Create the outbox table before the first business transaction (with `AutoCreateTables`, any call on the standalone outbox storage creates it, as the worker's first poll does); otherwise that first transaction creates it and holds the table lock until it ends.
 
-If `PostgreSqlStorageOptions.AutoCreateTables` is `false`, provision the outbox table using the current `PostgreSqlOutboxStorage` schema before starting a worker. In particular, external delivery requires `retry_delay_ms BIGINT`, `lease_token UUID`, and `lease_expires_at TIMESTAMPTZ` in addition to the existing outbox columns and indexes. No old-schema migration is provided because this feature has not been released.
+If `PostgreSqlStorageOptions.AutoCreateTables` is `false`, provision the outbox table using the current `PostgreSqlOutboxStorage` schema before starting a worker. In particular, external delivery requires `retry_delay_ms BIGINT`, `lease_token UUID`, `lease_expires_at TIMESTAMPTZ`, `destination_type VARCHAR(16)` and `routing_key VARCHAR(255)` in addition to the existing outbox columns and indexes. No old-schema migration is provided because this feature has not been released.
 
 **Observability:**
 - `HeroMessaging.Observability.OpenTelemetry` - Distributed tracing and metrics
@@ -450,7 +450,7 @@ The full index of guides, ADRs, package and test READMEs, and retained evidence 
 
 ### Prerequisites
 
-- .NET 10 SDK with Roslyn 5.9 or later (`global.json` pins 10.0.402 with `latestPatch` roll-forward; builds every target framework)
+- .NET 11 SDK (`global.json` pins the GA SDK 11.0.100 with `latestPatch` roll-forward; builds every target framework); .NET 8, 9 and 10 runtimes to run those test targets
 - Docker (for integration tests)
 
 ### Building
@@ -478,7 +478,7 @@ HeroMessaging maintains high standards:
 - **Test Coverage**: CI checks at least 80% aggregate line coverage; 100% public API coverage is a contributor goal
 - **Performance Comparison**: CI validates measurements and reports differences; percentage changes are informational, not a hard regression gate
 - **Cross-Platform CI**: Windows, Linux, macOS
-- **Multi-Framework**: net8.0, net9.0, net10.0
+- **Multi-Framework**: net8.0, net9.0, net10.0, net11.0
 
 ## Contributing
 
@@ -496,7 +496,7 @@ See [CLAUDE.md](CLAUDE.md) for detailed development guidelines.
 
 ## Security
 
-Please see [SECURITY.md](SECURITY.md) for security policies and vulnerability reporting.
+Please see [.github/SECURITY.md](.github/SECURITY.md) for security policies and vulnerability reporting.
 
 ## Roadmap
 

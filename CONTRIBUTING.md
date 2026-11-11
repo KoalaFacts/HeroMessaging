@@ -27,7 +27,7 @@ This project adheres to a code of conduct that we expect all contributors to fol
 
 ### Prerequisites
 
-- .NET 10 SDK (`global.json` pins 10.0.402 with `latestPatch` roll-forward); .NET 8 and 9 runtimes to run every test target
+- .NET 11 SDK (`global.json` pins the GA SDK 11.0.100 with `latestPatch` roll-forward); .NET 8, 9 and 10 runtimes to run every test target
 - Git
 - Docker (for integration tests)
 - Your favorite IDE (Visual Studio, VS Code, Rider)
@@ -359,7 +359,7 @@ All PRs must pass:
 - **Coverage**: Meets 80% threshold
 - **Performance**: No regression >10%
 - **Cross-Platform**: Windows, Linux, macOS
-- **Multi-Framework**: net8.0, net9.0, net10.0
+- **Multi-Framework**: net8.0, net9.0, net10.0, net11.0
 
 ## Architecture Decisions
 
@@ -388,9 +388,10 @@ HeroMessaging (Core)
 ### Multi-Framework Support
 
 HeroMessaging supports multiple .NET versions:
-- net8.0 (LTS)
-- net9.0 (STS)
+- net8.0 (LTS; Microsoft support ended 2026-11-10)
+- net9.0 (STS; Microsoft support ended 2026-11-10)
 - net10.0 (LTS)
+- net11.0 (STS, GA 2026-11-10)
 
 `HeroMessaging.SourceGenerators` targets netstandard2.0 (Roslyn requirement) and uses PolySharp polyfills. Use conditional compilation for API differences between the runtime targets.
 
