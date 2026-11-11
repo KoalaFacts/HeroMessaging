@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <!-- OpenTelemetry packages don't support netstandard2.0 with latest versions -->
-    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+    <TargetFrameworks>net8.0;net9.0;net10.0;net11.0</TargetFrameworks>
     <Description>OpenTelemetry observability plugin for HeroMessaging. Provides distributed tracing, metrics, and correlation for message processing, saga orchestration, and inbox/outbox patterns.</Description>
     <PackageTags>messaging;opentelemetry;observability;tracing;metrics;distributed-tracing</PackageTags>
   </PropertyGroup>

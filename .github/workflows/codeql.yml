@@ -49,6 +49,7 @@ jobs:
             8.0.426
             9.0.319
             10.0.402
+            11.0.100
 
       # Initialize CodeQL tools for scanning
       - name: Initialize CodeQL

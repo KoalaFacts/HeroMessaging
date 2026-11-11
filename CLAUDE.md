@@ -14,7 +14,7 @@ Before claiming a change works, use the `.claude/skills/verification-first` and 
 The scheduled development task follows `.claude/skills/advance-heromessaging` (goal, gate, work order, authority).
 
 ## Active Technologies
-- **Language**: C# 14 (`LangVersion` 14.0 in Directory.Build.props), .NET multi-target (net8.0, net9.0, net10.0); the source generator targets netstandard2.0 with `LangVersion` latest
+- **Language**: C# 14 (`LangVersion` 14.0 in Directory.Build.props), .NET multi-target (net8.0, net9.0, net10.0, net11.0; benchmark projects stay on net8.0–net10.0 until BenchmarkDotNet supports .NET 11); the source generator targets netstandard2.0 with `LangVersion` latest
 - **Testing**: Xunit.v3, BenchmarkDotNet, Coverlet, ReportGenerator
 - **Build**: MSBuild, Directory.Build.props for shared configuration
 - **CI/CD**: GitHub Actions with cross-platform matrix testing
@@ -65,6 +65,7 @@ dotnet run --project tests/HeroMessaging.Benchmarks --configuration Release
 dotnet test --framework net8.0
 dotnet test --framework net9.0
 dotnet test --framework net10.0
+dotnet test --framework net11.0
 ```
 
 ## Code Style & Quality Standards
