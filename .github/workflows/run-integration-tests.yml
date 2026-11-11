@@ -163,7 +163,6 @@ jobs:
               --results-directory "./test-results/$project_name" \
               --report-trx \
               --report-trx-filename "integration-tests-${{ matrix.framework }}-$project_name.trx" \
-              --minimum-expected-tests 0 \
               --ignore-exit-code 8 \
               --no-progress
           done

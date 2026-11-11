@@ -91,24 +91,24 @@ jobs:
         run: dotnet build --configuration Release --no-restore --verbosity minimal
 
       - name: Verify NativeAOT package consumer
-        if: matrix.os == 'ubuntu-latest' && matrix.framework == 'net10.0'
+        if: matrix.os == 'ubuntu-latest' && matrix.framework == 'net11.0'
         shell: bash
         run: |
-          # Use the newest stable .NET 10 runtime patch installed on the runner (setup-dotnet or the image),
+          # Use the newest stable .NET 11 runtime patch installed on the runner (setup-dotnet or the image),
           # not a hard-coded one: a pinned patch stops restoring once NuGet flags its ILCompiler pack (NU1903).
-          runtime="$(dotnet --list-runtimes | awk '$1 == "Microsoft.NETCore.App" && $2 ~ /^10\.0\.[0-9]+$/ { print $2 }' | sort -V | tail -n 1)"
+          runtime="$(dotnet --list-runtimes | awk '$1 == "Microsoft.NETCore.App" && $2 ~ /^11\.0\.[0-9]+$/ { print $2 }' | sort -V | tail -n 1)"
           if [ -z "$runtime" ]; then
-            echo "::error::No stable Microsoft.NETCore.App 10.0.x runtime is installed on this runner"
+            echo "::error::No stable Microsoft.NETCore.App 11.0.x runtime is installed on this runner"
             exit 1
           fi
           echo "NativeAOT consumer runtime: $runtime"
           python3 .github/scripts/verify_nativeaot.py \
             --source "$PWD" --commit "$(git rev-parse HEAD)" \
             --output "$PWD/artifacts/nativeaot" \
-            --sdk "$(dotnet --version)" --tfm net10.0 --runtime "$runtime" --rid linux-x64
+            --sdk "$(dotnet --version)" --tfm net11.0 --runtime "$runtime" --rid linux-x64
 
       - name: Upload NativeAOT consumer evidence
-        if: always() && matrix.os == 'ubuntu-latest' && matrix.framework == 'net10.0'
+        if: always() && matrix.os == 'ubuntu-latest' && matrix.framework == 'net11.0'
         uses: actions/upload-artifact@v7
         with:
           name: nativeaot-consumer-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
