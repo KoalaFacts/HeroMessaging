@@ -150,7 +150,8 @@ public class CommandProcessor : ICommandProcessor, IProcessor, IAsyncDisposable
 
         var logger = serviceProvider.GetService<ILogger<IdempotencyDecorator>>()
             ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<IdempotencyDecorator>.Instance;
-        return new IdempotencyDecorator(CommandHandlerStep.Instance, store, new HandlerScopedIdempotencyPolicy(policy),
+        return new IdempotencyDecorator(CommandHandlerStep.Instance, new CommitDeferredIdempotencyStore(store),
+            new HandlerScopedIdempotencyPolicy(policy),
             logger, timeProvider);
     }
 

@@ -284,7 +284,7 @@ services.AddHeroMessaging(builder =>
     });
 });
 ```
-For durable storage, call `services.AddSqlServerIdempotencyStore(...)` or `services.AddPostgreSqlIdempotencyStore(...)` before `WithIdempotency`; the builder registers its defaults with `TryAdd`. The builder also registers a `Func<IMessageProcessor, IdempotencyDecorator>` factory for manual pipelines. `EventBus` inserts the decorator automatically (after validation, before error handling/retry) with keys `{configured key}:handler:{handler type}`; `CommandProcessor` does the same for commands without a response. Commands with a response, queries and other processors do not yet.
+For durable storage, call `services.AddSqlServerIdempotencyStore(...)` or `services.AddPostgreSqlIdempotencyStore(...)` before `WithIdempotency`; the builder registers its defaults with `TryAdd`. The builder also registers a `Func<IMessageProcessor, IdempotencyDecorator>` factory for manual pipelines. `EventBus` inserts the decorator automatically (after validation, before error handling/retry) with keys `{configured key}:handler:{handler type}`; `CommandProcessor` does the same for commands without a response, and under `WithTransactions()`/`WithCommandTransactions()` writes the success record only after the transaction commits. Commands with a response, queries and other processors do not yet.
 
 ### Architecture Documentation
 See [ADR 0005: Idempotency Framework](docs/adr/0005-idempotency-framework.md) for comprehensive architecture decisions, trade-offs, and implementation plan.

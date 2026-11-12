@@ -1,8 +1,11 @@
+using System.Data;
 using HeroMessaging.Abstractions.Commands;
 using HeroMessaging.Abstractions.Handlers;
 using HeroMessaging.Abstractions.Idempotency;
+using HeroMessaging.Abstractions.Storage;
 using HeroMessaging.Configuration;
 using HeroMessaging.Processing;
+using HeroMessaging.Processing.Decorators;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
@@ -145,6 +148,85 @@ public sealed class CommandProcessorIdempotencyTests
 
         var key = $"idempotency:{command.MessageId}:handler:{typeof(ChargeCardHandler).FullName}";
         Assert.True(await store.ExistsAsync(key, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task SendAsync_InTransactionWhoseCommitFails_RerunsHandlerOnRedelivery()
+    {
+        var counter = new Counter();
+        using var provider = BuildProvider(counter, withIdempotency: true);
+        await using var inner = new CommandProcessor(provider, NullLogger<CommandProcessor>.Instance);
+        var executor = new CommitFailingExecutor(failingCommits: 1);
+        var processor = new TransactionCommandProcessorDecorator(inner, executor);
+        var store = provider.GetRequiredService<IIdempotencyStore>();
+        var command = new ChargeCard { MessageId = Guid.NewGuid() };
+        var key = $"idempotency:{command.MessageId}:handler:{typeof(ChargeCardHandler).FullName}";
+
+        await Assert.ThrowsAsync<IOException>(() => processor.SendAsync(command, TestContext.Current.CancellationToken));
+        Assert.False(await store.ExistsAsync(key, TestContext.Current.CancellationToken));
+
+        await processor.SendAsync(command, TestContext.Current.CancellationToken);
+        await processor.SendAsync(command, TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, counter.Calls);
+        Assert.True(await store.ExistsAsync(key, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task SendAsync_InNestedTransactions_RecordsSuccessOnlyAfterOutermostCommit()
+    {
+        var counter = new Counter();
+        using var provider = BuildProvider(counter, withIdempotency: true);
+        await using var inner = new CommandProcessor(provider, NullLogger<CommandProcessor>.Instance);
+        var store = provider.GetRequiredService<IIdempotencyStore>();
+        var command = new ChargeCard { MessageId = Guid.NewGuid() };
+        var key = $"idempotency:{command.MessageId}:handler:{typeof(ChargeCardHandler).FullName}";
+        var innerProcessor = new TransactionCommandProcessorDecorator(inner, new CommitFailingExecutor(failingCommits: 0));
+        var keyStoredBeforeOuterCommit = true;
+        var outer = new CommitFailingExecutor(failingCommits: 1)
+        {
+            BeforeCommit = async () => keyStoredBeforeOuterCommit =
+                await store.ExistsAsync(key, TestContext.Current.CancellationToken)
+        };
+
+        var processor = new TransactionCommandProcessorDecorator(innerProcessor, outer);
+
+        await Assert.ThrowsAsync<IOException>(() => processor.SendAsync(command, TestContext.Current.CancellationToken));
+
+        Assert.False(keyStoredBeforeOuterCommit);
+        Assert.False(await store.ExistsAsync(key, TestContext.Current.CancellationToken));
+    }
+
+    /// <summary>Runs the operation, then fails the first <c>failingCommits</c> commits like a rolled-back transaction.</summary>
+    private sealed class CommitFailingExecutor(int failingCommits) : ITransactionExecutor
+    {
+        private int _remainingFailures = failingCommits;
+
+        public Func<Task>? BeforeCommit { get; init; }
+
+        public async Task ExecuteInTransactionAsync(Func<CancellationToken, Task> operation, string operationName,
+            IsolationLevel isolationLevel = IsolationLevel.ReadCommitted, CancellationToken cancellationToken = default)
+        {
+            await operation(cancellationToken);
+            await CommitAsync();
+        }
+
+        public async Task<TResult> ExecuteInTransactionAsync<TResult>(Func<CancellationToken, Task<TResult>> operation,
+            string operationName, IsolationLevel isolationLevel = IsolationLevel.ReadCommitted,
+            CancellationToken cancellationToken = default)
+        {
+            var result = await operation(cancellationToken);
+            await CommitAsync();
+            return result;
+        }
+
+        private async Task CommitAsync()
+        {
+            if (BeforeCommit is not null)
+                await BeforeCommit();
+            if (Interlocked.Decrement(ref _remainingFailures) >= 0)
+                throw new IOException("commit failed");
+        }
     }
 
     private sealed class FailingStore : IIdempotencyStore
