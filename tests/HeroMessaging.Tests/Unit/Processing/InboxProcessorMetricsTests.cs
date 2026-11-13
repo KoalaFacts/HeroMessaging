@@ -88,9 +88,16 @@ public sealed class InboxProcessorMetricsTests : IAsyncDisposable
             .Setup(m => m.PublishAndWaitAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("handler failed"));
 
+        var markedFailed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _storage
+            .Setup(s => s.MarkFailedAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Callback(markedFailed.SetResult)
+            .ReturnsAsync(true);
+
         Assert.True(await _processor.ProcessIncomingAsync(new MetricsTestEvent(), cancellationToken: ct));
 
-        await WaitUntilAsync(() => _processor.GetMetrics().FailedMessages == 1, ct);
+        // The counter is incremented before the storage call, so wait for the storage call itself.
+        await markedFailed.Task.WaitAsync(WaitBudget, ct);
         var metrics = _processor.GetMetrics();
         Assert.Equal(1, metrics.FailedMessages);
         Assert.Equal(0, metrics.ProcessedMessages);
