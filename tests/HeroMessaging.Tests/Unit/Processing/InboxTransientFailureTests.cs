@@ -1,5 +1,7 @@
 using HeroMessaging.Abstractions;
 using HeroMessaging.Abstractions.Commands;
+using HeroMessaging.Abstractions.Events;
+using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Abstractions.Storage;
 using HeroMessaging.Processing;
 using HeroMessaging.Storage;
@@ -123,6 +125,74 @@ public sealed class InboxTransientFailureTests
         Assert.Equal(1, processor.TransientFailureCount);
         processor.PruneStaleTransientFailures(DateTimeOffset.UtcNow + TimeSpan.FromHours(1));
         Assert.Equal(0, processor.TransientFailureCount);
+    }
+
+    [Fact]
+    public async Task ProcessWorkItem_EventHandlerTransientFailureThenSuccess_EntryEndsProcessed()
+    {
+        var storage = new InMemoryInboxStorage(TimeProvider.System);
+        var calls = 0;
+        var messaging = new Mock<IHeroMessaging>();
+        messaging
+            .Setup(m => m.PublishAndWaitAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IEvent @event, CancellationToken _) => Interlocked.Increment(ref calls) == 1
+                ? new EventPublishReceipt(@event.MessageId,
+                    [new EventHandlerReceipt(typeof(string), EventHandlerStatus.Failed, ProcessingResult.Failed(new TimeoutException("database timeout")))])
+                : new EventPublishReceipt(@event.MessageId, [new EventHandlerReceipt(typeof(string), EventHandlerStatus.Succeeded)]));
+
+        using var services = new ServiceCollection().AddSingleton(messaging.Object).BuildServiceProvider();
+        await using var processor = new InboxProcessor(storage, services, NullLogger<InboxProcessor>.Instance, TimeProvider.System);
+        var @event = new TransientTestEvent();
+
+        await processor.StartAsync(TestContext.Current.CancellationToken);
+        Assert.True(await processor.ProcessIncomingAsync(@event, cancellationToken: TestContext.Current.CancellationToken));
+
+        var entry = await WaitForTerminalAsync(storage, @event.MessageId.ToString(), InboxStatus.Processed, TimeSpan.FromSeconds(20));
+        await processor.StopAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(InboxStatus.Processed, entry?.Status);
+        Assert.Equal(2, calls);
+        Assert.Equal(1, processor.GetMetrics().ProcessedMessages);
+        Assert.Equal(0, processor.GetMetrics().FailedMessages);
+    }
+
+    [Fact]
+    public async Task ProcessWorkItem_EventHandlerPermanentFailure_EntryEndsFailedAfterOneAttempt()
+    {
+        var storage = new InMemoryInboxStorage(TimeProvider.System);
+        var calls = 0;
+        var messaging = new Mock<IHeroMessaging>();
+        messaging
+            .Setup(m => m.PublishAndWaitAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IEvent @event, CancellationToken _) =>
+            {
+                Interlocked.Increment(ref calls);
+                return new EventPublishReceipt(@event.MessageId,
+                    [new EventHandlerReceipt(typeof(string), EventHandlerStatus.Failed, ProcessingResult.Failed(new ArgumentException("invalid order")))]);
+            });
+
+        using var services = new ServiceCollection().AddSingleton(messaging.Object).BuildServiceProvider();
+        await using var processor = new InboxProcessor(storage, services, NullLogger<InboxProcessor>.Instance, TimeProvider.System);
+        var @event = new TransientTestEvent();
+
+        await processor.StartAsync(TestContext.Current.CancellationToken);
+        Assert.True(await processor.ProcessIncomingAsync(@event, cancellationToken: TestContext.Current.CancellationToken));
+
+        var entry = await WaitForTerminalAsync(storage, @event.MessageId.ToString(), InboxStatus.Failed, TimeSpan.FromSeconds(20));
+        await processor.StopAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(InboxStatus.Failed, entry?.Status);
+        Assert.Equal(1, calls);
+        Assert.Equal(1, processor.GetMetrics().FailedMessages);
+    }
+
+    private sealed record TransientTestEvent : IEvent
+    {
+        public Guid MessageId { get; init; } = Guid.NewGuid();
+        public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
+        public string? CorrelationId { get; init; }
+        public string? CausationId { get; init; }
+        public Dictionary<string, object>? Metadata { get; init; }
     }
 
     private static async Task<InboxEntry?> WaitForTerminalAsync(IInboxStorage storage, string id, InboxStatus expected, TimeSpan timeout)

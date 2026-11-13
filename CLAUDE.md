@@ -10,8 +10,11 @@ Development guidelines for Claude Code and AI assistants. Last updated: 2026-11-
 5. **Architectural Governance**: ADRs for decisions, plugin architecture, multi-framework support
 6. **Task Verification Protocol**: Every task must be verified before marking as finished
 
+Before claiming a change works, use the `.claude/skills/verification-first` and `.claude/skills/verify-heromessaging` skills (done criteria, real-boundary evidence, independent verdict).
+The scheduled development task follows `.claude/skills/advance-heromessaging` (goal, gate, work order, authority).
+
 ## Active Technologies
-- **Language**: C# 14 (`LangVersion` 14.0 in Directory.Build.props), .NET multi-target (net8.0, net9.0, net10.0); the source generator targets netstandard2.0 with `LangVersion` latest
+- **Language**: C# 14 (`LangVersion` 14.0 in Directory.Build.props), .NET multi-target (net8.0, net9.0, net10.0, net11.0; benchmark projects stay on net8.0–net10.0 until BenchmarkDotNet supports .NET 11); the source generator targets netstandard2.0 with `LangVersion` latest
 - **Testing**: Xunit.v3, BenchmarkDotNet, Coverlet, ReportGenerator
 - **Build**: MSBuild, Directory.Build.props for shared configuration
 - **CI/CD**: GitHub Actions with cross-platform matrix testing
@@ -62,6 +65,7 @@ dotnet run --project tests/HeroMessaging.Benchmarks --configuration Release
 dotnet test --framework net8.0
 dotnet test --framework net9.0
 dotnet test --framework net10.0
+dotnet test --framework net11.0
 ```
 
 ## Code Style & Quality Standards
@@ -178,7 +182,7 @@ The idempotency framework provides exactly-once semantics for at-least-once deli
 
 ### Implementation Status
 - **Phase 1 (Complete)**: Core abstractions, in-memory storage, unit tests
-- **Phase 2 (Partial)**: Configuration API (`WithIdempotency`) and SQL Server/PostgreSQL storage exist with integration tests; `WithIdempotency` registers an `IdempotencyDecorator` factory but nothing adds the decorator to the processing pipeline yet, so it does not deduplicate on its own
+- **Phase 2 (Partial)**: Configuration API (`WithIdempotency`) and SQL Server/PostgreSQL storage exist with integration tests; `EventBus` applies the decorator through `MessageProcessingPipelineBuilder.UseIdempotency()` with handler-scoped keys, and `CommandProcessor` deduplicates commands without a response the same way; commands with a response, queries, Inbox and transport consumers are not deduplicated yet
 - **Phase 3 (Planned)**: Advanced key generators, concurrency handling, benchmarks
 - **Phase 4 (Planned)**: Documentation, samples, performance optimization
 
@@ -280,7 +284,7 @@ services.AddHeroMessaging(builder =>
     });
 });
 ```
-For durable storage, call `services.AddSqlServerIdempotencyStore(...)` or `services.AddPostgreSqlIdempotencyStore(...)` before `WithIdempotency`; the builder registers its defaults with `TryAdd`. The builder registers a `Func<IMessageProcessor, IdempotencyDecorator>` factory; the decorator is not yet inserted into the pipeline automatically.
+For durable storage, call `services.AddSqlServerIdempotencyStore(...)` or `services.AddPostgreSqlIdempotencyStore(...)` before `WithIdempotency`; the builder registers its defaults with `TryAdd`. The builder also registers a `Func<IMessageProcessor, IdempotencyDecorator>` factory for manual pipelines. `EventBus` inserts the decorator automatically (after validation, before error handling/retry) with keys `{configured key}:handler:{handler type}`; `CommandProcessor` does the same for commands without a response, and under `WithTransactions()`/`WithCommandTransactions()` writes the success record only after the transaction commits. Commands with a response, queries and other processors do not yet.
 
 ### Architecture Documentation
 See [ADR 0005: Idempotency Framework](docs/adr/0005-idempotency-framework.md) for comprehensive architecture decisions, trade-offs, and implementation plan.

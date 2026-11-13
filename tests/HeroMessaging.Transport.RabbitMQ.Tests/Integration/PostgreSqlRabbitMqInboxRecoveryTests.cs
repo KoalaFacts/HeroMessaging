@@ -51,6 +51,8 @@ public sealed class PostgreSqlRabbitMqInboxRecoveryTests : RabbitMqIntegrationTe
             Body = await serializer.SerializeAsync(message, cancellationToken)
         };
         var messaging = new Mock<IHeroMessaging>();
+        messaging.Setup(service => service.PublishAndWaitAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IEvent @event, CancellationToken _) => new EventPublishReceipt(@event.MessageId, []));
 
         try
         {
@@ -94,7 +96,7 @@ public sealed class PostgreSqlRabbitMqInboxRecoveryTests : RabbitMqIntegrationTe
                 (await readyStorage.GetAsync(message.MessageId.ToString(), token))?.Status == InboxStatus.Processed,
                 cancellationToken);
             await hosted.StopAsync(cancellationToken);
-            messaging.Verify(service => service.PublishAsync(
+            messaging.Verify(service => service.PublishAndWaitAsync(
                 It.Is<IEvent>(value => value.MessageId == message.MessageId), It.IsAny<CancellationToken>()), Times.Once);
         }
         finally

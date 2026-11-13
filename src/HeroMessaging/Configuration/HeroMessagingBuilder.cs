@@ -284,13 +284,17 @@ public class HeroMessagingBuilder(IServiceCollection services) : IHeroMessagingB
 
         Services.AddSingleton(_processingOptions);
 
-        if (_withMediator)
+        // The Inbox, Outbox and queue processors dispatch persisted messages to local handlers
+        // through IHeroMessaging, which needs the command, query and event processors.
+        var dispatchesPersistedMessages = _withInbox || _withOutbox || _withQueues;
+
+        if (_withMediator || dispatchesPersistedMessages)
         {
             Services.AddSingleton<ICommandProcessor, CommandProcessor>();
             Services.AddSingleton<IQueryProcessor, QueryProcessor>();
         }
 
-        if (_withEventBus)
+        if (_withEventBus || dispatchesPersistedMessages)
         {
             // Register the pipeline-based EventBus
             Services.AddSingleton(_eventBusOptions);

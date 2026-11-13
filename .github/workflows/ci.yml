@@ -1,7 +1,10 @@
 name: Build and Test
 
 on:
-  push:  # Trigger on every commit to any branch
+  # Branch pushes are covered by the pull_request run; a push trigger on every
+  # branch ran the whole matrix twice per PR commit and queued CI for over an hour.
+  push:
+    branches: [ main, develop ]
   pull_request:
     branches: [ main, develop ]
   schedule:
@@ -48,7 +51,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        framework: [net8.0, net9.0, net10.0]
+        framework: [net8.0, net9.0, net10.0, net11.0]
 
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
@@ -66,6 +69,7 @@ jobs:
             8.0.426
             9.0.319
             10.0.402
+            11.0.100
           dotnet-quality: 'ga'
 
       - name: Cache NuGet packages
@@ -87,24 +91,24 @@ jobs:
         run: dotnet build --configuration Release --no-restore --verbosity minimal
 
       - name: Verify NativeAOT package consumer
-        if: matrix.os == 'ubuntu-latest' && matrix.framework == 'net10.0'
+        if: matrix.os == 'ubuntu-latest' && matrix.framework == 'net11.0'
         shell: bash
         run: |
-          # Use the newest stable .NET 10 runtime patch installed on the runner (setup-dotnet or the image),
+          # Use the newest stable .NET 11 runtime patch installed on the runner (setup-dotnet or the image),
           # not a hard-coded one: a pinned patch stops restoring once NuGet flags its ILCompiler pack (NU1903).
-          runtime="$(dotnet --list-runtimes | awk '$1 == "Microsoft.NETCore.App" && $2 ~ /^10\.0\.[0-9]+$/ { print $2 }' | sort -V | tail -n 1)"
+          runtime="$(dotnet --list-runtimes | awk '$1 == "Microsoft.NETCore.App" && $2 ~ /^11\.0\.[0-9]+$/ { print $2 }' | sort -V | tail -n 1)"
           if [ -z "$runtime" ]; then
-            echo "::error::No stable Microsoft.NETCore.App 10.0.x runtime is installed on this runner"
+            echo "::error::No stable Microsoft.NETCore.App 11.0.x runtime is installed on this runner"
             exit 1
           fi
           echo "NativeAOT consumer runtime: $runtime"
           python3 .github/scripts/verify_nativeaot.py \
             --source "$PWD" --commit "$(git rev-parse HEAD)" \
             --output "$PWD/artifacts/nativeaot" \
-            --sdk "$(dotnet --version)" --tfm net10.0 --runtime "$runtime" --rid linux-x64
+            --sdk "$(dotnet --version)" --tfm net11.0 --runtime "$runtime" --rid linux-x64
 
       - name: Upload NativeAOT consumer evidence
-        if: always() && matrix.os == 'ubuntu-latest' && matrix.framework == 'net10.0'
+        if: always() && matrix.os == 'ubuntu-latest' && matrix.framework == 'net11.0'
         uses: actions/upload-artifact@v7
         with:
           name: nativeaot-consumer-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
@@ -169,7 +173,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: '24'
 
@@ -236,7 +240,9 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: 10.0.402
+          dotnet-version: |
+            10.0.402
+            11.0.100
 
       - name: Verify comparison reporting
         shell: pwsh
@@ -284,6 +290,7 @@ jobs:
           dotnet-version: |
             8.0.426
             10.0.402
+            11.0.100
 
       - name: Install ReportGenerator
         run: dotnet tool install --global dotnet-reportgenerator-globaltool
@@ -409,6 +416,7 @@ jobs:
             8.0.426
             9.0.319
             10.0.402
+            11.0.100
 
       - name: Restore dependencies
         run: dotnet restore

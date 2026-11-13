@@ -14,7 +14,7 @@ namespace HeroMessaging.Processing;
 /// Event bus implementation using the pipeline architecture.
 /// Caches handler dispatch while preserving per-event decorator lifetimes.
 /// </summary>
-public class EventBus : IEventBus, IAsyncDisposable
+public class EventBus : IEventBus, IHandlerCancellableEventPublisher, IAsyncDisposable
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<EventBus> _logger;
@@ -81,6 +81,7 @@ public class EventBus : IEventBus, IAsyncDisposable
             .UseLogging()           // Log the entire process
             .UseCorrelation()       // Track correlation/causation for choreography
             .UseValidation()        // Validate before processing
+            .UseIdempotency()       // Suppress redelivered events per handler when WithIdempotency is configured
             .UseErrorHandling()     // Handle errors with dead letter queue
             .UseRetry();            // Innermost - retry the actual processing
     }
@@ -152,7 +153,17 @@ public class EventBus : IEventBus, IAsyncDisposable
     }
 
     /// <inheritdoc />
-    public async Task<EventPublishReceipt> PublishAndWaitAsync(IEvent @event, CancellationToken cancellationToken = default)
+    public Task<EventPublishReceipt> PublishAndWaitAsync(IEvent @event, CancellationToken cancellationToken = default)
+        // The caller's token cancels waiting, not handler execution or pending admission.
+        => PublishAndWaitCoreAsync(@event, CancellationToken.None, cancellationToken);
+
+    /// <inheritdoc />
+    Task<EventPublishReceipt> IHandlerCancellableEventPublisher.PublishAndWaitWithHandlerCancellationAsync(
+        IEvent @event, CancellationToken cancellationToken)
+        => PublishAndWaitCoreAsync(@event, cancellationToken, cancellationToken);
+
+    private async Task<EventPublishReceipt> PublishAndWaitCoreAsync(IEvent @event, CancellationToken handlerToken,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(@event);
         cancellationToken.ThrowIfCancellationRequested();
@@ -165,8 +176,7 @@ public class EventBus : IEventBus, IAsyncDisposable
             if (handler is null) continue;
             var completion = new TaskCompletionSource<ProcessingResult>(TaskCreationOptions.RunContinuationsAsynchronously);
             var envelope = RentEnvelope();
-            // The caller's token cancels waiting, not handler execution or pending admission.
-            envelope.Initialize(@event, handler, handlerType, CancellationToken.None);
+            envelope.Initialize(@event, handler, handlerType, handlerToken);
             envelope.Completion = completion;
             deliveries.Add(PublishTrackedHandlerAsync(envelope, handler.GetType(), completion));
         }

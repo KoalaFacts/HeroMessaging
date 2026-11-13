@@ -1,6 +1,6 @@
 # HeroMessaging tests
 
-Tests use xUnit with Microsoft.Testing.Platform. The runner is selected in the root `global.json`; use the .NET 10 SDK (Roslyn 5.9 or later). Test projects still target .NET 8, 9 and 10 as declared in each project.
+Tests use xUnit with Microsoft.Testing.Platform. The runner is selected in the root `global.json`; use the .NET 11 SDK (GA 11.0.100 or later). Test projects target .NET 8, 9, 10 and 11 as declared in each project.
 
 ## Projects
 
@@ -12,6 +12,7 @@ Tests use xUnit with Microsoft.Testing.Platform. The runner is selected in the r
 - `HeroMessaging.Serialization.*.Tests`: JSON, MessagePack and protobuf serializers.
 - `HeroMessaging.Storage.*.Tests`: PostgreSQL and SQL Server providers.
 - `HeroMessaging.Transport.RabbitMQ.Tests`: RabbitMQ transport.
+- `HeroMessaging.ReliabilityHarness`: not a test project; an Outbox publisher or Inbox consumer that RabbitMQ integration tests start as a separate OS process and kill at declared crash points.
 - `HeroMessaging.Observability.*.Tests`: health checks and OpenTelemetry.
 - `HeroMessaging.SourceGenerators.Tests`: generated code and diagnostics.
 - `HeroMessaging.Tests.Shared`: shared helpers; this is not an executable test project.

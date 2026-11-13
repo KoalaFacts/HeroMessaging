@@ -3,6 +3,7 @@ using HeroMessaging.Abstractions.Commands;
 using HeroMessaging.Abstractions.Processing;
 using HeroMessaging.Abstractions.Queries;
 using HeroMessaging.Abstractions.Storage;
+using HeroMessaging.Idempotency;
 
 namespace HeroMessaging.Processing.Decorators;
 
@@ -21,13 +22,30 @@ public class TransactionCommandProcessorDecorator(
     /// Executes send async.
     /// </summary>
 
+    /// <remarks>
+    /// Idempotency success records produced inside the transaction are written only after it commits, so a failed
+    /// commit leaves the command to run again on redelivery.
+    /// </remarks>
     public async Task SendAsync(ICommand command, CancellationToken cancellationToken = default)
     {
-        await _transactionExecutor.ExecuteInTransactionAsync(
-            async ct => await _inner.SendAsync(command, ct).ConfigureAwait(false),
-            $"command {command.GetType().Name} with ID {command.MessageId}",
-            _defaultIsolationLevel,
-            cancellationToken).ConfigureAwait(false);
+        var scope = IdempotencyCommitScope.Begin();
+        try
+        {
+            await _transactionExecutor.ExecuteInTransactionAsync(
+                async ct => await _inner.SendAsync(command, ct).ConfigureAwait(false),
+                $"command {command.GetType().Name} with ID {command.MessageId}",
+                _defaultIsolationLevel,
+                cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            IdempotencyCommitScope.End(scope);
+        }
+
+        if (scope is not null)
+        {
+            await scope.CompleteAsync().ConfigureAwait(false);
+        }
     }
     /// <summary>
     /// Executes send async.
@@ -35,11 +53,27 @@ public class TransactionCommandProcessorDecorator(
 
     public async Task<TResponse> SendAsync<TResponse>(ICommand<TResponse> command, CancellationToken cancellationToken = default)
     {
-        return await _transactionExecutor.ExecuteInTransactionAsync(
-            async ct => await _inner.SendAsync(command, ct).ConfigureAwait(false),
-            $"command {command.GetType().Name} with ID {command.MessageId}",
-            _defaultIsolationLevel,
-            cancellationToken).ConfigureAwait(false);
+        var scope = IdempotencyCommitScope.Begin();
+        TResponse response;
+        try
+        {
+            response = await _transactionExecutor.ExecuteInTransactionAsync(
+                async ct => await _inner.SendAsync(command, ct).ConfigureAwait(false),
+                $"command {command.GetType().Name} with ID {command.MessageId}",
+                _defaultIsolationLevel,
+                cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            IdempotencyCommitScope.End(scope);
+        }
+
+        if (scope is not null)
+        {
+            await scope.CompleteAsync().ConfigureAwait(false);
+        }
+
+        return response;
     }
     /// <summary>
     /// Gets is running.

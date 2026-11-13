@@ -342,6 +342,19 @@ channel.QueueBind(queue, exchange, routingKey, arguments);
 
 **Consequence**: operators see why a message failed without searching logs, matching MassTransit's `_error` queues. Unit: `FaultHeadersTests`, `RabbitMqConsumerRetryPolicyTests` (error-queue cases); integration (RabbitMQ 3.13): `RabbitMqDeadLetterReplayIntegrationTests.ErrorQueue_KeepsFailureContextAndReplaysToTheSourceQueue`, `ErrorQueue_WhenMissing_FallsBackToTheDeadLetterExchange`, `ErrorQueue_WithoutPublisherConfirms_FallsBackToTheDeadLetterExchange`, `ErrorQueue_MessagePublishedByAnotherBrokerUser_IsMovedWithItsFailureContext`.
 
+### TD-9: Confirmed Publish to a Topic (2026-11-06)
+
+**Decision**: `RabbitMqTransport` implements the new `IConfirmedPublishTransport.PublishConfirmedAsync(topic, envelope)`, the publish counterpart of `SendConfirmedAsync`. It publishes to the topic's exchange with mandatory routing and waits for the publisher confirmation, so it completes only when at least one bound queue accepted the message. When no binding matches (including an exchange with no bindings), the broker returns the message and the call throws `PublishRouteException` with the topic and routing key; plain `PublishAsync` silently drops such a message.
+
+- The routing key comes from the envelope's `RoutingKey` header, `#` when absent, as for `PublishAsync`; no extra parameter.
+- Publisher confirms are required: with `UsePublisherConfirms = false` the call throws `InvalidOperationException` before publishing.
+- A confirmation timeout after the broker accepted the message throws `TimeoutException`; the message may still have been routed, so callers that retry must tolerate a duplicate.
+- Additive public API: one new interface and one exception in `HeroMessaging.Abstractions.Transport`; no signature changes. It is the transport step for transactional external publish (F07, roadmap R4); routing Outbox entries to a topic is the next step.
+
+**Outbox use (2026-11-08)**: `OutboxOptions.Topic` (optional `RoutingKey`, sent as the envelope's `RoutingKey` header) makes the leased PostgreSQL Outbox deliver the entry through `PublishConfirmedAsync` instead of `SendConfirmedAsync`. `PublishRouteException` is an ordinary delivery failure: the entry is retried with its `RetryDelay`/`MaxRetries` and then failed, never marked processed. The topic is stored in the existing `destination` column with `destination_type = 'topic'`, so lease claims, fencing and recovery are unchanged. Additive: two init-only properties on `OutboxOptions`.
+
+**Consequence**: Outbox delivery can mark a published event processed only when a subscriber queue has it. Integration (RabbitMQ 3.13): `RabbitMqConfirmedPublishTests` (matching binding reaches every bound queue; no matching binding and no bindings throw `PublishRouteException`; the channel stays usable after a returned message — the three failure cases passed silently with routing not required). Unit: `RabbitMqTransportTests.PublishConfirmedAsync_WithoutPublisherConfirms_ThrowsActionableError`, `PublishConfirmedAsync_WhenDisconnected_ThrowsInvalidOperationException`.
+
 ---
 
 ## Architectural Consequences

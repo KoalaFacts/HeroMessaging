@@ -21,6 +21,7 @@ public class PostgreSqlOutboxStorage : IExternalOutboxStorage
     private readonly IDbConnectionProvider<NpgsqlConnection, NpgsqlTransaction> _connectionProvider;
     private readonly IDbSchemaInitializer _schemaInitializer;
     private readonly IJsonOptionsProvider _jsonOptionsProvider;
+    private const string TopicDestinationType = "topic";
     private readonly string _tableName;
     private readonly TimeProvider _timeProvider;
     private readonly IJsonSerializer _jsonSerializer;
@@ -78,7 +79,7 @@ public class PostgreSqlOutboxStorage : IExternalOutboxStorage
         try
         {
             if (_initialized) return;
-            await InitializeDatabase().ConfigureAwait(false);
+            await InitializeDatabase(cancellationToken).ConfigureAwait(false);
             _initialized = true;
         }
         finally
@@ -90,12 +91,21 @@ public class PostgreSqlOutboxStorage : IExternalOutboxStorage
     /// Executes initialize database.
     /// </summary>
 
-    private async Task InitializeDatabase()
+    private async Task InitializeDatabase(CancellationToken cancellationToken)
     {
+        // ALTER TABLE and CREATE INDEX lock the table even when "IF NOT EXISTS" makes them no-ops. On a
+        // unit-of-work connection that lock is held until the business transaction ends, which serialises
+        // every business transaction and blocks Outbox workers. Read the catalog first and skip the DDL
+        // when the table is already complete.
+        if (await IsSchemaCompleteAsync(cancellationToken).ConfigureAwait(false))
+        {
+            return;
+        }
+
         // Create schema if needed
         if (!string.IsNullOrEmpty(_options.Schema))
         {
-            await _schemaInitializer.InitializeSchemaAsync(_options.Schema).ConfigureAwait(false);
+            await _schemaInitializer.InitializeSchemaAsync(_options.Schema, cancellationToken).ConfigureAwait(false);
         }
 
         // Create table
@@ -109,6 +119,8 @@ public class PostgreSqlOutboxStorage : IExternalOutboxStorage
                 retry_count INTEGER NOT NULL DEFAULT 0,
                 max_retries INTEGER NOT NULL DEFAULT 3,
                 retry_delay_ms BIGINT,
+                destination_type VARCHAR(16),
+                routing_key VARCHAR(255),
                 created_at TIMESTAMPTZ NOT NULL,
                 processed_at TIMESTAMPTZ,
                 next_retry_at TIMESTAMPTZ,
@@ -118,6 +130,8 @@ public class PostgreSqlOutboxStorage : IExternalOutboxStorage
             );
 
             ALTER TABLE {_tableName} ADD COLUMN IF NOT EXISTS retry_delay_ms BIGINT;
+            ALTER TABLE {_tableName} ADD COLUMN IF NOT EXISTS destination_type VARCHAR(16);
+            ALTER TABLE {_tableName} ADD COLUMN IF NOT EXISTS routing_key VARCHAR(255);
             ALTER TABLE {_tableName} ADD COLUMN IF NOT EXISTS lease_token UUID;
             ALTER TABLE {_tableName} ADD COLUMN IF NOT EXISTS lease_expires_at TIMESTAMPTZ;
 
@@ -127,14 +141,53 @@ public class PostgreSqlOutboxStorage : IExternalOutboxStorage
             CREATE INDEX IF NOT EXISTS idx_{_options.OutboxTableName}_lease ON {_tableName}(lease_expires_at) WHERE status = 'Processing' AND destination IS NOT NULL;
             """;
 
-        await _schemaInitializer.ExecuteSchemaScriptAsync(createTableSql).ConfigureAwait(false);
+        await _schemaInitializer.ExecuteSchemaScriptAsync(createTableSql, cancellationToken).ConfigureAwait(false);
     }
+
+    private async Task<bool> IsSchemaCompleteAsync(CancellationToken cancellationToken)
+    {
+        const string sql = """
+            SELECT
+                (SELECT COUNT(*) FROM pg_catalog.pg_attribute a
+                 WHERE a.attrelid = to_regclass(@table)
+                   AND a.attname IN ('retry_delay_ms', 'lease_token', 'lease_expires_at', 'destination_type', 'routing_key')
+                   AND NOT a.attisdropped)
+              + (SELECT COUNT(*) FROM pg_catalog.pg_index i
+                 JOIN pg_catalog.pg_class c ON c.oid = i.indexrelid
+                 WHERE i.indrelid = to_regclass(@table) AND c.relname = ANY(@indexes))
+            """;
+
+        var table = _options.OutboxTableName;
+        var indexes = new[] { "status", "next_retry", "created_at", "lease" }
+            .Select(suffix => PostgreSqlSchemaCatalog.ToStoredIdentifier($"idx_{table}_{suffix}"))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        var connection = await _connectionProvider.GetConnectionAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await using var command = new NpgsqlCommand(sql, connection, _connectionProvider.GetTransaction());
+            command.Parameters.AddWithValue("table", _tableName);
+            command.Parameters.AddWithValue("indexes", indexes);
+            var found = Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false), System.Globalization.CultureInfo.InvariantCulture);
+            return found == 5 + indexes.Length;
+        }
+        finally
+        {
+            if (!_connectionProvider.IsSharedConnection)
+            {
+                await connection.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+    }
+
     /// <summary>
     /// Executes add async.
     /// </summary>
 
     public async Task<OutboxEntry> AddAsync(IMessage message, OutboxOptions options, CancellationToken cancellationToken = default)
     {
+        OutboxAddressValidator.Validate(options);
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         var connection = await _connectionProvider.GetConnectionAsync(cancellationToken).ConfigureAwait(false);
         var transaction = _connectionProvider.GetTransaction();
@@ -146,8 +199,8 @@ public class PostgreSqlOutboxStorage : IExternalOutboxStorage
             var now = _timeProvider.GetUtcNow();
 
             var sql = $"""
-                INSERT INTO {_tableName} (id, message_type, payload, destination, status, retry_count, max_retries, retry_delay_ms, created_at)
-                VALUES (@id, @message_type, @payload::jsonb, @destination, @status, @retry_count, @max_retries, @retry_delay_ms, @created_at)
+                INSERT INTO {_tableName} (id, message_type, payload, destination, destination_type, routing_key, status, retry_count, max_retries, retry_delay_ms, created_at)
+                VALUES (@id, @message_type, @payload::jsonb, @destination, @destination_type, @routing_key, @status, @retry_count, @max_retries, @retry_delay_ms, @created_at)
                 """;
 
             using var command = new NpgsqlCommand(sql, connection, transaction);
@@ -155,7 +208,9 @@ public class PostgreSqlOutboxStorage : IExternalOutboxStorage
             var messageType = message.GetType();
             command.Parameters.AddWithValue("message_type", messageType.AssemblyQualifiedName ?? throw new InvalidOperationException("Message type cannot be resolved."));
             command.Parameters.AddWithValue("payload", _jsonSerializer.SerializeToString(message, messageType, _jsonOptionsProvider.GetOptions()));
-            command.Parameters.AddWithValue("destination", (object?)options.Destination ?? DBNull.Value);
+            command.Parameters.AddWithValue("destination", (object?)options.Destination ?? options.Topic ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("destination_type", options.Topic is null ? DBNull.Value : TopicDestinationType);
+            command.Parameters.AddWithValue("routing_key", (object?)options.RoutingKey ?? DBNull.Value);
             command.Parameters.AddWithValue("status", "Pending");
             command.Parameters.AddWithValue("retry_count", 0);
             command.Parameters.AddWithValue("max_retries", options.MaxRetries);
@@ -234,7 +289,7 @@ public class PostgreSqlOutboxStorage : IExternalOutboxStorage
             var whereClause = whereClauses.Count > 0 ? "WHERE " + string.Join(" AND ", whereClauses) : "";
 
             var sql = $"""
-                SELECT id, message_type, payload, destination, status, retry_count, max_retries, created_at, processed_at, next_retry_at, last_error, retry_delay_ms
+                SELECT id, message_type, payload, destination, status, retry_count, max_retries, created_at, processed_at, next_retry_at, last_error, retry_delay_ms, destination_type, routing_key
                 FROM {_tableName}
                 {whereClause}
                 ORDER BY created_at ASC
@@ -271,6 +326,7 @@ public class PostgreSqlOutboxStorage : IExternalOutboxStorage
             ?? throw new InvalidOperationException($"Unable to resolve outbox message type: {messageTypeName}");
         var message = _jsonSerializer.DeserializeFromString(reader.GetString(2), messageType, _jsonOptionsProvider.GetOptions()) as IMessage
             ?? throw new InvalidOperationException($"Unable to deserialize outbox message type: {messageTypeName}");
+        var isTopic = !reader.IsDBNull(12) && reader.GetString(12) == TopicDestinationType;
 
         return new OutboxEntry
         {
@@ -278,7 +334,9 @@ public class PostgreSqlOutboxStorage : IExternalOutboxStorage
             Message = message,
             Options = new OutboxOptions
             {
-                Destination = reader.IsDBNull(3) ? null : reader.GetString(3),
+                Destination = isTopic || reader.IsDBNull(3) ? null : reader.GetString(3),
+                Topic = isTopic ? reader.GetString(3) : null,
+                RoutingKey = reader.IsDBNull(13) ? null : reader.GetString(13),
                 MaxRetries = reader.GetInt32(6),
                 RetryDelay = reader.IsDBNull(11) ? null : TimeSpan.FromMilliseconds(reader.GetInt64(11))
             },
@@ -335,7 +393,8 @@ public class PostgreSqlOutboxStorage : IExternalOutboxStorage
             WHERE entry.id = candidates.id
             RETURNING entry.id, entry.message_type, entry.payload, entry.destination, entry.status,
                       entry.retry_count, entry.max_retries, entry.created_at, entry.processed_at,
-                      entry.next_retry_at, entry.last_error, entry.retry_delay_ms
+                      entry.next_retry_at, entry.last_error, entry.retry_delay_ms,
+                      entry.destination_type, entry.routing_key
             """;
 
         await using var command = new NpgsqlCommand(sql, connection);

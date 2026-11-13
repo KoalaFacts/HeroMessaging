@@ -33,6 +33,10 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
     internal static readonly TimeSpan InitialRetryDelay = TimeSpan.FromMilliseconds(200);
     private readonly CancellationTokenSource _shutdown = new();
     private bool _stopTimedOut;
+    private long _acceptedMessages;
+    private long _processedMessages;
+    private long _duplicateMessages;
+    private long _failedMessages;
     /// <summary>
     /// Represents cleanup task.
     /// </summary>
@@ -71,6 +75,7 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
 
             if (isDuplicate)
             {
+                Interlocked.Increment(ref _duplicateMessages);
                 Logger.LogWarning("Duplicate message detected: {MessageId}. Skipping processing.", message.MessageId);
                 return false;
             }
@@ -81,9 +86,12 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
 
         if (entry == null)
         {
+            Interlocked.Increment(ref _duplicateMessages);
             Logger.LogWarning("Message {MessageId} was rejected as duplicate", message.MessageId);
             return false;
         }
+
+        Interlocked.Increment(ref _acceptedMessages);
 
         if (_inFlight.TryAdd(entry.Id, 0))
         {
@@ -160,17 +168,21 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
 
     public new bool IsRunning => base.IsRunning;
     /// <summary>
-    /// Executes get metrics.
+    /// Gets the counts this processor instance has observed since it was created (they are not persisted and are not shared between hosts).
+    /// Duplicates include messages rejected by the pre-insert check and by storage on insert; the deduplication rate is duplicates divided by
+    /// all incoming messages (duplicates plus accepted). Failed counts dispatch or completion failures after dispatch started (the entry is then marked failed).
     /// </summary>
 
     public IInboxProcessorMetrics GetMetrics()
     {
+        var duplicates = Interlocked.Read(ref _duplicateMessages);
+        var incoming = duplicates + Interlocked.Read(ref _acceptedMessages);
         return new InboxProcessorMetrics
         {
-            ProcessedMessages = 0, // TODO: Track metrics
-            DuplicateMessages = 0,
-            FailedMessages = 0,
-            DeduplicationRate = 0.0
+            ProcessedMessages = Interlocked.Read(ref _processedMessages),
+            DuplicateMessages = duplicates,
+            FailedMessages = Interlocked.Read(ref _failedMessages),
+            DeduplicationRate = incoming == 0 ? 0.0 : (double)duplicates / incoming
         };
     }
     /// <summary>
@@ -268,6 +280,7 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
             await ScopedMessagingExecutor.DispatchAsync(_serviceProvider, entry.Message, Logger, "inbox", _shutdown.Token);
 
             await _inboxStorage.MarkProcessedAsync(entry.Id);
+            Interlocked.Increment(ref _processedMessages);
             _transientFailures.TryRemove(entry.Id, out _);
 
             Logger.LogInformation("Inbox entry {EntryId} (Message: {MessageId}) processed successfully from source {Source}",
@@ -293,6 +306,7 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
         }
         catch (Exception ex)
         {
+            Interlocked.Increment(ref _failedMessages);
             _transientFailures.TryRemove(entry.Id, out _);
             Logger.LogError(ex, "Error processing inbox entry {EntryId} (Message: {MessageId})",
                 entry.Id, entry.Message.MessageId);
@@ -337,10 +351,12 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
     /// <summary>
     /// Leaves an entry pending for another attempt when the failure is transient
     /// (not classified as permanent by <see cref="DefaultIdempotencyPolicy"/>) and attempts remain.
+    /// The root cause is classified, so an event handler failure wrapped by the dispatcher
+    /// (<c>[HM-DISPATCH-EVENT-HANDLER]</c>) is retried when the handler's own exception is transient.
     /// </summary>
     private bool TryScheduleRetry(InboxEntry entry, Exception exception)
     {
-        if (FailureClassifier.IsIdempotentFailure(exception))
+        if (FailureClassifier.IsIdempotentFailure(exception.GetBaseException()))
             return false;
 
         var attempts = _transientFailures.TryGetValue(entry.Id, out var previous) ? previous.Attempts + 1 : 1;
