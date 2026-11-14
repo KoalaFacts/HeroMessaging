@@ -166,7 +166,7 @@ public sealed class PostgreSqlInboxRecoveryTests : PostgreSqlIntegrationTestBase
                 await Task.Delay(TimeSpan.FromMilliseconds(100), timeout.Token);
             await hosted.StopAsync(cancellationToken);
 
-            Assert.Equal(InboxStatus.Processed, persisted?.Status);
+            Assert.Equal(InboxStatus.Processed, persisted.Status);
             Assert.Equal(2, calls);
         }
         finally

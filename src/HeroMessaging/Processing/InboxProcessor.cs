@@ -336,11 +336,8 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
     /// </summary>
     internal void PruneStaleTransientFailures(DateTimeOffset olderThan)
     {
-        foreach (var pair in _transientFailures)
-        {
-            if (pair.Value.NotBefore < olderThan)
-                _transientFailures.TryRemove(pair.Key, out _);
-        }
+        foreach (var pair in _transientFailures.Where(pair => pair.Value.NotBefore < olderThan))
+            _transientFailures.TryRemove(pair.Key, out _);
     }
 
     internal int TransientFailureCount => _transientFailures.Count;
