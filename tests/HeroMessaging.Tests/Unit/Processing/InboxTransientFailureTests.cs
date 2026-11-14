@@ -13,7 +13,7 @@ using Xunit;
 namespace HeroMessaging.Tests.Unit.Processing;
 
 /// <summary>
-/// R5 step 2 (F08): a transient handler failure must not permanently fail a durable Inbox entry.
+/// R5 step 5 (F08): a transient handler failure must not permanently fail a durable Inbox entry.
 /// </summary>
 [Trait("Category", "Unit")]
 public sealed class InboxTransientFailureTests
@@ -56,6 +56,34 @@ public sealed class InboxTransientFailureTests
             {
                 Interlocked.Increment(ref calls);
                 return Task.FromException(new ArgumentException("invalid order"));
+            });
+
+        using var services = new ServiceCollection().AddSingleton(messaging.Object).BuildServiceProvider();
+        await using var processor = new InboxProcessor(storage, services, NullLogger<InboxProcessor>.Instance, TimeProvider.System);
+        var command = new InboxProcessorTests.TestCommand();
+
+        await processor.StartAsync(TestContext.Current.CancellationToken);
+        Assert.True(await processor.ProcessIncomingAsync(command, cancellationToken: TestContext.Current.CancellationToken));
+
+        var entry = await WaitForTerminalAsync(storage, command.MessageId.ToString(), InboxStatus.Failed, TimeSpan.FromSeconds(20));
+        await processor.StopAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(InboxStatus.Failed, entry?.Status);
+        Assert.Equal(1, calls);
+    }
+
+    [Fact]
+    public async Task ProcessWorkItem_PermanentFailureWrappingTransientCause_EntryEndsFailedAfterOneAttempt()
+    {
+        var storage = new InMemoryInboxStorage(TimeProvider.System);
+        var calls = 0;
+        var messaging = new Mock<IHeroMessaging>();
+        messaging
+            .Setup(m => m.SendAsync(It.IsAny<ICommand>(), It.IsAny<CancellationToken>()))
+            .Returns(() =>
+            {
+                Interlocked.Increment(ref calls);
+                return Task.FromException(new InvalidOperationException("order already shipped", new TimeoutException("lookup timed out")));
             });
 
         using var services = new ServiceCollection().AddSingleton(messaging.Object).BuildServiceProvider();

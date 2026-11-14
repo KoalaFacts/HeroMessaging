@@ -351,12 +351,13 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
     /// <summary>
     /// Leaves an entry pending for another attempt when the failure is transient
     /// (not classified as permanent by <see cref="DefaultIdempotencyPolicy"/>) and attempts remain.
-    /// The root cause is classified, so an event handler failure wrapped by the dispatcher
-    /// (<c>[HM-DISPATCH-EVENT-HANDLER]</c>) is retried when the handler's own exception is transient.
+    /// An event handler failure wrapped by the dispatcher (<c>[HM-DISPATCH-EVENT-HANDLER]</c>) is classified
+    /// by the handler's own exception; any other exception is classified as thrown, so a permanent
+    /// exception that wraps a transient cause still fails at once.
     /// </summary>
     private bool TryScheduleRetry(InboxEntry entry, Exception exception)
     {
-        if (FailureClassifier.IsIdempotentFailure(exception.GetBaseException()))
+        if (FailureClassifier.IsIdempotentFailure(UnwrapDispatcherFailure(exception)))
             return false;
 
         var attempts = _transientFailures.TryGetValue(entry.Id, out var previous) ? previous.Attempts + 1 : 1;
@@ -370,6 +371,14 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
             entry.Id, attempts, MaxHandlerAttempts, delay);
         return true;
     }
+
+    private static Exception UnwrapDispatcherFailure(Exception exception) =>
+        exception is InvalidOperationException { InnerException: { } inner } wrapper
+            && wrapper.Message.StartsWith(DispatcherEventHandlerFailurePrefix, StringComparison.Ordinal)
+            ? inner
+            : exception;
+
+    private const string DispatcherEventHandlerFailurePrefix = "[HM-DISPATCH-EVENT-HANDLER]";
 
     private readonly record struct TransientFailureState(int Attempts, DateTimeOffset NotBefore);
 
