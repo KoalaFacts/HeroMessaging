@@ -374,11 +374,9 @@ public class InboxProcessor : PollingBackgroundServiceBase<InboxEntry>, IInboxPr
 
     private static Exception UnwrapDispatcherFailure(Exception exception) =>
         exception is InvalidOperationException { InnerException: { } inner } wrapper
-            && wrapper.Message.StartsWith(DispatcherEventHandlerFailurePrefix, StringComparison.Ordinal)
+            && wrapper.Message.StartsWith(MessageDispatcher.EventHandlerFailurePrefix, StringComparison.Ordinal)
             ? inner
             : exception;
-
-    private const string DispatcherEventHandlerFailurePrefix = "[HM-DISPATCH-EVENT-HANDLER]";
 
     private readonly record struct TransientFailureState(int Attempts, DateTimeOffset NotBefore);
 
