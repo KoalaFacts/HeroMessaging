@@ -111,6 +111,22 @@ public sealed class OutboxProcessorMetricsTests
     }
 
     [Fact]
+    public async Task ExternalSendFailsAndRetryStateCannotBeStored_StillCountsFailedAttempt()
+    {
+        var storage = ExternalStorageClaimingOnce(out var entry, out var token);
+        storage.Setup(s => s.RetryExternalAsync(entry.Id, token, 1, It.IsAny<DateTimeOffset>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("database unavailable"));
+        var transport = ConnectedTransport();
+        transport.Setup(t => t.SendConfirmedAsync(It.IsAny<TransportAddress>(), It.IsAny<TransportEnvelope>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("broker unavailable"));
+
+        var metrics = await RunExternalUntilAsync(storage, transport, m => m.FailedMessages == 1);
+
+        Assert.Equal(1, metrics.FailedMessages);
+        Assert.Equal(0, metrics.ProcessedMessages);
+    }
+
+    [Fact]
     public async Task ExternalLeaseLostAfterSend_IsNotCountedAsProcessed()
     {
         var storage = ExternalStorageClaimingOnce(out var entry, out var token);

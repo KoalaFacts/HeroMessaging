@@ -103,10 +103,20 @@ internal sealed class ExternalOutboxDelivery(
             logger.LogError(ex, "External outbox delivery failed for {EntryId}", entry.Id);
 
             var retryCount = entry.RetryCount + 1;
-            var updated = retryCount >= entry.Options.MaxRetries
-                ? await storage.FailExternalAsync(entry.Id, token, retryCount, ex.Message).ConfigureAwait(false)
-                : await storage.RetryExternalAsync(entry.Id, token, retryCount,
-                    timeProvider.GetUtcNow().Add(entry.Options.RetryDelay ?? RetryDelayCalculator.CalculateWithoutJitter(retryCount)), ex.Message).ConfigureAwait(false);
+            bool updated;
+            try
+            {
+                updated = retryCount >= entry.Options.MaxRetries
+                    ? await storage.FailExternalAsync(entry.Id, token, retryCount, ex.Message).ConfigureAwait(false)
+                    : await storage.RetryExternalAsync(entry.Id, token, retryCount,
+                        timeProvider.GetUtcNow().Add(entry.Options.RetryDelay ?? RetryDelayCalculator.CalculateWithoutJitter(retryCount)), ex.Message).ConfigureAwait(false);
+            }
+            catch (Exception recordError)
+            {
+                // The send still failed: report it as a failed attempt even though its retry state was not stored.
+                logger.LogError(recordError, "External outbox state could not be updated for {EntryId}; its lease will expire for retry", entry.Id);
+                return ExternalDeliveryOutcome.Failed;
+            }
             if (!updated)
                 logger.LogWarning("Outbox lease for {EntryId} was lost before failure could be recorded", entry.Id);
             return ExternalDeliveryOutcome.Failed;
