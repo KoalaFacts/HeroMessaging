@@ -152,7 +152,16 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOu
     private void RecordProcessed()
     {
         Interlocked.Increment(ref _processedMessages);
-        Interlocked.Exchange(ref _lastProcessedTicks, _timeProvider.GetUtcNow().UtcTicks);
+        var ticks = _timeProvider.GetUtcNow().UtcTicks;
+        // Keep the latest time when concurrent deliveries finish out of order.
+        var seen = Interlocked.Read(ref _lastProcessedTicks);
+        while (seen < ticks)
+        {
+            var previous = Interlocked.CompareExchange(ref _lastProcessedTicks, ticks, seen);
+            if (previous == seen)
+                break;
+            seen = previous;
+        }
     }
 
     private void RecordFailedAttempt() => Interlocked.Increment(ref _failedMessages);
@@ -279,8 +288,8 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOu
 
             await ScopedMessagingExecutor.DispatchAsync(_serviceProvider, entry.Message, Logger, "outbox", _shutdown.Token);
 
-            await _outboxStorage.MarkProcessedAsync(entry.Id);
-            RecordProcessed();
+            if (await _outboxStorage.MarkProcessedAsync(entry.Id))
+                RecordProcessed();
 
             Logger.LogInformation("Outbox entry {EntryId} processed successfully", entry.Id);
         }

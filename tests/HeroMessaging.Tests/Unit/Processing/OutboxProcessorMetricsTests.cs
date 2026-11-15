@@ -40,6 +40,26 @@ public sealed class OutboxProcessorMetricsTests
     }
 
     [Fact]
+    public async Task LocalEntryStorageReportsMissing_IsNotCountedAsProcessed()
+    {
+        var storage = LocalStorageReturningOnce(out var entry);
+        var marked = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        storage.Setup(s => s.MarkProcessedAsync(entry.Id, It.IsAny<CancellationToken>()))
+            .Callback(() => marked.TrySetResult())
+            .ReturnsAsync(false);
+        var messaging = new Mock<IHeroMessaging>();
+        messaging.Setup(m => m.PublishAndWaitAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IEvent @event, CancellationToken _) =>
+                new EventPublishReceipt(@event.MessageId, [new EventHandlerReceipt(typeof(string), EventHandlerStatus.Succeeded)]));
+
+        var metrics = await RunLocalUntilAsync(storage, messaging, _ => marked.Task.IsCompleted);
+
+        Assert.True(marked.Task.IsCompleted);
+        Assert.Equal(0, metrics.ProcessedMessages);
+        Assert.Null(metrics.LastProcessedTime);
+    }
+
+    [Fact]
     public async Task LocalEntryDispatchThrows_CountsFailedAttemptAndNotProcessed()
     {
         var storage = LocalStorageReturningOnce(out var entry);
