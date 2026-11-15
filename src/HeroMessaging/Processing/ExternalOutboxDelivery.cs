@@ -111,7 +111,7 @@ internal sealed class ExternalOutboxDelivery(
                     : await storage.RetryExternalAsync(entry.Id, token, retryCount,
                         timeProvider.GetUtcNow().Add(entry.Options.RetryDelay ?? RetryDelayCalculator.CalculateWithoutJitter(retryCount)), ex.Message).ConfigureAwait(false);
             }
-            catch (Exception recordError)
+            catch (Exception recordError) when (!ErrorClassifier.IsCritical(recordError))
             {
                 // The send still failed: report it as a failed attempt even though its retry state was not stored.
                 logger.LogError(recordError, "External outbox state could not be updated for {EntryId}; its lease will expire for retry", entry.Id);
