@@ -14,6 +14,11 @@ namespace HeroMessaging.Utilities;
 internal static class MessageDispatcher
 {
     /// <summary>
+    /// Message prefix of the exception thrown when an event handler did not complete successfully.
+    /// </summary>
+    internal const string EventHandlerFailurePrefix = "[HM-DISPATCH-EVENT-HANDLER]";
+
+    /// <summary>
     /// Dispatches a message to the appropriate handler via IHeroMessaging.
     /// </summary>
     /// <param name="messaging">The messaging service to dispatch through.</param>
@@ -43,7 +48,7 @@ internal static class MessageDispatcher
                     ? await publisher.PublishAndWaitWithHandlerCancellationAsync(@event, cancellationToken).ConfigureAwait(false)
                     : await messaging.PublishAndWaitAsync(@event, cancellationToken).ConfigureAwait(false))
                     ?? throw new InvalidOperationException(
-                        $"[HM-DISPATCH-EVENT-HANDLER] Event {@event.GetType().Name} ({@event.MessageId}) from {source ?? "processor"} " +
+                        $"{EventHandlerFailurePrefix} Event {@event.GetType().Name} ({@event.MessageId}) from {source ?? "processor"} " +
                         "returned no publish receipt. Use an IHeroMessaging implementation whose PublishAndWaitAsync returns a receipt.");
                 if (!receipt.Success)
                     throw CreateHandlerFailure(@event, receipt, source);
@@ -65,7 +70,7 @@ internal static class MessageDispatcher
         var inner = failed.Select(handler => handler.Result?.Exception).FirstOrDefault(exception => exception is not null);
 
         return new InvalidOperationException(
-            $"[HM-DISPATCH-EVENT-HANDLER] Event {@event.GetType().Name} ({@event.MessageId}) from {source ?? "processor"} " +
+            $"{EventHandlerFailurePrefix} Event {@event.GetType().Name} ({@event.MessageId}) from {source ?? "processor"} " +
             $"was not handled successfully: {details}. Fix the failing handler; the entry is retried or marked failed by the {source ?? "processor"} policy.",
             inner);
     }
