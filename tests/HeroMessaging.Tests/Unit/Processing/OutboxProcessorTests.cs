@@ -454,7 +454,7 @@ public sealed class OutboxProcessorTests : IDisposable
     #region Metrics
 
     [Fact]
-    public void GetMetrics_ReturnsMetrics()
+    public void GetMetrics_BeforeAnyDelivery_ReportsZeroCountsAndNoLastProcessedTime()
     {
         // Arrange
         var processor = CreateProcessor();
@@ -467,7 +467,7 @@ public sealed class OutboxProcessorTests : IDisposable
         Assert.Equal(0, metrics.PendingMessages);
         Assert.Equal(0, metrics.ProcessedMessages);
         Assert.Equal(0, metrics.FailedMessages);
-        Assert.NotNull(metrics.LastProcessedTime);
+        Assert.Null(metrics.LastProcessedTime); // nothing processed yet
     }
 
     #endregion

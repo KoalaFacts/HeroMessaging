@@ -27,6 +27,9 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOu
     private bool _fastExternalPoll; // Latched for the current poll, even if a delivery finishes before delay selection.
     private long _lastLocalPoll;
     private bool _hasPolledLocal;
+    private long _processedMessages;
+    private long _failedMessages;
+    private long _lastProcessedTicks; // UtcTicks of the last successful delivery; 0 until one succeeds.
     /// <summary>
     /// Represents service provider.
     /// </summary>
@@ -126,19 +129,33 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOu
 
     ValueTask IAsyncDisposable.DisposeAsync() => DisposeAsync();
     /// <summary>
-    /// Executes get metrics.
+    /// Gets the counts this processor instance has observed since it was created (they are not persisted and are not shared between hosts).
+    /// Processed counts entries this processor delivered and marked processed (for an external entry: the transport confirmed the send and
+    /// the entry was completed under this processor's lease). Failed counts every failed delivery attempt, including attempts that are
+    /// retried later. <see cref="IOutboxProcessorMetrics.LastProcessedTime"/> is <see langword="null"/> until the first success.
+    /// <see cref="IOutboxProcessorMetrics.PendingMessages"/> is not tracked by the processor and is always 0; use
+    /// <see cref="IOutboxStorage.GetPendingCountAsync"/> for the stored backlog.
     /// </summary>
 
     public IOutboxProcessorMetrics GetMetrics()
     {
+        var lastProcessedTicks = Interlocked.Read(ref _lastProcessedTicks);
         return new OutboxProcessorMetrics
         {
-            PendingMessages = 0, // TODO: Track metrics
-            ProcessedMessages = 0,
-            FailedMessages = 0,
-            LastProcessedTime = _timeProvider.GetUtcNow()
+            PendingMessages = 0,
+            ProcessedMessages = Interlocked.Read(ref _processedMessages),
+            FailedMessages = Interlocked.Read(ref _failedMessages),
+            LastProcessedTime = lastProcessedTicks == 0 ? null : new DateTimeOffset(lastProcessedTicks, TimeSpan.Zero)
         };
     }
+
+    private void RecordProcessed()
+    {
+        Interlocked.Increment(ref _processedMessages);
+        Interlocked.Exchange(ref _lastProcessedTicks, _timeProvider.GetUtcNow().UtcTicks);
+    }
+
+    private void RecordFailedAttempt() => Interlocked.Increment(ref _failedMessages);
     /// <summary>
     /// Represents the outbox processor metrics type.
     /// </summary>
@@ -230,7 +247,11 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOu
         {
             try
             {
-                await _externalDelivery!.DeliverAsync(entry, token, _shutdown.Token);
+                var outcome = await _externalDelivery!.DeliverAsync(entry, token, _shutdown.Token);
+                if (outcome == ExternalDeliveryOutcome.Delivered)
+                    RecordProcessed();
+                else if (outcome == ExternalDeliveryOutcome.Failed)
+                    RecordFailedAttempt();
             }
             catch (Exception ex)
             {
@@ -245,6 +266,7 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOu
 
         if (IsExternal(entry.Options))
         {
+            RecordFailedAttempt();
             await _outboxStorage.MarkFailedAsync(entry.Id, "External outbox destinations are not supported.");
             Logger.LogError("Outbox entry {EntryId} has an unsupported external destination", entry.Id);
             return;
@@ -258,6 +280,7 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOu
             await ScopedMessagingExecutor.DispatchAsync(_serviceProvider, entry.Message, Logger, "outbox", _shutdown.Token);
 
             await _outboxStorage.MarkProcessedAsync(entry.Id);
+            RecordProcessed();
 
             Logger.LogInformation("Outbox entry {EntryId} processed successfully", entry.Id);
         }
@@ -268,6 +291,7 @@ public class OutboxProcessor : PollingBackgroundServiceBase<OutboxWorkItem>, IOu
         catch (Exception ex)
         {
             Logger.LogError(ex, "Error processing outbox entry {EntryId}", entry.Id);
+            RecordFailedAttempt();
 
             entry.RetryCount++;
 
