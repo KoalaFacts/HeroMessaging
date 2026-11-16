@@ -8,6 +8,17 @@ using Microsoft.Extensions.Logging;
 
 namespace HeroMessaging.Processing;
 
+/// <summary>What one external delivery attempt achieved, for processor metrics.</summary>
+internal enum ExternalDeliveryOutcome
+{
+    /// <summary>No send was attempted or its result could not be recorded (shutdown, lost lease).</summary>
+    NotCompleted,
+    /// <summary>The transport confirmed the send and this worker completed the entry under its lease.</summary>
+    Delivered,
+    /// <summary>The send or its preparation threw; the entry was scheduled for retry or marked failed.</summary>
+    Failed
+}
+
 internal sealed class ExternalOutboxDelivery(
     IExternalOutboxStorage storage,
     IConfirmedQueueTransport transport,
@@ -33,20 +44,20 @@ internal sealed class ExternalOutboxDelivery(
         return publisher.PublishConfirmedAsync(TransportAddress.Topic(options.Topic), envelope, cancellationToken);
     }
 
-    public async Task DeliverAsync(OutboxEntry entry, Guid token, CancellationToken shutdown)
+    public async Task<ExternalDeliveryOutcome> DeliverAsync(OutboxEntry entry, Guid token, CancellationToken shutdown)
     {
         if (shutdown.IsCancellationRequested)
         {
             if (!await storage.RetryExternalAsync(entry.Id, token, entry.RetryCount, timeProvider.GetUtcNow(),
                     "Delivery interrupted by shutdown").ConfigureAwait(false))
                 logger.LogWarning("Outbox lease for {EntryId} was lost during shutdown", entry.Id);
-            return;
+            return ExternalDeliveryOutcome.NotCompleted;
         }
 
         if (!await storage.RenewExternalAsync(entry.Id, token, LeaseDuration).ConfigureAwait(false))
         {
             logger.LogWarning("Outbox lease for {EntryId} was lost before delivery started", entry.Id);
-            return;
+            return ExternalDeliveryOutcome.NotCompleted;
         }
 
         using var delivery = CancellationTokenSource.CreateLinkedTokenSource(shutdown);
@@ -71,8 +82,10 @@ internal sealed class ExternalOutboxDelivery(
 
             await delivery.CancelAsync().ConfigureAwait(false);
             await renewal.ConfigureAwait(false);
-            if (!await storage.CompleteExternalAsync(entry.Id, token).ConfigureAwait(false))
-                logger.LogWarning("Outbox lease for {EntryId} expired after transport delivery; a duplicate may be retried", entry.Id);
+            if (await storage.CompleteExternalAsync(entry.Id, token).ConfigureAwait(false))
+                return ExternalDeliveryOutcome.Delivered;
+            logger.LogWarning("Outbox lease for {EntryId} expired after transport delivery; a duplicate may be retried", entry.Id);
+            return ExternalDeliveryOutcome.NotCompleted;
         }
         catch (OperationCanceledException) when (shutdown.IsCancellationRequested)
         {
@@ -81,6 +94,7 @@ internal sealed class ExternalOutboxDelivery(
             if (!await storage.RetryExternalAsync(entry.Id, token, entry.RetryCount, timeProvider.GetUtcNow(),
                     "Delivery interrupted by shutdown").ConfigureAwait(false))
                 logger.LogWarning("Outbox lease for {EntryId} was lost during shutdown", entry.Id);
+            return ExternalDeliveryOutcome.NotCompleted;
         }
         catch (Exception ex)
         {
@@ -89,12 +103,23 @@ internal sealed class ExternalOutboxDelivery(
             logger.LogError(ex, "External outbox delivery failed for {EntryId}", entry.Id);
 
             var retryCount = entry.RetryCount + 1;
-            var updated = retryCount >= entry.Options.MaxRetries
-                ? await storage.FailExternalAsync(entry.Id, token, retryCount, ex.Message).ConfigureAwait(false)
-                : await storage.RetryExternalAsync(entry.Id, token, retryCount,
-                    timeProvider.GetUtcNow().Add(entry.Options.RetryDelay ?? RetryDelayCalculator.CalculateWithoutJitter(retryCount)), ex.Message).ConfigureAwait(false);
+            bool updated;
+            try
+            {
+                updated = retryCount >= entry.Options.MaxRetries
+                    ? await storage.FailExternalAsync(entry.Id, token, retryCount, ex.Message).ConfigureAwait(false)
+                    : await storage.RetryExternalAsync(entry.Id, token, retryCount,
+                        timeProvider.GetUtcNow().Add(entry.Options.RetryDelay ?? RetryDelayCalculator.CalculateWithoutJitter(retryCount)), ex.Message).ConfigureAwait(false);
+            }
+            catch (Exception recordError) when (!ErrorClassifier.IsCritical(recordError))
+            {
+                // The send still failed: report it as a failed attempt even though its retry state was not stored.
+                logger.LogError(recordError, "External outbox state could not be updated for {EntryId}; its lease will expire for retry", entry.Id);
+                return ExternalDeliveryOutcome.Failed;
+            }
             if (!updated)
                 logger.LogWarning("Outbox lease for {EntryId} was lost before failure could be recorded", entry.Id);
+            return ExternalDeliveryOutcome.Failed;
         }
         finally
         {
