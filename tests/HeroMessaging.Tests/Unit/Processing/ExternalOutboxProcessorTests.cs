@@ -209,8 +209,9 @@ public sealed class ExternalOutboxProcessorTests
                 It.IsAny<CancellationToken>()))
             .Returns(async (TransportAddress _, TransportEnvelope _, CancellationToken cancellationToken) =>
             {
-                sending.TrySetResult();
+                // Publish the token before signalling: the test thread reads it as soon as 'sending' completes.
                 deliveryToken = cancellationToken;
+                sending.TrySetResult();
                 try
                 {
                     await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
