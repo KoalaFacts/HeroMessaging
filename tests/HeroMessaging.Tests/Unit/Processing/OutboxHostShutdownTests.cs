@@ -25,8 +25,9 @@ public sealed class OutboxHostShutdownTests
         messaging.Setup(service => service.PublishAndWaitAsync(It.IsAny<IEvent>(), It.IsAny<CancellationToken>()))
             .Returns(async (IEvent @event, CancellationToken cancellationToken) =>
             {
-                entered.TrySetResult();
+                // Publish the token before signalling: the test thread reads it as soon as 'entered' completes.
                 handlerToken = cancellationToken;
+                entered.TrySetResult();
                 await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
                 return new EventPublishReceipt(@event.MessageId, []);
             });
