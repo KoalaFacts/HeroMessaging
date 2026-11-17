@@ -1,4 +1,5 @@
 using System.Runtime.ExceptionServices;
+using System.Text.Json;
 using HeroMessaging.Abstractions.Commands;
 using HeroMessaging.Abstractions.Idempotency;
 using HeroMessaging.Abstractions.Messages;
@@ -19,17 +20,20 @@ namespace HeroMessaging.Processing;
 /// When an <see cref="IIdempotencyStore"/> and an <see cref="IIdempotencyPolicy"/> are registered (for example by
 /// <c>WithIdempotency()</c>), commands without a response are deduplicated per handler with keys
 /// <c>{configured key}:handler:{handler type}</c>: a redelivered command is not handled again, a cached idempotent
-/// failure is rethrown, and transient failures and cancellations are not cached. Commands with a response are not
-/// deduplicated yet.
+/// failure is rethrown, and transient failures and cancellations are not cached. Commands with a response are
+/// deduplicated the same way and a redelivery returns the cached response; a response read back from a durable store
+/// as JSON is converted to the response type with the registered <see cref="IJsonSerializer"/>.
 /// </remarks>
 public class CommandProcessor : ICommandProcessor, IProcessor, IAsyncDisposable
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<CommandProcessor> _logger;
     private readonly TimeProvider _timeProvider;
+    private static readonly JsonSerializerOptions CachedResponseJsonOptions = new() { PropertyNameCaseInsensitive = true };
     private readonly SemaphoreSlim _processingLock = new(1, 1);
     private readonly ProcessorMetricsCollector _metrics;
     private readonly IdempotencyDecorator? _idempotency;
+    private readonly IdempotencyDecorator? _responseIdempotency;
     private volatile bool _isRunning = true;
     /// <summary>
     /// Gets is running.
@@ -46,7 +50,10 @@ public class CommandProcessor : ICommandProcessor, IProcessor, IAsyncDisposable
         _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<CommandProcessor>.Instance;
         _timeProvider = timeProvider ?? TimeProvider.System;
         _metrics = new ProcessorMetricsCollector(_timeProvider);
-        _idempotency = CreateIdempotency(serviceProvider, _timeProvider);
+        _idempotency = CreateIdempotency(serviceProvider, _timeProvider, CommandHandlerStep.Instance);
+        _responseIdempotency = _idempotency is null
+            ? null
+            : CreateIdempotency(serviceProvider, _timeProvider, ResponseCommandHandlerStep.Instance);
     }
     /// <summary>
     /// Executes send async.
@@ -118,7 +125,10 @@ public class CommandProcessor : ICommandProcessor, IProcessor, IAsyncDisposable
         {
             cancellationToken.ThrowIfCancellationRequested();
             var startTime = _timeProvider.GetTimestamp();
-            var result = await invoker.Invoke(handler, command, cancellationToken).ConfigureAwait(false);
+            var result = _responseIdempotency is null
+                ? await invoker.Invoke(handler, command, cancellationToken).ConfigureAwait(false)
+                : await InvokeIdempotentAsync(_responseIdempotency, handler, invoker, command, cancellationToken)
+                    .ConfigureAwait(false);
             var elapsedMs = _timeProvider.GetElapsedTime(startTime).TotalMilliseconds;
 
             _metrics.RecordSuccess((long)elapsedMs);
@@ -139,7 +149,8 @@ public class CommandProcessor : ICommandProcessor, IProcessor, IAsyncDisposable
             _processingLock.Release();
         }
     }
-    private static IdempotencyDecorator? CreateIdempotency(IServiceProvider serviceProvider, TimeProvider timeProvider)
+    private static IdempotencyDecorator? CreateIdempotency(IServiceProvider serviceProvider, TimeProvider timeProvider,
+        IMessageProcessor handlerStep)
     {
         var store = serviceProvider.GetService<IIdempotencyStore>();
         var policy = serviceProvider.GetService<IIdempotencyPolicy>();
@@ -150,7 +161,7 @@ public class CommandProcessor : ICommandProcessor, IProcessor, IAsyncDisposable
 
         var logger = serviceProvider.GetService<ILogger<IdempotencyDecorator>>()
             ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<IdempotencyDecorator>.Instance;
-        return new IdempotencyDecorator(CommandHandlerStep.Instance, new CommitDeferredIdempotencyStore(store),
+        return new IdempotencyDecorator(handlerStep, new CommitDeferredIdempotencyStore(store),
             new HandlerScopedIdempotencyPolicy(policy),
             logger, timeProvider);
     }
@@ -164,6 +175,52 @@ public class CommandProcessor : ICommandProcessor, IProcessor, IAsyncDisposable
         {
             ExceptionDispatchInfo.Capture(result.Exception
                 ?? new InvalidOperationException(result.Message ?? $"Command {command.GetType().Name} failed")).Throw();
+        }
+    }
+
+    private async Task<TResponse> InvokeIdempotentAsync<TResponse>(IdempotencyDecorator idempotency, object handler,
+        CommandHandlerInvokerCache.ResponseInvoker<TResponse> invoker, ICommand<TResponse> command, CancellationToken cancellationToken)
+    {
+        var context = new ProcessingContext(nameof(CommandProcessor))
+        {
+            Handler = new ResponseInvocation<TResponse>(handler, invoker),
+            HandlerType = invoker.HandlerType
+        };
+        var result = await idempotency.ProcessAsync(command, context, cancellationToken).ConfigureAwait(false);
+        if (!result.Success)
+        {
+            ExceptionDispatchInfo.Capture(result.Exception
+                ?? new InvalidOperationException(result.Message ?? $"Command {command.GetType().Name} failed")).Throw();
+        }
+
+        return ConvertResponse<TResponse>(result.Data, command);
+    }
+
+    /// <summary>
+    /// Returns a response produced in this process as is, and converts a cached response that a durable store read
+    /// back as JSON to <typeparamref name="TResponse"/>.
+    /// </summary>
+    private TResponse ConvertResponse<TResponse>(object? data, ICommand<TResponse> command)
+    {
+        switch (data)
+        {
+            case TResponse response:
+                return response;
+            case null:
+                return default!;
+            case JsonElement json:
+                var serializer = _serviceProvider.GetService<IJsonSerializer>()
+                    ?? throw new InvalidOperationException(
+                        $"[HM-IDEMPOTENCY-RESPONSE] The cached response for command {command.GetType().Name} " +
+                        $"(message {command.MessageId}) is JSON, but no {nameof(IJsonSerializer)} is registered to convert it " +
+                        $"to {typeof(TResponse).Name}. Register HeroMessaging with AddHeroMessaging(), which adds the default serializer.");
+                return serializer.DeserializeFromString<TResponse>(json.GetRawText(), CachedResponseJsonOptions)!;
+            default:
+                throw new InvalidOperationException(
+                    $"[HM-IDEMPOTENCY-RESPONSE] The cached response for command {command.GetType().Name} " +
+                    $"(message {command.MessageId}) is a {data.GetType().Name}, not a {typeof(TResponse).Name}. " +
+                    "Clear the idempotency record for this message, or make the idempotency store return the stored " +
+                    "response type or its JSON.");
         }
     }
 
@@ -183,6 +240,48 @@ public class CommandProcessor : ICommandProcessor, IProcessor, IAsyncDisposable
             {
                 await invoker.Invoke(context.Handler!, (ICommand)message, cancellationToken).ConfigureAwait(false);
                 return ProcessingResult.Successful();
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex) when (!ErrorClassifier.IsCritical(ex))
+            {
+                return ProcessingResult.Failed(ex);
+            }
+        }
+    }
+
+    /// <summary>The handler and its typed invoker for one command with a response.</summary>
+    private interface IResponseInvocation
+    {
+        Task<object?> InvokeAsync(ICommand command, CancellationToken cancellationToken);
+    }
+
+    private sealed class ResponseInvocation<TResponse>(object handler, CommandHandlerInvokerCache.ResponseInvoker<TResponse> invoker)
+        : IResponseInvocation
+    {
+        public async Task<object?> InvokeAsync(ICommand command, CancellationToken cancellationToken) =>
+            await invoker.Invoke(handler, (ICommand<TResponse>)command, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Runs a command handler that returns a response for the idempotency decorator; the response becomes the
+    /// result's data so the decorator caches it. Failures and cancellation are handled as for
+    /// <see cref="CommandHandlerStep"/>.
+    /// </summary>
+    private sealed class ResponseCommandHandlerStep : IMessageProcessor
+    {
+        public static readonly ResponseCommandHandlerStep Instance = new();
+
+        public async ValueTask<ProcessingResult> ProcessAsync(IMessage message, ProcessingContext context,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var response = await ((IResponseInvocation)context.Handler!)
+                    .InvokeAsync((ICommand)message, cancellationToken).ConfigureAwait(false);
+                return ProcessingResult.Successful(data: response);
             }
             catch (OperationCanceledException)
             {
