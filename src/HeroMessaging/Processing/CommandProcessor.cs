@@ -29,6 +29,7 @@ public class CommandProcessor : ICommandProcessor, IProcessor, IAsyncDisposable
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<CommandProcessor> _logger;
     private readonly TimeProvider _timeProvider;
+    private const string ResponseInvocationKey = "HeroMessaging.CommandProcessor.ResponseInvocation";
     private static readonly JsonSerializerOptions CachedResponseJsonOptions = new() { PropertyNameCaseInsensitive = true };
     private readonly SemaphoreSlim _processingLock = new(1, 1);
     private readonly ProcessorMetricsCollector _metrics;
@@ -181,11 +182,10 @@ public class CommandProcessor : ICommandProcessor, IProcessor, IAsyncDisposable
     private async Task<TResponse> InvokeIdempotentAsync<TResponse>(IdempotencyDecorator idempotency, object handler,
         CommandHandlerInvokerCache.ResponseInvoker<TResponse> invoker, ICommand<TResponse> command, CancellationToken cancellationToken)
     {
-        var context = new ProcessingContext(nameof(CommandProcessor))
-        {
-            Handler = new ResponseInvocation<TResponse>(handler, invoker),
-            HandlerType = invoker.HandlerType
-        };
+        // The handler itself stays in the context so the idempotency key names the handler type, as for commands
+        // without a response; the typed invoker travels in the metadata.
+        var context = new ProcessingContext(nameof(CommandProcessor)) { Handler = handler, HandlerType = invoker.HandlerType }
+            .WithMetadata(ResponseInvocationKey, new ResponseInvocation<TResponse>(handler, invoker));
         var result = await idempotency.ProcessAsync(command, context, cancellationToken).ConfigureAwait(false);
         if (!result.Success)
         {
@@ -214,7 +214,18 @@ public class CommandProcessor : ICommandProcessor, IProcessor, IAsyncDisposable
                         $"[HM-IDEMPOTENCY-RESPONSE] The cached response for command {command.GetType().Name} " +
                         $"(message {command.MessageId}) is JSON, but no {nameof(IJsonSerializer)} is registered to convert it " +
                         $"to {typeof(TResponse).Name}. Register HeroMessaging with AddHeroMessaging(), which adds the default serializer.");
-                return serializer.DeserializeFromString<TResponse>(json.GetRawText(), CachedResponseJsonOptions)!;
+                try
+                {
+                    return serializer.DeserializeFromString<TResponse>(json.GetRawText(), CachedResponseJsonOptions)!;
+                }
+                catch (Exception ex) when (ex is JsonException or NotSupportedException)
+                {
+                    throw new InvalidOperationException(
+                        $"[HM-IDEMPOTENCY-RESPONSE] The cached response for command {command.GetType().Name} " +
+                        $"(message {command.MessageId}) could not be converted from JSON to {typeof(TResponse).Name}: {ex.Message} " +
+                        "Use a response type that round-trips through System.Text.Json (public constructor or settable " +
+                        "properties, no interface or abstract type), or clear the idempotency record for this message.", ex);
+                }
             default:
                 throw new InvalidOperationException(
                     $"[HM-IDEMPOTENCY-RESPONSE] The cached response for command {command.GetType().Name} " +
@@ -279,7 +290,7 @@ public class CommandProcessor : ICommandProcessor, IProcessor, IAsyncDisposable
         {
             try
             {
-                var response = await ((IResponseInvocation)context.Handler!)
+                var response = await context.GetMetadataReference<IResponseInvocation>(ResponseInvocationKey)!
                     .InvokeAsync((ICommand)message, cancellationToken).ConfigureAwait(false);
                 return ProcessingResult.Successful(data: response);
             }

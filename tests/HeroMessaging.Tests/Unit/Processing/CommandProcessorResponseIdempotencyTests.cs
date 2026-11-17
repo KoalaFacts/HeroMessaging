@@ -129,8 +129,60 @@ public sealed class CommandProcessorResponseIdempotencyTests
         Assert.Contains(nameof(PaymentAuthorization), error.Message);
     }
 
+    [Fact]
+    public async Task SendAsyncWithResponse_WithIdempotency_KeyIsScopedToTheCommandHandler()
+    {
+        var counter = new Counter();
+        using var provider = BuildProvider(counter, withIdempotency: true);
+        await using var processor = new CommandProcessor(provider, NullLogger<CommandProcessor>.Instance);
+        var store = provider.GetRequiredService<IIdempotencyStore>();
+        var command = new AuthorizePayment { Amount = 42m };
+
+        await processor.SendAsync(command, TestContext.Current.CancellationToken);
+
+        Assert.True(await store.ExistsAsync(
+            $"idempotency:{command.MessageId}:handler:{typeof(AuthorizePaymentHandler).FullName}",
+            TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task SendAsyncWithResponse_DifferentCommandsSharingAMessageIdAndResponseType_RunEachHandler()
+    {
+        var counter = new Counter();
+        using var provider = BuildProvider(counter, withIdempotency: true);
+        await using var processor = new CommandProcessor(provider, NullLogger<CommandProcessor>.Instance);
+        var id = Guid.NewGuid();
+
+        var authorized = await processor.SendAsync(new AuthorizePayment { MessageId = id, Amount = 1m },
+            TestContext.Current.CancellationToken);
+        var refunded = await processor.SendAsync(new RefundPayment { MessageId = id, Amount = 1m },
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, counter.Calls);
+        Assert.StartsWith("auth-", authorized.AuthorizationCode);
+        Assert.StartsWith("refund-", refunded.AuthorizationCode);
+    }
+
+    [Fact]
+    public async Task SendAsyncWithResponse_JsonThatDoesNotFitTheResponseType_ThrowsActionableError()
+    {
+        var counter = new Counter();
+        using var provider = BuildProvider(counter, withIdempotency: true,
+            rewrite: _ => JsonSerializer.SerializeToElement(new[] { 1, 2 }));
+        await using var processor = new CommandProcessor(provider, NullLogger<CommandProcessor>.Instance);
+        var command = new AuthorizePayment { Amount = 42m };
+        await processor.SendAsync(command, TestContext.Current.CancellationToken);
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => processor.SendAsync(command, TestContext.Current.CancellationToken));
+
+        Assert.Equal(1, counter.Calls);
+        Assert.Contains("[HM-IDEMPOTENCY-RESPONSE]", error.Message);
+        Assert.IsType<JsonException>(error.InnerException);
+    }
+
     private static ServiceProvider BuildProvider(Counter counter, bool withIdempotency, bool jsonStore = false,
-        bool wrongTypeStore = false)
+        bool wrongTypeStore = false, Func<object?, object?>? rewrite = null)
     {
         var services = new ServiceCollection();
         services.AddLogging();
@@ -141,6 +193,9 @@ public sealed class CommandProcessorResponseIdempotencyTests
             services.AddSingleton<IIdempotencyStore>(new RewritingStore(r => JsonSerializer.SerializeToElement(r)));
         if (wrongTypeStore)
             services.AddSingleton<IIdempotencyStore>(new RewritingStore(_ => 17));
+        if (rewrite is not null)
+            services.AddSingleton<IIdempotencyStore>(new RewritingStore(rewrite));
+        services.AddSingleton<ICommandHandler<RefundPayment, PaymentAuthorization>, RefundPaymentHandler>();
         if (withIdempotency)
             services.AddHeroMessaging().WithIdempotency();
         return services.BuildServiceProvider();
@@ -174,6 +229,22 @@ public sealed class CommandProcessorResponseIdempotencyTests
         public string? CausationId { get; init; }
         public Dictionary<string, object>? Metadata { get; init; }
         public decimal Amount { get; init; }
+    }
+
+    public sealed record RefundPayment : ICommand<PaymentAuthorization>
+    {
+        public Guid MessageId { get; init; } = Guid.NewGuid();
+        public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
+        public string? CorrelationId { get; init; }
+        public string? CausationId { get; init; }
+        public Dictionary<string, object>? Metadata { get; init; }
+        public decimal Amount { get; init; }
+    }
+
+    public sealed class RefundPaymentHandler(Counter counter) : ICommandHandler<RefundPayment, PaymentAuthorization>
+    {
+        public Task<PaymentAuthorization> HandleAsync(RefundPayment command, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new PaymentAuthorization($"refund-{counter.Hit()}", command.Amount));
     }
 
     public sealed record PaymentAuthorization(string AuthorizationCode, decimal Amount);
