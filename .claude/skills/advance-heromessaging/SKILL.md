@@ -15,14 +15,14 @@ Repo-specific half of the scheduled development task ("HeroMessaging 推进计�
 
 ## Setup
 - Read: `CLAUDE.md`, `CONTRIBUTING.md`, `docs/README.md`, `docs/masstransit-replacement-acceptance.md` (inventory and Roadmap), `docs/adr/`, `docs/audit/`, `docs/testing-guide.md`, the package README of the area, and the last few PR bodies and handoff comments of this task.
-- SDKs (scratch install dir, e.g. `~/.dotnet`): `dotnet-install.sh --channel 10.0` (SDK pinned by `global.json`, `rollForward: latestPatch`) plus `--runtime dotnet --channel 8.0` and `--runtime dotnet --channel 9.0`.
+- SDKs (scratch install dir, e.g. `~/.dotnet`): `dotnet-install.sh --channel 11.0` (SDK pinned by `global.json`, 11.0.100, `rollForward: latestPatch`) plus `--runtime dotnet --channel 8.0`, `9.0` and `10.0` (the core tests run on net8.0–net11.0).
 - Docker images: pull through `mirror.gcr.io` (e.g. `mirror.gcr.io/library/postgres:17`, `mirror.gcr.io/library/rabbitmq:3.13-management`) when Docker Hub is rate-limited.
 - Tests use Microsoft.Testing.Platform (`global.json` `test.runner`): filter with `--filter-trait`, `--filter-not-trait`, `--filter-class`; pass `--project` and `--framework`.
 
 ## Gate
 In order, on the final source (after main is merged in):
 1. `dotnet build HeroMessaging.slnx -c Release -warnaserror` — 0 warnings, 0 errors (also NativeAotConsumer and any project CI builds outside the solution when touched).
-2. Unit tests (`--filter-not-trait Category=Integration`) for every touched test project, and core `tests/HeroMessaging.Tests` on net8.0, net9.0 and net10.0.
+2. Unit tests (`--filter-not-trait Category=Integration`) for every touched test project, and core `tests/HeroMessaging.Tests` on net8.0, net9.0, net10.0 and net11.0.
 3. Integration tests (PostgreSQL, SQL Server, RabbitMQ) for touched areas locally when Docker is available; otherwise the hosted `integration-tests` jobs are the evidence.
 4. Publish and run NativeAotConsumer when dispatch, generators or trimming-relevant code change.
 5. Benchmarks only for performance claims, via the existing workflows or CLAUDE.md's same-harness A/B.
@@ -44,7 +44,7 @@ First route: RabbitMQ + PostgreSQL, two independent processes. Take the first ro
 ## Authority
 - Branch prefixes `fix/`, `feat/`, `test/`, `perf/`, `docs/`, `ci/`; squash merge pinned to the head SHA.
 - First line of every PR body: "Opened by the HeroMessaging scheduled task."
-- Never touch `codex/` branches (e.g. #118), Dependabot PRs or other sessions' work.
+- Open PRs and stray branches of others (owner, Codex, Dependabot, other sessions) are handled only through the open-PR triage of `autonomous-dev` §3 step 0; never overwrite their commits, and leave anything pushed in the last 90 minutes.
 - Never dispatch or re-run `create-release.yml`, `publish-nuget.yml` or any publish workflow. CHANGELOG entries go under `[Unreleased]` only.
 - Merging deploys nothing.
 
