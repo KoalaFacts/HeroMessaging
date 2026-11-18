@@ -182,7 +182,7 @@ The idempotency framework provides exactly-once semantics for at-least-once deli
 
 ### Implementation Status
 - **Phase 1 (Complete)**: Core abstractions, in-memory storage, unit tests
-- **Phase 2 (Partial)**: Configuration API (`WithIdempotency`) and SQL Server/PostgreSQL storage exist with integration tests; `EventBus` applies the decorator through `MessageProcessingPipelineBuilder.UseIdempotency()` with handler-scoped keys, and `CommandProcessor` deduplicates commands with and without a response the same way (a redelivered command with a response returns the cached response); `QueryProcessor` deduplicates queries by message with keys naming the query type; Inbox and transport consumers rely on the Inbox's own deduplication
+- **Phase 2 (Partial)**: Configuration API (`WithIdempotency`) and SQL Server/PostgreSQL storage exist with integration tests; `EventBus` applies the decorator through `MessageProcessingPipelineBuilder.UseIdempotency()` with handler-scoped keys, and `CommandProcessor` deduplicates commands with and without a response the same way (a redelivered command with a response returns the cached response); `QueryProcessor` deduplicates queries by message with keys naming the query type; Inbox and transport consumers are not deduplicated by this framework yet (step 3b-2)
 - **Phase 3 (Planned)**: Advanced key generators, concurrency handling, benchmarks
 - **Phase 4 (Planned)**: Documentation, samples, performance optimization
 

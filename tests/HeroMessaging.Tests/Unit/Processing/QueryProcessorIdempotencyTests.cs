@@ -95,6 +95,23 @@ public sealed class QueryProcessorIdempotencyTests
     }
 
     [Fact]
+    public async Task SendAsync_WithIdempotency_CancelledQueryIsNotCached()
+    {
+        var attempts = 0;
+        var counter = new Counter { Throws = () => ++attempts == 1 ? new OperationCanceledException("cancelled") : null };
+        using var provider = BuildProvider(counter, withIdempotency: true);
+        await using var processor = new QueryProcessor(provider, NullLogger<QueryProcessor>.Instance);
+        var query = new GetBalance { Account = "a" };
+
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            () => processor.SendAsync(query, TestContext.Current.CancellationToken));
+        var redelivered = await processor.SendAsync(query, TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, counter.Calls);
+        Assert.Equal("balance-2", redelivered.Snapshot);
+    }
+
+    [Fact]
     public async Task SendAsync_StoreReturnsJson_ConvertsCachedResponseToResponseType()
     {
         var counter = new Counter();
