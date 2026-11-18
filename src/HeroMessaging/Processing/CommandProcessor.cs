@@ -1,5 +1,4 @@
 using System.Runtime.ExceptionServices;
-using System.Text.Json;
 using HeroMessaging.Abstractions.Commands;
 using HeroMessaging.Abstractions.Idempotency;
 using HeroMessaging.Abstractions.Messages;
@@ -30,7 +29,6 @@ public class CommandProcessor : ICommandProcessor, IProcessor, IAsyncDisposable
     private readonly ILogger<CommandProcessor> _logger;
     private readonly TimeProvider _timeProvider;
     private const string ResponseInvocationKey = "HeroMessaging.CommandProcessor.ResponseInvocation";
-    private static readonly JsonSerializerOptions CachedResponseJsonOptions = new() { PropertyNameCaseInsensitive = true };
     private readonly SemaphoreSlim _processingLock = new(1, 1);
     private readonly ProcessorMetricsCollector _metrics;
     private readonly IdempotencyDecorator? _idempotency;
@@ -196,44 +194,8 @@ public class CommandProcessor : ICommandProcessor, IProcessor, IAsyncDisposable
         return ConvertResponse<TResponse>(result.Data, command);
     }
 
-    /// <summary>
-    /// Returns a response produced in this process as is, and converts a cached response that a durable store read
-    /// back as JSON to <typeparamref name="TResponse"/>.
-    /// </summary>
-    private TResponse ConvertResponse<TResponse>(object? data, ICommand<TResponse> command)
-    {
-        switch (data)
-        {
-            case TResponse response:
-                return response;
-            case null:
-                return default!;
-            case JsonElement json:
-                var serializer = _serviceProvider.GetService<IJsonSerializer>()
-                    ?? throw new InvalidOperationException(
-                        $"[HM-IDEMPOTENCY-RESPONSE] The cached response for command {command.GetType().Name} " +
-                        $"(message {command.MessageId}) is JSON, but no {nameof(IJsonSerializer)} is registered to convert it " +
-                        $"to {typeof(TResponse).Name}. Register HeroMessaging with AddHeroMessaging(), which adds the default serializer.");
-                try
-                {
-                    return serializer.DeserializeFromString<TResponse>(json.GetRawText(), CachedResponseJsonOptions)!;
-                }
-                catch (Exception ex) when (ex is JsonException or NotSupportedException)
-                {
-                    throw new InvalidOperationException(
-                        $"[HM-IDEMPOTENCY-RESPONSE] The cached response for command {command.GetType().Name} " +
-                        $"(message {command.MessageId}) could not be converted from JSON to {typeof(TResponse).Name}: {ex.Message} " +
-                        "Use a response type that round-trips through System.Text.Json (public constructor or settable " +
-                        "properties, no interface or abstract type), or clear the idempotency record for this message.", ex);
-                }
-            default:
-                throw new InvalidOperationException(
-                    $"[HM-IDEMPOTENCY-RESPONSE] The cached response for command {command.GetType().Name} " +
-                    $"(message {command.MessageId}) is a {data.GetType().Name}, not a {typeof(TResponse).Name}. " +
-                    "Clear the idempotency record for this message, or make the idempotency store return the stored " +
-                    "response type or its JSON.");
-        }
-    }
+    private TResponse ConvertResponse<TResponse>(object? data, ICommand<TResponse> command) =>
+        CachedResponseConverter.Convert<TResponse>(data, _serviceProvider, "command", command);
 
     /// <summary>
     /// Runs the command handler for the idempotency decorator. Handler failures become a failed result so the

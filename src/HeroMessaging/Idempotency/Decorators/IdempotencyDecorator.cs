@@ -44,20 +44,23 @@ public sealed class IdempotencyDecorator : MessageProcessorDecorator
     /// instantiate arbitrary types if they have access to the idempotency store.
     /// Only well-known, safe exception types are allowed.
     /// </summary>
-    private static readonly HashSet<string> AllowedExceptionTypes = new(StringComparer.Ordinal)
+    // Allowlisted exception types and how to recreate each one from its cached message. A factory per type instead
+    // of Type.GetType keeps reconstruction trim- and NativeAOT-safe; each uses the same (string) constructor that
+    // reflection selected before.
+    private static readonly Dictionary<string, Func<string?, Exception>> AllowedExceptionTypes = new(StringComparer.Ordinal)
     {
-        typeof(ArgumentException).FullName!,
-        typeof(ArgumentNullException).FullName!,
-        typeof(ArgumentOutOfRangeException).FullName!,
-        typeof(InvalidOperationException).FullName!,
-        typeof(NotSupportedException).FullName!,
-        typeof(NotImplementedException).FullName!,
-        typeof(FormatException).FullName!,
-        typeof(KeyNotFoundException).FullName!,
-        typeof(UnauthorizedAccessException).FullName!,
-        typeof(TimeoutException).FullName!,
-        typeof(OperationCanceledException).FullName!,
-        typeof(TaskCanceledException).FullName!,
+        [typeof(ArgumentException).FullName!] = message => new ArgumentException(message),
+        [typeof(ArgumentNullException).FullName!] = message => new ArgumentNullException(message),
+        [typeof(ArgumentOutOfRangeException).FullName!] = message => new ArgumentOutOfRangeException(message),
+        [typeof(InvalidOperationException).FullName!] = message => new InvalidOperationException(message),
+        [typeof(NotSupportedException).FullName!] = message => new NotSupportedException(message),
+        [typeof(NotImplementedException).FullName!] = message => new NotImplementedException(message),
+        [typeof(FormatException).FullName!] = message => new FormatException(message),
+        [typeof(KeyNotFoundException).FullName!] = message => new KeyNotFoundException(message),
+        [typeof(UnauthorizedAccessException).FullName!] = message => new UnauthorizedAccessException(message),
+        [typeof(TimeoutException).FullName!] = message => new TimeoutException(message),
+        [typeof(OperationCanceledException).FullName!] = message => new OperationCanceledException(message),
+        [typeof(TaskCanceledException).FullName!] = message => new TaskCanceledException(message),
     };
 
     private readonly IIdempotencyStore _store;
@@ -199,27 +202,9 @@ public sealed class IdempotencyDecorator : MessageProcessorDecorator
         {
             // SECURITY: Only allow reconstruction of explicitly allowlisted exception types
             // to prevent arbitrary type instantiation via Type.GetType() with untrusted input
-            if (!string.IsNullOrEmpty(failureType) && AllowedExceptionTypes.Contains(failureType))
+            if (AllowedExceptionTypes.TryGetValue(failureType, out var create))
             {
-                var exceptionType = Type.GetType(failureType);
-
-                if (exceptionType != null && typeof(Exception).IsAssignableFrom(exceptionType))
-                {
-                    // Try to create exception with message constructor
-                    var constructor = exceptionType.GetConstructor([typeof(string)]);
-                    if (constructor != null)
-                    {
-                        exception = (Exception)constructor.Invoke([cachedResponse.FailureMessage]);
-                    }
-                    else
-                    {
-                        // Fall back to parameterless constructor
-                        exception = (Exception?)Activator.CreateInstance(exceptionType)
-                            ?? new Exception(cachedResponse.FailureMessage);
-                    }
-
-                    return ProcessingResult.Failed(exception, "Idempotent cached failure");
-                }
+                return ProcessingResult.Failed(create(cachedResponse.FailureMessage), "Idempotent cached failure");
             }
 
             // For unknown or non-allowlisted exception types, create a safe wrapper
